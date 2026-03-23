@@ -1,50 +1,48 @@
-# Welcome to your Expo app 👋
+# ArcTracker
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+ArcTracker is now structured like a production-ready Expo / React Native codebase: typed routing, shared design tokens, reusable UI primitives, and explicit quality gates.
 
-## Get started
+## Engineering standards
 
-1. Install dependencies
+- **Expo Router as the application shell** for typed, scalable screen composition.
+- **Semantic design tokens** in `constants/theme.ts` to keep spacing, color, and typography decisions centralized.
+- **Reusable themed primitives** in `components/` so product screens stay focused on behavior instead of repeated styling glue.
+- **Strict TypeScript + ESLint** as the default quality gates for every change.
 
-   ```bash
-   npm install
-   ```
+## Project structure
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```text
+app/                 File-based routes and screen entrypoints
+components/          Shared themed UI primitives
+components/ui/       Layout-focused building blocks
+constants/           Design tokens and app-wide constants
+hooks/               Theme and platform-aware hooks
+scripts/             Project automation
+assets/              Images and other static assets
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Scripts
 
-## Learn more
+```bash
+npm run start        # Start Expo
+npm run android      # Start Android target
+npm run ios          # Start iOS target
+npm run web          # Start the web target
+npm run lint         # Run Expo / ESLint checks
+npm run lint:fix     # Auto-fix lint issues when possible
+npm run typecheck    # Run TypeScript without emitting output
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## Working agreements for future features
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+1. Add new routes in `app/`, but move reusable view logic into `components/`.
+2. Prefer semantic colors from `useThemeColor()` or shared tokens over hard-coded hex values.
+3. Keep screens declarative: fetch / derive data above the render tree, and compose with small presentational units.
+4. Run lint and typecheck before committing.
 
-## Join the community
+## Getting started
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+npm install
+npm run start
+```

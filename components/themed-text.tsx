@@ -1,30 +1,40 @@
 import { StyleSheet, Text, type TextProps } from 'react-native';
 
+import { Fonts } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
+
+type ThemeColorName = keyof typeof import('@/constants/theme').Colors.light;
 
 export type ThemedTextProps = TextProps & {
   lightColor?: string;
   darkColor?: string;
-  type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
+  colorName?: ThemeColorName;
+  type?: 'default' | 'defaultSemiBold' | 'subtitle' | 'body' | 'bodySemiBold' | 'caption' | 'eyebrow' | 'title' | 'headline' | 'link';
 };
 
 export function ThemedText({
   style,
   lightColor,
   darkColor,
-  type = 'default',
+  colorName = 'text',
+  type = 'body',
   ...rest
 }: ThemedTextProps) {
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
+  const color = useThemeColor({ light: lightColor, dark: darkColor }, colorName);
 
   return (
     <Text
       style={[
         { color },
-        type === 'default' ? styles.default : undefined,
+        type === 'default' ? styles.body : undefined,
+        type === 'body' ? styles.body : undefined,
+        type === 'defaultSemiBold' ? styles.bodySemiBold : undefined,
+        type === 'bodySemiBold' ? styles.bodySemiBold : undefined,
+        type === 'subtitle' ? styles.headline : undefined,
+        type === 'caption' ? styles.caption : undefined,
+        type === 'eyebrow' ? styles.eyebrow : undefined,
         type === 'title' ? styles.title : undefined,
-        type === 'defaultSemiBold' ? styles.defaultSemiBold : undefined,
-        type === 'subtitle' ? styles.subtitle : undefined,
+        type === 'headline' ? styles.headline : undefined,
         type === 'link' ? styles.link : undefined,
         style,
       ]}
@@ -34,27 +44,46 @@ export function ThemedText({
 }
 
 const styles = StyleSheet.create({
-  default: {
+  body: {
+    fontFamily: Fonts?.sans,
     fontSize: 16,
     lineHeight: 24,
   },
-  defaultSemiBold: {
+  bodySemiBold: {
+    fontFamily: Fonts?.sans,
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '600',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    lineHeight: 32,
+  caption: {
+    fontFamily: Fonts?.sans,
+    fontSize: 14,
+    lineHeight: 20,
   },
-  subtitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  eyebrow: {
+    fontFamily: Fonts?.mono,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  title: {
+    fontFamily: Fonts?.rounded,
+    fontSize: 32,
+    fontWeight: '700',
+    lineHeight: 38,
+  },
+  headline: {
+    fontFamily: Fonts?.rounded,
+    fontSize: 22,
+    fontWeight: '700',
+    lineHeight: 28,
   },
   link: {
-    lineHeight: 30,
+    fontFamily: Fonts?.sans,
     fontSize: 16,
-    color: '#0a7ea4',
+    lineHeight: 24,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
