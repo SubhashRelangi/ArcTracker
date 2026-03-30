@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { useState } from 'react';
 import { StyleSheet, ScrollView, View, TouchableOpacity, Platform, StatusBar as RNStatusBar } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -35,11 +36,7 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
           <View style={styles.headerLeft}>
-            <Image
-              source="https://i.pravatar.cc/150?u=assetrak"
-              style={[styles.avatar, { borderColor: BRAND_COLORS.primary }]}
-            />
-            <ThemedText style={[styles.appName, { color: BRAND_COLORS.primary }]}>ASSETRAK</ThemedText>
+            <ThemedText style={[styles.appName, { color: BRAND_COLORS.primary }]}>ARCTRACKER</ThemedText>
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity style={[styles.iconButton, { backgroundColor: isDark ? '#2C2C2C' : '#F0F2F5' }]}>
@@ -60,9 +57,11 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Bank Balances */}
+        {/* Banks Section */}
         <View style={styles.section}>
-          <ThemedText type="subtitle" style={[styles.sectionTitle, { color: theme.text }]}>Bank Balances</ThemedText>
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle" style={[styles.sectionTitle, { color: theme.text }]}>Banks</ThemedText>
+          </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.balanceCardsContainer}>
             <BalanceCard 
               bank="Chase Freedom" 
@@ -147,10 +146,23 @@ export default function HomeScreen() {
 }
 
 function BalanceCard({ bank, balance, lastSync, accentColor, theme }: { bank: string, balance: string, lastSync: string, accentColor: string, theme: any }) {
+  const [isVisible, setIsVisible] = useState(false);
+
   return (
     <View style={[styles.balanceCard, { backgroundColor: theme.surface, borderTopColor: accentColor, borderTopWidth: 4 }]}>
-      <ThemedText style={[styles.bankName, { color: theme.textSecondary }]}>{bank}</ThemedText>
-      <ThemedText style={[styles.bankBalance, { color: theme.text }]}>{balance}</ThemedText>
+      <View style={styles.cardHeader}>
+        <ThemedText style={[styles.bankName, { color: theme.textSecondary }]}>{bank}</ThemedText>
+        <TouchableOpacity onPress={() => setIsVisible(!isVisible)}>
+          <IconSymbol 
+            name={isVisible ? "eye.slash" : "eye"} 
+            size={16} 
+            color={theme.textSecondary} 
+          />
+        </TouchableOpacity>
+      </View>
+      <ThemedText style={[styles.bankBalance, { color: theme.text }]}>
+        {isVisible ? balance : "••••••"}
+      </ThemedText>
       <ThemedText style={[styles.lastSync, { color: theme.textSecondary }]}>Last sync: {lastSync}</ThemedText>
       <TouchableOpacity style={[styles.checkBalanceButton, { borderColor: accentColor }]}>
         <ThemedText style={[styles.checkBalanceText, { color: accentColor }]}>Check Balance</ThemedText>
@@ -222,12 +234,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 2,
-  },
   appName: {
     fontSize: 22,
     fontWeight: '900',
@@ -274,11 +280,18 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 24,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingRight: 20,
+    marginBottom: 16,
+  },
   sectionTitle: {
     paddingHorizontal: 20,
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 16,
+    marginBottom: 0,
   },
   balanceCardsContainer: {
     paddingHorizontal: 20,
@@ -295,10 +308,15 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
   bankName: {
     fontSize: 13,
     fontWeight: '600',
-    marginBottom: 6,
   },
   bankBalance: {
     fontSize: 20,
@@ -364,7 +382,7 @@ const styles = StyleSheet.create({
   activityAmount: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#FF5252', // Brighter red for dark mode visibility
+    color: '#FF5252',
     marginBottom: 2,
   },
   activityCategory: {

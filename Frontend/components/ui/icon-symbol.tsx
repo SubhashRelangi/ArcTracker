@@ -23,6 +23,8 @@ const MAPPING = {
   'chevron.down': 'keyboard-arrow-down',
   'pencil': 'edit',
   'arrow.2.circlepath': 'sync',
+  'eye': 'visibility',
+  'eye.slash': 'visibility-off',
 } as IconMapping;
 
 /**
