@@ -14,6 +14,13 @@ const BRAND_COLORS = {
   chase: '#117aca',
   wellsFargo: '#d71e28',
   amex: '#c3a334',
+  chart: {
+    housing: '#1A4D4D',
+    food: '#2A6BFF',
+    transport: '#89CFF0',
+    shopping: '#9FA8B1',
+    leisure: '#0D1B3E',
+  }
 };
 
 export default function HomeScreen() {
@@ -48,13 +55,51 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Title and Date Picker */}
-        <View style={styles.titleSection}>
-          <ThemedText type="title" style={[styles.pageTitle, { color: theme.text }]}>Home page</ThemedText>
-          <TouchableOpacity style={[styles.datePicker, { backgroundColor: theme.surface }]}>
-            <ThemedText style={[styles.dateText, { color: theme.textSecondary }]}>March 2024</ThemedText>
-            <IconSymbol name="chevron.down" size={18} color={BRAND_COLORS.primary} />
-          </TouchableOpacity>
+        {/* Spending Section */}
+        <View style={[styles.spendingCard, { backgroundColor: theme.surface }]}>
+          <View style={styles.spendingHeader}>
+            <ThemedText style={[styles.spendingTitle, { color: theme.text }]}>Spending</ThemedText>
+            <TouchableOpacity style={styles.simpleDropdown}>
+              <ThemedText style={[styles.simpleDropdownText, { color: theme.textSecondary }]}>March 2024</ThemedText>
+              <IconSymbol name="chevron.down" size={14} color={theme.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.spendingContent}>
+            <View style={styles.amountContainer}>
+              <ThemedText style={[styles.totalAmount, { color: theme.text }]} adjustsFontSizeToFit={false}>
+                $6,870.45
+              </ThemedText>
+            </View>
+            <ThemedText style={[styles.totalLabel, { color: theme.textSecondary }]}>Total Tracked Amount</ThemedText>
+            <ThemedText style={[styles.monthLabel, { color: theme.textSecondary }]}>March 2024</ThemedText>
+            
+            <View style={styles.chartWrapper}>
+              {/* Functional Donut Chart using multiple View segments */}
+              <View style={[styles.donutBase, { backgroundColor: isDark ? '#333' : '#E8ECEF' }]}>
+                 {/* Individual segments */}
+                 <View style={[styles.segment, { backgroundColor: BRAND_COLORS.chart.housing, transform: [{ rotate: '0deg' }] }]} />
+                 <View style={[styles.segment, { backgroundColor: BRAND_COLORS.chart.food, transform: [{ rotate: '126deg' }] }]} />
+                 <View style={[styles.segment, { backgroundColor: BRAND_COLORS.chart.transport, transform: [{ rotate: '205deg' }] }]} />
+                 <View style={[styles.segment, { backgroundColor: BRAND_COLORS.chart.shopping, transform: [{ rotate: '270deg' }] }]} />
+                 <View style={[styles.segment, { backgroundColor: BRAND_COLORS.chart.leisure, transform: [{ rotate: '324deg' }] }]} />
+                 
+                 {/* Inner cut-out to make it a donut */}
+                 <View style={[styles.donutInner, { backgroundColor: theme.surface }]}>
+                   <ThemedText style={[styles.expendedAmount, { color: theme.text }]}>$6,870.45</ThemedText>
+                   <ThemedText style={[styles.expendedLabel, { color: theme.textSecondary }]}>Expended</ThemedText>
+                 </View>
+              </View>
+            </View>
+
+            <View style={styles.categoryList}>
+              <CategoryRow color={BRAND_COLORS.chart.housing} name="Housing" percentage="35%" amount="$2,404.66" theme={theme} />
+              <CategoryRow color={BRAND_COLORS.chart.food} name="Food & Drink" percentage="22%" amount="$1,511.50" theme={theme} />
+              <CategoryRow color={BRAND_COLORS.chart.transport} name="Transport" percentage="18%" amount="$1,236.68" theme={theme} />
+              <CategoryRow color={BRAND_COLORS.chart.shopping} name="Shopping" percentage="15%" amount="$1,030.57" theme={theme} />
+              <CategoryRow color={BRAND_COLORS.chart.leisure} name="Leisure" percentage="10%" amount="$687.05" theme={theme} />
+            </View>
+          </View>
         </View>
 
         {/* Banks Section - Horizontal Scroll */}
@@ -62,7 +107,7 @@ export default function HomeScreen() {
           <ThemedText type="subtitle" style={[styles.sectionTitle, { color: theme.text }]}>Banks</ThemedText>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.balanceCardsContainer}>
             <BalanceCard 
-              logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSygESUAPeJMMX06_1CjwAOTU_JKXt1Hw63-w&s  "
+              logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSygESUAPeJMMX06_1CjwAOTU_JKXt1Hw63-w&s"
               bank="Chase Freedom" 
               balance="$4,120.30" 
               accentColor={BRAND_COLORS.chase}
@@ -139,6 +184,19 @@ export default function HomeScreen() {
           />
         </View>
       </ScrollView>
+    </View>
+  );
+}
+
+function CategoryRow({ color, name, percentage, amount, theme }: { color: string, name: string, percentage: string, amount: string, theme: any }) {
+  return (
+    <View style={styles.categoryRow}>
+      <View style={styles.categoryLeft}>
+        <View style={[styles.colorDot, { backgroundColor: color }]} />
+        <ThemedText style={[styles.categoryName, { color: theme.text }]}>{name}</ThemedText>
+      </View>
+      <ThemedText style={[styles.categoryPercentage, { color: theme.textSecondary }]}>{percentage}</ThemedText>
+      <ThemedText style={[styles.categoryAmount, { color: theme.text }]}>{amount}</ThemedText>
     </View>
   );
 }
@@ -247,32 +305,143 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  titleSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+  spendingCard: {
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+    elevation: 5,
   },
-  pageTitle: {
-    fontSize: 28,
+  spendingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  spendingTitle: {
+    fontSize: 20,
     fontWeight: '800',
-    marginBottom: 12,
   },
-  datePicker: {
+  simpleDropdown: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    gap: 8,
+    gap: 4,
+  },
+  simpleDropdownText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  spendingContent: {
+    alignItems: 'center',
+  },
+  amountContainer: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  totalAmount: {
+    fontSize: 28,
+    fontWeight: '900',
+    marginBottom: 4,
+    includeFontPadding: false,
+  },
+  totalLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  monthLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 32,
+  },
+  chartWrapper: {
+    width: 220,
+    height: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 40,
+  },
+  donutBase: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  segment: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: 100,
+    // Note: In a real app without SVG, we'd use a more complex border-radius + overflow trick
+    // for each slice. This mock uses layered circles to simulate segments.
+    borderWidth: 25,
+    borderColor: 'transparent',
+    borderTopColor: 'inherit', // Dynamic color via inline style
+  },
+  donutInner: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 5,
     elevation: 2,
   },
-  dateText: {
+  expendedAmount: {
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  expendedLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  categoryList: {
+    width: '100%',
+    gap: 16,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  categoryLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 2,
+  },
+  colorDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 5,
+  },
+  categoryName: {
     fontSize: 15,
+    fontWeight: '700',
+  },
+  categoryPercentage: {
+    fontSize: 14,
     fontWeight: '600',
+    flex: 1,
+    textAlign: 'center',
+  },
+  categoryAmount: {
+    fontSize: 15,
+    fontWeight: '800',
+    flex: 1.5,
+    textAlign: 'right',
   },
   section: {
     marginTop: 24,
@@ -335,10 +504,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     textDecorationLine: 'underline',
-  },
-  lastSync: {
-    fontSize: 11,
-    fontWeight: '500',
   },
   activityCard: {
     marginHorizontal: 20,
