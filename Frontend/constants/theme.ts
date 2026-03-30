@@ -8,6 +8,22 @@ import { Platform } from 'react-native';
 const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';
 
+export const BRAND_COLORS = {
+  primary: '#00BAF2', // Paytm Blue
+  secondary: '#825EE4', // Purple
+  accent1: '#FB6340', // Orange/Coral
+  chase: '#117aca',
+  wellsFargo: '#d71e28',
+  amex: '#c3a334',
+  chart: {
+    housing: '#1A4D4D',
+    food: '#2A6BFF',
+    transport: '#89CFF0',
+    shopping: '#9FA8B1',
+    leisure: '#0D1B3E',
+  }
+};
+
 export const Colors = {
   light: {
     text: '#11181C',
