@@ -17,9 +17,8 @@ const CategoryRow: React.FC<CategoryRowProps> = ({ color, name, percentage, amou
     <View style={styles.categoryRow}>
       <View style={styles.categoryLeft}>
         <View style={[styles.colorDot, { backgroundColor: color }]} />
-        <ThemedText style={[styles.categoryName, { color: theme.text }]}>{name}</ThemedText>
+        <ThemedText style={[styles.categoryName, { color: theme.text }]} numberOfLines={1}>{name}</ThemedText>
       </View>
-      <ThemedText style={[styles.categoryPercentage, { color: theme.textSecondary }]}>{percentage}</ThemedText>
       <ThemedText style={[styles.categoryAmount, { color: theme.text }]}>{amount}</ThemedText>
     </View>
   );
@@ -31,6 +30,13 @@ interface SpendingCardProps {
 }
 
 export const SpendingCard: React.FC<SpendingCardProps> = ({ theme, isDark }) => {
+  const categories = [
+    { color: BRAND_COLORS.chart.housing, name: "Housing", percentage: 35, amount: "$2,404" },
+    { color: BRAND_COLORS.chart.food, name: "Food", percentage: 22, amount: "$1,511" },
+    { color: BRAND_COLORS.chart.transport, name: "Transport", percentage: 18, amount: "$1,236" },
+    { color: BRAND_COLORS.chart.shopping, name: "Shopping", percentage: 15, amount: "$1,030" },
+  ];
+
   return (
     <View style={[styles.spendingCard, { backgroundColor: theme.surface }]}>
       <View style={styles.spendingHeader}>
@@ -42,35 +48,47 @@ export const SpendingCard: React.FC<SpendingCardProps> = ({ theme, isDark }) => 
       </View>
       
       <View style={styles.spendingContent}>
-        <View style={styles.amountContainer}>
-          <ThemedText style={[styles.totalAmount, { color: theme.text }]} adjustsFontSizeToFit={false}>
+        {/* Left Side: Money and Bar Graph */}
+        <View style={styles.leftColumn}>
+          <ThemedText style={[styles.totalAmount, { color: theme.text }]}>
             $6,870.45
           </ThemedText>
-        </View>
-        <ThemedText style={[styles.totalLabel, { color: theme.textSecondary }]}>Total Tracked Amount</ThemedText>
-        <ThemedText style={[styles.monthLabel, { color: theme.textSecondary }]}>March 2024</ThemedText>
-        
-        <View style={styles.chartWrapper}>
-          <View style={[styles.donutBase, { backgroundColor: isDark ? '#333' : '#E8ECEF' }]}>
-             <View style={[styles.segment, { backgroundColor: BRAND_COLORS.chart.housing, transform: [{ rotate: '0deg' }] }]} />
-             <View style={[styles.segment, { backgroundColor: BRAND_COLORS.chart.food, transform: [{ rotate: '126deg' }] }]} />
-             <View style={[styles.segment, { backgroundColor: BRAND_COLORS.chart.transport, transform: [{ rotate: '205deg' }] }]} />
-             <View style={[styles.segment, { backgroundColor: BRAND_COLORS.chart.shopping, transform: [{ rotate: '270deg' }] }]} />
-             <View style={[styles.segment, { backgroundColor: BRAND_COLORS.chart.leisure, transform: [{ rotate: '324deg' }] }]} />
-             
-             <View style={[styles.donutInner, { backgroundColor: theme.surface }]}>
-               <ThemedText style={[styles.expendedAmount, { color: theme.text }]}>$6,870.45</ThemedText>
-               <ThemedText style={[styles.expendedLabel, { color: theme.textSecondary }]}>Expended</ThemedText>
-             </View>
+          <ThemedText style={[styles.totalLabel, { color: theme.textSecondary }]}>
+            Total spent this month
+          </ThemedText>
+          
+          <View style={[styles.barGraphContainer, { backgroundColor: isDark ? '#333' : '#F0F0F0' }]}>
+            {categories.map((cat, index) => (
+              <View 
+                key={index} 
+                style={[
+                  styles.barSegment, 
+                  { 
+                    backgroundColor: cat.color, 
+                    flex: cat.percentage,
+                    borderTopLeftRadius: index === 0 ? 6 : 0,
+                    borderBottomLeftRadius: index === 0 ? 6 : 0,
+                    borderTopRightRadius: index === categories.length - 1 ? 6 : 0,
+                    borderBottomRightRadius: index === categories.length - 1 ? 6 : 0,
+                  }
+                ]} 
+              />
+            ))}
           </View>
         </View>
 
-        <View style={styles.categoryList}>
-          <CategoryRow color={BRAND_COLORS.chart.housing} name="Housing" percentage="35%" amount="$2,404.66" theme={theme} />
-          <CategoryRow color={BRAND_COLORS.chart.food} name="Food & Drink" percentage="22%" amount="$1,511.50" theme={theme} />
-          <CategoryRow color={BRAND_COLORS.chart.transport} name="Transport" percentage="18%" amount="$1,236.68" theme={theme} />
-          <CategoryRow color={BRAND_COLORS.chart.shopping} name="Shopping" percentage="15%" amount="$1,030.57" theme={theme} />
-          <CategoryRow color={BRAND_COLORS.chart.leisure} name="Leisure" percentage="10%" amount="$687.05" theme={theme} />
+        {/* Right Side: Spending Things */}
+        <View style={styles.rightColumn}>
+          {categories.map((cat, index) => (
+            <CategoryRow 
+              key={index}
+              color={cat.color} 
+              name={cat.name} 
+              amount={cat.amount} 
+              theme={theme} 
+              percentage={cat.percentage + "%"}
+            />
+          ))}
         </View>
       </View>
     </View>
@@ -81,13 +99,13 @@ const styles = StyleSheet.create({
   spendingCard: {
     marginHorizontal: 20,
     marginTop: 20,
-    borderRadius: 24,
+    borderRadius: 28,
     padding: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
-    shadowRadius: 15,
-    elevation: 5,
+    shadowRadius: 12,
+    elevation: 4,
   },
   spendingHeader: {
     flexDirection: 'row',
@@ -109,78 +127,39 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   spendingContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 24,
   },
-  amountContainer: {
-    width: '100%',
-    alignItems: 'center',
-    paddingVertical: 4,
+  leftColumn: {
+    flex: 1.2,
+    justifyContent: 'center',
+  },
+  rightColumn: {
+    flex: 1,
+    gap: 12,
   },
   totalAmount: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '900',
-    marginBottom: 4,
-    includeFontPadding: false,
+    letterSpacing: -0.5,
   },
   totalLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  monthLabel: {
     fontSize: 13,
     fontWeight: '600',
-    marginBottom: 32,
+    marginTop: 4,
+    marginBottom: 20,
   },
-  chartWrapper: {
-    width: 220,
-    height: 220,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 40,
-  },
-  donutBase: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
+  barGraphContainer: {
+    height: 12,
+    width: '100%',
+    borderRadius: 6,
+    flexDirection: 'row',
     overflow: 'hidden',
   },
-  segment: {
-    position: 'absolute',
-    width: '100%',
+  barSegment: {
     height: '100%',
-    borderRadius: 100,
-    borderWidth: 25,
-    borderColor: 'transparent',
-    borderTopColor: 'inherit',
-  },
-  donutInner: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  expendedAmount: {
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  expendedLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  categoryList: {
-    width: '100%',
-    gap: 16,
   },
   categoryRow: {
     flexDirection: 'row',
@@ -190,28 +169,23 @@ const styles = StyleSheet.create({
   categoryLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    flex: 2,
+    gap: 8,
+    flex: 1,
   },
   colorDot: {
-    width: 14,
-    height: 14,
+    width: 10,
+    height: 10,
     borderRadius: 5,
   },
   categoryName: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  categoryPercentage: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     flex: 1,
-    textAlign: 'center',
   },
   categoryAmount: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
-    flex: 1.5,
     textAlign: 'right',
   },
 });
+
