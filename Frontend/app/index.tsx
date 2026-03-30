@@ -8,7 +8,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const BRAND_COLORS = {
-  primary: '#5E72E4', // Vibrant Blue
+  primary: '#00BAF2', // Paytm Blue
   secondary: '#825EE4', // Purple
   accent1: '#FB6340', // Orange/Coral
   chase: '#117aca',
@@ -57,30 +57,28 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Banks Section */}
+        {/* Banks Section - Horizontal Scroll */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <ThemedText type="subtitle" style={[styles.sectionTitle, { color: theme.text }]}>Banks</ThemedText>
-          </View>
+          <ThemedText type="subtitle" style={[styles.sectionTitle, { color: theme.text }]}>Banks</ThemedText>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.balanceCardsContainer}>
             <BalanceCard 
+              logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSygESUAPeJMMX06_1CjwAOTU_JKXt1Hw63-w&s  "
               bank="Chase Freedom" 
               balance="$4,120.30" 
-              lastSync="16:33" 
               accentColor={BRAND_COLORS.chase}
               theme={theme}
             />
             <BalanceCard 
+              logo="https://logo.clearbit.com/wellsfargo.com"
               bank="Wells Fargo" 
               balance="$2,450.15" 
-              lastSync="16:38" 
               accentColor={BRAND_COLORS.wellsFargo}
               theme={theme}
             />
             <BalanceCard 
+              logo="https://logo.clearbit.com/americanexpress.com"
               bank="AMEX Gold" 
               balance="$1,300.00" 
-              lastSync="16:33" 
               accentColor={BRAND_COLORS.amex}
               theme={theme}
             />
@@ -145,28 +143,27 @@ export default function HomeScreen() {
   );
 }
 
-function BalanceCard({ bank, balance, lastSync, accentColor, theme }: { bank: string, balance: string, lastSync: string, accentColor: string, theme: any }) {
+function BalanceCard({ logo, bank, balance, accentColor, theme }: { logo: string, bank: string, balance: string, accentColor: string, theme: any }) {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
     <View style={[styles.balanceCard, { backgroundColor: theme.surface, borderTopColor: accentColor, borderTopWidth: 4 }]}>
       <View style={styles.cardHeader}>
-        <ThemedText style={[styles.bankName, { color: theme.textSecondary }]}>{bank}</ThemedText>
-        <TouchableOpacity onPress={() => setIsVisible(!isVisible)}>
-          <IconSymbol 
-            name={isVisible ? "eye.slash" : "eye"} 
-            size={16} 
-            color={theme.textSecondary} 
-          />
-        </TouchableOpacity>
+        <View style={[styles.bankLogoContainer, { backgroundColor: theme.background }]}>
+          <Image source={logo} style={styles.bankLogoSmall} />
+        </View>
+        <ThemedText style={[styles.bankName, { color: theme.textSecondary }]} numberOfLines={1}>{bank}</ThemedText>
       </View>
-      <ThemedText style={[styles.bankBalance, { color: theme.text }]}>
-        {isVisible ? balance : "••••••"}
-      </ThemedText>
-      <ThemedText style={[styles.lastSync, { color: theme.textSecondary }]}>Last sync: {lastSync}</ThemedText>
-      <TouchableOpacity style={[styles.checkBalanceButton, { borderColor: accentColor }]}>
-        <ThemedText style={[styles.checkBalanceText, { color: accentColor }]}>Check Balance</ThemedText>
-      </TouchableOpacity>
+      
+      <View style={styles.balanceContainer}>
+        {isVisible ? (
+          <ThemedText style={[styles.bankBalance, { color: theme.text }]}>{balance}</ThemedText>
+        ) : (
+          <TouchableOpacity onPress={() => setIsVisible(true)}>
+            <ThemedText style={[styles.checkBalanceLink, { color: BRAND_COLORS.primary }]}>Check Balance</ThemedText>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -280,18 +277,11 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 24,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingRight: 20,
-    marginBottom: 16,
-  },
   sectionTitle: {
     paddingHorizontal: 20,
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 0,
+    marginBottom: 16,
   },
   balanceCardsContainer: {
     paddingHorizontal: 20,
@@ -299,43 +289,56 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   balanceCard: {
-    padding: 20,
+    padding: 16,
     borderRadius: 24,
-    width: 160,
+    width: 170,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
+    justifyContent: 'space-between',
+    minHeight: 140,
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    gap: 8,
+    marginBottom: 12,
+  },
+  bankLogoContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bankLogoSmall: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
   },
   bankName: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
+    flex: 1,
+  },
+  balanceContainer: {
+    marginVertical: 12,
+    alignItems: 'flex-start',
   },
   bankBalance: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
-    marginBottom: 4,
+  },
+  checkBalanceLink: {
+    fontSize: 14,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   lastSync: {
     fontSize: 11,
-    marginBottom: 16,
-  },
-  checkBalanceButton: {
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  checkBalanceText: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   activityCard: {
     marginHorizontal: 20,
