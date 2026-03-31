@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, TouchableOpacity, ScrollView, Switch, Image } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/themed-text';
 import { BRAND_COLORS } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function ProfileScreen() {
-  const { theme, isDark, toggleTheme } = useTheme();
+  const { theme, isDark, themePreference, setThemePreference } = useTheme();
   const [activeTab, setActiveTab] = useState('Expense');
 
   const menuItems = [
@@ -14,17 +14,12 @@ export default function ProfileScreen() {
     { icon: 'shield', label: 'Security Settings', hasChevron: true },
     { icon: 'bell', label: 'Notification', hasChevron: true },
     { icon: 'clock.arrow.circlepath', label: 'Transaction History', hasChevron: true },
-    { icon: 'moon', label: 'Dark Mode', hasSwitch: true },
   ];
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]} bounces={false}>
       {/* Header Section */}
-      <View style={[styles.header, { backgroundColor: BRAND_COLORS.secondary }]}>
-        <TouchableOpacity style={styles.backButton}>
-          <IconSymbol name="chevron.left" size={24} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+      <View style={[styles.header, { backgroundColor: BRAND_COLORS.secondary }]} />
 
       {/* Profile Info Section */}
       <View style={[styles.profileCard, { backgroundColor: theme.background }]}>
@@ -50,7 +45,7 @@ export default function ProfileScreen() {
           <ThemedText style={styles.trackerTitle}>Monthly Tracker</ThemedText>
           
           <View style={[styles.tabContainer, { backgroundColor: isDark ? '#262626' : '#F8F9FE' }]}>
-            {['Expense', 'Income', 'Invest'].map((tab) => (
+            {['Expense', 'Income'].map((tab) => (
               <TouchableOpacity 
                 key={tab} 
                 onPress={() => setActiveTab(tab)}
@@ -92,14 +87,50 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Theme Selection Section */}
+        <View style={styles.sectionHeader}>
+          <ThemedText style={styles.sectionTitle}>App Appearance</ThemedText>
+        </View>
+        
+        <View style={[styles.themeSelectorContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          {(['system', 'light', 'dark'] as const).map((pref) => (
+            <TouchableOpacity 
+              key={pref}
+              onPress={() => setThemePreference(pref)}
+              style={[
+                styles.themeOption,
+                themePreference === pref && { backgroundColor: isDark ? '#333' : '#F0EEFF' }
+              ]}
+            >
+              <View style={styles.menuItemLeft}>
+                <View style={[styles.iconCircle, { backgroundColor: isDark ? '#262626' : '#F8F9FE' }]}>
+                  <IconSymbol 
+                    name={pref === 'dark' ? 'moon' : pref === 'light' ? 'house.fill' : 'arrow.2.circlepath' as any} 
+                    size={20} 
+                    color={themePreference === pref ? BRAND_COLORS.secondary : theme.textSecondary} 
+                  />
+                </View>
+                <ThemedText style={[
+                  styles.menuLabel, 
+                  { color: themePreference === pref ? BRAND_COLORS.secondary : theme.text }
+                ]}>
+                  {pref.charAt(0).toUpperCase() + pref.slice(1)} Mode
+                </ThemedText>
+              </View>
+              {themePreference === pref && (
+                <IconSymbol name="chevron.right" size={20} color={BRAND_COLORS.secondary} />
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Menu Items */}
         <View style={styles.menuContainer}>
           {menuItems.map((item, index) => (
             <View key={index} style={styles.menuItemWrapper}>
               <TouchableOpacity 
                 style={styles.menuItem} 
-                disabled={item.hasSwitch}
-                onPress={() => !item.hasSwitch && console.log(item.label)}
+                onPress={() => console.log(item.label)}
               >
                 <View style={styles.menuItemLeft}>
                   <View style={[styles.iconCircle, { backgroundColor: isDark ? '#262626' : '#F8F9FE' }]}>
@@ -109,14 +140,6 @@ export default function ProfileScreen() {
                 </View>
                 {item.hasChevron && (
                   <IconSymbol name="chevron.right" size={20} color={theme.textSecondary} />
-                )}
-                {item.hasSwitch && (
-                  <Switch 
-                    value={isDark} 
-                    onValueChange={toggleTheme}
-                    trackColor={{ false: '#767577', true: BRAND_COLORS.secondary }}
-                    thumbColor="#fff"
-                  />
                 )}
               </TouchableOpacity>
               {index < menuItems.length - 1 && <View style={[styles.separator, { backgroundColor: theme.border }]} />}
@@ -136,14 +159,6 @@ const styles = StyleSheet.create({
     height: 180,
     paddingTop: 60,
     paddingHorizontal: 20,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   profileCard: {
     flex: 1,
@@ -276,6 +291,28 @@ const styles = StyleSheet.create({
   chartLabelText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  sectionHeader: {
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    opacity: 0.8,
+  },
+  themeSelectorContainer: {
+    borderRadius: 24,
+    padding: 8,
+    marginBottom: 24,
+    borderWidth: 1,
+  },
+  themeOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 16,
   },
   menuContainer: {
     marginBottom: 40,

@@ -1,7 +1,7 @@
 import { useAppTheme } from './use-theme-context';
 
 export const useTheme = () => {
-  const { colorScheme, isDark, toggleTheme } = useAppTheme();
+  const { colorScheme, isDark, themePreference, setThemePreference } = useAppTheme();
 
   const theme = {
     background: isDark ? '#121212' : '#F8F9FE',
@@ -16,6 +16,7 @@ export const useTheme = () => {
     theme,
     isDark,
     colorScheme,
-    toggleTheme,
+    themePreference,
+    setThemePreference,
   };
 };

@@ -1,37 +1,56 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useColorScheme as useRNColorScheme } from 'react-native';
+import { useColorScheme as useRNColorScheme, Appearance } from 'react-native';
 
+export type ThemePreference = 'system' | 'light' | 'dark';
 type ThemeMode = 'light' | 'dark';
 
 interface ThemeContextType {
+  themePreference: ThemePreference;
   colorScheme: ThemeMode;
   isDark: boolean;
-  toggleTheme: () => void;
-  setTheme: (mode: ThemeMode) => void;
+  setThemePreference: (pref: ThemePreference) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useRNColorScheme() ?? 'light';
-  const [colorScheme, setColorScheme] = useState<ThemeMode>(systemColorScheme);
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>('system');
+  const [resolvedColorScheme, setResolvedColorScheme] = useState<ThemeMode>(systemColorScheme);
 
   useEffect(() => {
-    setColorScheme(systemColorScheme);
-  }, [systemColorScheme]);
+    if (themePreference === 'system') {
+      setResolvedColorScheme(systemColorScheme);
+    } else {
+      setResolvedColorScheme(themePreference);
+    }
+  }, [themePreference, systemColorScheme]);
 
-  const toggleTheme = () => {
-    setColorScheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  useEffect(() => {
+    const subscription = Appearance.addChangeListener(({ colorScheme: newScheme }) => {
+      if (themePreference === 'system' && newScheme) {
+        setResolvedColorScheme(newScheme as ThemeMode);
+      }
+    });
+
+    return () => subscription.remove();
+  }, [themePreference]);
+
+  const setThemePreference = (pref: ThemePreference) => {
+    setThemePreferenceState(pref);
   };
 
-  const setTheme = (mode: ThemeMode) => {
-    setColorScheme(mode);
-  };
-
-  const isDark = colorScheme === 'dark';
+  const isDark = resolvedColorScheme === 'dark';
 
   return (
-    <ThemeContext.Provider value={{ colorScheme, isDark, toggleTheme, setTheme }}>
+    <ThemeContext.Provider 
+      value={{ 
+        themePreference, 
+        colorScheme: resolvedColorScheme, 
+        isDark, 
+        setThemePreference 
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );
