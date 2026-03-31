@@ -18,6 +18,7 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'chevron.left': 'chevron-left',
   'bell': 'notifications-none',
   'gearshape': 'settings',
   'chevron.down': 'keyboard-arrow-down',
@@ -25,6 +26,10 @@ const MAPPING = {
   'arrow.2.circlepath': 'sync',
   'eye': 'visibility',
   'eye.slash': 'visibility-off',
+  'creditcard': 'credit-card',
+  'shield': 'shield',
+  'clock.arrow.circlepath': 'history',
+  'moon': 'nightlight-round',
 } as IconMapping;
 
 /**
