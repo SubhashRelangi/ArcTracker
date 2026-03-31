@@ -1,8 +1,7 @@
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAppTheme } from './use-theme-context';
 
 export const useTheme = () => {
-  const colorScheme = useColorScheme() ?? 'light';
-  const isDark = colorScheme === 'dark';
+  const { colorScheme, isDark, toggleTheme } = useAppTheme();
 
   const theme = {
     background: isDark ? '#121212' : '#F8F9FE',
@@ -17,5 +16,6 @@ export const useTheme = () => {
     theme,
     isDark,
     colorScheme,
+    toggleTheme,
   };
 };

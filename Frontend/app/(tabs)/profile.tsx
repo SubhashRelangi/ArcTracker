@@ -4,11 +4,9 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/themed-text';
 import { BRAND_COLORS } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { ExpoImage } from 'expo-image';
 
 export default function ProfileScreen() {
-  const { theme, isDark } = useTheme();
-  const [isDarkMode, setIsDarkMode] = useState(isDark);
+  const { theme, isDark, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('Expense');
 
   const menuItems = [
@@ -31,39 +29,39 @@ export default function ProfileScreen() {
       {/* Profile Info Section */}
       <View style={[styles.profileCard, { backgroundColor: theme.background }]}>
         <View style={styles.profileHeader}>
-          <View style={styles.avatarWrapper}>
+          <View style={[styles.avatarWrapper, { borderColor: theme.background }]}>
             <Image 
               source={{ uri: 'https://i.pravatar.cc/300?u=ryan' }} 
               style={styles.avatar} 
             />
           </View>
-          <TouchableOpacity style={styles.editButton}>
+          <TouchableOpacity style={[styles.editButton, { backgroundColor: isDark ? '#333' : '#F0EEFF' }]}>
             <ThemedText style={styles.editButtonText}>Edit Profile</ThemedText>
           </TouchableOpacity>
         </View>
 
         <View style={styles.userInfo}>
           <ThemedText style={styles.userName}>Ryan Raynolds</ThemedText>
-          <ThemedText style={styles.joinedDate}>Joined since 2023</ThemedText>
+          <ThemedText style={[styles.joinedDate, { color: theme.textSecondary }]}>Joined since 2023</ThemedText>
         </View>
 
         {/* Monthly Tracker Card */}
-        <View style={[styles.trackerCard, { backgroundColor: theme.surface }]}>
+        <View style={[styles.trackerCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <ThemedText style={styles.trackerTitle}>Monthly Tracker</ThemedText>
           
-          <View style={styles.tabContainer}>
+          <View style={[styles.tabContainer, { backgroundColor: isDark ? '#262626' : '#F8F9FE' }]}>
             {['Expense', 'Income', 'Invest'].map((tab) => (
               <TouchableOpacity 
                 key={tab} 
                 onPress={() => setActiveTab(tab)}
                 style={[
                   styles.tab, 
-                  activeTab === tab && styles.activeTab
+                  activeTab === tab && [styles.activeTab, { backgroundColor: isDark ? '#333' : '#FFF' }]
                 ]}
               >
                 <ThemedText style={[
                   styles.tabText, 
-                  activeTab === tab && styles.activeTabText
+                  { color: activeTab === tab ? BRAND_COLORS.secondary : theme.textSecondary }
                 ]}>
                   {tab}
                 </ThemedText>
@@ -83,14 +81,12 @@ export default function ProfileScreen() {
 
           {/* Simulated Wave Chart */}
           <View style={styles.chartPlaceholder}>
-            {/* We'll use a simple colored view to simulate the wave shape if possible, or just a placeholder */}
             <View style={styles.waveContainer}>
-               {/* Simplified wave representation using views */}
-               <View style={styles.wave} />
+               <View style={[styles.wave, { backgroundColor: isDark ? BRAND_COLORS.secondary : '#F0EEFF', opacity: isDark ? 0.3 : 0.5 }]} />
             </View>
             <View style={styles.chartLabels}>
               {['Week 1', 'Week 2', 'Week 3', 'Week 4'].map((label) => (
-                <ThemedText key={label} style={styles.chartLabelText}>{label}</ThemedText>
+                <ThemedText key={label} style={[styles.chartLabelText, { color: theme.textSecondary }]}>{label}</ThemedText>
               ))}
             </View>
           </View>
@@ -100,9 +96,13 @@ export default function ProfileScreen() {
         <View style={styles.menuContainer}>
           {menuItems.map((item, index) => (
             <View key={index} style={styles.menuItemWrapper}>
-              <TouchableOpacity style={styles.menuItem} disabled={item.hasSwitch}>
+              <TouchableOpacity 
+                style={styles.menuItem} 
+                disabled={item.hasSwitch}
+                onPress={() => !item.hasSwitch && console.log(item.label)}
+              >
                 <View style={styles.menuItemLeft}>
-                  <View style={styles.iconCircle}>
+                  <View style={[styles.iconCircle, { backgroundColor: isDark ? '#262626' : '#F8F9FE' }]}>
                     <IconSymbol name={item.icon as any} size={20} color={BRAND_COLORS.secondary} />
                   </View>
                   <ThemedText style={styles.menuLabel}>{item.label}</ThemedText>
@@ -112,8 +112,8 @@ export default function ProfileScreen() {
                 )}
                 {item.hasSwitch && (
                   <Switch 
-                    value={isDarkMode} 
-                    onValueChange={setIsDarkMode}
+                    value={isDark} 
+                    onValueChange={toggleTheme}
                     trackColor={{ false: '#767577', true: BRAND_COLORS.secondary }}
                     thumbColor="#fff"
                   />
@@ -164,7 +164,6 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     borderWidth: 5,
-    borderColor: '#FFF',
     overflow: 'hidden',
     marginTop: -60,
     backgroundColor: '#EEE',
@@ -182,7 +181,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
-    backgroundColor: '#F0EEFF',
   },
   editButtonText: {
     color: BRAND_COLORS.secondary,
@@ -199,7 +197,6 @@ const styles = StyleSheet.create({
   },
   joinedDate: {
     fontSize: 14,
-    color: '#999',
     fontWeight: '500',
   },
   trackerCard: {
@@ -207,7 +204,6 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
@@ -221,7 +217,6 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F8F9FE',
     borderRadius: 20,
     padding: 4,
     marginBottom: 20,
@@ -233,7 +228,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   activeTab: {
-    backgroundColor: '#FFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -243,10 +237,6 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
-  },
-  activeTabText: {
-    color: BRAND_COLORS.secondary,
   },
   amountContainer: {
     flexDirection: 'row',
@@ -276,10 +266,8 @@ const styles = StyleSheet.create({
   wave: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#F0EEFF',
     borderTopLeftRadius: 50,
     borderTopRightRadius: 50,
-    opacity: 0.5,
   },
   chartLabels: {
     flexDirection: 'row',
@@ -287,7 +275,6 @@ const styles = StyleSheet.create({
   },
   chartLabelText: {
     fontSize: 12,
-    color: '#AAA',
     fontWeight: '500',
   },
   menuContainer: {
@@ -311,7 +298,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#F8F9FE',
     justifyContent: 'center',
     alignItems: 'center',
   },
