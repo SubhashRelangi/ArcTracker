@@ -1,5 +1,7 @@
 import React from 'react';
-import { StyleSheet, ScrollView, View, StatusBar as RNStatusBar } from 'react-native';
+import { StyleSheet, ScrollView, View, StatusBar as RNStatusBar, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import { BRAND_COLORS } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -9,10 +11,10 @@ import { Header } from '@/components/home/Header';
 import { SpendingCard } from '@/components/home/SpendingCard';
 import { BanksSection } from '@/components/home/BanksSection';
 import { RecentActivity } from '@/components/home/RecentActivity';
-import { ActionCards } from '@/components/home/ActionCards';
 
 export default function Homepage() {
   const { theme, isDark } = useTheme();
+  const router = useRouter();
 
   return (
     <View style={[styles.mainContainer, { backgroundColor: theme.background }]}>
@@ -22,8 +24,15 @@ export default function Homepage() {
         <SpendingCard theme={theme} isDark={isDark} />
         <BanksSection theme={theme} />
         <RecentActivity theme={theme} />
-        <ActionCards theme={theme} BRAND_COLORS={BRAND_COLORS} />
       </ScrollView>
+
+      {/* Floating Action Button */}
+      <TouchableOpacity 
+        style={[styles.fab, { backgroundColor: '#00BAF2' }]}
+        onPress={() => router.push('/add-expense')}
+      >
+        <Ionicons name="add" size={32} color="#FFF" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -36,6 +45,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingBottom: 40,
+    paddingBottom: 100, // Extra padding for FAB and TabBar
+  },
+  fab: {
+    position: 'absolute',
+    right: 24,
+    bottom: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    zIndex: 1000,
   },
 });

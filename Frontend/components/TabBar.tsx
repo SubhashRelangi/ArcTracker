@@ -1,70 +1,32 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Pressable, LayoutChangeEvent, Dimensions } from 'react-native';
-import Animated, { 
-  useAnimatedStyle, 
-  useSharedValue, 
-  withSpring, 
-  withTiming,
-  interpolateColor
-} from 'react-native-reanimated';
+import React from 'react';
+import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 import { useTheme } from '@/hooks/use-theme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const TAB_BAR_WIDTH = SCREEN_WIDTH * 0.9;
 const TAB_BAR_HEIGHT = 64;
 
 export const TabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
   const insets = useSafeAreaInsets();
   const { theme, isDark } = useTheme();
-  const [tabWidth, setTabWidth] = useState(0);
-  
-  const translateX = useSharedValue(0);
-  const bubbleScaleX = useSharedValue(1);
-
-  useEffect(() => {
-    if (tabWidth > 0) {
-      // Simple and snappy spring transition for the position
-      translateX.value = withSpring((state.index * tabWidth) + 6, {
-        damping: 20,
-        stiffness: 150,
-        mass: 1,
-      });
-    }
-  }, [state.index, tabWidth]);
-
-  const onLayout = (event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    setTabWidth((width - 12) / state.routes.length);
-  };
-
-  const animatedBubbleStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { translateX: translateX.value },
-      ],
-    };
-  });
 
   return (
-    <View style={[styles.container, { bottom: insets.bottom + 10 }]}>
-      <View style={[styles.tabBar, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]} onLayout={onLayout}>
-        <Animated.View 
-          style={[
-            styles.bubble, 
-            { 
-              width: tabWidth - 12, // Subtracted margin for centering
-              backgroundColor: '#00BAF2'
-            }, 
-            animatedBubbleStyle
-          ]} 
-        />
-        
+    <View style={[
+      styles.container, 
+      { 
+        backgroundColor: theme.surface,
+        paddingBottom: insets.bottom,
+        height: TAB_BAR_HEIGHT + insets.bottom,
+        borderTopColor: theme.border,
+        borderTopWidth: 1,
+      }
+    ]}>
+      <View style={styles.tabBar}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
+          const label = options.title !== undefined ? options.title : route.name;
           const isFocused = state.index === index;
 
           const onPress = () => {
@@ -84,6 +46,9 @@ export const TabBar = ({ state, descriptors, navigation }: BottomTabBarProps) =>
           else if (route.name === 'search') iconName = isFocused ? 'search' : 'search-outline';
           else if (route.name === 'profile') iconName = isFocused ? 'person' : 'person-outline';
 
+          const activeColor = '#00BAF2';
+          const inactiveColor = isDark ? '#9BA1A6' : '#687076';
+
           return (
             <Pressable
               key={route.key}
@@ -93,8 +58,14 @@ export const TabBar = ({ state, descriptors, navigation }: BottomTabBarProps) =>
               <Ionicons 
                 name={iconName} 
                 size={24} 
-                color={isFocused ? '#FFFFFF' : (isDark ? '#9BA1A6' : '#687076')} 
+                color={isFocused ? activeColor : inactiveColor} 
               />
+              <Text style={[
+                styles.label, 
+                { color: isFocused ? activeColor : inactiveColor }
+              ]}>
+                {label}
+              </Text>
             </Pressable>
           );
         })}
@@ -105,37 +76,28 @@ export const TabBar = ({ state, descriptors, navigation }: BottomTabBarProps) =>
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    alignSelf: 'center',
-    width: TAB_BAR_WIDTH,
+    width: '100%',
     zIndex: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 10,
   },
   tabBar: {
     flexDirection: 'row',
     height: TAB_BAR_HEIGHT,
-    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    height: '100%',
-    zIndex: 10,
+    gap: 4,
   },
-  bubble: {
-    position: 'absolute',
-    height: TAB_BAR_HEIGHT - 12,
-    borderRadius: 26,
-    marginHorizontal: 6, // This ensures the bubble is centered within its translateX range
+  label: {
+    fontSize: 11,
+    fontWeight: '500',
   },
 });
