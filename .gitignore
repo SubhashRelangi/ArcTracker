@@ -1,0 +1,11 @@
+node_modules
+.env
+dist
+.expo
+.vscode
+*.log
+.DS_Store
+Backend/node_modules
+Frontend/node_modules
+Backend/.env
+Frontend/.env

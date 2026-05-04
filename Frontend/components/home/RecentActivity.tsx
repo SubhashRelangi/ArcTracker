@@ -1,30 +1,52 @@
-import React from 'react';
-import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 import { BRAND_COLORS } from '@/constants/theme';
+import { getTransactions } from '@/services/api';
+
+const CATEGORY_ICONS: Record<string, any> = {
+  Food: 'fast-food',
+  Shopping: 'cart',
+  Transport: 'bus',
+  Housing: 'home',
+  Leisure: 'game-controller',
+  Utilities: 'flash',
+  Entertainment: 'tv',
+};
 
 interface ActivityItemProps {
   logo: string;
   name: string;
   subtext: string;
-  amount: string;
+  amount: number;
   category: string;
   theme: any;
 }
 
 const ActivityItem: React.FC<ActivityItemProps> = ({ logo, name, subtext, amount, category, theme }) => {
+  const isExpense = amount < 0;
+  const iconName = CATEGORY_ICONS[category] || 'receipt';
+  
   return (
     <View style={styles.activityItem}>
       <View style={[styles.logoContainer, { backgroundColor: theme.background }]}>
-        <Image source={logo} style={styles.activityLogo} />
+        {logo && logo !== 'https://via.placeholder.com/48' ? (
+          <Image source={logo} style={styles.activityLogo} />
+        ) : (
+          <Ionicons name={iconName} size={24} color={BRAND_COLORS.primary} />
+        )}
       </View>
       <View style={styles.activityDetails}>
         <ThemedText style={[styles.activityName, { color: theme.text }]}>{name}</ThemedText>
         <ThemedText style={[styles.activitySubtext, { color: theme.textSecondary }]}>{subtext}</ThemedText>
       </View>
       <View style={styles.activityAmountSection}>
-        <ThemedText style={styles.activityAmount}>{amount}</ThemedText>
+        <ThemedText style={[styles.activityAmount, { color: isExpense ? '#FF5252' : '#4CAF50' }]}>
+          {isExpense ? '-' : '+'}${Math.abs(amount).toFixed(2)}
+        </ThemedText>
         <ThemedText style={[styles.activityCategory, { color: BRAND_COLORS.primary }]}>{category}</ThemedText>
       </View>
     </View>
@@ -36,35 +58,53 @@ interface RecentActivityProps {
 }
 
 export const RecentActivity: React.FC<RecentActivityProps> = ({ theme }) => {
+  const router = useRouter();
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+
+  const fetchTransactions = async () => {
+    try {
+      const response = await getTransactions();
+      setTransactions(response.data);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.section}>
       <ThemedText type="subtitle" style={[styles.sectionTitle, { color: theme.text }]}>Recent Activity</ThemedText>
       <View style={[styles.activityCard, { backgroundColor: theme.surface }]}>
-        <ActivityItem 
-          logo="https://logo.clearbit.com/starbucks.com" 
-          name="Starbucks" 
-          subtext="Coffee & Snacks" 
-          amount="-$8.50" 
-          category="Food" 
-          theme={theme}
-        />
-        <ActivityItem 
-          logo="https://logo.clearbit.com/amazon.com" 
-          name="Amazon" 
-          subtext="Online Shopping" 
-          amount="-$74.99" 
-          category="Shopping" 
-          theme={theme}
-        />
-        <ActivityItem 
-          logo="https://logo.clearbit.com/shell.com" 
-          name="Shell" 
-          subtext="Fuel Station" 
-          amount="-$62.30" 
-          category="Transport" 
-          theme={theme}
-        />
-        <TouchableOpacity style={[styles.viewHistoryButton, { borderTopColor: theme.border }]}>
+        {loading ? (
+          <ActivityIndicator size="large" color={BRAND_COLORS.primary} style={{ padding: 20 }} />
+        ) : transactions.length > 0 ? (
+          transactions.slice(0, 5).map((item) => (
+            <ActivityItem 
+              key={item.id}
+              logo={item.logoUrl} 
+              name={item.merchant} 
+              subtext={item.subtext} 
+              amount={item.amount} 
+              category={item.category} 
+              theme={theme}
+            />
+          ))
+        ) : (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <ThemedText style={{ color: theme.textSecondary }}>No recent activity</ThemedText>
+          </View>
+        )}
+        
+        <TouchableOpacity 
+          style={[styles.viewHistoryButton, { borderTopColor: theme.border }]}
+          onPress={() => router.push('/(tabs)/search')}
+        >
           <ThemedText style={[styles.viewHistoryText, { color: BRAND_COLORS.primary }]}>View Full History</ThemedText>
         </TouchableOpacity>
       </View>
@@ -127,7 +167,6 @@ const styles = StyleSheet.create({
   activityAmount: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#FF5252',
     marginBottom: 2,
   },
   activityCategory: {

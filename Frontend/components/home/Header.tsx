@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, TouchableOpacity, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/themed-text';
 import { BRAND_COLORS } from '@/constants/theme';
@@ -10,10 +11,33 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ theme, isDark }) => {
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    try {
+      const userData = await AsyncStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        setUserName(user.name.split(' ')[0]); // Get first name
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
       <View style={styles.headerLeft}>
-        <ThemedText style={[styles.appName, { color: BRAND_COLORS.primary }]}>ARCTRACKER</ThemedText>
+        <View>
+          <ThemedText style={[styles.appName, { color: BRAND_COLORS.primary }]}>ARCTRACKER</ThemedText>
+          {userName ? (
+            <ThemedText style={[styles.welcomeText, { color: theme.textSecondary }]}>Hi, {userName} 👋</ThemedText>
+          ) : null}
+        </View>
       </View>
       <View style={styles.headerRight}>
         <TouchableOpacity style={[styles.iconButton, { backgroundColor: isDark ? '#2C2C2C' : '#F0F2F5' }]}>
@@ -52,6 +76,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: -0.5,
+  },
+  welcomeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: -2,
   },
   headerRight: {
     flexDirection: 'row',

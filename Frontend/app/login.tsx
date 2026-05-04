@@ -9,15 +9,19 @@ import {
   ScrollView,
   SafeAreaView,
   Dimensions,
-  StatusBar
+  StatusBar,
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { BRAND_COLORS } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ThemedText } from '@/components/themed-text';
+import { login } from '@/services/api';
 
 const { height } = Dimensions.get('window');
 
@@ -27,10 +31,27 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    // Navigate to homepage for now
-    router.replace('/(tabs)');
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter email and password');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await login({ email, password });
+      await AsyncStorage.setItem('token', response.data.token);
+      await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      console.error('Login failed', error);
+      const message = error.response?.data?.error || 'Login failed. Please try again.';
+      Alert.alert('Error', message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -44,7 +65,6 @@ export default function LoginScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header Image/Gradient Placeholder Area */}
           <Animated.View 
             entering={FadeInDown.delay(200).duration(1000)}
             style={[styles.headerGradient, { backgroundColor: BRAND_COLORS.primary }]}
@@ -63,7 +83,6 @@ export default function LoginScreen() {
               <ThemedText type="title" style={styles.welcomeText}>Welcome Back</ThemedText>
               <ThemedText style={styles.subWelcomeText}>Sign in to continue</ThemedText>
 
-              {/* Input Fields */}
               <View style={styles.inputGroup}>
                 <ThemedText style={styles.inputLabel}>Email Address</ThemedText>
                 <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E1E' : '#F5F5F5' }]}>
@@ -100,37 +119,16 @@ export default function LoginScreen() {
                     />
                   </TouchableOpacity>
                 </View>
-                <TouchableOpacity style={styles.forgotPassword}>
-                  <ThemedText style={styles.forgotPasswordText}>Forgot Password?</ThemedText>
-                </TouchableOpacity>
               </View>
 
-              {/* Login Button */}
               <TouchableOpacity 
                 style={[styles.loginButton, { backgroundColor: BRAND_COLORS.primary }]}
                 onPress={handleLogin}
+                disabled={loading}
               >
-                <ThemedText style={styles.loginButtonText}>Log In</ThemedText>
+                {loading ? <ActivityIndicator color="#FFF" /> : <ThemedText style={styles.loginButtonText}>Log In</ThemedText>}
               </TouchableOpacity>
 
-              {/* Divider */}
-              <View style={styles.dividerContainer}>
-                <View style={[styles.divider, { backgroundColor: theme.icon + '40' }]} />
-                <ThemedText style={styles.dividerText}>OR</ThemedText>
-                <View style={[styles.divider, { backgroundColor: theme.icon + '40' }]} />
-              </View>
-
-              {/* Social Login Buttons Placeholder */}
-              <View style={styles.socialButtonsContainer}>
-                <TouchableOpacity style={[styles.socialButton, { borderColor: theme.icon + '40' }]}>
-                  <Ionicons name="logo-google" size={24} color="#DB4437" />
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.socialButton, { borderColor: theme.icon + '40' }]}>
-                  <Ionicons name="logo-apple" size={24} color={theme.text} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Sign Up Link */}
               <View style={styles.signupContainer}>
                 <ThemedText>Don{"'"}t have an account? </ThemedText>
                 <TouchableOpacity onPress={() => router.push('/signup')}>
@@ -223,15 +221,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     height: '100%',
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginTop: 8,
-  },
-  forgotPasswordText: {
-    color: BRAND_COLORS.primary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
   loginButton: {
     height: 56,
     borderRadius: 16,
@@ -249,39 +238,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 32,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    fontSize: 14,
-    color: '#888',
-  },
-  socialButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 20,
-    marginBottom: 32,
-  },
-  socialButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginTop: 32,
   },
   signupText: {
     color: BRAND_COLORS.primary,

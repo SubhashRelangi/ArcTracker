@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/themed-text';
 
@@ -10,9 +11,10 @@ interface ActionCardProps {
   buttonText: string;
   iconBg: string;
   theme: any;
+  onPress: () => void;
 }
 
-const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, buttonText, iconBg, theme }) => {
+const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, buttonText, iconBg, theme, onPress }) => {
   return (
     <View style={[styles.actionCard, { backgroundColor: theme.surface }]}>
       <View style={[styles.actionIconContainer, { backgroundColor: iconBg + '20' }]}>
@@ -20,7 +22,10 @@ const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, butto
       </View>
       <ThemedText style={[styles.actionTitle, { color: theme.text }]}>{title}</ThemedText>
       <ThemedText style={[styles.actionDescription, { color: theme.textSecondary }]}>{description}</ThemedText>
-      <TouchableOpacity style={[styles.actionButton, { backgroundColor: iconBg }]}>
+      <TouchableOpacity 
+        style={[styles.actionButton, { backgroundColor: iconBg }]}
+        onPress={onPress}
+      >
         <ThemedText style={styles.actionButtonText}>{buttonText}</ThemedText>
       </TouchableOpacity>
     </View>
@@ -33,6 +38,8 @@ interface ActionCardsProps {
 }
 
 export const ActionCards: React.FC<ActionCardsProps> = ({ theme, BRAND_COLORS }) => {
+  const router = useRouter();
+
   return (
     <View style={styles.actionCardsRow}>
       <ActionCard 
@@ -42,14 +49,16 @@ export const ActionCards: React.FC<ActionCardsProps> = ({ theme, BRAND_COLORS })
         buttonText="Add Expense" 
         iconBg={BRAND_COLORS.accent1}
         theme={theme}
+        onPress={() => router.push('/add-expense')}
       />
       <ActionCard 
         icon="arrow.2.circlepath" 
         title="Bank Sync" 
-        description="Automatic updates" 
-        buttonText="Manage" 
+        description="Manage your accounts" 
+        buttonText="View All" 
         iconBg={BRAND_COLORS.secondary}
         theme={theme}
+        onPress={() => router.push('/(tabs)/profile')}
       />
     </View>
   );

@@ -9,15 +9,19 @@ import {
   ScrollView,
   SafeAreaView,
   Dimensions,
-  StatusBar
+  StatusBar,
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { BRAND_COLORS } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ThemedText } from '@/components/themed-text';
+import { signup } from '@/services/api';
 
 const { height } = Dimensions.get('window');
 
@@ -28,10 +32,27 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSignup = () => {
-    // Navigate to homepage for now
-    router.replace('/(tabs)');
+  const handleSignup = async () => {
+    if (!fullName || !email || !password) {
+      Alert.alert('Error', 'Please fill all fields');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await signup({ name: fullName, email, password });
+      await AsyncStorage.setItem('token', response.data.token);
+      await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      console.error('Signup failed', error);
+      const message = error.response?.data?.error || 'Signup failed. Please try again.';
+      Alert.alert('Error', message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -45,7 +66,6 @@ export default function SignupScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header Area */}
           <Animated.View 
             entering={FadeInDown.delay(200).duration(1000)}
             style={[styles.headerGradient, { backgroundColor: BRAND_COLORS.secondary }]}
@@ -70,7 +90,6 @@ export default function SignupScreen() {
               <ThemedText type="title" style={styles.welcomeText}>Get Started</ThemedText>
               <ThemedText style={styles.subWelcomeText}>Create your account to manage expenses</ThemedText>
 
-              {/* Input Fields */}
               <View style={styles.inputGroup}>
                 <ThemedText style={styles.inputLabel}>Full Name</ThemedText>
                 <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#1E1E1E' : '#F5F5F5' }]}>
@@ -123,20 +142,14 @@ export default function SignupScreen() {
                 </View>
               </View>
 
-              {/* Terms and Conditions Placeholder */}
-              <ThemedText style={styles.termsText}>
-                By signing up, you agree to our <ThemedText style={styles.linkText}>Terms of Service</ThemedText> and <ThemedText style={styles.linkText}>Privacy Policy</ThemedText>
-              </ThemedText>
-
-              {/* Signup Button */}
               <TouchableOpacity 
                 style={[styles.signupButton, { backgroundColor: BRAND_COLORS.secondary }]}
                 onPress={handleSignup}
+                disabled={loading}
               >
-                <ThemedText style={styles.signupButtonText}>Sign Up</ThemedText>
+                {loading ? <ActivityIndicator color="#FFF" /> : <ThemedText style={styles.signupButtonText}>Sign Up</ThemedText>}
               </TouchableOpacity>
 
-              {/* Login Link */}
               <View style={styles.loginContainer}>
                 <ThemedText>Already have an account? </ThemedText>
                 <TouchableOpacity onPress={() => router.push('/login')}>
@@ -236,23 +249,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     height: '100%',
   },
-  termsText: {
-    fontSize: 12,
-    color: '#888',
-    textAlign: 'center',
-    marginVertical: 16,
-    lineHeight: 18,
-  },
-  linkText: {
-    color: BRAND_COLORS.secondary,
-    fontWeight: '600',
-  },
   signupButton: {
     height: 56,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 24,
     shadowColor: BRAND_COLORS.secondary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

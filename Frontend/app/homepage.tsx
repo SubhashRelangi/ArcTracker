@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, ScrollView, View, StatusBar as RNStatusBar, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, ScrollView, View, StatusBar as RNStatusBar, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -9,21 +9,47 @@ import { useTheme } from '@/hooks/use-theme';
 // Import components
 import { Header } from '@/components/home/Header';
 import { SpendingCard } from '@/components/home/SpendingCard';
+import { ActionCards } from '@/components/home/ActionCards';
 import { BanksSection } from '@/components/home/BanksSection';
 import { RecentActivity } from '@/components/home/RecentActivity';
 
 export default function Homepage() {
   const { theme, isDark } = useTheme();
   const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    // Incrementing key forces re-mount or re-fetch in sub-components
+    setRefreshKey(prev => prev + 1);
+    
+    // Simulate a brief delay for better UX
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, []);
 
   return (
     <View style={[styles.mainContainer, { backgroundColor: theme.background }]}>
       <RNStatusBar barStyle={isDark ? "light-content" : "dark-content"} />
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <ScrollView 
+        style={styles.container} 
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            colors={[BRAND_COLORS.primary]}
+            tintColor={BRAND_COLORS.primary}
+          />
+        }
+      >
         <Header theme={theme} isDark={isDark} />
-        <SpendingCard theme={theme} isDark={isDark} />
-        <BanksSection theme={theme} />
-        <RecentActivity theme={theme} />
+        <SpendingCard key={`spending-${refreshKey}`} theme={theme} isDark={isDark} />
+        <ActionCards theme={theme} BRAND_COLORS={BRAND_COLORS} />
+        <BanksSection key={`banks-${refreshKey}`} theme={theme} />
+        <RecentActivity key={`activity-${refreshKey}`} theme={theme} />
       </ScrollView>
 
       {/* Floating Action Button */}

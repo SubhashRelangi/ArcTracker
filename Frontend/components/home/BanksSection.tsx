@@ -1,27 +1,33 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { BRAND_COLORS } from '@/constants/theme';
+import { getAccounts } from '@/services/api';
 
 interface BalanceCardProps {
   logo: string;
   bank: string;
   subtitle: string;
+  balance: number;
   buttonText: string;
   backgroundColor: string;
   theme: any;
   isDotted?: boolean;
+  onPress?: () => void;
 }
 
 const BalanceCard: React.FC<BalanceCardProps> = ({ 
   logo, 
   bank, 
   subtitle, 
+  balance,
   buttonText, 
   backgroundColor, 
   theme,
-  isDotted = false
+  isDotted = false,
+  onPress
 }) => {
   const textColor = isDotted ? theme.text : '#FFFFFF';
   
@@ -34,14 +40,17 @@ const BalanceCard: React.FC<BalanceCardProps> = ({
       <View style={styles.cardTopRow}>
         <View style={styles.cardTextContainer}>
           <ThemedText style={[styles.bankName, { color: textColor }]} numberOfLines={1}>{bank}</ThemedText>
-          <ThemedText style={[styles.bankSubtitle, { color: textColor }]} numberOfLines={2}>{subtitle}</ThemedText>
+          <ThemedText style={[styles.bankSubtitle, { color: textColor }]} numberOfLines={2}>
+            {isDotted ? subtitle : `Balance: $${balance.toFixed(2)}`}
+          </ThemedText>
+          {!isDotted && <ThemedText style={[styles.bankAccNo, { color: textColor }]}>{subtitle}</ThemedText>}
         </View>
         <View style={styles.bankLogoCircle}>
           <Image source={logo} style={styles.bankLogoSmall} />
         </View>
       </View>
       
-      <TouchableOpacity style={styles.actionButton}>
+      <TouchableOpacity style={styles.actionButton} onPress={onPress}>
         <ThemedText style={styles.actionButtonText}>{buttonText}</ThemedText>
       </TouchableOpacity>
     </View>
@@ -53,34 +62,56 @@ interface BanksSectionProps {
 }
 
 export const BanksSection: React.FC<BanksSectionProps> = ({ theme }) => {
+  const router = useRouter();
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
+
+  const fetchAccounts = async () => {
+    try {
+      const response = await getAccounts();
+      setAccounts(response.data);
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.section}>
       <ThemedText type="subtitle" style={[styles.sectionTitle, { color: theme.text }]}>Your Accounts</ThemedText>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.balanceCardsContainer}>
-        <BalanceCard 
-          logo="https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/State_Bank_of_India_logo.svg/1024px-State_Bank_of_India_logo.svg.png"
-          bank="SBI Bank" 
-          subtitle="A/c No: 6828" 
-          buttonText="Check Balance"
-          backgroundColor="#0052B4"
-          theme={theme}
-        />
-        <BalanceCard 
-          logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR0Y64iS0m_9f_1x_0Y-5_0_K_W_k_9_9_9_9&s"
-          bank="UPI Lite" 
-          subtitle="2x Gold Coins on all payments" 
-          buttonText="Activate"
-          backgroundColor="#41A4F4"
-          theme={theme}
-        />
+        {loading ? (
+          <ActivityIndicator size="large" color={BRAND_COLORS.primary} style={{ padding: 40 }} />
+        ) : (
+          accounts.map((acc) => (
+            <BalanceCard 
+              key={acc.id}
+              logo={acc.logoUrl}
+              bank={acc.bankName} 
+              subtitle={`A/c No: ${acc.accountNumber}`} 
+              balance={acc.balance}
+              buttonText="Check Balance"
+              backgroundColor={acc.color}
+              theme={theme}
+            />
+          ))
+        )}
+        
         <BalanceCard 
           logo="https://logo.clearbit.com/paytm.com"
-          bank="Paytm" 
-          subtitle="Wallet Balance: $0" 
-          buttonText="Add Money"
+          bank="Add Account" 
+          subtitle="Link a new bank account" 
+          balance={0}
+          buttonText="Link Now"
           backgroundColor="#fff"
           isDotted={true}
           theme={theme}
+          onPress={() => router.push('/link-account')}
         />
       </ScrollView>
     </View>
@@ -144,6 +175,13 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     lineHeight: 20,
   },
+  bankAccNo: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    opacity: 0.7,
+    marginTop: 4,
+  },
   bankLogoCircle: {
     width: 44,
     height: 44,
@@ -170,4 +208,3 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-

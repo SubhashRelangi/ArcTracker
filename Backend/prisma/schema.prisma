@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  email     String        @unique
+  name      String
+  password  String
+  accounts  BankAccount[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model BankAccount {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String        @db.ObjectId
+  user          User          @relation(fields: [userId], references: [id])
+  bankName      String
+  accountNumber String
+  balance       Float         @default(0.0)
+  color         String        @default("#FFFFFF")
+  logoUrl       String?
+  transactions  Transaction[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Transaction {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  accountId   String      @db.ObjectId
+  account     BankAccount @relation(fields: [accountId], references: [id])
+  amount      Float
+  category    String
+  merchant    String
+  subtext     String?
+  logoUrl     String?
+  date        DateTime    @default(now())
+  type        String      // "EXPENSE" or "INCOME"
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}

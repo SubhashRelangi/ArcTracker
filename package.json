@@ -1,0 +1,28 @@
+{
+  "name": "arctracker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "concurrently --kill-others \"npm run dev --prefix Backend\" \"npm start --prefix Frontend\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SubhashRelangi/ArcTracker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/SubhashRelangi/ArcTracker/issues"
+  },
+  "homepage": "https://github.com/SubhashRelangi/ArcTracker#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "mongodb": "^7.2.0"
+  }
+}

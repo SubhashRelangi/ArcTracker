@@ -1,8 +1,9 @@
-import React from 'react';
-import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/themed-text';
 import { BRAND_COLORS } from '@/constants/theme';
+import { getSpendingSummary } from '@/services/api';
 
 interface CategoryRowProps {
   color: string;
@@ -30,67 +31,94 @@ interface SpendingCardProps {
 }
 
 export const SpendingCard: React.FC<SpendingCardProps> = ({ theme, isDark }) => {
-  const categories = [
-    { color: BRAND_COLORS.chart.housing, name: "Housing", percentage: 35, amount: "$2,404" },
-    { color: BRAND_COLORS.chart.food, name: "Food", percentage: 22, amount: "$1,511" },
-    { color: BRAND_COLORS.chart.transport, name: "Transport", percentage: 18, amount: "$1,236" },
-    { color: BRAND_COLORS.chart.shopping, name: "Shopping", percentage: 15, amount: "$1,030" },
-  ];
+  const [summary, setSummary] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalSpent, setTotalSpent] = useState(0);
+
+  useEffect(() => {
+    fetchSpending();
+  }, []);
+
+  const fetchSpending = async () => {
+    try {
+      const response = await getSpendingSummary();
+      const data = response.data;
+      
+      const total = data.reduce((acc: number, item: any) => acc + Math.abs(item._sum.amount || 0), 0);
+      setTotalSpent(total);
+      
+      // Map colors to categories
+      const mappedData = data.map((item: any) => ({
+        name: item.category,
+        amount: Math.abs(item._sum.amount || 0),
+        percentage: total > 0 ? (Math.abs(item._sum.amount || 0) / total) * 100 : 0,
+        color: BRAND_COLORS.chart[item.category.toLowerCase() as keyof typeof BRAND_COLORS.chart] || BRAND_COLORS.primary
+      }));
+      
+      setSummary(mappedData);
+    } catch (error) {
+      console.error('Error fetching spending summary:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={[styles.spendingCard, { backgroundColor: theme.surface }]}>
       <View style={styles.spendingHeader}>
         <ThemedText style={[styles.spendingTitle, { color: theme.text }]}>Spending</ThemedText>
         <TouchableOpacity style={styles.simpleDropdown}>
-          <ThemedText style={[styles.simpleDropdownText, { color: theme.textSecondary }]}>March 2024</ThemedText>
+          <ThemedText style={[styles.simpleDropdownText, { color: theme.textSecondary }]}>This Month</ThemedText>
           <IconSymbol name="chevron.down" size={14} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
       
-      <View style={styles.spendingContent}>
-        {/* Left Side: Money and Bar Graph */}
-        <View style={styles.leftColumn}>
-          <ThemedText style={[styles.totalAmount, { color: theme.text }]}>
-            $6,870.45
-          </ThemedText>
-          <ThemedText style={[styles.totalLabel, { color: theme.textSecondary }]}>
-            Total spent this month
-          </ThemedText>
-          
-          <View style={[styles.barGraphContainer, { backgroundColor: isDark ? '#333' : '#F0F0F0' }]}>
-            {categories.map((cat, index) => (
-              <View 
-                key={index} 
-                style={[
-                  styles.barSegment, 
-                  { 
-                    backgroundColor: cat.color, 
-                    flex: cat.percentage,
-                    borderTopLeftRadius: index === 0 ? 6 : 0,
-                    borderBottomLeftRadius: index === 0 ? 6 : 0,
-                    borderTopRightRadius: index === categories.length - 1 ? 6 : 0,
-                    borderBottomRightRadius: index === categories.length - 1 ? 6 : 0,
-                  }
-                ]} 
+      {loading ? (
+        <ActivityIndicator size="large" color={BRAND_COLORS.primary} />
+      ) : (
+        <View style={styles.spendingContent}>
+          <View style={styles.leftColumn}>
+            <ThemedText style={[styles.totalAmount, { color: theme.text }]}>
+              ${totalSpent.toFixed(2)}
+            </ThemedText>
+            <ThemedText style={[styles.totalLabel, { color: theme.textSecondary }]}>
+              Total spent this month
+            </ThemedText>
+            
+            <View style={[styles.barGraphContainer, { backgroundColor: isDark ? '#333' : '#F0F0F0' }]}>
+              {summary.map((cat, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.barSegment, 
+                    { 
+                      backgroundColor: cat.color, 
+                      flex: cat.percentage,
+                      borderTopLeftRadius: index === 0 ? 6 : 0,
+                      borderBottomLeftRadius: index === 0 ? 6 : 0,
+                      borderTopRightRadius: index === summary.length - 1 ? 6 : 0,
+                      borderBottomRightRadius: index === summary.length - 1 ? 6 : 0,
+                    }
+                  ]} 
+                />
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.rightColumn}>
+            {summary.map((cat, index) => (
+              <CategoryRow 
+                key={index}
+                color={cat.color} 
+                name={cat.name} 
+                amount={`$${cat.amount.toFixed(0)}`} 
+                theme={theme} 
+                percentage={cat.percentage.toFixed(0) + "%"}
               />
             ))}
           </View>
         </View>
-
-        {/* Right Side: Spending Things */}
-        <View style={styles.rightColumn}>
-          {categories.map((cat, index) => (
-            <CategoryRow 
-              key={index}
-              color={cat.color} 
-              name={cat.name} 
-              amount={cat.amount} 
-              theme={theme} 
-              percentage={cat.percentage + "%"}
-            />
-          ))}
-        </View>
-      </View>
+      )}
     </View>
   );
 };
@@ -188,4 +216,3 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 });
-

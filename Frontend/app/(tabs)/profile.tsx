@@ -1,13 +1,60 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, TouchableOpacity, ScrollView, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/themed-text';
 import { BRAND_COLORS } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { getMe, getSpendingSummary } from '@/services/api';
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { theme, isDark, themePreference, setThemePreference } = useTheme();
   const [activeTab, setActiveTab] = useState('Expense');
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [totalMonthlySpent, setTotalMonthlySpent] = useState(0);
+
+  useEffect(() => {
+    fetchProfileData();
+  }, []);
+
+  const fetchProfileData = async () => {
+    try {
+      const [userResponse, spendingResponse] = await Promise.all([
+        getMe(),
+        getSpendingSummary()
+      ]);
+      
+      setUser(userResponse.data);
+      
+      const total = spendingResponse.data.reduce((acc: number, item: any) => acc + Math.abs(item._sum.amount || 0), 0);
+      setTotalMonthlySpent(total);
+    } catch (error) {
+      console.error('Failed to fetch profile data', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
+          style: 'destructive',
+          onPress: async () => {
+            await AsyncStorage.clear();
+            router.replace('/login');
+          }
+        }
+      ]
+    );
+  };
 
   const menuItems = [
     { icon: 'creditcard', label: 'My Card', hasChevron: true },
@@ -15,6 +62,14 @@ export default function ProfileScreen() {
     { icon: 'bell', label: 'Notification', hasChevron: true },
     { icon: 'clock.arrow.circlepath', label: 'Transaction History', hasChevron: true },
   ];
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background, justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={BRAND_COLORS.secondary} />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]} bounces={false}>
@@ -26,18 +81,23 @@ export default function ProfileScreen() {
         <View style={styles.profileHeader}>
           <View style={[styles.avatarWrapper, { borderColor: theme.background }]}>
             <Image 
-              source={{ uri: 'https://i.pravatar.cc/300?u=ryan' }} 
+              source={{ uri: `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=random` }} 
               style={styles.avatar} 
             />
           </View>
-          <TouchableOpacity style={[styles.editButton, { backgroundColor: isDark ? '#333' : '#F0EEFF' }]}>
-            <ThemedText style={styles.editButtonText}>Edit Profile</ThemedText>
+          <TouchableOpacity 
+            style={[styles.logoutButton, { backgroundColor: '#FF5252' }]}
+            onPress={handleLogout}
+          >
+            <ThemedText style={styles.logoutButtonText}>Logout</ThemedText>
           </TouchableOpacity>
         </View>
 
         <View style={styles.userInfo}>
-          <ThemedText style={styles.userName}>Ryan Raynolds</ThemedText>
-          <ThemedText style={[styles.joinedDate, { color: theme.textSecondary }]}>Joined since 2023</ThemedText>
+          <ThemedText style={styles.userName}>{user?.name || 'Ryan Raynolds'}</ThemedText>
+          <ThemedText style={[styles.joinedDate, { color: theme.textSecondary }]}>
+            Joined since {user ? new Date(user.createdAt).getFullYear() : '2023'}
+          </ThemedText>
         </View>
 
         {/* Monthly Tracker Card */}
@@ -66,24 +126,16 @@ export default function ProfileScreen() {
 
           <View style={styles.amountContainer}>
             <View>
-              <ThemedText style={styles.amountText}>$292.49</ThemedText>
-              <ThemedText style={styles.trendText}>+12% better than last month</ThemedText>
+              <ThemedText style={styles.amountText}>
+                ${activeTab === 'Expense' ? totalMonthlySpent.toFixed(2) : '0.00'}
+              </ThemedText>
+              <ThemedText style={styles.trendText}>
+                {activeTab === 'Expense' ? 'Tracking your monthly spending' : 'No income recorded yet'}
+              </ThemedText>
             </View>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/search')}>
               <IconSymbol name="chevron.right" size={20} color={BRAND_COLORS.secondary} />
             </TouchableOpacity>
-          </View>
-
-          {/* Simulated Wave Chart */}
-          <View style={styles.chartPlaceholder}>
-            <View style={styles.waveContainer}>
-               <View style={[styles.wave, { backgroundColor: isDark ? BRAND_COLORS.secondary : '#F0EEFF', opacity: isDark ? 0.3 : 0.5 }]} />
-            </View>
-            <View style={styles.chartLabels}>
-              {['Week 1', 'Week 2', 'Week 3', 'Week 4'].map((label) => (
-                <ThemedText key={label} style={[styles.chartLabelText, { color: theme.textSecondary }]}>{label}</ThemedText>
-              ))}
-            </View>
           </View>
         </View>
 
@@ -192,13 +244,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  editButton: {
+  logoutButton: {
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
   },
-  editButtonText: {
-    color: BRAND_COLORS.secondary,
+  logoutButtonText: {
+    color: '#FFF',
     fontWeight: '700',
     fontSize: 14,
   },
@@ -268,29 +320,6 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontWeight: '600',
     marginTop: 4,
-  },
-  chartPlaceholder: {
-    height: 120,
-    justifyContent: 'flex-end',
-  },
-  waveContainer: {
-    height: 60,
-    marginBottom: 10,
-    overflow: 'hidden',
-  },
-  wave: {
-    width: '100%',
-    height: '100%',
-    borderTopLeftRadius: 50,
-    borderTopRightRadius: 50,
-  },
-  chartLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  chartLabelText: {
-    fontSize: 12,
-    fontWeight: '500',
   },
   sectionHeader: {
     marginBottom: 12,
