@@ -53,6 +53,7 @@ fun ExpenseScreen() {
     
     var showAddDialog by remember { mutableStateOf(false) }
     var showApproveDialog by remember { mutableStateOf<Expense?>(null) }
+    var currentRoute by remember { mutableStateOf("Home") }
 
     fun isNotificationServiceEnabled(): Boolean {
         val pkgName = context.packageName
@@ -89,6 +90,12 @@ fun ExpenseScreen() {
                 }
             )
         },
+        bottomBar = {
+            com.example.arctracker.ui.FloatingNavigationBar(
+                currentRoute = currentRoute,
+                onNavigate = { currentRoute = it.title }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Add Expense")
@@ -96,7 +103,12 @@ fun ExpenseScreen() {
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-            if (!hasPermission) {
+            if (currentRoute != "Home") {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                    Text("$currentRoute Screen Coming Soon!", style = MaterialTheme.typography.titleLarge)
+                }
+            } else {
+                if (!hasPermission) {
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
@@ -143,6 +155,7 @@ fun ExpenseScreen() {
                         })
                     }
                 }
+            }
             }
         }
 
@@ -222,10 +235,20 @@ fun ExpenseItem(expense: Expense, onClick: () -> Unit) {
                     Text(text = dateString, style = MaterialTheme.typography.bodySmall)
                 }
                 Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
+                    val isCredit = expense.type == "Credit"
+                    val sign = if (isCredit) "+" else "-"
+                    val amountColor = if (expense.isPending) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else if (isCredit) {
+                        androidx.compose.ui.graphics.Color(0xFF388E3C) // Green for Credit
+                    } else {
+                        androidx.compose.ui.graphics.Color(0xFFD32F2F) // Red for Debit
+                    }
+                    
                     Text(
-                        text = "₹${expense.amount}",
+                        text = "$sign₹${expense.amount}",
                         fontWeight = FontWeight.Bold,
-                        color = if (expense.isPending) MaterialTheme.colorScheme.error else (if (expense.type == "Debit") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                        color = amountColor
                     )
                     Text(text = expense.type, style = MaterialTheme.typography.bodySmall)
                 }

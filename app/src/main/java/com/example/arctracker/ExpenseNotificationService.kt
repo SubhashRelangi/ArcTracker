@@ -125,12 +125,29 @@ class ExpenseNotificationService : NotificationListenerService() {
             
             if (amount != null) {
                 var merchant = "Unknown"
-                val paidToRegex = Regex("(?i)(?:paid to|payment of .*? to|sent to|received from)\\s+([a-zA-Z0-9\\s]+?)(?:\\.|\\n|\$)")
-                val paidToMatch = paidToRegex.find(text)
                 
-                if (paidToMatch != null) {
-                    merchant = paidToMatch.groupValues[1].trim()
-                } else if (title.isNotBlank() && title.lowercase() != "messages" && !title.contains("new message")) {
+                val terminators = "(?:\\.|\\n| on | thru | by |,|;|\\s+Info|\\s+UPI)"
+                val nameChars = "([a-zA-Z0-9\\s@&\\-]+?)"
+                
+                val merchantPatterns = listOf(
+                    Regex("(?i)(?:paid to|sent to|payment to)\\s+$nameChars$terminators"),
+                    Regex("(?i)payment of .*? to\\s+$nameChars$terminators"),
+                    Regex("(?i)(?:received from|from)\\s+(?!a/c|ac\\b|account)$nameChars$terminators"),
+                    Regex("(?i)to\\s+(?!a/c|ac\\b|account)$nameChars$terminators")
+                )
+                
+                for (pattern in merchantPatterns) {
+                    val match = pattern.find(text)
+                    if (match != null) {
+                        val extracted = match.groupValues[1].trim()
+                        if (extracted.length > 2 && !extracted.equals("a", ignoreCase = true)) {
+                            merchant = extracted
+                            break
+                        }
+                    }
+                }
+                
+                if (merchant == "Unknown" && title.isNotBlank() && title.lowercase() != "messages" && !title.contains("new message")) {
                     merchant = title
                 }
                 
