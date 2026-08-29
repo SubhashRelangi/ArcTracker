@@ -78,17 +78,54 @@ fun ExpenseScreen() {
 
     var hasPermission by remember { mutableStateOf(isNotificationServiceEnabled()) }
     
+    val sharedPrefs = remember { context.getSharedPreferences("ArcTrackerPrefs", android.content.Context.MODE_PRIVATE) }
+    var showPermissionDialog by remember { 
+        mutableStateOf(!hasPermission && !sharedPrefs.getBoolean("hasPromptedForNotification", false))
+    }
+    
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 hasPermission = isNotificationServiceEnabled()
+                if (hasPermission && showPermissionDialog) {
+                    showPermissionDialog = false
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
+    }
+
+    if (showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showPermissionDialog = false 
+                sharedPrefs.edit().putBoolean("hasPromptedForNotification", true).apply()
+            },
+            title = { Text("Automate Expense Tracking", fontWeight = FontWeight.Bold) },
+            text = { Text("ArcTracker can automatically log your expenses by reading payment notifications. Would you like to enable Notification Access?\n\nYou can always do this later in Settings.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    sharedPrefs.edit().putBoolean("hasPromptedForNotification", true).apply()
+                    showPermissionDialog = false
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                    context.startActivity(intent)
+                }) {
+                    Text("Enable Now", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    sharedPrefs.edit().putBoolean("hasPromptedForNotification", true).apply()
+                    showPermissionDialog = false
+                }) {
+                    Text("Not Now", color = MaterialTheme.colorScheme.error)
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -152,35 +189,6 @@ fun ExpenseScreen() {
                     Text("$currentRoute Screen Coming Soon!", style = MaterialTheme.typography.titleLarge)
                 }
             } else {
-                if (!hasPermission) {
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            "Notification Access Required",
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "To automatically track expenses, please enable Notification Access.",
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = {
-                                val intent = android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                                context.startActivity(intent)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text("Enable Now", color = MaterialTheme.colorScheme.onError)
-                        }
-                    }
-                }
-            }
 
             // Using refreshTrigger just to satisfy the compose compiler that we are observing it
             val trigger = refreshTrigger 
