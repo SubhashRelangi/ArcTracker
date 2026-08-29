@@ -3,13 +3,16 @@ package com.example.arctracker
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -54,6 +57,14 @@ fun ExpenseScreen() {
     var showAddDialog by remember { mutableStateOf(false) }
     var showApproveDialog by remember { mutableStateOf<Expense?>(null) }
     var currentRoute by remember { mutableStateOf("Home") }
+    var isSearching by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    
+    val displayedExpenses = if (searchQuery.isNotBlank()) {
+        expenses.filter { it.merchant.contains(searchQuery, ignoreCase = true) }
+    } else {
+        expenses
+    }
 
     fun isNotificationServiceEnabled(): Boolean {
         val pkgName = context.packageName
@@ -79,13 +90,24 @@ fun ExpenseScreen() {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("ArcTracker MVP") },
+                title = { Text("ArcTracker") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 ),
                 actions = {
                     IconButton(onClick = { refreshTrigger++ }) {
                         Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
+                    }
+                    IconButton(onClick = { 
+                        isSearching = !isSearching
+                        if (!isSearching) {
+                            searchQuery = "" // Clear search when closing
+                        }
+                    }) {
+                        Icon(
+                            imageVector = if (isSearching) Icons.Filled.Close else Icons.Filled.Search, 
+                            contentDescription = if (isSearching) "Close Search" else "Search"
+                        )
                     }
                 }
             )
@@ -103,6 +125,24 @@ fun ExpenseScreen() {
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            
+            AnimatedVisibility(visible = isSearching) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search transactions by name...") },
+                    singleLine = true,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), // Added border radius
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    textStyle = MaterialTheme.typography.bodyMedium,
+                    leadingIcon = {
+                        Icon(Icons.Filled.Search, contentDescription = "Search Icon", tint = MaterialTheme.colorScheme.primary)
+                    }
+                )
+            }
+
             if (currentRoute != "Home") {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
                     Text("$currentRoute Screen Coming Soon!", style = MaterialTheme.typography.titleLarge)
@@ -154,15 +194,15 @@ fun ExpenseScreen() {
                     )
                 }
                 
-                if (expenses.isEmpty()) {
+                if (displayedExpenses.isEmpty()) {
                     item {
                         Text(
-                            text = "No expenses yet. Waiting for notifications...",
+                            text = if (isSearching) "No matching transactions found." else "No expenses yet. Waiting for notifications...",
                             modifier = Modifier.padding(16.dp)
                         )
                     }
                 } else {
-                    items(expenses) { expense ->
+                    items(displayedExpenses) { expense ->
                         ExpenseItem(expense, onClick = {
                             if (expense.isPending) {
                                 showApproveDialog = expense
