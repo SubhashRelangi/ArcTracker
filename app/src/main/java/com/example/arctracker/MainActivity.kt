@@ -144,7 +144,7 @@ fun ExpenseScreen() {
                 item {
                     com.example.arctracker.ui.DashboardCard(expenses = expenses)
                     
-                    com.example.arctracker.ui.SpendingOverviewCard()
+                    com.example.arctracker.ui.SpendingOverviewCard(expenses = expenses)
                     
                     Text(
                         text = "Recent Transactions",

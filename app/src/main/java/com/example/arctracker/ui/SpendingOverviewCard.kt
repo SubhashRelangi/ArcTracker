@@ -1,5 +1,6 @@
 package com.example.arctracker.ui
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -8,10 +9,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -19,21 +24,48 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.arctracker.data.Expense
 import java.text.NumberFormat
 import java.util.Locale
 
 data class CategorySpending(val name: String, val amount: Double, val color: Color)
 
 @Composable
-fun SpendingOverviewCard() {
-    // Mock data matching the reference image perfectly
-    val categories = listOf(
-        CategorySpending("Food & Dining", 1450.0, Color(0xFF8C54FF)), // Purple
-        CategorySpending("Shopping", 1120.0, Color(0xFFFF66A3)), // Pink
-        CategorySpending("Transport", 780.0, Color(0xFFFF9E3D)), // Orange
-        CategorySpending("Bills & Utilities", 430.0, Color(0xFF3D8CFF)), // Blue
-        CategorySpending("Others", 220.0, Color(0xFF4CB050)) // Green
+fun SpendingOverviewCard(expenses: List<Expense>) {
+    // 1. Filter out pending and non-debit expenses.
+    val validExpenses = expenses.filter { !it.isPending && it.type == "Debit" }
+
+    // 2. If empty, show empty state
+    if (validExpenses.isEmpty()) {
+        EmptySpendingAnimation()
+        return
+    }
+
+    // 3. Group by merchant
+    val grouped = validExpenses.groupBy { it.merchant }
+        .map { (merchant, list) ->
+            merchant to list.sumOf { it.amount }
+        }
+        .sortedByDescending { it.second }
+        .take(5) // show top 5
+
+    // 4. Map to CategorySpending with colors matching the design palette
+    val colorPalette = listOf(
+        Color(0xFF8C54FF), // Purple
+        Color(0xFFFF66A3), // Pink
+        Color(0xFFFF9E3D), // Orange
+        Color(0xFF3D8CFF), // Blue
+        Color(0xFF4CB050)  // Green
     )
+    
+    val categories = grouped.mapIndexed { index, pair ->
+        CategorySpending(
+            name = pair.first.ifBlank { "Unknown" },
+            amount = pair.second,
+            color = colorPalette[index % colorPalette.size]
+        )
+    }
+
     val total = categories.sumOf { it.amount }
 
     Card(
@@ -127,6 +159,7 @@ fun SpendingOverviewCard() {
                                 text = category.name,
                                 fontSize = 11.sp,
                                 color = Color(0xFF1E1E1E),
+                                maxLines = 1,
                                 modifier = Modifier.weight(1f)
                             )
                             
@@ -152,6 +185,67 @@ fun SpendingOverviewCard() {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun EmptySpendingAnimation() {
+    val infiniteTransition = rememberInfiniteTransition()
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFF0F0F0)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Search,
+                contentDescription = "No Data",
+                modifier = Modifier
+                    .size(48.dp)
+                    .scale(scale)
+                    .alpha(alpha),
+                tint = Color(0xFFD1C4E9)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "No Spending Yet",
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = Color(0xFF9E9E9E)
+            )
+            Text(
+                text = "Expenses will appear here automatically.",
+                fontSize = 12.sp,
+                color = Color(0xFFBDBDBD)
+            )
         }
     }
 }
