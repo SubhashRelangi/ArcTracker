@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,6 +12,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -19,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.arctracker.data.AppDatabase
 import com.example.arctracker.data.Expense
 import kotlinx.coroutines.launch
@@ -185,29 +189,62 @@ fun ExpenseScreen() {
                     com.example.arctracker.ui.DashboardCard(expenses = expenses)
                     
                     com.example.arctracker.ui.SpendingOverviewCard(expenses = expenses)
-                    
-                    Text(
-                        text = "Recent Transactions",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
-                    )
-                }
-                
-                if (displayedExpenses.isEmpty()) {
-                    item {
-                        Text(
-                            text = if (isSearching) "No matching transactions found." else "No expenses yet. Waiting for notifications...",
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
-                } else {
-                    items(displayedExpenses) { expense ->
-                        ExpenseItem(expense, onClick = {
-                            if (expense.isPending) {
-                                showApproveDialog = expense
+                    // Recent Transactions Section
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
+                        border = BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFFF0F0F0)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Column {
+                            // Header Row
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Recent Transactions",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = androidx.compose.ui.graphics.Color(0xFF1E1E1E)
+                                )
+                                Text(
+                                    text = "View All",
+                                    fontSize = 14.sp,
+                                    color = androidx.compose.ui.graphics.Color(0xFF673AB7),
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
-                        })
+
+                            if (displayedExpenses.isEmpty()) {
+                                Text(
+                                    text = if (isSearching) "No matching transactions found." else "No expenses yet.",
+                                    modifier = Modifier.padding(start = 16.dp, bottom = 16.dp),
+                                    color = androidx.compose.ui.graphics.Color(0xFF757575)
+                                )
+                            } else {
+                                // Display up to 5 items in this card for the dashboard
+                                displayedExpenses.take(5).forEachIndexed { index, expense ->
+                                    val isLast = index == minOf(displayedExpenses.size, 5) - 1
+                                    ExpenseItemRow(
+                                        expense = expense,
+                                        isLast = isLast,
+                                        onClick = {
+                                            if (expense.isPending) {
+                                                showApproveDialog = expense
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -261,66 +298,94 @@ fun ExpenseScreen() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExpenseItem(expense: Expense, onClick: () -> Unit) {
+fun ExpenseItemRow(expense: Expense, isLast: Boolean, onClick: () -> Unit) {
     val dateFormat = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
     val dateString = dateFormat.format(Date(expense.dateMillis))
     
-    val cardColor = if (expense.isPending) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
+    val isCredit = expense.type == "Credit"
+    val isPending = expense.isPending
 
-    Card(
+    val iconBgColor = if (isCredit) androidx.compose.ui.graphics.Color(0xFFE8F5E9) else androidx.compose.ui.graphics.Color(0xFFFFEBEE)
+    val iconColor = if (isCredit) androidx.compose.ui.graphics.Color(0xFF4CAF50) else androidx.compose.ui.graphics.Color(0xFFF44336)
+    val icon = if (isCredit) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown
+
+    val amountColor = if (isCredit) androidx.compose.ui.graphics.Color(0xFF4CAF50) else androidx.compose.ui.graphics.Color(0xFFD32F2F)
+    val sign = if (isCredit) "+" else "-"
+
+    Surface(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = Modifier.fillMaxWidth(),
+        color = androidx.compose.ui.graphics.Color.Transparent
     ) {
-        Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+        Column {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = if (expense.isPending) "Needs Review" else expense.merchant, 
-                        fontWeight = FontWeight.Bold, 
-                        style = MaterialTheme.typography.titleMedium,
-                        color = if (expense.isPending) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                // Circular Icon
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(iconBgColor, androidx.compose.foundation.shape.CircleShape),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = expense.type,
+                        tint = iconColor,
+                        modifier = Modifier.size(24.dp)
                     )
-                    Text(text = dateString, style = MaterialTheme.typography.bodySmall)
                 }
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                // Name and Date
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (isPending) "Needs Review" else expense.merchant,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = androidx.compose.ui.graphics.Color(0xFF1E1E1E)
+                    )
+                    Text(
+                        text = "$dateString" + if (!isCredit && expense.merchant != "Unknown") " • ${expense.merchant.take(6)}..." else "",
+                        fontSize = 13.sp,
+                        color = androidx.compose.ui.graphics.Color(0xFF757575)
+                    )
+                }
+                
+                // Amount and Type
                 Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
-                    val isCredit = expense.type == "Credit"
-                    val sign = if (isCredit) "+" else "-"
-                    val amountColor = if (expense.isPending) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else if (isCredit) {
-                        androidx.compose.ui.graphics.Color(0xFF388E3C) // Green for Credit
-                    } else {
-                        androidx.compose.ui.graphics.Color(0xFFD32F2F) // Red for Debit
-                    }
-                    
                     Text(
                         text = "$sign₹${expense.amount}",
                         fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
                         color = amountColor
                     )
-                    Text(text = expense.type, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        text = expense.type,
+                        fontSize = 13.sp,
+                        color = androidx.compose.ui.graphics.Color(0xFF757575)
+                    )
                 }
             }
             
-            if (expense.isPending && expense.rawText != null) {
-                Spacer(modifier = Modifier.height(8.dp))
+            if (isPending && expense.rawText != null) {
                 Text(
-                    text = "Raw Msg: ${expense.rawText}", 
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "Tap to approve and categorize", 
+                    text = "Tap to approve",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(start = 76.dp, bottom = 8.dp)
+                )
+            }
+            
+            if (!isLast) {
+                Divider(
+                    modifier = Modifier.padding(start = 76.dp, end = 16.dp),
+                    color = androidx.compose.ui.graphics.Color(0xFFF5F5F5),
+                    thickness = 1.dp
                 )
             }
         }
