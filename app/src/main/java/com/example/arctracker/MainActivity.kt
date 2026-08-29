@@ -140,13 +140,26 @@ fun ExpenseScreen() {
 
             // Using refreshTrigger just to satisfy the compose compiler that we are observing it
             val trigger = refreshTrigger 
-            if (expenses.isEmpty()) {
-                Text(
-                    text = "No expenses yet. Waiting for notifications...",
-                    modifier = Modifier.padding(16.dp)
-                )
-            } else {
-                LazyColumn {
+            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                item {
+                    com.example.arctracker.ui.DashboardCard(expenses = expenses)
+                    
+                    Text(
+                        text = "Recent Transactions",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
+                    )
+                }
+                
+                if (expenses.isEmpty()) {
+                    item {
+                        Text(
+                            text = "No expenses yet. Waiting for notifications...",
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                } else {
                     items(expenses) { expense ->
                         ExpenseItem(expense, onClick = {
                             if (expense.isPending) {
