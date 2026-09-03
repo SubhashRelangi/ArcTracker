@@ -27,6 +27,10 @@ class ExpenseNotificationService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         super.onNotificationPosted(sbn)
         
+        val prefs = applicationContext.getSharedPreferences("ArcTrackerPrefs", android.content.Context.MODE_PRIVATE)
+        val isAutoTrackingEnabled = prefs.getBoolean("isAutoTrackingEnabled", true)
+        if (!isAutoTrackingEnabled) return
+        
         if (sbn == null) return
         val packageName = sbn.packageName
         if (!targetPackages.contains(packageName)) return
@@ -45,6 +49,16 @@ class ExpenseNotificationService : NotificationListenerService() {
                           lowerText.contains("rs") || lowerText.contains("inr") || lowerText.contains("₹")
                           
         val isPaymentApp = packageName.contains("paisa") || packageName.contains("phonepe") || packageName.contains("wallet")
+        
+        // Check specific tracking toggles based on source
+        if (isPaymentApp) {
+            val isNotifTrackingEnabled = prefs.getBoolean("isNotificationTrackingEnabled", true)
+            if (!isNotifTrackingEnabled) return
+        } else {
+            // Assume it's an SMS app
+            val isSmsTrackingEnabled = prefs.getBoolean("isSmsTrackingEnabled", true)
+            if (!isSmsTrackingEnabled) return
+        }
         
         // Always dump if it's from a payment app, otherwise check keywords for SMS
         if (!isFinancial && !isPaymentApp) return

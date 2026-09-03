@@ -80,7 +80,8 @@ fun ExpenseScreen() {
     
     val sharedPrefs = remember { context.getSharedPreferences("ArcTrackerPrefs", android.content.Context.MODE_PRIVATE) }
     var showPermissionDialog by remember { 
-        mutableStateOf(!hasPermission && !sharedPrefs.getBoolean("hasPromptedForNotification", false))
+        val wantsAutoTracking = sharedPrefs.getBoolean("isAutoTrackingEnabled", true)
+        mutableStateOf(!hasPermission && wantsAutoTracking)
     }
     
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
@@ -103,13 +104,11 @@ fun ExpenseScreen() {
         AlertDialog(
             onDismissRequest = { 
                 showPermissionDialog = false 
-                sharedPrefs.edit().putBoolean("hasPromptedForNotification", true).apply()
             },
             title = { Text("Automate Expense Tracking", fontWeight = FontWeight.Bold) },
             text = { Text("ArcTracker can automatically log your expenses by reading payment notifications. Would you like to enable Notification Access?\n\nYou can always do this later in Settings.") },
             confirmButton = {
                 TextButton(onClick = {
-                    sharedPrefs.edit().putBoolean("hasPromptedForNotification", true).apply()
                     showPermissionDialog = false
                     val intent = android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
                     context.startActivity(intent)
@@ -119,7 +118,6 @@ fun ExpenseScreen() {
             },
             dismissButton = {
                 TextButton(onClick = {
-                    sharedPrefs.edit().putBoolean("hasPromptedForNotification", true).apply()
                     showPermissionDialog = false
                 }) {
                     Text("Not Now", color = MaterialTheme.colorScheme.error)

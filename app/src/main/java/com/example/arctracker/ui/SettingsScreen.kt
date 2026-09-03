@@ -32,21 +32,147 @@ val borderColor = Color(0xFFF0F0F0)
 
 @Composable
 fun SettingsScreen() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("ArcTrackerPrefs", android.content.Context.MODE_PRIVATE) }
+    
+    val pkgName = context.packageName
+    val flat = android.provider.Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+    val hasPermission = flat != null && flat.contains(pkgName)
+
+    var autoTracking by remember { 
+        mutableStateOf(sharedPrefs.getBoolean("isAutoTrackingEnabled", true) && hasPermission) 
+    }
+    var smsTracking by remember { 
+        mutableStateOf(sharedPrefs.getBoolean("isSmsTrackingEnabled", true) && hasPermission) 
+    }
+    var notifTracking by remember { 
+        mutableStateOf(sharedPrefs.getBoolean("isNotificationTrackingEnabled", true) && hasPermission) 
+    }
+    
+    var showPermissionDialog by remember { mutableStateOf(false) }
+
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                val currentFlat = android.provider.Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                val currentlyHasPermission = currentFlat != null && currentFlat.contains(pkgName)
+                
+                if (!currentlyHasPermission && autoTracking) {
+                    // They went to settings but didn't enable it
+                    autoTracking = false
+                    smsTracking = false
+                    notifTracking = false
+                    sharedPrefs.edit()
+                        .putBoolean("isAutoTrackingEnabled", false)
+                        .putBoolean("isSmsTrackingEnabled", false)
+                        .putBoolean("isNotificationTrackingEnabled", false)
+                        .apply()
+                } else if (currentlyHasPermission && sharedPrefs.getBoolean("isAutoTrackingEnabled", false)) {
+                    // They granted it
+                    autoTracking = true
+                    smsTracking = true
+                    notifTracking = true
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    if (showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showPermissionDialog = false 
+                autoTracking = false
+                sharedPrefs.edit().putBoolean("isAutoTrackingEnabled", false).apply()
+            },
+            title = { Text("Automate Expense Tracking", fontWeight = FontWeight.Bold) },
+            text = { Text("ArcTracker can automatically log your expenses by reading payment notifications. Would you like to enable Notification Access?\n\nYou can always do this later in Settings.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPermissionDialog = false
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                    context.startActivity(intent)
+                }) {
+                    Text("Enable")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showPermissionDialog = false
+                    autoTracking = false
+                    sharedPrefs.edit().putBoolean("isAutoTrackingEnabled", false).apply()
+                }) {
+                    Text("Not Now")
+                }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF9F9FB))
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
-            .padding(top = 16.dp, bottom = 100.dp) // Bottom padding for FAB/Navbar
+            .padding(top = 16.dp, bottom = 100.dp)
     ) {
         AccountsSection()
         Spacer(modifier = Modifier.height(16.dp))
-        TrackerStatusSection()
+        TrackerStatusSection(
+            autoTracking = autoTracking,
+            onAutoTrackingChange = { isEnabled ->
+                autoTracking = isEnabled
+                sharedPrefs.edit().putBoolean("isAutoTrackingEnabled", isEnabled).apply()
+                
+                if (isEnabled) {
+                    smsTracking = true
+                    notifTracking = true
+                    sharedPrefs.edit()
+                        .putBoolean("isSmsTrackingEnabled", true)
+                        .putBoolean("isNotificationTrackingEnabled", true)
+                        .apply()
+                        
+                    val pkgName = context.packageName
+                    val flat = android.provider.Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                    val hasPermission = flat != null && flat.contains(pkgName)
+                    if (!hasPermission) {
+                        showPermissionDialog = true
+                    }
+                } else {
+                    smsTracking = false
+                    notifTracking = false
+                    sharedPrefs.edit()
+                        .putBoolean("isSmsTrackingEnabled", false)
+                        .putBoolean("isNotificationTrackingEnabled", false)
+                        .apply()
+                }
+            }
+        )
         Spacer(modifier = Modifier.height(16.dp))
         DataStorageSection()
         Spacer(modifier = Modifier.height(16.dp))
-        TrackingSourcesSection()
+        TrackingSourcesSection(
+            smsTracking = smsTracking,
+            notifTracking = notifTracking,
+            onSmsTrackingChange = {
+                smsTracking = it
+                sharedPrefs.edit().putBoolean("isSmsTrackingEnabled", it).apply()
+            },
+            onNotifTrackingChange = {
+                notifTracking = it
+                sharedPrefs.edit().putBoolean("isNotificationTrackingEnabled", it).apply()
+                if (it) {
+                    val pkgName = context.packageName
+                    val flat = android.provider.Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                    val hasPermission = flat != null && flat.contains(pkgName)
+                    if (!hasPermission) {
+                        showPermissionDialog = true
+                    }
+                }
+            }
+        )
         Spacer(modifier = Modifier.height(16.dp))
         DeveloperOptionsSection()
         Spacer(modifier = Modifier.height(16.dp))
@@ -241,15 +367,17 @@ fun AccountsSection() {
 }
 
 @Composable
-fun TrackerStatusSection() {
+fun TrackerStatusSection(
+    autoTracking: Boolean,
+    onAutoTrackingChange: (Boolean) -> Unit
+) {
     SettingsCard(title = "Tracker Status") {
-        var autoTracking by remember { mutableStateOf(true) }
         SettingsSwitchRow(
             icon = Icons.Filled.CheckCircle,
             title = "Auto Tracking",
             subtitle = "Actively listening to notifications & SMS",
             checked = autoTracking,
-            onCheckedChange = { autoTracking = it },
+            onCheckedChange = onAutoTrackingChange,
             isLast = false
         )
         
@@ -267,7 +395,7 @@ fun TrackerStatusSection() {
 fun DataStorageSection() {
     SettingsCard(title = "Data & Storage") {
         SettingsRow(
-            icon = Icons.Filled.Info, // Replaced Storage with Info
+            icon = Icons.Filled.Info,
             title = "Database",
             subtitle = "Local • SQLite",
             isLast = false,
@@ -281,7 +409,7 @@ fun DataStorageSection() {
             }
         )
         SettingsRow(
-            icon = Icons.Filled.Share, // Replaced CloudUpload with Share
+            icon = Icons.Filled.Share,
             title = "Backup & Restore",
             subtitle = "Export or import your data",
             isLast = false,
@@ -298,24 +426,27 @@ fun DataStorageSection() {
 }
 
 @Composable
-fun TrackingSourcesSection() {
+fun TrackingSourcesSection(
+    smsTracking: Boolean,
+    notifTracking: Boolean,
+    onSmsTrackingChange: (Boolean) -> Unit,
+    onNotifTrackingChange: (Boolean) -> Unit
+) {
     SettingsCard(title = "Tracking Sources") {
-        var sms by remember { mutableStateOf(true) }
         SettingsSwitchRow(
-            icon = Icons.Filled.Email, // Email or Chat for SMS
+            icon = Icons.Filled.Email,
             title = "SMS Tracking",
             subtitle = "Read and parse SMS messages",
-            checked = sms,
-            onCheckedChange = { sms = it },
+            checked = smsTracking,
+            onCheckedChange = onSmsTrackingChange,
             isLast = false
         )
-        var notif by remember { mutableStateOf(true) }
         SettingsSwitchRow(
             icon = Icons.Filled.Notifications,
             title = "Notification Tracking",
             subtitle = "Listen to UPI & banking app notifications",
-            checked = notif,
-            onCheckedChange = { notif = it },
+            checked = notifTracking,
+            onCheckedChange = onNotifTrackingChange,
             isLast = false
         )
         SettingsRow(
