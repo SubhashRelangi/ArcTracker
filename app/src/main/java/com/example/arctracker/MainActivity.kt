@@ -160,8 +160,10 @@ fun ExpenseScreen() {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Expense")
+            if (currentRoute == "Home") {
+                FloatingActionButton(onClick = { showAddDialog = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add Expense")
+                }
             }
         }
     ) { padding ->
