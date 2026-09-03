@@ -184,7 +184,9 @@ fun ExpenseScreen() {
                 )
             }
 
-            if (currentRoute != "Home") {
+            if (currentRoute == "Settings") {
+                com.example.arctracker.ui.SettingsScreen()
+            } else if (currentRoute != "Home") {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
                     Text("$currentRoute Screen Coming Soon!", style = MaterialTheme.typography.titleLarge)
                 }
