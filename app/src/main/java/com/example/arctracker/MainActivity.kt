@@ -136,19 +136,21 @@ fun ExpenseScreen() {
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 ),
                 actions = {
-                    IconButton(onClick = { refreshTrigger++ }) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
-                    }
-                    IconButton(onClick = { 
-                        isSearching = !isSearching
-                        if (!isSearching) {
-                            searchQuery = "" // Clear search when closing
+                    if (currentRoute == "Home") {
+                        IconButton(onClick = { refreshTrigger++ }) {
+                            Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
                         }
-                    }) {
-                        Icon(
-                            imageVector = if (isSearching) Icons.Filled.Close else Icons.Filled.Search, 
-                            contentDescription = if (isSearching) "Close Search" else "Search"
-                        )
+                        IconButton(onClick = { 
+                            isSearching = !isSearching
+                            if (!isSearching) {
+                                searchQuery = "" // Clear search when closing
+                            }
+                        }) {
+                            Icon(
+                                imageVector = if (isSearching) Icons.Filled.Close else Icons.Filled.Search, 
+                                contentDescription = if (isSearching) "Close Search" else "Search"
+                            )
+                        }
                     }
                 }
             )
