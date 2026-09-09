@@ -143,49 +143,51 @@ fun ExpenseScreen() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { 
-                    if (currentRoute == "Database") {
-                        Text("Database")
-                    } else {
-                        Text("ArcTracker")
-                    }
-                },
-                navigationIcon = {
-                    if (currentRoute == "Database") {
-                        IconButton(onClick = { currentRoute = "Settings" }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                TopAppBar(
+                    title = { 
+                        when (currentRoute) {
+                            "Database" -> Text("Database")
+                            "ClearAllData" -> Text("Clear All Data")
+                            else -> Text("ArcTracker")
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                ),
-                actions = {
-                    if (currentRoute == "Home") {
-                        IconButton(onClick = { refreshTrigger++ }) {
-                            Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
-                        }
-                        IconButton(onClick = { 
-                            isSearching = !isSearching
-                            if (!isSearching) {
-                                searchQuery = "" // Clear search when closing
+                    },
+                    navigationIcon = {
+                        if (currentRoute == "Database" || currentRoute == "ClearAllData") {
+                            IconButton(onClick = { currentRoute = "Settings" }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                             }
-                        }) {
-                            Icon(
-                                imageVector = if (isSearching) Icons.Filled.Close else Icons.Filled.Search, 
-                                contentDescription = if (isSearching) "Close Search" else "Search"
-                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    actions = {
+                        if (currentRoute == "Home") {
+                            IconButton(onClick = { refreshTrigger++ }) {
+                                Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
+                            }
+                            IconButton(onClick = { 
+                                isSearching = !isSearching
+                                if (!isSearching) {
+                                    searchQuery = ""
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = if (isSearching) Icons.Filled.Close else Icons.Filled.Search, 
+                                    contentDescription = if (isSearching) "Close Search" else "Search"
+                                )
+                            }
                         }
                     }
-                }
-            )
+                )
         },
         bottomBar = {
-            com.example.arctracker.ui.FloatingNavigationBar(
-                currentRoute = currentRoute,
-                onNavigate = { currentRoute = it.title }
-            )
+            if (currentRoute != "ClearAllData") {
+                com.example.arctracker.ui.FloatingNavigationBar(
+                    currentRoute = currentRoute,
+                    onNavigate = { currentRoute = it.title }
+                )
+            }
         },
         floatingActionButton = {
             if (currentRoute == "Home") {
@@ -216,6 +218,11 @@ fun ExpenseScreen() {
 
             if (currentRoute == "Settings") {
                 com.example.arctracker.ui.SettingsScreen(onNavigate = { currentRoute = it })
+            } else if (currentRoute == "ClearAllData") {
+                // ClearAllData is full screen, so we don't need padding from Scaffold here if we were using it, 
+                // but since it's inside the Column in Scaffold, we'll just show it.
+                // To remove the "ArcTracker" top bar and nav bar, we need to handle it in Scaffold.
+                com.example.arctracker.ui.ClearAllDataScreen(onNavigate = { currentRoute = it })
             } else if (currentRoute == "Database") {
                 com.example.arctracker.ui.DatabaseScreen()
             } else if (currentRoute != "Home") {
