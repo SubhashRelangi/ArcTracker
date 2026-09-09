@@ -17,8 +17,9 @@ public class Expense {
     public String notificationKey; // Android sbn.key to prevent duplicates
     public boolean isPending; // True if it needs user approval
     public String rawText; // The raw notification text
+    public String tag; // e.g. Food, Travel, etc.
 
-    public Expense(double amount, String merchant, long dateMillis, String type, String notificationKey, boolean isPending, String rawText) {
+    public Expense(double amount, String merchant, long dateMillis, String type, String notificationKey, boolean isPending, String rawText, String tag) {
         this.amount = amount;
         this.merchant = merchant;
         this.dateMillis = dateMillis;
@@ -26,5 +27,6 @@ public class Expense {
         this.notificationKey = notificationKey;
         this.isPending = isPending;
         this.rawText = rawText;
+        this.tag = tag;
     }
 }

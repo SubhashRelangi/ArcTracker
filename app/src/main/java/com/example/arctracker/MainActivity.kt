@@ -30,7 +30,20 @@ import com.example.arctracker.data.Expense
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
-
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -285,7 +298,7 @@ fun ExpenseScreen() {
                 initialAmount = "",
                 initialMerchant = "",
                 onDismiss = { showAddDialog = false },
-                onAdd = { amount, merchant, type ->
+                onAdd = { amount, merchant, type, tag ->
                     scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                         dao.insertExpense(
                             Expense(
@@ -295,7 +308,8 @@ fun ExpenseScreen() {
                                 type,
                                 UUID.randomUUID().toString(),
                                 false,
-                                "Manual Entry"
+                                "Manual Entry",
+                                tag
                             )
                         )
                         showAddDialog = false
@@ -310,12 +324,13 @@ fun ExpenseScreen() {
                 initialMerchant = if (pendingExpense.merchant != "Unknown Merchant") pendingExpense.merchant else "",
                 rawText = pendingExpense.rawText,
                 onDismiss = { showApproveDialog = null },
-                onAdd = { amount, merchant, type ->
+                onAdd = { amount, merchant, type, tag ->
                     scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                         pendingExpense.amount = amount
                         pendingExpense.merchant = merchant
                         pendingExpense.type = type
                         pendingExpense.isPending = false
+                        pendingExpense.tag = tag
                         dao.updateExpense(pendingExpense)
                         showApproveDialog = null
                     }
@@ -379,7 +394,7 @@ fun ExpenseItemRow(expense: Expense, isLast: Boolean, onClick: () -> Unit) {
                         color = androidx.compose.ui.graphics.Color(0xFF1E1E1E)
                     )
                     Text(
-                        text = "$dateString" + if (!isCredit && expense.merchant != "Unknown") " • ${expense.merchant.take(6)}..." else "",
+                        text = "$dateString" + if (expense.tag != null) " • ${expense.tag}" else "",
                         fontSize = 13.sp,
                         color = androidx.compose.ui.graphics.Color(0xFF757575)
                     )
@@ -421,71 +436,275 @@ fun ExpenseItemRow(expense: Expense, isLast: Boolean, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseDialog(
     initialAmount: String,
     initialMerchant: String,
     rawText: String? = null,
     onDismiss: () -> Unit, 
-    onAdd: (Double, String, String) -> Unit
+    onAdd: (Double, String, String, String) -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var amount by remember { mutableStateOf(initialAmount) }
     var merchant by remember { mutableStateOf(initialMerchant) }
     var type by remember { mutableStateOf("Debit") }
+    var tag by remember { mutableStateOf("Food") }
+    
+    val primaryPurple = Color(0xFF7859C1)
+    val lightPurple = Color(0xFFF3EFFF)
+    val bgGray = Color(0xFFF9F9FB)
+    val textDark = Color(0xFF1E1E1E)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (rawText != null) "Approve Expense" else "Add Manual Expense") },
-        text = {
-            Column {
-                if (rawText != null) {
-                    Text("Original Message:", style = MaterialTheme.typography.labelMedium)
-                    Text(rawText, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 12.dp))
-                }
-                
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = { amount = it },
-                    label = { Text("Amount") },
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = merchant,
-                    onValueChange = { merchant = it },
-                    label = { Text("Merchant") },
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row {
-                    RadioButton(
-                        selected = type == "Debit",
-                        onClick = { type = "Debit" }
-                    )
-                    Text("Debit", modifier = Modifier.padding(start = 8.dp, end = 16.dp, top = 12.dp))
-                    
-                    RadioButton(
-                        selected = type == "Credit",
-                        onClick = { type = "Credit" }
-                    )
-                    Text("Credit", modifier = Modifier.padding(start = 8.dp, top = 12.dp))
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
+    var isAnimating by remember { mutableStateOf(false) }
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isAnimating) 0.95f else 1f,
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy),
+        finishedListener = {
+            if (isAnimating) {
                 val amt = amount.toDoubleOrNull() ?: 0.0
                 if (amt > 0 && merchant.isNotBlank()) {
-                    onAdd(amt, merchant, type)
+                    onAdd(amt, merchant, type, tag)
+                } else {
+                    isAnimating = false // Reset if invalid
                 }
-            }) {
-                Text(if (rawText != null) "Approve" else "Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
             }
         }
     )
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color(0xFFFBF8FF),
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 16.dp)
+        ) {
+            // Top Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(lightPurple, shape = CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Rounded.Add, contentDescription = null, tint = primaryPurple, modifier = Modifier.size(24.dp))
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(if (rawText != null) "Approve Expense" else "Add Expense", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = textDark)
+                        Text(if (rawText != null) "Review detected transaction" else "Add a transaction manually", fontSize = 12.sp, color = Color.Gray)
+                    }
+                }
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.background(bgGray, shape = CircleShape).size(36.dp)
+                ) {
+                    Icon(Icons.Rounded.Close, contentDescription = "Close", tint = textDark, modifier = Modifier.size(20.dp))
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Amount Input
+            OutlinedTextField(
+                value = amount,
+                onValueChange = { amount = it },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                textStyle = TextStyle(fontSize = 24.sp, color = textDark),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color(0xFFEBEBEB),
+                    focusedBorderColor = primaryPurple,
+                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = Color.White
+                ),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                leadingIcon = { Text("₹", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textDark, modifier = Modifier.padding(start = 12.dp)) },
+                trailingIcon = { 
+                    Box(modifier = Modifier.padding(end = 8.dp).background(bgGray, shape = RoundedCornerShape(8.dp)).padding(6.dp)) {
+                        Icon(Icons.Outlined.Calculate, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp))
+                    }
+                }
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Merchant Input
+            OutlinedTextField(
+                value = merchant,
+                onValueChange = { merchant = it },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color(0xFFEBEBEB),
+                    focusedBorderColor = primaryPurple,
+                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = Color.White
+                ),
+                placeholder = {
+                    Column(modifier = Modifier.padding(top = 2.dp)) {
+                        Text("Merchant / Person", fontSize = 14.sp, color = Color.Gray)
+                        Text("e.g. Zomato, Amazon, Mom", fontSize = 10.sp, color = Color.LightGray)
+                    }
+                },
+                leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null, tint = textDark) }
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Category Section
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Category", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textDark)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("See all", fontSize = 12.sp, color = Color.Gray)
+                    Icon(Icons.Rounded.KeyboardArrowRight, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                val categories = listOf(
+                    "Food" to Icons.Outlined.Fastfood,
+                    "Travel" to Icons.Outlined.DirectionsCar,
+                    "Bills" to Icons.Outlined.Receipt,
+                    "Shopping" to Icons.Outlined.ShoppingBag,
+                    "Other" to Icons.Outlined.MoreHoriz
+                )
+                categories.forEach { (catName, iconRes) ->
+                    val isSelected = tag == catName
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 4.dp)
+                            .background(if (isSelected) lightPurple else bgGray, shape = RoundedCornerShape(10.dp))
+                            .clickable { tag = catName }
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Icon(iconRes, contentDescription = catName, tint = if (isSelected) primaryPurple else textDark, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(catName, fontSize = 10.sp, color = if (isSelected) primaryPurple else textDark, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Type Section
+            Text("Type", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textDark)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                val isDebit = type == "Debit"
+                Box(modifier = Modifier
+                    .weight(1f)
+                    .background(if (isDebit) lightPurple else Color.White, shape = RoundedCornerShape(10.dp))
+                    .border(1.dp, if (isDebit) primaryPurple else Color(0xFFEBEBEB), RoundedCornerShape(10.dp))
+                    .clickable { type = "Debit" }
+                    .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.RemoveCircleOutline, contentDescription = null, tint = if (isDebit) primaryPurple else textDark, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Expense (Debit)", fontSize = 13.sp, color = if (isDebit) primaryPurple else textDark, fontWeight = if (isDebit) FontWeight.Bold else FontWeight.Normal)
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Box(modifier = Modifier
+                    .weight(1f)
+                    .background(if (!isDebit) lightPurple else Color.White, shape = RoundedCornerShape(10.dp))
+                    .border(1.dp, if (!isDebit) primaryPurple else Color(0xFFEBEBEB), RoundedCornerShape(10.dp))
+                    .clickable { type = "Credit" }
+                    .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.AddCircleOutline, contentDescription = null, tint = if (!isDebit) primaryPurple else textDark, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Income (Credit)", fontSize = 13.sp, color = if (!isDebit) primaryPurple else textDark, fontWeight = if (!isDebit) FontWeight.Bold else FontWeight.Normal)
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Date input (dummy)
+            val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
+            val todayStr = sdf.format(java.util.Date())
+            OutlinedTextField(
+                value = "Today, $todayStr",
+                onValueChange = {},
+                readOnly = true,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color(0xFFEBEBEB),
+                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = Color.White
+                ),
+                textStyle = TextStyle(fontSize = 14.sp),
+                leadingIcon = { Icon(Icons.Outlined.CalendarToday, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp)) },
+                trailingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp)) }
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Note input
+            OutlinedTextField(
+                value = rawText ?: "",
+                onValueChange = {}, 
+                readOnly = true,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color(0xFFEBEBEB),
+                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = Color.White
+                ),
+                textStyle = TextStyle(fontSize = 14.sp),
+                placeholder = { Text("Add a note (optional)", color = Color.Gray, fontSize = 14.sp) },
+                leadingIcon = { Icon(Icons.Outlined.Description, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp)) }
+            )
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            // Buttons
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = lightPurple, contentColor = primaryPurple),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Button(
+                    onClick = {
+                        val amt = amount.toDoubleOrNull() ?: 0.0
+                        if (amt > 0 && merchant.isNotBlank()) {
+                            isAnimating = true
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .graphicsLayer { scaleX = scale; scaleY = scale },
+                    colors = ButtonDefaults.buttonColors(containerColor = primaryPurple, contentColor = Color.White),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text(if (rawText != null) "Approve" else "Add Expense", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+            }
+        }
+    }
 }

@@ -119,7 +119,8 @@ class ExpenseNotificationService : NotificationListenerService() {
                     type,
                     key,
                     isPending,
-                    rawText
+                    rawText,
+                    "Other"
                 )
             )
             Log.d("ArcTracker", "Inserted new expense: $amount to $merchant")
