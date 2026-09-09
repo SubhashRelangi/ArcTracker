@@ -18,8 +18,9 @@ public class Expense {
     public boolean isPending; // True if it needs user approval
     public String rawText; // The raw notification text
     public String tag; // e.g. Food, Travel, etc.
+    public String note; // User added note
 
-    public Expense(double amount, String merchant, long dateMillis, String type, String notificationKey, boolean isPending, String rawText, String tag) {
+    public Expense(double amount, String merchant, long dateMillis, String type, String notificationKey, boolean isPending, String rawText, String tag, String note) {
         this.amount = amount;
         this.merchant = merchant;
         this.dateMillis = dateMillis;
@@ -28,5 +29,6 @@ public class Expense {
         this.isPending = isPending;
         this.rawText = rawText;
         this.tag = tag;
+        this.note = note;
     }
 }

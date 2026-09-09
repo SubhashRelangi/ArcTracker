@@ -23,4 +23,7 @@ public interface ExpenseDao {
 
     @Update
     void updateExpense(Expense expense);
+
+    @androidx.room.Delete
+    void deleteExpense(Expense expense);
 }
