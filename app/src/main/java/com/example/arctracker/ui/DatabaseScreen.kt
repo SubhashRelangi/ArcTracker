@@ -28,9 +28,9 @@ fun DatabaseScreen() {
             .padding(bottom = 100.dp)
     ) {
         DatabaseInfoCard()
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         DatabaseActionsCard()
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         DatabaseFooterInfo()
     }
 }
@@ -41,12 +41,12 @@ fun DatabaseInfoCard() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.Top
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(28.dp)
                     .background(lightPurpleColor, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
@@ -54,17 +54,14 @@ fun DatabaseInfoCard() {
                     imageVector = Icons.Filled.Info,
                     contentDescription = "DB",
                     tint = purpleColor,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(14.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 InfoRow("Type", "SQLite (Local)")
                 InfoRow("Size", "2.48 MB")
                 InfoRow("Version", "1")
-                InfoRow("Path", "/data/user/0/com.arctracker/\ndatabases/arctracker.db")
-                InfoRow("Created On", "Aug 20, 2025, 09:12")
-                InfoRow("Last Modified", "Aug 29, 2025, 20:54")
             }
         }
     }
@@ -75,17 +72,17 @@ fun InfoRow(key: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 16.dp)
+            .padding(bottom = 4.dp)
     ) {
         Text(
             text = key,
-            fontSize = 13.sp,
+            fontSize = 11.sp,
             color = subtitleColor,
             modifier = Modifier.weight(0.35f)
         )
         Text(
             text = value,
-            fontSize = 13.sp,
+            fontSize = 11.sp,
             color = textColor,
             modifier = Modifier.weight(0.65f)
         )
@@ -103,14 +100,14 @@ fun DatabaseActionsCard() {
         SettingsRow(
             icon = Icons.Filled.Build,
             title = "Optimize Database",
-            subtitle = "Clean and optimize database for better performance",
+            subtitle = "Clean and optimize for better performance",
             isLast = false,
             onClick = {}
         )
         SettingsRow(
             icon = Icons.Filled.List,
             title = "Rebuild Index",
-            subtitle = "Rebuild database index for faster queries",
+            subtitle = "Rebuild index for faster queries",
             iconTint = greenColor,
             iconBgColor = lightGreenColor,
             isLast = false,
@@ -128,7 +125,7 @@ fun DatabaseActionsCard() {
         SettingsRow(
             icon = Icons.Filled.CheckCircle,
             title = "Check Integrity",
-            subtitle = "Check database for any corruption or errors",
+            subtitle = "Check for corruption or errors",
             iconTint = greenColor,
             iconBgColor = lightGreenColor,
             isLast = false,
@@ -137,7 +134,7 @@ fun DatabaseActionsCard() {
         SettingsRow(
             icon = Icons.Filled.Menu,
             title = "View Tables",
-            subtitle = "View all database tables and records",
+            subtitle = "View all tables and records",
             iconTint = blueColor,
             iconBgColor = lightBlueColor,
             isLast = true,
@@ -157,25 +154,20 @@ fun DatabaseFooterInfo() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Filled.Info,
                 contentDescription = "Info",
                 tint = purpleColor,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(18.dp)
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Column {
                 Text(
-                    text = "All data is stored locally on your device.",
-                    fontSize = 13.sp,
-                    color = textColor
-                )
-                Text(
-                    text = "No data leaves your device.",
-                    fontSize = 13.sp,
+                    text = "All data stored locally on your device.",
+                    fontSize = 11.sp,
                     color = textColor
                 )
             }
