@@ -31,7 +31,7 @@ val subtitleColor = Color(0xFF757575)
 val borderColor = Color(0xFFF0F0F0)
 
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(onNavigate: (String) -> Unit = {}) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("ArcTrackerPrefs", android.content.Context.MODE_PRIVATE) }
     
@@ -151,7 +151,7 @@ fun SettingsScreen() {
             }
         )
         Spacer(modifier = Modifier.height(16.dp))
-        DataStorageSection()
+        DataStorageSection(onNavigate = onNavigate)
         Spacer(modifier = Modifier.height(16.dp))
         TrackingSourcesSection(
             smsTracking = smsTracking,
@@ -211,6 +211,8 @@ fun SettingsRow(
     title: String,
     subtitle: String,
     isLast: Boolean = false,
+    iconTint: Color = purpleColor,
+    iconBgColor: Color = lightPurpleColor,
     onClick: (() -> Unit)? = null,
     rightContent: @Composable () -> Unit = {
         Icon(
@@ -231,13 +233,13 @@ fun SettingsRow(
         Box(
             modifier = Modifier
                 .size(32.dp)
-                .background(lightPurpleColor, CircleShape),
+                .background(iconBgColor, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = purpleColor,
+                tint = iconTint,
                 modifier = Modifier.size(16.dp)
             )
         }
@@ -392,14 +394,14 @@ fun TrackerStatusSection(
 }
 
 @Composable
-fun DataStorageSection() {
+fun DataStorageSection(onNavigate: (String) -> Unit = {}) {
     SettingsCard(title = "Data & Storage") {
         SettingsRow(
             icon = Icons.Filled.Info,
             title = "Database",
             subtitle = "Local • SQLite",
             isLast = false,
-            onClick = {},
+            onClick = { onNavigate("Database") },
             rightContent = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("2.48 MB", fontSize = 11.sp, color = subtitleColor)

@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -129,7 +131,20 @@ fun ExpenseScreen() {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("ArcTracker") },
+                title = { 
+                    if (currentRoute == "Database") {
+                        Text("Database")
+                    } else {
+                        Text("ArcTracker")
+                    }
+                },
+                navigationIcon = {
+                    if (currentRoute == "Database") {
+                        IconButton(onClick = { currentRoute = "Settings" }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 ),
@@ -187,7 +202,9 @@ fun ExpenseScreen() {
             }
 
             if (currentRoute == "Settings") {
-                com.example.arctracker.ui.SettingsScreen()
+                com.example.arctracker.ui.SettingsScreen(onNavigate = { currentRoute = it })
+            } else if (currentRoute == "Database") {
+                com.example.arctracker.ui.DatabaseScreen()
             } else if (currentRoute != "Home") {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
                     Text("$currentRoute Screen Coming Soon!", style = MaterialTheme.typography.titleLarge)
