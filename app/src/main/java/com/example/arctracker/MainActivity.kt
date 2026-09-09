@@ -44,6 +44,9 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -337,14 +340,15 @@ fun ExpenseScreen() {
                 initialMerchant = "",
                 initialType = "Debit",
                 initialNote = "",
+                initialDateMillis = System.currentTimeMillis(),
                 onDismiss = { showAddDialog = false },
-                onAdd = { amount, merchant, type, tag, note ->
+                onAdd = { amount, merchant, type, tag, note, dateMillis ->
                     scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                         dao.insertExpense(
                             Expense(
                                 amount,
                                 merchant,
-                                System.currentTimeMillis(),
+                                dateMillis,
                                 type,
                                 UUID.randomUUID().toString(),
                                 false,
@@ -365,6 +369,7 @@ fun ExpenseScreen() {
                 initialMerchant = if (pendingExpense.merchant != "Unknown Merchant") pendingExpense.merchant else "",
                 initialType = pendingExpense.type ?: "Debit",
                 initialNote = pendingExpense.note ?: "",
+                initialDateMillis = pendingExpense.dateMillis,
                 rawText = pendingExpense.rawText,
                 onDismiss = { showApproveDialog = null },
                 onDelete = {
@@ -373,7 +378,7 @@ fun ExpenseScreen() {
                         showApproveDialog = null
                     }
                 },
-                onAdd = { amount, merchant, type, tag, note ->
+                onAdd = { amount, merchant, type, tag, note, dateMillis ->
                     scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                         pendingExpense.amount = amount
                         pendingExpense.merchant = merchant
@@ -484,10 +489,11 @@ fun AddExpenseDialog(
     initialMerchant: String,
     initialType: String = "Debit",
     initialNote: String = "",
+    initialDateMillis: Long = System.currentTimeMillis(),
     rawText: String? = null,
     onDismiss: () -> Unit, 
     onDelete: (() -> Unit)? = null,
-    onAdd: (Double, String, String, String, String) -> Unit
+    onAdd: (Double, String, String, String, String, Long) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var amount by remember { mutableStateOf(initialAmount) }
@@ -495,6 +501,8 @@ fun AddExpenseDialog(
     var note by remember { mutableStateOf(initialNote) }
     var type by remember { mutableStateOf(initialType) }
     var tag by remember { mutableStateOf(if (initialType == "Credit") "Salary" else "Food") }
+    var dateMillis by remember { mutableStateOf(initialDateMillis) }
+    var showDatePicker by remember { mutableStateOf(false) }
     
     val primaryPurple = Color(0xFF7859C1)
     val lightPurple = Color(0xFFF3EFFF)
@@ -509,7 +517,7 @@ fun AddExpenseDialog(
             if (isAnimating) {
                 val amt = amount.toDoubleOrNull() ?: 0.0
                 if (amt > 0 && merchant.isNotBlank()) {
-                    onAdd(amt, merchant, type, tag, note)
+                    onAdd(amt, merchant, type, tag, note, dateMillis)
                 } else {
                     isAnimating = false // Reset if invalid
                 }
@@ -528,6 +536,8 @@ fun AddExpenseDialog(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 16.dp)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
         ) {
             // Top Row
             Row(
@@ -700,24 +710,51 @@ fun AddExpenseDialog(
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            // Date input (dummy)
+            // Date input
             val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
-            val todayStr = sdf.format(java.util.Date())
-            OutlinedTextField(
-                value = "Today, $todayStr",
-                onValueChange = {},
-                readOnly = true,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color(0xFFEBEBEB),
-                    unfocusedContainerColor = Color.White,
-                    focusedContainerColor = Color.White
-                ),
-                textStyle = TextStyle(fontSize = 14.sp),
-                leadingIcon = { Icon(Icons.Outlined.CalendarToday, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp)) },
-                trailingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp)) }
-            )
+            val dateStr = sdf.format(java.util.Date(dateMillis))
+            Box(modifier = Modifier.fillMaxWidth().clickable(enabled = onDelete == null) { showDatePicker = true }) {
+                OutlinedTextField(
+                    value = dateStr,
+                    onValueChange = {},
+                    readOnly = true,
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledBorderColor = Color(0xFFEBEBEB),
+                        disabledContainerColor = Color.White,
+                        disabledTextColor = textDark,
+                        disabledLeadingIconColor = textDark,
+                        disabledTrailingIconColor = textDark
+                    ),
+                    textStyle = TextStyle(fontSize = 14.sp),
+                    leadingIcon = { Icon(Icons.Outlined.CalendarToday, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp)) },
+                    trailingIcon = { 
+                        if (onDelete == null) {
+                            Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                )
+            }
+
+            if (showDatePicker) {
+                val datePickerState = rememberDatePickerState(initialSelectedDateMillis = dateMillis)
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            datePickerState.selectedDateMillis?.let { dateMillis = it }
+                            showDatePicker = false
+                        }) { Text("OK") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
             
             Spacer(modifier = Modifier.height(12.dp))
             
