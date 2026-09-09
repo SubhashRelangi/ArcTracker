@@ -146,24 +146,32 @@ fun ExpenseScreen() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { 
-                    if (currentRoute == "Database") {
-                        Text("Database")
-                    } else if (currentRoute == "Pending") {
-                        Text("Pending Expenses")
-                    } else {
-                        Text("ArcTracker")
+TopAppBar(
+                title = {
+                    when (currentRoute) {
+                        "Database" -> Text("Database")
+                        "ClearAllData" -> Text("Clear All Data")
+                        "Pending" -> Text("Pending Expenses")
+                        else -> Text("ArcTracker")
                     }
                 },
                 navigationIcon = {
-                    if (currentRoute == "Database") {
-                        IconButton(onClick = { currentRoute = "Settings" }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    when (currentRoute) {
+                        "Database", "ClearAllData" -> {
+                            IconButton(onClick = { currentRoute = "Settings" }) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back"
+                                )
+                            }
                         }
-                    } else if (currentRoute == "Pending") {
-                        IconButton(onClick = { currentRoute = "Home" }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        "Pending" -> {
+                            IconButton(onClick = { currentRoute = "Home" }) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back"
+                                )
+                            }
                         }
                     }
                 },
@@ -172,6 +180,33 @@ fun ExpenseScreen() {
                 ),
                 actions = {
                     if (currentRoute == "Home") {
+                        IconButton(onClick = { refreshTrigger++ }) {
+                            Icon(
+                                Icons.Filled.Refresh,
+                                contentDescription = "Refresh"
+                            )
+                        }
+
+                        IconButton(onClick = {
+                            isSearching = !isSearching
+                            if (!isSearching) {
+                                searchQuery = ""
+                            }
+                        }) {
+                            Icon(
+                                imageVector = if (isSearching) {
+                                    Icons.Filled.Close
+                                } else {
+                                    Icons.Filled.Search
+                                },
+                                contentDescription = if (isSearching) {
+                                    "Close Search"
+                                } else {
+                                    "Search"
+                                }
+                            )
+                        }
+
                         IconButton(onClick = { currentRoute = "Pending" }) {
                             BadgedBox(
                                 badge = {
@@ -183,26 +218,43 @@ fun ExpenseScreen() {
                                     }
                                 }
                             ) {
-                                Icon(Icons.Rounded.PendingActions, contentDescription = "Pending Expenses")
+                                Icon(
+                                    Icons.Rounded.PendingActions,
+                                    contentDescription = "Pending Expenses"
+                                )
                             }
-                        }
-                        IconButton(onClick = { 
-                            isSearching = !isSearching
-                            if (!isSearching) {
-                                searchQuery = "" // Clear search when closing
-                            }
-                        }) {
-                            Icon(
-                                imageVector = if (isSearching) Icons.Filled.Close else Icons.Filled.Search, 
-                                contentDescription = if (isSearching) "Close Search" else "Search"
-                            )
                         }
                     }
                 }
             )
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    actions = {
+                        if (currentRoute == "Home") {
+                            IconButton(onClick = { refreshTrigger++ }) {
+                                Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
+                            }
+                            IconButton(onClick = { 
+                                isSearching = !isSearching
+                                if (!isSearching) {
+                                    searchQuery = ""
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = if (isSearching) Icons.Filled.Close else Icons.Filled.Search, 
+                                    contentDescription = if (isSearching) "Close Search" else "Search"
+                                )
+                            }
+                        }
+                    }
+                )
         },
         bottomBar = {
-            if (currentRoute != "Pending") {
+            if (currentRoute != "ClearAllData" && currentRoute != "Pending") {
                 com.example.arctracker.ui.FloatingNavigationBar(
                     currentRoute = currentRoute,
                     onNavigate = { currentRoute = it.title }
@@ -238,6 +290,11 @@ fun ExpenseScreen() {
 
             if (currentRoute == "Settings") {
                 com.example.arctracker.ui.SettingsScreen(onNavigate = { currentRoute = it })
+            } else if (currentRoute == "ClearAllData") {
+                // ClearAllData is full screen, so we don't need padding from Scaffold here if we were using it, 
+                // but since it's inside the Column in Scaffold, we'll just show it.
+                // To remove the "ArcTracker" top bar and nav bar, we need to handle it in Scaffold.
+                com.example.arctracker.ui.ClearAllDataScreen(onNavigate = { currentRoute = it })
             } else if (currentRoute == "Database") {
                 com.example.arctracker.ui.DatabaseScreen()
             } else if (currentRoute == "Pending") {

@@ -422,7 +422,7 @@ fun DataStorageSection(onNavigate: (String) -> Unit = {}) {
             title = "Clear All Data",
             subtitle = "Delete all transactions permanently",
             isLast = true,
-            onClick = {}
+            onClick = { onNavigate("ClearAllData") }
         )
     }
 }
