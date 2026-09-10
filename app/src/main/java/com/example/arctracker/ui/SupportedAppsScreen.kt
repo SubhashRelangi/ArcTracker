@@ -101,6 +101,11 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
                 val label = pm.getApplicationLabel(appInfo).toString()
                 val labelLower = label.lowercase()
                 
+                val hiddenApps = sharedPrefs.getStringSet("hidden_apps", emptySet()) ?: emptySet()
+                if (hiddenApps.contains(pkg)) {
+                    continue
+                }
+                
                 var category: String? = null
                 var subtitle = ""
                 
@@ -140,8 +145,10 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
             try {
                 val upiIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("upi://pay"))
                 val upiActivities = pm.queryIntentActivities(upiIntent, PackageManager.MATCH_DEFAULT_ONLY)
+                val hiddenApps = sharedPrefs.getStringSet("hidden_apps", emptySet()) ?: emptySet()
                 for (resolveInfo in upiActivities) {
                     val pkg = resolveInfo.activityInfo.packageName
+                    if (hiddenApps.contains(pkg)) continue
                     if (!foundAppsMap.containsKey(pkg)) {
                         try {
                             val appInfo = pm.getApplicationInfo(pkg, 0)
@@ -256,7 +263,20 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
                                 apps = appsInCategory,
                                 sharedPrefs = sharedPrefs,
                                 isInitiallyExpanded = categoryName == "UPI & Payment Apps",
-                                onAddAppClick = { showAddAppDialogForCategory = categoryName }
+                                onAddAppClick = { showAddAppDialogForCategory = categoryName },
+                                onRemoveApp = { pkg ->
+                                    val manualKey = "manual_apps_${categoryName}"
+                                    val currentManual = sharedPrefs.getStringSet(manualKey, emptySet()) ?: emptySet()
+                                    if (currentManual.contains(pkg)) {
+                                        val newManual = currentManual.toMutableSet().apply { remove(pkg) }
+                                        sharedPrefs.edit().putStringSet(manualKey, newManual).apply()
+                                    } else {
+                                        val hiddenApps = sharedPrefs.getStringSet("hidden_apps", emptySet()) ?: emptySet()
+                                        val newHidden = hiddenApps.toMutableSet().apply { add(pkg) }
+                                        sharedPrefs.edit().putStringSet("hidden_apps", newHidden).apply()
+                                    }
+                                    refreshTrigger++
+                                }
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                         }
@@ -289,7 +309,8 @@ fun CategoryAccordion(
     apps: List<InstalledApp>,
     sharedPrefs: android.content.SharedPreferences,
     isInitiallyExpanded: Boolean,
-    onAddAppClick: () -> Unit
+    onAddAppClick: () -> Unit,
+    onRemoveApp: (String) -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(isInitiallyExpanded) }
 
@@ -342,7 +363,11 @@ fun CategoryAccordion(
                     HorizontalDivider(color = Color(0xFFF5F5F5), thickness = 1.dp)
                     
                     apps.forEachIndexed { index, app ->
-                        AppListItem(app = app, sharedPrefs = sharedPrefs)
+                        AppListItem(
+                            app = app,
+                            sharedPrefs = sharedPrefs,
+                            onRemoveApp = { onRemoveApp(app.packageName) }
+                        )
                         if (index < apps.size - 1) {
                             HorizontalDivider(
                                 color = Color(0xFFF5F5F5),
@@ -376,59 +401,87 @@ fun CategoryAccordion(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun AppListItem(app: InstalledApp, sharedPrefs: android.content.SharedPreferences) {
+fun AppListItem(
+    app: InstalledApp,
+    sharedPrefs: android.content.SharedPreferences,
+    onRemoveApp: () -> Unit
+) {
     val prefKey = "app_enabled_${app.packageName}"
     var isEnabled by remember { mutableStateOf(sharedPrefs.getBoolean(prefKey, true)) }
+    var showMenu by remember { mutableStateOf(false) }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { 
-                isEnabled = !isEnabled
-                sharedPrefs.edit().putBoolean(prefKey, isEnabled).apply()
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .androidx.compose.foundation.combinedClickable(
+                    onClick = {
+                        isEnabled = !isEnabled
+                        sharedPrefs.edit().putBoolean(prefKey, isEnabled).apply()
+                    },
+                    onLongClick = {
+                        showMenu = true
+                    }
+                )
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (app.icon != null) {
+                Image(
+                    bitmap = app.icon.asImageBitmap(),
+                    contentDescription = app.name,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(Color(0xFFEEEEEE), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(app.name.take(1), fontWeight = FontWeight.Bold, color = Color(0xFF9E9E9E))
+                }
             }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (app.icon != null) {
-            Image(
-                bitmap = app.icon.asImageBitmap(),
-                contentDescription = app.name,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(app.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E1E1E))
+                Text(app.defaultSubtitle, fontSize = 12.sp, color = Color(0xFF9E9E9E))
+            }
+            
+            Switch(
+                checked = isEnabled,
+                onCheckedChange = { 
+                    isEnabled = it
+                    sharedPrefs.edit().putBoolean(prefKey, it).apply()
+                },
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = Color(0xFF673AB7),
+                    uncheckedTrackColor = Color(0xFF9E9E9E)
+                ),
+                modifier = Modifier.scale(0.85f)
             )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(Color(0xFFEEEEEE), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(app.name.take(1), fontWeight = FontWeight.Bold, color = Color(0xFF9E9E9E))
-            }
         }
-        
-        Spacer(modifier = Modifier.width(16.dp))
-        
-        Column(modifier = Modifier.weight(1f)) {
-            Text(app.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E1E1E))
-            Text(app.defaultSubtitle, fontSize = 12.sp, color = Color(0xFF9E9E9E))
+
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+            modifier = Modifier.background(Color.White)
+        ) {
+            DropdownMenuItem(
+                text = { Text("Remove from list") },
+                onClick = {
+                    showMenu = false
+                    onRemoveApp()
+                },
+                colors = MenuItemDefaults.colors(textColor = Color(0xFFD32F2F))
+            )
         }
-        
-        Switch(
-            checked = isEnabled,
-            onCheckedChange = { 
-                isEnabled = it
-                sharedPrefs.edit().putBoolean(prefKey, it).apply()
-            },
-            colors = SwitchDefaults.colors(
-                checkedTrackColor = Color(0xFF673AB7),
-                uncheckedTrackColor = Color(0xFF9E9E9E)
-            ),
-            modifier = Modifier.scale(0.85f)
-        )
     }
 }
 @OptIn(ExperimentalMaterial3Api::class)
