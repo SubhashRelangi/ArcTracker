@@ -26,6 +26,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -80,6 +81,7 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
     var allDeviceApps by remember { mutableStateOf<List<InstalledApp>>(emptyList()) }
     var showAddAppDialogForCategory by remember { mutableStateOf<String?>(null) }
     var refreshTrigger by remember { mutableStateOf(0) }
+    var masterEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("master_app_monitoring", true)) }
 
     // Load installed apps in background
     LaunchedEffect(refreshTrigger) {
@@ -214,9 +216,6 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, Color(0xFFF3E5F5))
                 ) {
-                    var masterEnabled by remember { 
-                        mutableStateOf(sharedPrefs.getBoolean("master_app_monitoring", true)) 
-                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -265,6 +264,7 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
                                 apps = appsInCategory,
                                 sharedPrefs = sharedPrefs,
                                 isInitiallyExpanded = categoryName == "UPI & Payment Apps",
+                                isEnabled = masterEnabled,
                                 onAddAppClick = { showAddAppDialogForCategory = categoryName },
                                 onRemoveApp = { pkg ->
                                     val manualKey = "manual_apps_${categoryName}"
@@ -311,13 +311,16 @@ fun CategoryAccordion(
     apps: List<InstalledApp>,
     sharedPrefs: android.content.SharedPreferences,
     isInitiallyExpanded: Boolean,
+    isEnabled: Boolean = true,
     onAddAppClick: () -> Unit,
     onRemoveApp: (String) -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(isInitiallyExpanded) }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (isEnabled) 1f else 0.5f),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Color(0xFFF3E5F5))
@@ -327,7 +330,7 @@ fun CategoryAccordion(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { isExpanded = !isExpanded }
+                    .clickable(enabled = isEnabled) { isExpanded = !isExpanded }
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -368,6 +371,7 @@ fun CategoryAccordion(
                         AppListItem(
                             app = app,
                             sharedPrefs = sharedPrefs,
+                            isEnabled = isEnabled,
                             onRemoveApp = { onRemoveApp(app.packageName) }
                         )
                         if (index < apps.size - 1) {
@@ -383,7 +387,7 @@ fun CategoryAccordion(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onAddAppClick() }
+                            .clickable(enabled = isEnabled) { onAddAppClick() }
                             .padding(vertical = 12.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
@@ -408,10 +412,11 @@ fun CategoryAccordion(
 fun AppListItem(
     app: InstalledApp,
     sharedPrefs: android.content.SharedPreferences,
+    isEnabled: Boolean = true,
     onRemoveApp: () -> Unit
 ) {
     val prefKey = "app_enabled_${app.packageName}"
-    var isEnabled by remember { mutableStateOf(sharedPrefs.getBoolean(prefKey, true)) }
+    var isAppEnabled by remember { mutableStateOf(sharedPrefs.getBoolean(prefKey, true)) }
     var showMenu by remember { mutableStateOf(false) }
 
     Box {
@@ -419,9 +424,10 @@ fun AppListItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .combinedClickable(
+                    enabled = isEnabled,
                     onClick = {
-                        isEnabled = !isEnabled
-                        sharedPrefs.edit().putBoolean(prefKey, isEnabled).apply()
+                        isAppEnabled = !isAppEnabled
+                        sharedPrefs.edit().putBoolean(prefKey, isAppEnabled).apply()
                     },
                     onLongClick = {
                         showMenu = true
@@ -457,11 +463,12 @@ fun AppListItem(
             }
             
             Switch(
-                checked = isEnabled,
+                checked = isAppEnabled,
                 onCheckedChange = { 
-                    isEnabled = it
+                    isAppEnabled = it
                     sharedPrefs.edit().putBoolean(prefKey, it).apply()
                 },
+                enabled = isEnabled,
                 colors = SwitchDefaults.colors(
                     checkedTrackColor = Color(0xFF673AB7),
                     uncheckedTrackColor = Color(0xFF9E9E9E)
