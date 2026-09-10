@@ -19,8 +19,11 @@ public class Expense {
     public String rawText; // The raw notification text
     public String tag; // e.g. Food, Travel, etc.
     public String note; // User added note
+    
+    // Source of the transaction
+    public String source; // "NOTIFICATION", "SMS_HISTORY", "MANUAL"
 
-    public Expense(double amount, String merchant, long dateMillis, String type, String notificationKey, boolean isPending, String rawText, String tag, String note) {
+    public Expense(double amount, String merchant, long dateMillis, String type, String notificationKey, boolean isPending, String rawText, String tag, String note, String source) {
         this.amount = amount;
         this.merchant = merchant;
         this.dateMillis = dateMillis;
@@ -30,5 +33,6 @@ public class Expense {
         this.rawText = rawText;
         this.tag = tag;
         this.note = note;
+        this.source = source;
     }
 }

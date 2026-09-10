@@ -97,136 +97,53 @@ fun ExpenseScreen() {
     var hasPermission by remember { mutableStateOf(isNotificationServiceEnabled()) }
     
     val sharedPrefs = remember { context.getSharedPreferences("ArcTrackerPrefs", android.content.Context.MODE_PRIVATE) }
-    var showPermissionDialog by remember { 
-        val wantsAutoTracking = sharedPrefs.getBoolean("isAutoTrackingEnabled", true)
-        mutableStateOf(!hasPermission && wantsAutoTracking)
+    val isInitialSetupCompleted = sharedPrefs.getBoolean("isInitialSetupCompleted", false)
+    
+    val isExistingUser = remember {
+        val dbExists = context.getDatabasePath("arctracker_database").exists()
+        val hasPrefs = sharedPrefs.contains("isAutoTrackingEnabled")
+        dbExists || hasPrefs
     }
     
-    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
-    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                hasPermission = isNotificationServiceEnabled()
-                if (hasPermission && showPermissionDialog) {
-                    showPermissionDialog = false
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
+    var localSetupCompleted by remember { mutableStateOf(isInitialSetupCompleted) }
 
-    if (showPermissionDialog) {
-        AlertDialog(
-            onDismissRequest = { 
-                showPermissionDialog = false 
-            },
-            title = { Text("Automate Expense Tracking", fontWeight = FontWeight.Bold) },
-            text = { Text("ArcTracker can automatically log your expenses by reading payment notifications. Would you like to enable Notification Access?\n\nYou can always do this later in Settings.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showPermissionDialog = false
-                    val intent = android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                    context.startActivity(intent)
-                }) {
-                    Text("Enable Now", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showPermissionDialog = false
-                }) {
-                    Text("Not Now", color = MaterialTheme.colorScheme.error)
-                }
-            }
-        )
+    LaunchedEffect(isInitialSetupCompleted) {
+        if (!isInitialSetupCompleted && isExistingUser) {
+            // Silently mark as complete for existing users
+            sharedPrefs.edit().putBoolean("isInitialSetupCompleted", true).apply()
+            localSetupCompleted = true
+        }
     }
 
     Scaffold(
         topBar = {
-TopAppBar(
+            TopAppBar(
                 title = {
                     when (currentRoute) {
                         "Database" -> Text("Database")
                         "ClearAllData" -> Text("Clear All Data")
+                        "SmsImport" -> Text("Import SMS")
                         "Pending" -> Text("Pending Expenses")
                         else -> Text("ArcTracker")
                     }
                 },
-                navigationIcon = {
-                    when (currentRoute) {
-                        "Database", "ClearAllData" -> {
-                            IconButton(onClick = { currentRoute = "Settings" }) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Back"
-                                )
-                            }
-                        }
-                        "Pending" -> {
-                            IconButton(onClick = { currentRoute = "Home" }) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Back"
-                                )
-                            }
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                ),
-                actions = {
-                    if (currentRoute == "Home") {
-                        IconButton(onClick = { refreshTrigger++ }) {
-                            Icon(
-                                Icons.Filled.Refresh,
-                                contentDescription = "Refresh"
-                            )
-                        }
-
-                        IconButton(onClick = {
-                            isSearching = !isSearching
-                            if (!isSearching) {
-                                searchQuery = ""
-                            }
-                        }) {
-                            Icon(
-                                imageVector = if (isSearching) {
-                                    Icons.Filled.Close
-                                } else {
-                                    Icons.Filled.Search
-                                },
-                                contentDescription = if (isSearching) {
-                                    "Close Search"
-                                } else {
-                                    "Search"
+                    navigationIcon = {
+                        when (currentRoute) {
+                            "Database", "ClearAllData", "SmsImport" -> {
+                                IconButton(onClick = { currentRoute = "Settings" }) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back"
+                                    )
                                 }
-                            )
-                        }
-
-                        IconButton(onClick = { currentRoute = "Pending" }) {
-                            BadgedBox(
-                                badge = {
-                                    val pendingCount = expenses.count { it.isPending }
-                                    if (pendingCount > 0) {
-                                        Badge {
-                                            Text(pendingCount.toString())
-                                        }
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    Icons.Rounded.PendingActions,
-                                    contentDescription = "Pending Expenses"
-                                )
                             }
-                        }
-                    }
-                }
-            )
+                            "Pending" -> {
+                                IconButton(onClick = { currentRoute = "Home" }) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back"
+                                    )
+                                }
                             }
                         }
                     },
@@ -236,25 +153,55 @@ TopAppBar(
                     actions = {
                         if (currentRoute == "Home") {
                             IconButton(onClick = { refreshTrigger++ }) {
-                                Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
+                                Icon(
+                                    Icons.Filled.Refresh,
+                                    contentDescription = "Refresh"
+                                )
                             }
-                            IconButton(onClick = { 
+
+                            IconButton(onClick = {
                                 isSearching = !isSearching
                                 if (!isSearching) {
                                     searchQuery = ""
                                 }
                             }) {
                                 Icon(
-                                    imageVector = if (isSearching) Icons.Filled.Close else Icons.Filled.Search, 
-                                    contentDescription = if (isSearching) "Close Search" else "Search"
+                                    imageVector = if (isSearching) {
+                                        Icons.Filled.Close
+                                    } else {
+                                        Icons.Filled.Search
+                                    },
+                                    contentDescription = if (isSearching) {
+                                        "Close Search"
+                                    } else {
+                                        "Search"
+                                    }
                                 )
+                            }
+
+                            IconButton(onClick = { currentRoute = "Pending" }) {
+                                BadgedBox(
+                                    badge = {
+                                        val pendingCount = expenses.count { it.isPending }
+                                        if (pendingCount > 0) {
+                                            Badge {
+                                                Text(pendingCount.toString())
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.PendingActions,
+                                        contentDescription = "Pending Expenses"
+                                    )
+                                }
                             }
                         }
                     }
                 )
         },
         bottomBar = {
-            if (currentRoute != "ClearAllData" && currentRoute != "Pending") {
+            if (currentRoute != "ClearAllData" && currentRoute != "Pending" && currentRoute != "SmsImport") {
                 com.example.arctracker.ui.FloatingNavigationBar(
                     currentRoute = currentRoute,
                     onNavigate = { currentRoute = it.title }
@@ -295,6 +242,8 @@ TopAppBar(
                 // but since it's inside the Column in Scaffold, we'll just show it.
                 // To remove the "ArcTracker" top bar and nav bar, we need to handle it in Scaffold.
                 com.example.arctracker.ui.ClearAllDataScreen(onNavigate = { currentRoute = it })
+            } else if (currentRoute == "SmsImport") {
+                com.example.arctracker.ui.SmsImportScreen(onNavigateBack = { currentRoute = "Settings" })
             } else if (currentRoute == "Database") {
                 com.example.arctracker.ui.DatabaseScreen()
             } else if (currentRoute == "Pending") {
@@ -411,7 +360,8 @@ TopAppBar(
                                 false,
                                 "Manual Entry",
                                 tag,
-                                note
+                                note,
+                                "MANUAL"
                             )
                         )
                         showAddDialog = false
@@ -448,6 +398,13 @@ TopAppBar(
                     }
                 }
             )
+        }
+        
+        if (!localSetupCompleted && !isExistingUser) {
+            com.example.arctracker.ui.FirstTimeSetupDialogs(onComplete = {
+                sharedPrefs.edit().putBoolean("isInitialSetupCompleted", true).apply()
+                localSetupCompleted = true
+            })
         }
     }
 }

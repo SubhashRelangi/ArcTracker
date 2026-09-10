@@ -18,6 +18,9 @@ public interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE dateMillis >= :timeWindow AND isPending = 1 ORDER BY dateMillis DESC LIMIT 1")
     Expense getRecentPendingExpense(long timeWindow);
 
+    @Query("SELECT * FROM expenses WHERE amount = :amount AND type = :type AND dateMillis >= :startTime AND dateMillis <= :endTime")
+    List<Expense> findPotentialDuplicates(double amount, String type, long startTime, long endTime);
+
     @Insert
     void insertExpense(Expense expense);
 
