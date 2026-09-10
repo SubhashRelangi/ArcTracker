@@ -71,29 +71,31 @@ val targetPackages = listOf(
 fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("ArcTrackerPrefs", Context.MODE_PRIVATE) }
-    
+
     var installedApps by remember { mutableStateOf<List<InstalledApp>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var allDeviceApps by remember { mutableStateOf<List<InstalledApp>>(emptyList()) }
+    var showAddAppDialogForCategory by remember { mutableStateOf<String?>(null) }
+    var refreshTrigger by remember { mutableStateOf(0) }
 
     // Load installed apps in background
-    LaunchedEffect(Unit) {
+    LaunchedEffect(refreshTrigger) {
         withContext(Dispatchers.IO) {
             val pm = context.packageManager
             val foundAppsMap = mutableMapOf<String, InstalledApp>()
+            val allDeviceAppsTemp = mutableListOf<InstalledApp>()
             
             val knownUpi = targetPackages.filter { it.second == "UPI & Payment Apps" }.map { it.first }
             val knownBanks = targetPackages.filter { it.second == "Banking Apps" }.map { it.first }
             
-            // 1. Scan all installed packages for keywords
+            val manualUpiApps = sharedPrefs.getStringSet("manual_apps_UPI & Payment Apps", emptySet()) ?: emptySet()
+            val manualBankingApps = sharedPrefs.getStringSet("manual_apps_Banking Apps", emptySet()) ?: emptySet()
+            
+            // 1. Scan all installed packages for keywords and manual overrides
             val allPackages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
             for (appInfo in allPackages) {
-                // Skip system apps unless it's a known app
                 val isSystemApp = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
                 val pkg = appInfo.packageName
-                
-                if (isSystemApp && !knownUpi.contains(pkg) && !knownBanks.contains(pkg)) {
-                    continue
-                }
                 
                 val label = pm.getApplicationLabel(appInfo).toString()
                 val labelLower = label.lowercase()
@@ -101,7 +103,13 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
                 var category: String? = null
                 var subtitle = ""
                 
-                if (knownUpi.contains(pkg) || labelLower.contains("upi") || labelLower.contains(" pay") || labelLower.endsWith("pay") || labelLower.contains("gpay")) {
+                if (manualUpiApps.contains(pkg)) {
+                    category = "UPI & Payment Apps"
+                    subtitle = "Manually added"
+                } else if (manualBankingApps.contains(pkg)) {
+                    category = "Banking Apps"
+                    subtitle = "Manually added"
+                } else if (knownUpi.contains(pkg) || labelLower.contains("upi") || labelLower.contains(" pay") || labelLower.endsWith("pay") || labelLower.contains("gpay")) {
                     category = "UPI & Payment Apps"
                     subtitle = targetPackages.find { it.first == pkg }?.third ?: "UPI payments, bills"
                 } else if (knownBanks.contains(pkg) || labelLower.contains("bank") || labelLower.contains("sbi") || labelLower.contains("hdfc") || labelLower.contains("icici") || labelLower.contains("ippb") || labelLower.contains("pnb")) {
@@ -109,11 +117,18 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
                     subtitle = targetPackages.find { it.first == pkg }?.third ?: "Banking, UPI"
                 }
                 
-                if (category != null) {
+                val launchIntent = pm.getLaunchIntentForPackage(pkg)
+                if (category != null || (!isSystemApp && launchIntent != null)) {
                     try {
                         val iconDrawable = pm.getApplicationIcon(appInfo)
                         val iconBitmap = iconDrawable.toBitmap(width = 120, height = 120)
-                        foundAppsMap[pkg] = InstalledApp(pkg, label, iconBitmap, category, subtitle)
+                        
+                        if (category != null) {
+                            foundAppsMap[pkg] = InstalledApp(pkg, label, iconBitmap, category, subtitle)
+                        }
+                        if (!isSystemApp && launchIntent != null) {
+                            allDeviceAppsTemp.add(InstalledApp(pkg, label, iconBitmap, "", "Installed App"))
+                        }
                     } catch (e: Exception) {
                         // Skip if icon fails
                     }
@@ -136,11 +151,10 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
                         } catch (e: Exception) {}
                     }
                 }
-            } catch (e: Exception) {
-                // Ignore intent query failures
-            }
+            } catch (e: Exception) {}
             
             installedApps = foundAppsMap.values.toList().sortedBy { it.name }
+            allDeviceApps = allDeviceAppsTemp.sortedBy { it.name }
             isLoading = false
         }
     }
@@ -235,19 +249,36 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
                 
                 categories.forEach { categoryName ->
                     val appsInCategory = groupedApps[categoryName] ?: emptyList()
-                    if (appsInCategory.isNotEmpty()) {
                         item {
                             CategoryAccordion(
                                 categoryName = categoryName,
                                 apps = appsInCategory,
                                 sharedPrefs = sharedPrefs,
-                                isInitiallyExpanded = categoryName == "UPI & Payment Apps" // First one expanded by default
+                                isInitiallyExpanded = categoryName == "UPI & Payment Apps",
+                                onAddAppClick = { showAddAppDialogForCategory = categoryName }
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
                 }
             }
+        }
+        
+        if (showAddAppDialogForCategory != null) {
+            AddAppDialog(
+                category = showAddAppDialogForCategory!!,
+                allDeviceApps = allDeviceApps,
+                onDismiss = { showAddAppDialogForCategory = null },
+                onAppSelected = { pkg ->
+                    val manualKey = "manual_apps_${showAddAppDialogForCategory!!}"
+                    val currentManual = sharedPrefs.getStringSet(manualKey, emptySet()) ?: emptySet()
+                    val newManual = currentManual.toMutableSet().apply { add(pkg) }
+                    sharedPrefs.edit().putStringSet(manualKey, newManual).apply()
+                    // Force refresh
+                    refreshTrigger++
+                    showAddAppDialogForCategory = null
+                }
+            )
         }
     }
 }
@@ -257,7 +288,8 @@ fun CategoryAccordion(
     categoryName: String,
     apps: List<InstalledApp>,
     sharedPrefs: android.content.SharedPreferences,
-    isInitiallyExpanded: Boolean
+    isInitiallyExpanded: Boolean,
+    onAddAppClick: () -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(isInitiallyExpanded) }
 
@@ -319,6 +351,25 @@ fun CategoryAccordion(
                             )
                         }
                     }
+                    
+                    HorizontalDivider(color = Color(0xFFF5F5F5), thickness = 1.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onAddAppClick() }
+                            .padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Filled.Add,
+                            contentDescription = "Add App",
+                            tint = Color(0xFF673AB7),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Add App", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF673AB7))
+                    }
                 }
             }
         }
@@ -378,5 +429,76 @@ fun AppListItem(app: InstalledApp, sharedPrefs: android.content.SharedPreference
             ),
             modifier = Modifier.scale(0.85f)
         )
+    }
+}
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddAppDialog(
+    category: String,
+    allDeviceApps: List<InstalledApp>,
+    onDismiss: () -> Unit,
+    onAppSelected: (String) -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    
+    val filteredApps = remember(searchQuery, allDeviceApps) {
+        if (searchQuery.isBlank()) allDeviceApps
+        else allDeviceApps.filter { it.name.contains(searchQuery, ignoreCase = true) }
+    }
+
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(
+                "Add to ",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = Color(0xFF1E1E1E),
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                placeholder = { Text("Search apps...") },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF673AB7),
+                    unfocusedBorderColor = Color(0xFFE0E0E0)
+                )
+            )
+
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
+            ) {
+                items(filteredApps) { app ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onAppSelected(app.packageName) }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (app.icon != null) {
+                            Image(
+                                bitmap = app.icon.asImageBitmap(),
+                                contentDescription = app.name,
+                                modifier = Modifier.size(40.dp).clip(CircleShape)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(app.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1E1E1E))
+                    }
+                }
+            }
+        }
     }
 }
