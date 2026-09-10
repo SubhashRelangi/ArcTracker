@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -259,7 +260,6 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                         }
-                    }
                 }
             }
         }
@@ -362,7 +362,7 @@ fun CategoryAccordion(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Filled.Add,
+                            imageVector = Icons.Filled.Add,
                             contentDescription = "Add App",
                             tint = Color(0xFF673AB7),
                             modifier = Modifier.size(16.dp)
