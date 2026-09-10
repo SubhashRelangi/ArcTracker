@@ -79,29 +79,68 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             val pm = context.packageManager
-            val foundApps = mutableListOf<InstalledApp>()
+            val foundAppsMap = mutableMapOf<String, InstalledApp>()
             
-            for (target in targetPackages) {
-                try {
-                    val appInfo = pm.getApplicationInfo(target.first, PackageManager.GET_META_DATA)
-                    val label = pm.getApplicationLabel(appInfo).toString()
-                    val iconDrawable = pm.getApplicationIcon(appInfo)
-                    val iconBitmap = iconDrawable.toBitmap(width = 120, height = 120) // Scale down for performance
-                    
-                    foundApps.add(
-                        InstalledApp(
-                            packageName = target.first,
-                            name = label,
-                            icon = iconBitmap,
-                            category = target.second,
-                            defaultSubtitle = target.third
-                        )
-                    )
-                } catch (e: PackageManager.NameNotFoundException) {
-                    // App not installed, skip
+            val knownUpi = targetPackages.filter { it.second == "UPI & Payment Apps" }.map { it.first }
+            val knownBanks = targetPackages.filter { it.second == "Banking Apps" }.map { it.first }
+            
+            // 1. Scan all installed packages for keywords
+            val allPackages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+            for (appInfo in allPackages) {
+                // Skip system apps unless it's a known app
+                val isSystemApp = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                val pkg = appInfo.packageName
+                
+                if (isSystemApp && !knownUpi.contains(pkg) && !knownBanks.contains(pkg)) {
+                    continue
+                }
+                
+                val label = pm.getApplicationLabel(appInfo).toString()
+                val labelLower = label.lowercase()
+                
+                var category: String? = null
+                var subtitle = ""
+                
+                if (knownUpi.contains(pkg) || labelLower.contains("upi") || labelLower.contains(" pay") || labelLower.endsWith("pay") || labelLower.contains("gpay")) {
+                    category = "UPI & Payment Apps"
+                    subtitle = targetPackages.find { it.first == pkg }?.third ?: "UPI payments, bills"
+                } else if (knownBanks.contains(pkg) || labelLower.contains("bank") || labelLower.contains("sbi") || labelLower.contains("hdfc") || labelLower.contains("icici") || labelLower.contains("ippb") || labelLower.contains("pnb")) {
+                    category = "Banking Apps"
+                    subtitle = targetPackages.find { it.first == pkg }?.third ?: "Banking, UPI"
+                }
+                
+                if (category != null) {
+                    try {
+                        val iconDrawable = pm.getApplicationIcon(appInfo)
+                        val iconBitmap = iconDrawable.toBitmap(width = 120, height = 120)
+                        foundAppsMap[pkg] = InstalledApp(pkg, label, iconBitmap, category, subtitle)
+                    } catch (e: Exception) {
+                        // Skip if icon fails
+                    }
                 }
             }
-            installedApps = foundApps
+            
+            // 2. Discover any additional apps that handle UPI intents natively
+            try {
+                val upiIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("upi://pay"))
+                val upiActivities = pm.queryIntentActivities(upiIntent, PackageManager.MATCH_DEFAULT_ONLY)
+                for (resolveInfo in upiActivities) {
+                    val pkg = resolveInfo.activityInfo.packageName
+                    if (!foundAppsMap.containsKey(pkg)) {
+                        try {
+                            val appInfo = pm.getApplicationInfo(pkg, 0)
+                            val label = pm.getApplicationLabel(appInfo).toString()
+                            val iconDrawable = pm.getApplicationIcon(appInfo)
+                            val iconBitmap = iconDrawable.toBitmap(width = 120, height = 120)
+                            foundAppsMap[pkg] = InstalledApp(pkg, label, iconBitmap, "UPI & Payment Apps", "UPI payments")
+                        } catch (e: Exception) {}
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore intent query failures
+            }
+            
+            installedApps = foundAppsMap.values.toList().sortedBy { it.name }
             isLoading = false
         }
     }
