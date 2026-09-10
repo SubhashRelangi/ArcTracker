@@ -412,6 +412,13 @@ fun DataStorageSection(onNavigate: (String) -> Unit = {}) {
             }
         )
         SettingsRow(
+            icon = Icons.Filled.DateRange,
+            title = "Import Previous Transactions",
+            subtitle = "Import from existing SMS messages",
+            isLast = false,
+            onClick = { onNavigate("SmsImport") }
+        )
+        SettingsRow(
             icon = Icons.Filled.Share,
             title = "Backup & Restore",
             subtitle = "Export or import your data",
