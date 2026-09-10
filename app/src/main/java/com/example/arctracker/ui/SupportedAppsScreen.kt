@@ -1,0 +1,379 @@
+package com.example.arctracker.ui
+
+import android.content.Context
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+data class InstalledApp(
+    val packageName: String,
+    val name: String,
+    val icon: Bitmap?,
+    val category: String,
+    val defaultSubtitle: String
+)
+
+val targetPackages = listOf(
+    Triple("com.google.android.apps.nbu.paisa.user", "UPI & Payment Apps", "UPI payments, bills, recharges"),
+    Triple("com.phonepe.app", "UPI & Payment Apps", "UPI payments, bills, recharges"),
+    Triple("net.one97.paytm", "UPI & Payment Apps", "UPI payments, wallet, bills"),
+    Triple("in.amazon.mShop.android.shopping", "UPI & Payment Apps", "Shopping, UPI, bills"),
+    Triple("in.org.npci.upiapp", "UPI & Payment Apps", "UPI payments"),
+    Triple("com.dreamplug.androidapp", "UPI & Payment Apps", "Credit card payments"),
+    Triple("com.mobikwik_new", "UPI & Payment Apps", "Wallet, UPI, bills"),
+    Triple("sinet.startup.inDriver", "UPI & Payment Apps", "Ride payments"),
+    Triple("com.olacabs.customer", "UPI & Payment Apps", "Ride payments"),
+    Triple("com.ubercab", "UPI & Payment Apps", "Ride payments"),
+    Triple("com.freecharge.android", "UPI & Payment Apps", "Recharges, bills"),
+
+    Triple("com.sbi.SBIAnywhereCorporate", "Banking Apps", "Banking, UPI"),
+    Triple("com.sbi.SBIAnywhere", "Banking Apps", "Banking, UPI"),
+    Triple("com.snapwork.hdfc", "Banking Apps", "Banking, UPI"),
+    Triple("com.csam.icici.bank.imobile", "Banking Apps", "Banking, UPI"),
+    Triple("com.axis.mobile", "Banking Apps", "Banking, UPI"),
+    Triple("com.msf.kbank.mobile", "Banking Apps", "Banking, UPI"),
+    Triple("money.jupiter", "Banking Apps", "Banking, UPI"),
+
+    Triple("in.swiggy.android", "Shopping & Food", "Food delivery"),
+    Triple("com.application.zomato", "Shopping & Food", "Food delivery"),
+    Triple("com.flipkart.android", "Shopping & Food", "Shopping"),
+    Triple("com.grofers.customerapp", "Shopping & Food", "Grocery delivery"),
+    Triple("com.zepto", "Shopping & Food", "Grocery delivery"),
+    Triple("com.myntra.android", "Shopping & Food", "Shopping")
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("ArcTrackerPrefs", Context.MODE_PRIVATE) }
+    
+    var installedApps by remember { mutableStateOf<List<InstalledApp>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    // Load installed apps in background
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            val pm = context.packageManager
+            val foundApps = mutableListOf<InstalledApp>()
+            
+            for (target in targetPackages) {
+                try {
+                    val appInfo = pm.getApplicationInfo(target.first, PackageManager.GET_META_DATA)
+                    val label = pm.getApplicationLabel(appInfo).toString()
+                    val iconDrawable = pm.getApplicationIcon(appInfo)
+                    val iconBitmap = iconDrawable.toBitmap(width = 120, height = 120) // Scale down for performance
+                    
+                    foundApps.add(
+                        InstalledApp(
+                            packageName = target.first,
+                            name = label,
+                            icon = iconBitmap,
+                            category = target.second,
+                            defaultSubtitle = target.third
+                        )
+                    )
+                } catch (e: PackageManager.NameNotFoundException) {
+                    // App not installed, skip
+                }
+            }
+            installedApps = foundApps
+            isLoading = false
+        }
+    }
+
+    val groupedApps = installedApps.groupBy { it.category }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFFBF8FF)) // Light lavender background like mockup
+    ) {
+        // Custom Top Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onNavigateBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF1E1E1E))
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Supported Apps", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1E1E))
+        }
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            item {
+                Text(
+                    "Select the apps you want ArcTracker to monitor.\nTransactions from these apps will be automatically tracked.",
+                    fontSize = 13.sp,
+                    color = Color(0xFF757575),
+                    lineHeight = 18.sp,
+                    modifier = Modifier.padding(bottom = 24.dp, start = 4.dp, end = 4.dp)
+                )
+
+                // Master Switch Card
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Color(0xFFF3E5F5))
+                ) {
+                    var masterEnabled by remember { 
+                        mutableStateOf(sharedPrefs.getBoolean("master_app_monitoring", true)) 
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(Color(0xFFF3E5F5), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.MoreVert, contentDescription = null, tint = Color(0xFF673AB7)) // Mock icon
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Monitoring is enabled", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1E1E1E))
+                            Text("ArcTracker will read notifications from selected apps only.", fontSize = 12.sp, color = Color(0xFF757575), lineHeight = 16.sp)
+                        }
+                        Switch(
+                            checked = masterEnabled,
+                            onCheckedChange = { 
+                                masterEnabled = it 
+                                sharedPrefs.edit().putBoolean("master_app_monitoring", it).apply()
+                            },
+                            colors = SwitchDefaults.colors(checkedTrackColor = Color(0xFF673AB7))
+                        )
+                    }
+                }
+            }
+
+            if (isLoading) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color(0xFF673AB7))
+                    }
+                }
+            } else {
+                val categories = listOf("UPI & Payment Apps", "Banking Apps", "Shopping & Food", "Others")
+                
+                categories.forEach { categoryName ->
+                    val appsInCategory = groupedApps[categoryName] ?: emptyList()
+                    if (appsInCategory.isNotEmpty()) {
+                        item {
+                            CategoryAccordion(
+                                categoryName = categoryName,
+                                apps = appsInCategory,
+                                sharedPrefs = sharedPrefs,
+                                isInitiallyExpanded = categoryName == "UPI & Payment Apps" // First one expanded by default
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
+                }
+
+                item {
+                    // Bottom Info Box
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFF8F5FF),
+                        border = BorderStroke(1.dp, Color(0xFFF3E5F5))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(Icons.Default.Info, contentDescription = "Info", tint = Color(0xFF673AB7), modifier = Modifier.padding(top = 2.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text("Can't find an app?", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF673AB7))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    "If the app sends clear transaction notifications, you can enable it from 'Others' or request support.",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF757575),
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CategoryAccordion(
+    categoryName: String,
+    apps: List<InstalledApp>,
+    sharedPrefs: android.content.SharedPreferences,
+    isInitiallyExpanded: Boolean
+) {
+    var isExpanded by remember { mutableStateOf(isInitiallyExpanded) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFF3E5F5))
+    ) {
+        Column {
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isExpanded = !isExpanded }
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Category Icon Mock
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(Color(0xFFF3E5F5), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = null,
+                        tint = Color(0xFF673AB7),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = categoryName,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = Color(0xFF1E1E1E),
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Toggle",
+                    tint = Color(0xFF1E1E1E)
+                )
+            }
+
+            AnimatedVisibility(visible = isExpanded) {
+                Column {
+                    HorizontalDivider(color = Color(0xFFF5F5F5), thickness = 1.dp)
+                    
+                    apps.forEachIndexed { index, app ->
+                        AppListItem(app = app, sharedPrefs = sharedPrefs)
+                        if (index < apps.size - 1) {
+                            HorizontalDivider(
+                                color = Color(0xFFF5F5F5),
+                                thickness = 1.dp,
+                                modifier = Modifier.padding(start = 64.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AppListItem(app: InstalledApp, sharedPrefs: android.content.SharedPreferences) {
+    val prefKey = "app_enabled_${app.packageName}"
+    var isEnabled by remember { mutableStateOf(sharedPrefs.getBoolean(prefKey, true)) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { 
+                isEnabled = !isEnabled
+                sharedPrefs.edit().putBoolean(prefKey, isEnabled).apply()
+            }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (app.icon != null) {
+            Image(
+                bitmap = app.icon.asImageBitmap(),
+                contentDescription = app.name,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color(0xFFEEEEEE), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(app.name.take(1), fontWeight = FontWeight.Bold, color = Color(0xFF9E9E9E))
+            }
+        }
+        
+        Spacer(modifier = Modifier.width(16.dp))
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Text(app.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E1E1E))
+            Text(app.defaultSubtitle, fontSize = 12.sp, color = Color(0xFF9E9E9E))
+        }
+        
+        Switch(
+            checked = isEnabled,
+            onCheckedChange = { 
+                isEnabled = it
+                sharedPrefs.edit().putBoolean(prefKey, it).apply()
+            },
+            colors = SwitchDefaults.colors(
+                checkedTrackColor = Color(0xFF673AB7),
+                uncheckedTrackColor = Color(0xFF9E9E9E)
+            ),
+            modifier = Modifier.scale(0.85f)
+        )
+    }
+}
