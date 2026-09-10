@@ -11,6 +11,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -416,7 +418,7 @@ fun AppListItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .androidx.compose.foundation.combinedClickable(
+                .combinedClickable(
                     onClick = {
                         isEnabled = !isEnabled
                         sharedPrefs.edit().putBoolean(prefKey, isEnabled).apply()
@@ -474,12 +476,11 @@ fun AppListItem(
             modifier = Modifier.background(Color.White)
         ) {
             DropdownMenuItem(
-                text = { Text("Remove from list") },
+                text = { Text("Remove from list", color = Color(0xFFD32F2F)) },
                 onClick = {
                     showMenu = false
                     onRemoveApp()
-                },
-                colors = MenuItemDefaults.colors(textColor = Color(0xFFD32F2F))
+                }
             )
         }
     }
