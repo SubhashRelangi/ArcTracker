@@ -146,46 +146,37 @@ fun ExpenseScreen() {
 
     Scaffold(
         topBar = {
-TopAppBar(
-                title = {
-                    when (currentRoute) {
-                        "Database" -> Text("Database")
-                        "ClearAllData" -> Text("Clear All Data")
-                        "Pending" -> Text("Pending Expenses")
-                        else -> Text("ArcTracker")
-                    }
-                },
-                navigationIcon = {
-                    when (currentRoute) {
-                        "Database", "ClearAllData" -> {
+            if (currentRoute != "Transactions" && currentRoute != "SupportedApps") {
                 TopAppBar(
-                    title = { 
+                    title = {
                         when (currentRoute) {
                             "Database" -> Text("Database")
                             "ClearAllData" -> Text("Clear All Data")
                             "BackupRestore" -> Text("Backup & Restore")
+                            "Pending" -> Text("Pending Expenses")
                             else -> Text("ArcTracker")
                         }
                     },
                     navigationIcon = {
-                        if (currentRoute == "Database" || currentRoute == "ClearAllData" || currentRoute == "BackupRestore") {
-                            IconButton(onClick = { currentRoute = "Settings" }) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Back"
-                                )
+                        when (currentRoute) {
+                            "Database", "ClearAllData", "BackupRestore" -> {
+                                IconButton(onClick = { currentRoute = "Settings" }) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back"
+                                    )
+                                }
+                            }
+                            "Pending" -> {
+                                IconButton(onClick = { currentRoute = "Home" }) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back"
+                                    )
+                                }
                             }
                         }
-                        "Pending" -> {
-                            IconButton(onClick = { currentRoute = "Home" }) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Back"
-                                )
-                            }
-                        }
-                    }
-                },
+                    },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 ),
@@ -238,35 +229,10 @@ TopAppBar(
                     }
                 }
             )
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    actions = {
-                        if (currentRoute == "Home") {
-                            IconButton(onClick = { refreshTrigger++ }) {
-                                Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
-                            }
-                            IconButton(onClick = { 
-                                isSearching = !isSearching
-                                if (!isSearching) {
-                                    searchQuery = ""
-                                }
-                            }) {
-                                Icon(
-                                    imageVector = if (isSearching) Icons.Filled.Close else Icons.Filled.Search, 
-                                    contentDescription = if (isSearching) "Close Search" else "Search"
-                                )
-                            }
-                        }
-                    }
-                )
+            }
         },
         bottomBar = {
-            if (currentRoute != "ClearAllData" && currentRoute != "Pending") {
-            if (currentRoute != "ClearAllData" && currentRoute != "BackupRestore") {
+            if (currentRoute != "ClearAllData" && currentRoute != "Pending" && currentRoute != "BackupRestore" && currentRoute != "SmsImport" && currentRoute != "SupportedApps") {
                 com.example.arctracker.ui.FloatingNavigationBar(
                     currentRoute = currentRoute,
                     onNavigate = { currentRoute = it.title }
@@ -309,6 +275,8 @@ TopAppBar(
                 com.example.arctracker.ui.ClearAllDataScreen(onNavigate = { currentRoute = it })
             } else if (currentRoute == "BackupRestore") {
                 com.example.arctracker.ui.BackupRestoreScreen(onNavigate = { currentRoute = it })
+            } else if (currentRoute == "SupportedApps") {
+                com.example.arctracker.ui.SupportedAppsScreen(onNavigateBack = { currentRoute = "Settings" })
             } else if (currentRoute == "Database") {
                 com.example.arctracker.ui.DatabaseScreen()
             } else if (currentRoute == "Pending") {
