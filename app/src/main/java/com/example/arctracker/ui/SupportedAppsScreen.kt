@@ -3,6 +3,7 @@ package com.example.arctracker.ui
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.provider.Telephony
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -95,6 +96,9 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
             
             val manualUpiApps = sharedPrefs.getStringSet("manual_apps_UPI & Payment Apps", emptySet()) ?: emptySet()
             val manualBankingApps = sharedPrefs.getStringSet("manual_apps_Banking Apps", emptySet()) ?: emptySet()
+            val manualSmsApps = sharedPrefs.getStringSet("manual_apps_SMS & Messenger Apps", emptySet()) ?: emptySet()
+            
+            val defaultSmsPkg = Telephony.Sms.getDefaultSmsPackage(context)
             
             // 1. Scan all installed packages for keywords and manual overrides
             val allPackages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
@@ -119,6 +123,12 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
                 } else if (manualBankingApps.contains(pkg)) {
                     category = "Banking Apps"
                     subtitle = "Manually added"
+                } else if (manualSmsApps.contains(pkg)) {
+                    category = "SMS & Messenger Apps"
+                    subtitle = "Manually added"
+                } else if (pkg == defaultSmsPkg) {
+                    category = "SMS & Messenger Apps"
+                    subtitle = "Default SMS App"
                 } else if (knownUpi.contains(pkg) || labelLower.contains("upi") || labelLower.contains(" pay") || labelLower.endsWith("pay") || labelLower.contains("gpay")) {
                     category = "UPI & Payment Apps"
                     subtitle = targetPackages.find { it.first == pkg }?.third ?: "UPI payments, bills"
@@ -254,7 +264,7 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
                     }
                 }
             } else {
-                val categories = listOf("UPI & Payment Apps", "Banking Apps")
+                val categories = listOf("UPI & Payment Apps", "Banking Apps", "SMS & Messenger Apps")
                 
                 categories.forEach { categoryName ->
                     val appsInCategory = groupedApps[categoryName] ?: emptyList()
