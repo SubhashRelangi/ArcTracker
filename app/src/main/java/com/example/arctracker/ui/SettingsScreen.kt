@@ -415,7 +415,7 @@ fun DataStorageSection(onNavigate: (String) -> Unit = {}) {
             title = "Backup & Restore",
             subtitle = "Export or import your data",
             isLast = false,
-            onClick = {}
+            onClick = { onNavigate("BackupRestore") }
         )
         SettingsRow(
             icon = Icons.Filled.Delete,

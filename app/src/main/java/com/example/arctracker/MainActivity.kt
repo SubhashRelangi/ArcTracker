@@ -148,11 +148,12 @@ fun ExpenseScreen() {
                         when (currentRoute) {
                             "Database" -> Text("Database")
                             "ClearAllData" -> Text("Clear All Data")
+                            "BackupRestore" -> Text("Backup & Restore")
                             else -> Text("ArcTracker")
                         }
                     },
                     navigationIcon = {
-                        if (currentRoute == "Database" || currentRoute == "ClearAllData") {
+                        if (currentRoute == "Database" || currentRoute == "ClearAllData" || currentRoute == "BackupRestore") {
                             IconButton(onClick = { currentRoute = "Settings" }) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                             }
@@ -182,7 +183,7 @@ fun ExpenseScreen() {
                 )
         },
         bottomBar = {
-            if (currentRoute != "ClearAllData") {
+            if (currentRoute != "ClearAllData" && currentRoute != "BackupRestore") {
                 com.example.arctracker.ui.FloatingNavigationBar(
                     currentRoute = currentRoute,
                     onNavigate = { currentRoute = it.title }
@@ -223,6 +224,8 @@ fun ExpenseScreen() {
                 // but since it's inside the Column in Scaffold, we'll just show it.
                 // To remove the "ArcTracker" top bar and nav bar, we need to handle it in Scaffold.
                 com.example.arctracker.ui.ClearAllDataScreen(onNavigate = { currentRoute = it })
+            } else if (currentRoute == "BackupRestore") {
+                com.example.arctracker.ui.BackupRestoreScreen(onNavigate = { currentRoute = it })
             } else if (currentRoute == "Database") {
                 com.example.arctracker.ui.DatabaseScreen()
             } else if (currentRoute != "Home") {
