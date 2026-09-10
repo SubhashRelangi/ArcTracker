@@ -5,16 +5,30 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.RemoveCircleOutline
+import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.example.arctracker.utils.BankSenderFilter
 import com.example.arctracker.utils.SmsImporter
 import kotlinx.coroutines.launch
 
@@ -64,7 +78,7 @@ fun SmsImportScreen(onNavigateBack: () -> Unit) {
                 title = { Text("Import Previous Transactions") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -91,74 +105,91 @@ fun SmsImportScreen(onNavigateBack: () -> Unit) {
             }
 
             if (importResult != null) {
-                // Show Results
-                val result = importResult!!
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Import Complete", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("${result.totalFound} transaction messages found")
-                        Text("${result.imported} transactions imported", fontWeight = FontWeight.Bold)
-                        Text("${result.duplicatesSkipped} duplicates skipped")
-                        Text("${result.ignored} unrelated messages ignored")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Total imported spending: ₹${result.totalAmountImported}", color = MaterialTheme.colorScheme.error)
-                        Text("Total imported income: ₹${result.totalIncomeImported}", color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-
+                ImportResultCard(result = importResult!!)
                 Button(
                     onClick = { importResult = null },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Import More")
                 }
-
             } else if (isImporting) {
-                // Show Progress
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Scanning messages...", style = MaterialTheme.typography.titleMedium)
-                    if (totalMessages > 0) {
-                        Text("$importProgress / $totalMessages")
-                    }
-                }
+                ImportProgressCard(importProgress, totalMessages)
             } else {
-                // Show Options
-                Text(
-                    "Import transactions from bank and payment messages already stored on your phone.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text("Select Period:", fontWeight = FontWeight.Bold)
-                
-                periods.forEachIndexed { index, pair ->
+                // Bank-only import info card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        RadioButton(
-                            selected = (index == selectedPeriodIndex),
-                            onClick = { selectedPeriodIndex = index }
+                        Icon(
+                            Icons.Outlined.AccountBalance,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(40.dp)
                         )
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = pair.first,
-                            modifier = Modifier.padding(start = 8.dp)
+                            "Only messages from recognized bank senders (e.g. JD-HDFCBK) are scanned. Promotional, OTP and random messages are skipped automatically.",
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
+                if (!hasSmsPermission) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Outlined.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "SMS permission is required to scan your inbox.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Select Period", fontWeight = FontWeight.Bold)
+                        periods.forEachIndexed { index, pair ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                RadioButton(
+                                    selected = (index == selectedPeriodIndex),
+                                    onClick = { selectedPeriodIndex = index }
+                                )
+                                Text(text = pair.first, fontSize = 14.sp)
+                            }
+                        }
+                    }
+                }
 
                 Button(
                     onClick = {
@@ -167,11 +198,11 @@ fun SmsImportScreen(onNavigateBack: () -> Unit) {
                         } else {
                             val timeToSubtract = periods[selectedPeriodIndex].second
                             val startTime = if (timeToSubtract == 0L) 0L else System.currentTimeMillis() - timeToSubtract
-                            
+
                             isImporting = true
                             importProgress = 0
                             totalMessages = 0
-                            
+
                             scope.launch {
                                 val result = SmsImporter.importSms(context, startTime) { processed, total ->
                                     importProgress = processed
@@ -182,11 +213,104 @@ fun SmsImportScreen(onNavigateBack: () -> Unit) {
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
                 ) {
-                    Text(if (hasSmsPermission) "Scan Messages" else "Grant SMS Permission")
+                    Text(if (hasSmsPermission) "Scan Bank Messages" else "Grant SMS Permission")
                 }
             }
         }
+    }
+}
+
+@Composable
+fun ImportResultCard(result: SmsImporter.ImportResult) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                "Import Complete",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            ResultRow(Icons.Outlined.Info, "${result.totalFound} messages scanned")
+            ResultRow(Icons.Outlined.AccountBalance, "${result.bankMessagesFound} bank messages found")
+            ResultRow(Icons.Filled.CheckCircle, "${result.imported} transactions imported", MaterialTheme.colorScheme.primary)
+            ResultRow(Icons.Filled.ContentCopy, "${result.duplicatesSkipped} duplicates skipped")
+            ResultRow(Icons.Filled.Campaign, "${result.promotionalSkipped} promotional messages skipped")
+            ResultRow(Icons.Filled.RemoveCircleOutline, "${result.nonBankSkipped} non-bank senders skipped")
+            ResultRow(Icons.Outlined.Info, "${result.ignored} unparsable messages ignored")
+
+            if (result.banksDetected.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Banks detected: ${result.banksDetected.joinToString(", ")}",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Imported spending", fontSize = 14.sp)
+                Text(
+                    "₹${"%.2f".format(result.totalAmountImported)}",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Imported income", fontSize = 14.sp)
+                Text(
+                    "₹${"%.2f".format(result.totalIncomeImported)}",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ImportProgressCard(processed: Int, total: Int) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            CircularProgressIndicator()
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Scanning messages...", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "$processed / ${if (total > 0) total.toString() else "?"}",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun ResultRow(icon: ImageVector, text: String, tint: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text, fontSize = 14.sp)
     }
 }
