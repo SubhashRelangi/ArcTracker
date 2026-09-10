@@ -64,12 +64,6 @@ val targetPackages = listOf(
     Triple("com.msf.kbank.mobile", "Banking Apps", "Banking, UPI"),
     Triple("money.jupiter", "Banking Apps", "Banking, UPI"),
 
-    Triple("in.swiggy.android", "Shopping & Food", "Food delivery"),
-    Triple("com.application.zomato", "Shopping & Food", "Food delivery"),
-    Triple("com.flipkart.android", "Shopping & Food", "Shopping"),
-    Triple("com.grofers.customerapp", "Shopping & Food", "Grocery delivery"),
-    Triple("com.zepto", "Shopping & Food", "Grocery delivery"),
-    Triple("com.myntra.android", "Shopping & Food", "Shopping")
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -198,7 +192,7 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
                     }
                 }
             } else {
-                val categories = listOf("UPI & Payment Apps", "Banking Apps", "Shopping & Food", "Others")
+                val categories = listOf("UPI & Payment Apps", "Banking Apps")
                 
                 categories.forEach { categoryName ->
                     val appsInCategory = groupedApps[categoryName] ?: emptyList()
@@ -211,36 +205,6 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
                                 isInitiallyExpanded = categoryName == "UPI & Payment Apps" // First one expanded by default
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                        }
-                    }
-                }
-
-                item {
-                    // Bottom Info Box
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFF8F5FF),
-                        border = BorderStroke(1.dp, Color(0xFFF3E5F5))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Icon(Icons.Default.Info, contentDescription = "Info", tint = Color(0xFF673AB7), modifier = Modifier.padding(top = 2.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text("Can't find an app?", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF673AB7))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    "If the app sends clear transaction notifications, you can enable it from 'Others' or request support.",
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF757575),
-                                    lineHeight = 16.sp
-                                )
-                            }
                         }
                     }
                 }
