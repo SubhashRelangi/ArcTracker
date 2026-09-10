@@ -40,16 +40,8 @@ class ExpenseNotificationService : NotificationListenerService() {
         val text = notification.extras.getString(Notification.EXTRA_TEXT) ?: ""
         val notifKey = sbn.key // Unique key for this notification
 
-        // Check if it's a financial message
-        val lowerText = text.lowercase()
-        val isFinancial = lowerText.contains("paid") || lowerText.contains("debited") || 
-                          lowerText.contains("sent") || lowerText.contains("payment") || 
-                          lowerText.contains("spent") || lowerText.contains("deducted") ||
-                          lowerText.contains("received") || lowerText.contains("credited") ||
-                          lowerText.contains("rs") || lowerText.contains("inr") || lowerText.contains("₹")
-                          
         val isPaymentApp = packageName.contains("paisa") || packageName.contains("phonepe") || packageName.contains("wallet")
-        
+
         // Check specific tracking toggles based on source
         if (isPaymentApp) {
             val isNotifTrackingEnabled = prefs.getBoolean("isNotificationTrackingEnabled", true)
@@ -59,17 +51,23 @@ class ExpenseNotificationService : NotificationListenerService() {
             val isSmsTrackingEnabled = prefs.getBoolean("isSmsTrackingEnabled", true)
             if (!isSmsTrackingEnabled) return
         }
-        
-        // Always dump if it's from a payment app, otherwise check keywords for SMS
-        if (!isFinancial && !isPaymentApp) return
 
-        Log.d("ArcTracker", "Processing Notification: $packageName | Key: $notifKey | Text: $text")
+        Log.d("ArcTracker", "Evaluating notification: $packageName | Key: $notifKey | Text: $text")
 
-        val expenseData = com.example.arctracker.utils.ExpenseParser.parseExpenseData(text, title)
-        val amount = expenseData?.amount ?: 0.0
-        val merchant = expenseData?.merchant ?: title.ifBlank { "Unknown Merchant" }
-        val isPending = true // Always mark automated expenses as pending for user review
-        val type = expenseData?.type ?: if (lowerText.contains("received") || lowerText.contains("credited")) "Credit" else "Debit"
+        // ---- Multi-check validation pipeline ----
+        // Rejects promotional blasts, OTP/balance noise, and messages without
+        // an explicit debit/credit synonym or a parseable amount.
+        val result = com.example.arctracker.utils.TransactionValidator.validate(text, title)
+        if (!result.accepted) {
+            Log.d("ArcTracker", "Dropped notification ($notifKey): ${result.reason}")
+            return
+        }
+
+        val expenseData = result.parsed!!
+        val amount = expenseData.amount
+        val merchant = expenseData.merchant.ifBlank { title.ifBlank { "Unknown Merchant" } }
+        val type = expenseData.type
+        val isPending = true // Automated expenses always go to pending for user verification
 
         processExpense(amount, merchant, notifKey, text, isPending, type, isPaymentApp)
     }
