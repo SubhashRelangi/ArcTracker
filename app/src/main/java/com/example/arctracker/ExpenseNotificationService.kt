@@ -68,7 +68,7 @@ class ExpenseNotificationService : NotificationListenerService() {
         val expenseData = parseExpenseData(text, title)
         val amount = expenseData?.amount ?: 0.0
         val merchant = expenseData?.merchant ?: title.ifBlank { "Unknown Merchant" }
-        val isPending = expenseData == null // If parsing failed, mark as pending
+        val isPending = true // Always mark automated expenses as pending for user review
         val type = expenseData?.type ?: if (lowerText.contains("received") || lowerText.contains("credited")) "Credit" else "Debit"
 
         processExpense(amount, merchant, notifKey, text, isPending, type, isPaymentApp)
@@ -120,7 +120,8 @@ class ExpenseNotificationService : NotificationListenerService() {
                     key,
                     isPending,
                     rawText,
-                    "Other"
+                    "Other",
+                    "" // empty note initially
                 )
             )
             Log.d("ArcTracker", "Inserted new expense: $amount to $merchant")

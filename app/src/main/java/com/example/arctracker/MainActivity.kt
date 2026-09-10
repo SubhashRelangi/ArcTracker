@@ -44,6 +44,9 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -143,6 +146,18 @@ fun ExpenseScreen() {
 
     Scaffold(
         topBar = {
+TopAppBar(
+                title = {
+                    when (currentRoute) {
+                        "Database" -> Text("Database")
+                        "ClearAllData" -> Text("Clear All Data")
+                        "Pending" -> Text("Pending Expenses")
+                        else -> Text("ArcTracker")
+                    }
+                },
+                navigationIcon = {
+                    when (currentRoute) {
+                        "Database", "ClearAllData" -> {
                 TopAppBar(
                     title = { 
                         when (currentRoute) {
@@ -155,7 +170,74 @@ fun ExpenseScreen() {
                     navigationIcon = {
                         if (currentRoute == "Database" || currentRoute == "ClearAllData" || currentRoute == "BackupRestore") {
                             IconButton(onClick = { currentRoute = "Settings" }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back"
+                                )
+                            }
+                        }
+                        "Pending" -> {
+                            IconButton(onClick = { currentRoute = "Home" }) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back"
+                                )
+                            }
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                ),
+                actions = {
+                    if (currentRoute == "Home") {
+                        IconButton(onClick = { refreshTrigger++ }) {
+                            Icon(
+                                Icons.Filled.Refresh,
+                                contentDescription = "Refresh"
+                            )
+                        }
+
+                        IconButton(onClick = {
+                            isSearching = !isSearching
+                            if (!isSearching) {
+                                searchQuery = ""
+                            }
+                        }) {
+                            Icon(
+                                imageVector = if (isSearching) {
+                                    Icons.Filled.Close
+                                } else {
+                                    Icons.Filled.Search
+                                },
+                                contentDescription = if (isSearching) {
+                                    "Close Search"
+                                } else {
+                                    "Search"
+                                }
+                            )
+                        }
+
+                        IconButton(onClick = { currentRoute = "Pending" }) {
+                            BadgedBox(
+                                badge = {
+                                    val pendingCount = expenses.count { it.isPending }
+                                    if (pendingCount > 0) {
+                                        Badge {
+                                            Text(pendingCount.toString())
+                                        }
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Rounded.PendingActions,
+                                    contentDescription = "Pending Expenses"
+                                )
+                            }
+                        }
+                    }
+                }
+            )
                             }
                         }
                     },
@@ -183,6 +265,7 @@ fun ExpenseScreen() {
                 )
         },
         bottomBar = {
+            if (currentRoute != "ClearAllData" && currentRoute != "Pending") {
             if (currentRoute != "ClearAllData" && currentRoute != "BackupRestore") {
                 com.example.arctracker.ui.FloatingNavigationBar(
                     currentRoute = currentRoute,
@@ -228,6 +311,25 @@ fun ExpenseScreen() {
                 com.example.arctracker.ui.BackupRestoreScreen(onNavigate = { currentRoute = it })
             } else if (currentRoute == "Database") {
                 com.example.arctracker.ui.DatabaseScreen()
+            } else if (currentRoute == "Pending") {
+                val pendingExpenses = expenses.filter { it.isPending }
+                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                    if (pendingExpenses.isEmpty()) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                Text("No pending expenses!", color = Color.Gray)
+                            }
+                        }
+                    } else {
+                        items(pendingExpenses) { expense ->
+                            ExpenseItemRow(
+                                expense = expense,
+                                isLast = false,
+                                onClick = { showApproveDialog = expense }
+                            )
+                        }
+                    }
+                }
             } else if (currentRoute != "Home") {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
                     Text("$currentRoute Screen Coming Soon!", style = MaterialTheme.typography.titleLarge)
@@ -307,19 +409,23 @@ fun ExpenseScreen() {
             AddExpenseDialog(
                 initialAmount = "",
                 initialMerchant = "",
+                initialType = "Debit",
+                initialNote = "",
+                initialDateMillis = System.currentTimeMillis(),
                 onDismiss = { showAddDialog = false },
-                onAdd = { amount, merchant, type, tag ->
+                onAdd = { amount, merchant, type, tag, note, dateMillis ->
                     scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                         dao.insertExpense(
                             Expense(
                                 amount,
                                 merchant,
-                                System.currentTimeMillis(),
+                                dateMillis,
                                 type,
                                 UUID.randomUUID().toString(),
                                 false,
                                 "Manual Entry",
-                                tag
+                                tag,
+                                note
                             )
                         )
                         showAddDialog = false
@@ -332,15 +438,25 @@ fun ExpenseScreen() {
             AddExpenseDialog(
                 initialAmount = if (pendingExpense.amount > 0) pendingExpense.amount.toString() else "",
                 initialMerchant = if (pendingExpense.merchant != "Unknown Merchant") pendingExpense.merchant else "",
+                initialType = pendingExpense.type ?: "Debit",
+                initialNote = pendingExpense.note ?: "",
+                initialDateMillis = pendingExpense.dateMillis,
                 rawText = pendingExpense.rawText,
                 onDismiss = { showApproveDialog = null },
-                onAdd = { amount, merchant, type, tag ->
+                onDelete = {
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        dao.deleteExpense(pendingExpense)
+                        showApproveDialog = null
+                    }
+                },
+                onAdd = { amount, merchant, type, tag, note, dateMillis ->
                     scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                         pendingExpense.amount = amount
                         pendingExpense.merchant = merchant
                         pendingExpense.type = type
                         pendingExpense.isPending = false
                         pendingExpense.tag = tag
+                        pendingExpense.note = note
                         dao.updateExpense(pendingExpense)
                         showApproveDialog = null
                     }
@@ -398,13 +514,13 @@ fun ExpenseItemRow(expense: Expense, isLast: Boolean, onClick: () -> Unit) {
                 // Name and Date
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (isPending) "Needs Review" else expense.merchant,
+                        text = expense.merchant,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         color = androidx.compose.ui.graphics.Color(0xFF1E1E1E)
                     )
                     Text(
-                        text = "$dateString" + if (expense.tag != null) " • ${expense.tag}" else "",
+                        text = "$dateString" + (if (expense.tag != null) " • ${expense.tag}" else "") + (if (!expense.note.isNullOrBlank()) " • ${expense.note}" else ""),
                         fontSize = 13.sp,
                         color = androidx.compose.ui.graphics.Color(0xFF757575)
                     )
@@ -426,17 +542,8 @@ fun ExpenseItemRow(expense: Expense, isLast: Boolean, onClick: () -> Unit) {
                 }
             }
             
-            if (isPending && expense.rawText != null) {
-                Text(
-                    text = "Tap to approve",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 76.dp, bottom = 8.dp)
-                )
-            }
-            
             if (!isLast) {
-                Divider(
+                HorizontalDivider(
                     modifier = Modifier.padding(start = 76.dp, end = 16.dp),
                     color = androidx.compose.ui.graphics.Color(0xFFF5F5F5),
                     thickness = 1.dp
@@ -451,15 +558,22 @@ fun ExpenseItemRow(expense: Expense, isLast: Boolean, onClick: () -> Unit) {
 fun AddExpenseDialog(
     initialAmount: String,
     initialMerchant: String,
+    initialType: String = "Debit",
+    initialNote: String = "",
+    initialDateMillis: Long = System.currentTimeMillis(),
     rawText: String? = null,
     onDismiss: () -> Unit, 
-    onAdd: (Double, String, String, String) -> Unit
+    onDelete: (() -> Unit)? = null,
+    onAdd: (Double, String, String, String, String, Long) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var amount by remember { mutableStateOf(initialAmount) }
     var merchant by remember { mutableStateOf(initialMerchant) }
-    var type by remember { mutableStateOf("Debit") }
-    var tag by remember { mutableStateOf("Food") }
+    var note by remember { mutableStateOf(initialNote) }
+    var type by remember { mutableStateOf(initialType) }
+    var tag by remember { mutableStateOf(if (initialType == "Credit") "Salary" else "Food") }
+    var dateMillis by remember { mutableStateOf(initialDateMillis) }
+    var showDatePicker by remember { mutableStateOf(false) }
     
     val primaryPurple = Color(0xFF7859C1)
     val lightPurple = Color(0xFFF3EFFF)
@@ -474,7 +588,7 @@ fun AddExpenseDialog(
             if (isAnimating) {
                 val amt = amount.toDoubleOrNull() ?: 0.0
                 if (amt > 0 && merchant.isNotBlank()) {
-                    onAdd(amt, merchant, type, tag)
+                    onAdd(amt, merchant, type, tag, note, dateMillis)
                 } else {
                     isAnimating = false // Reset if invalid
                 }
@@ -493,6 +607,8 @@ fun AddExpenseDialog(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 16.dp)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
         ) {
             // Top Row
             Row(
@@ -529,6 +645,7 @@ fun AddExpenseDialog(
             OutlinedTextField(
                 value = amount,
                 onValueChange = { amount = it },
+                readOnly = onDelete != null,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 textStyle = TextStyle(fontSize = 24.sp, color = textDark),
@@ -553,6 +670,7 @@ fun AddExpenseDialog(
             OutlinedTextField(
                 value = merchant,
                 onValueChange = { merchant = it },
+                readOnly = onDelete != null,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -582,13 +700,23 @@ fun AddExpenseDialog(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                val categories = listOf(
-                    "Food" to Icons.Outlined.Fastfood,
-                    "Travel" to Icons.Outlined.DirectionsCar,
-                    "Bills" to Icons.Outlined.Receipt,
-                    "Shopping" to Icons.Outlined.ShoppingBag,
-                    "Other" to Icons.Outlined.MoreHoriz
-                )
+                val categories = if (type == "Debit") {
+                    listOf(
+                        "Food" to Icons.Outlined.Fastfood,
+                        "Travel" to Icons.Outlined.DirectionsCar,
+                        "Bills" to Icons.Outlined.Receipt,
+                        "Shopping" to Icons.Outlined.ShoppingBag,
+                        "Other" to Icons.Outlined.MoreHoriz
+                    )
+                } else {
+                    listOf(
+                        "Salary" to Icons.Outlined.Payments,
+                        "Allowance" to Icons.Outlined.Savings,
+                        "Refund" to Icons.Outlined.Replay,
+                        "Gift" to Icons.Outlined.CardGiftcard,
+                        "Other" to Icons.Outlined.MoreHoriz
+                    )
+                }
                 categories.forEach { (catName, iconRes) ->
                     val isSelected = tag == catName
                     Column(
@@ -618,7 +746,10 @@ fun AddExpenseDialog(
                     .weight(1f)
                     .background(if (isDebit) lightPurple else Color.White, shape = RoundedCornerShape(10.dp))
                     .border(1.dp, if (isDebit) primaryPurple else Color(0xFFEBEBEB), RoundedCornerShape(10.dp))
-                    .clickable { type = "Debit" }
+                    .clickable(enabled = onDelete == null) { 
+                        type = "Debit"
+                        tag = "Food"
+                    }
                     .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -633,7 +764,10 @@ fun AddExpenseDialog(
                     .weight(1f)
                     .background(if (!isDebit) lightPurple else Color.White, shape = RoundedCornerShape(10.dp))
                     .border(1.dp, if (!isDebit) primaryPurple else Color(0xFFEBEBEB), RoundedCornerShape(10.dp))
-                    .clickable { type = "Credit" }
+                    .clickable(enabled = onDelete == null) { 
+                        type = "Credit"
+                        tag = "Salary"
+                    }
                     .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -647,32 +781,67 @@ fun AddExpenseDialog(
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            // Date input (dummy)
+            // Date input
             val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
-            val todayStr = sdf.format(java.util.Date())
-            OutlinedTextField(
-                value = "Today, $todayStr",
-                onValueChange = {},
-                readOnly = true,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color(0xFFEBEBEB),
-                    unfocusedContainerColor = Color.White,
-                    focusedContainerColor = Color.White
-                ),
-                textStyle = TextStyle(fontSize = 14.sp),
-                leadingIcon = { Icon(Icons.Outlined.CalendarToday, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp)) },
-                trailingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp)) }
-            )
+            val dateStr = sdf.format(java.util.Date(dateMillis))
+            Box(modifier = Modifier.fillMaxWidth().clickable(enabled = onDelete == null) { showDatePicker = true }) {
+                OutlinedTextField(
+                    value = dateStr,
+                    onValueChange = {},
+                    readOnly = true,
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledBorderColor = Color(0xFFEBEBEB),
+                        disabledContainerColor = Color.White,
+                        disabledTextColor = textDark,
+                        disabledLeadingIconColor = textDark,
+                        disabledTrailingIconColor = textDark
+                    ),
+                    textStyle = TextStyle(fontSize = 14.sp),
+                    leadingIcon = { Icon(Icons.Outlined.CalendarToday, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp)) },
+                    trailingIcon = { 
+                        if (onDelete == null) {
+                            Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                )
+            }
+
+            if (showDatePicker) {
+                val datePickerState = rememberDatePickerState(initialSelectedDateMillis = dateMillis)
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            datePickerState.selectedDateMillis?.let { dateMillis = it }
+                            showDatePicker = false
+                        }) { Text("OK") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            // Note input
+            // Raw Text and Note input
+            if (rawText != null) {
+                Text(
+                    text = "Source: $rawText",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
             OutlinedTextField(
-                value = rawText ?: "",
-                onValueChange = {}, 
-                readOnly = true,
+                value = note,
+                onValueChange = { note = it }, 
+                readOnly = false,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -689,30 +858,58 @@ fun AddExpenseDialog(
             
             // Buttons
             Row(modifier = Modifier.fillMaxWidth()) {
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = lightPurple, contentColor = primaryPurple),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Button(
-                    onClick = {
-                        val amt = amount.toDoubleOrNull() ?: 0.0
-                        if (amt > 0 && merchant.isNotBlank()) {
-                            isAnimating = true
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .graphicsLayer { scaleX = scale; scaleY = scale },
-                    colors = ButtonDefaults.buttonColors(containerColor = primaryPurple, contentColor = Color.White),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text(if (rawText != null) "Approve" else "Add Expense", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                if (onDelete != null) {
+                    Button(
+                        onClick = { onDelete() },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEBEE), contentColor = Color(0xFFD32F2F)),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Delete", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Button(
+                        onClick = {
+                            val amt = amount.toDoubleOrNull() ?: 0.0
+                            if (amt > 0 && merchant.isNotBlank()) {
+                                isAnimating = true
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .graphicsLayer { scaleX = scale; scaleY = scale },
+                        colors = ButtonDefaults.buttonColors(containerColor = primaryPurple, contentColor = Color.White),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Complete", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                } else {
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = lightPurple, contentColor = primaryPurple),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Button(
+                        onClick = {
+                            val amt = amount.toDoubleOrNull() ?: 0.0
+                            if (amt > 0 && merchant.isNotBlank()) {
+                                isAnimating = true
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .graphicsLayer { scaleX = scale; scaleY = scale },
+                        colors = ButtonDefaults.buttonColors(containerColor = primaryPurple, contentColor = Color.White),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Add Expense", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
                 }
             }
         }
