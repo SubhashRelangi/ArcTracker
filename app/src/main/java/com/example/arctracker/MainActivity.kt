@@ -117,16 +117,17 @@ fun ExpenseScreen() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    when (currentRoute) {
-                        "Database" -> Text("Database")
-                        "ClearAllData" -> Text("Clear All Data")
-                        "SmsImport" -> Text("Import SMS")
-                        "Pending" -> Text("Pending Expenses")
-                        else -> Text("ArcTracker")
-                    }
-                },
+            if (currentRoute != "Transactions") {
+                TopAppBar(
+                    title = {
+                        when (currentRoute) {
+                            "Database" -> Text("Database")
+                            "ClearAllData" -> Text("Clear All Data")
+                            "SmsImport" -> Text("Import SMS")
+                            "Pending" -> Text("Pending Expenses")
+                            else -> Text("ArcTracker")
+                        }
+                    },
                     navigationIcon = {
                         when (currentRoute) {
                             "Database", "ClearAllData", "SmsImport" -> {
@@ -199,6 +200,7 @@ fun ExpenseScreen() {
                         }
                     }
                 )
+            }
         },
         bottomBar = {
             if (currentRoute != "ClearAllData" && currentRoute != "Pending" && currentRoute != "SmsImport") {
@@ -235,7 +237,12 @@ fun ExpenseScreen() {
                 )
             }
 
-            if (currentRoute == "Settings") {
+            if (currentRoute == "Transactions") {
+                com.example.arctracker.ui.TransactionsScreen(
+                    expenses = expenses, 
+                    onExpenseClick = { showApproveDialog = it }
+                )
+            } else if (currentRoute == "Settings") {
                 com.example.arctracker.ui.SettingsScreen(onNavigate = { currentRoute = it })
             } else if (currentRoute == "ClearAllData") {
                 // ClearAllData is full screen, so we don't need padding from Scaffold here if we were using it, 
