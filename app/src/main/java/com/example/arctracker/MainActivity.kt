@@ -5,7 +5,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -70,23 +74,60 @@ fun ExpenseScreen() {
     val scope = rememberCoroutineScope()
     val database = remember { AppDatabase.getDatabase(context) }
     val dao = database.expenseDao()
-    
-    // Using Flow automatically refreshes when the DB changes, but we'll add a refresh button as requested
-    // to manually trigger a re-composition or force a UI update if the user wants it.
-    var refreshTrigger by remember { mutableStateOf(0) }
-    val expenses by dao.getAllExpenses().collectAsState(initial = emptyList())
-    
-    var showAddDialog by remember { mutableStateOf(false) }
-    var showApproveDialog by remember { mutableStateOf<Expense?>(null) }
-    var currentRoute by remember { mutableStateOf("Home") }
-    var isSearching by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-    
-    val displayedExpenses = if (searchQuery.isNotBlank()) {
-        expenses.filter { it.merchant.contains(searchQuery, ignoreCase = true) }
-    } else {
-        expenses
+
+    // Using Flow automatically refreshes when the DB changes.
+    // refreshTrigger is retained for the manual refresh action.
+    var refreshTrigger by remember {
+        mutableStateOf(0)
     }
+
+    val expenses by dao
+        .getAllExpenses()
+        .collectAsState(initial = emptyList())
+
+    var showAddDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var showApproveDialog by remember {
+        mutableStateOf<Expense?>(null)
+    }
+
+    var actionSheetExpense by remember {
+        mutableStateOf<Expense?>(null)
+    }
+
+    var editExpense by remember {
+        mutableStateOf<Expense?>(null)
+    }
+
+    var deleteConfirmExpense by remember {
+        mutableStateOf<Expense?>(null)
+    }
+
+    var currentRoute by remember {
+        mutableStateOf("Home")
+    }
+
+    var isSearching by remember {
+        mutableStateOf(false)
+    }
+
+    var searchQuery by remember {
+        mutableStateOf("")
+    }
+
+    val displayedExpenses =
+        if (searchQuery.isNotBlank()) {
+            expenses.filter {
+                it.merchant.contains(
+                    searchQuery,
+                    ignoreCase = true
+                )
+            }
+        } else {
+            expenses
+        }
 
     fun isNotificationServiceEnabled(): Boolean {
         val pkgName = context.packageName
@@ -239,8 +280,13 @@ fun ExpenseScreen() {
 
             if (currentRoute == "Transactions") {
                 com.example.arctracker.ui.TransactionsScreen(
-                    expenses = expenses, 
-                    onExpenseClick = { showApproveDialog = it }
+                    expenses = expenses,
+                    onExpenseClick = {
+                        showApproveDialog = it
+                    },
+                    onExpenseLongClick = {
+                        actionSheetExpense = it
+                    }
                 )
             } else if (currentRoute == "Settings") {
                 com.example.arctracker.ui.SettingsScreen(onNavigate = { currentRoute = it })
@@ -267,7 +313,14 @@ fun ExpenseScreen() {
                             ExpenseItemRow(
                                 expense = expense,
                                 isLast = false,
-                                onClick = { showApproveDialog = expense }
+                                onClick = {
+                                    showApproveDialog =
+                                        expense
+                                },
+                                onLongClick = {
+                                    actionSheetExpense =
+                                        expense
+                                }
                             )
                         }
                     }
@@ -319,31 +372,75 @@ fun ExpenseScreen() {
                                 )
                             }
 
-                            if (displayedExpenses.isEmpty()) {
-                                Text(
-                                    text = if (isSearching) "No matching transactions found." else "No expenses yet.",
-                                    modifier = Modifier.padding(start = 16.dp, bottom = 16.dp),
-                                    color = androidx.compose.ui.graphics.Color(0xFF757575)
-                                )
-                            } else {
-                                // Display up to 5 items in this card for the dashboard
-                                displayedExpenses.take(5).forEachIndexed { index, expense ->
-                                    val isLast = index == minOf(displayedExpenses.size, 5) - 1
-                                    ExpenseItemRow(
-                                        expense = expense,
-                                        isLast = isLast,
-                                        onClick = {
-                                            if (expense.isPending) {
-                                                showApproveDialog = expense
-                                            }
-                                        }
+                                if (
+                                    displayedExpenses.isEmpty()
+                                ) {
+
+                                    Text(
+
+                                        text =
+                                            if (isSearching) {
+                                                "No matching transactions found."
+                                            } else {
+                                                "No expenses yet."
+                                            },
+
+                                        modifier =
+                                            Modifier.padding(
+                                                start = 16.dp,
+                                                bottom = 16.dp
+                                            ),
+
+                                        color =
+                                            Color(0xFF757575)
                                     )
+
+                                } else {
+
+                                    displayedExpenses
+                                        .take(5)
+                                        .forEachIndexed {
+                                                index,
+                                                expense ->
+
+                                            val isLast =
+                                                index ==
+                                                        minOf(
+                                                            displayedExpenses.size,
+                                                            5
+                                                        ) - 1
+
+                                            ExpenseItemRow(
+
+                                                expense = expense,
+
+                                                isLast =
+                                                    isLast,
+
+                                                onClick = {
+
+                                                    if (
+                                                        expense
+                                                            .isPending
+                                                    ) {
+
+                                                        showApproveDialog =
+                                                            expense
+                                                    }
+                                                },
+
+                                                onLongClick = {
+
+                                                    actionSheetExpense =
+                                                        expense
+                                                }
+                                            )
+                                        }
                                 }
                             }
                         }
                     }
                 }
-            }
             }
         }
 
@@ -406,24 +503,205 @@ fun ExpenseScreen() {
                 }
             )
         }
-        
-        if (!localSetupCompleted && !isExistingUser) {
-            com.example.arctracker.ui.FirstTimeSetupDialogs(onComplete = {
-                sharedPrefs.edit().putBoolean("isInitialSetupCompleted", true).apply()
-                localSetupCompleted = true
-            })
+
+        actionSheetExpense?.let { sheetExpense ->
+
+            com.example.arctracker.ui.TransactionActionSheet(
+
+                expense = sheetExpense,
+
+                onDismiss = {
+                    actionSheetExpense = null
+                },
+
+                onEdit = {
+                    editExpense = sheetExpense
+                    actionSheetExpense = null
+                },
+
+                onDelete = {
+                    deleteConfirmExpense = sheetExpense
+                    actionSheetExpense = null
+                }
+            )
+        }
+
+        editExpense?.let { expenseToEdit ->
+
+            AddExpenseDialog(
+
+                initialAmount =
+                    if (expenseToEdit.amount > 0) {
+                        expenseToEdit.amount.toString()
+                    } else {
+                        ""
+                    },
+
+                initialMerchant =
+                    if (
+                        expenseToEdit.merchant !=
+                        "Unknown Merchant"
+                    ) {
+                        expenseToEdit.merchant
+                    } else {
+                        ""
+                    },
+
+                initialType =
+                    expenseToEdit.type ?: "Debit",
+
+                initialTag =
+                    expenseToEdit.tag ?: "",
+
+                initialNote =
+                    expenseToEdit.note ?: "",
+
+                initialDateMillis =
+                    expenseToEdit.dateMillis,
+
+                isEditMode = true,
+
+                onDismiss = {
+                    editExpense = null
+                },
+
+                onAdd = {
+                        amount,
+                        merchant,
+                        type,
+                        tag,
+                        note,
+                        dateMillis ->
+
+                    scope.launch(Dispatchers.IO) {
+
+                        expenseToEdit.amount =
+                            amount
+
+                        expenseToEdit.merchant =
+                            merchant
+
+                        expenseToEdit.type =
+                            type
+
+                        expenseToEdit.tag =
+                            tag
+
+                        expenseToEdit.note =
+                            note
+
+                        expenseToEdit.dateMillis =
+                            dateMillis
+
+                        dao.updateExpense(
+                            expenseToEdit
+                        )
+
+                        editExpense = null
+                    }
+                }
+            )
+        }
+
+        deleteConfirmExpense?.let { expenseToDelete ->
+
+            AlertDialog(
+
+                onDismissRequest = {
+                    deleteConfirmExpense = null
+                },
+
+                title = {
+                    Text(
+                        text = "Delete Transaction?",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+
+                text = {
+                    Text(
+                        text =
+                            "This will permanently delete the transaction of ₹${expenseToDelete.amount} to ${expenseToDelete.merchant}. " +
+                                    "This action cannot be undone."
+                    )
+                },
+
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            scope.launch(Dispatchers.IO) {
+                                dao.deleteExpense(
+                                    expenseToDelete
+                                )
+                                deleteConfirmExpense = null
+                            }
+                        }
+                    ) {
+                        Text(
+                            text = "Delete",
+                            color = Color(0xFFD32F2F),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            deleteConfirmExpense = null
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        if (
+            !localSetupCompleted &&
+            !isExistingUser
+        ) {
+
+            com.example.arctracker.ui.FirstTimeSetupDialogs(
+                onComplete = {
+
+                    sharedPrefs
+                        .edit()
+                        .putBoolean(
+                            "isInitialSetupCompleted",
+                            true
+                        )
+                        .apply()
+
+                    localSetupCompleted = true
+                }
+            )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun ExpenseItemRow(expense: Expense, isLast: Boolean, onClick: () -> Unit) {
-    val dateFormat = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
-    val dateString = dateFormat.format(Date(expense.dateMillis))
-    
-    val isCredit = expense.type == "Credit"
-    val isPending = expense.isPending
+fun ExpenseItemRow(
+    expense: Expense,
+    isLast: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
+) {
+
+    val dateFormat =
+        SimpleDateFormat(
+            "MMM dd, HH:mm",
+            Locale.getDefault()
+        )
+
+    val dateString =
+        dateFormat.format(
+            Date(expense.dateMillis)
+        )
+
+    val isCredit =
+        expense.type == "Credit"
 
     val iconBgColor = if (isCredit) androidx.compose.ui.graphics.Color(0xFFE8F5E9) else androidx.compose.ui.graphics.Color(0xFFFFEBEE)
     val iconColor = if (isCredit) androidx.compose.ui.graphics.Color(0xFF4CAF50) else androidx.compose.ui.graphics.Color(0xFFF44336)
@@ -433,9 +711,18 @@ fun ExpenseItemRow(expense: Expense, isLast: Boolean, onClick: () -> Unit) {
     val sign = if (isCredit) "+" else "-"
 
     Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        color = androidx.compose.ui.graphics.Color.Transparent
+
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick
+                ),
+
+        color =
+            Color.Transparent
+
     ) {
         Column {
             Row(
@@ -509,26 +796,75 @@ fun AddExpenseDialog(
     initialAmount: String,
     initialMerchant: String,
     initialType: String = "Debit",
+
+    initialTag: String = "",
+
     initialNote: String = "",
-    initialDateMillis: Long = System.currentTimeMillis(),
+
+    isEditMode: Boolean = false,
+
+    initialDateMillis: Long =
+        System.currentTimeMillis(),
+
     rawText: String? = null,
     onDismiss: () -> Unit, 
     onDelete: (() -> Unit)? = null,
     onAdd: (Double, String, String, String, String, Long) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var amount by remember { mutableStateOf(initialAmount) }
-    var merchant by remember { mutableStateOf(initialMerchant) }
-    var note by remember { mutableStateOf(initialNote) }
-    var type by remember { mutableStateOf(initialType) }
-    var tag by remember { mutableStateOf(if (initialType == "Credit") "Salary" else "Food") }
-    var dateMillis by remember { mutableStateOf(initialDateMillis) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    
-    val primaryPurple = Color(0xFF7859C1)
-    val lightPurple = Color(0xFFF3EFFF)
-    val bgGray = Color(0xFFF9F9FB)
-    val textDark = Color(0xFF1E1E1E)
+
+    val sheetState =
+        rememberModalBottomSheetState(
+            skipPartiallyExpanded = true
+        )
+
+    var amount by remember {
+        mutableStateOf(initialAmount)
+    }
+
+    var merchant by remember {
+        mutableStateOf(initialMerchant)
+    }
+
+    var note by remember {
+        mutableStateOf(initialNote)
+    }
+
+    var type by remember {
+        mutableStateOf(initialType)
+    }
+
+    var tag by remember {
+
+        mutableStateOf(
+            if (initialTag.isNotBlank()) {
+                initialTag
+            } else if (initialType == "Credit") {
+                "Salary"
+            } else {
+                "Food"
+            }
+        )
+    }
+
+    var dateMillis by remember {
+        mutableStateOf(initialDateMillis)
+    }
+
+    var showDatePicker by remember {
+        mutableStateOf(false)
+    }
+
+    val primaryPurple =
+        Color(0xFF7859C1)
+
+    val lightPurple =
+        Color(0xFFF3EFFF)
+
+    val bgGray =
+        Color(0xFFF9F9FB)
+
+    val textDark =
+        Color(0xFF1E1E1E)
 
     var isAnimating by remember { mutableStateOf(false) }
     val scale by androidx.compose.animation.core.animateFloatAsState(
@@ -577,8 +913,32 @@ fun AddExpenseDialog(
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text(if (rawText != null) "Approve Expense" else "Add Expense", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = textDark)
-                        Text(if (rawText != null) "Review detected transaction" else "Add a transaction manually", fontSize = 12.sp, color = Color.Gray)
+
+                        Text(
+                            text =
+                                if (isEditMode) {
+                                    "Edit Expense"
+                                } else if (rawText != null) {
+                                    "Approve Expense"
+                                } else {
+                                    "Add Expense"
+                                },
+                            fontWeight =
+                                FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = textDark
+                        )
+
+                        Text(
+                            text =
+                                if (rawText != null) {
+                                    "Review detected transaction"
+                                } else {
+                                    "Add a transaction manually"
+                                },
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
                     }
                 }
                 IconButton(
@@ -854,11 +1214,39 @@ fun AddExpenseDialog(
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
-                            .graphicsLayer { scaleX = scale; scaleY = scale },
-                        colors = ButtonDefaults.buttonColors(containerColor = primaryPurple, contentColor = Color.White),
-                        shape = RoundedCornerShape(10.dp)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            },
+
+                        colors =
+                            ButtonDefaults
+                                .buttonColors(
+                                    containerColor =
+                                        primaryPurple,
+                                    contentColor =
+                                        Color.White
+                                ),
+
+                        shape =
+                            RoundedCornerShape(
+                                10.dp
+                            )
+
                     ) {
-                        Text("Add Expense", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+
+                        Text(
+
+                            text =
+                                if (isEditMode) {
+                                    "Change"
+                                } else {
+                                    "Add Expense"
+                                },
+                            fontWeight =
+                                FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
                     }
                 }
             }

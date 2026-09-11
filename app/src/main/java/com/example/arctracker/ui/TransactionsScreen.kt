@@ -3,13 +3,17 @@ package com.example.arctracker.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -34,7 +38,11 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TransactionsScreen(expenses: List<Expense>, onExpenseClick: (Expense) -> Unit) {
+fun TransactionsScreen(
+    expenses: List<Expense>,
+    onExpenseClick: (Expense) -> Unit,
+    onExpenseLongClick: (Expense) -> Unit = {}
+) {
     var selectedTabIndex by remember { mutableStateOf(0) } // 0 = All, 1 = Expenses, 2 = Income
     var selectedTimePeriod by remember { mutableStateOf("This Month") }
     var showTimePeriodDropdown by remember { mutableStateOf(false) }
@@ -334,15 +342,20 @@ fun TransactionsScreen(expenses: List<Expense>, onExpenseClick: (Expense) -> Uni
                 }
 
                 items(expensesForDate) { expense ->
-                    TransactionItemRow(expense, onClick = { onExpenseClick(expense) })
+                    TransactionItemRow(
+                        expense,
+                        onClick = { onExpenseClick(expense) },
+                        onLongClick = { onExpenseLongClick(expense) }
+                    )
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TransactionItemRow(expense: Expense, onClick: () -> Unit) {
+fun TransactionItemRow(expense: Expense, onClick: () -> Unit, onLongClick: () -> Unit = {}) {
     val isCredit = expense.type == "Credit"
     val iconBgColor = if (isCredit) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
     val iconColor = if (isCredit) Color(0xFF4CAF50) else Color(0xFFF44336)
@@ -355,8 +368,13 @@ fun TransactionItemRow(expense: Expense, onClick: () -> Unit) {
     val timeStr = timeFormat.format(Date(expense.dateMillis))
 
     Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         color = Color.Transparent
     ) {
         Row(
@@ -424,13 +442,126 @@ fun TransactionItemRow(expense: Expense, onClick: () -> Unit) {
             )
             
             // More Vert icon (using three dots)
-            IconButton(onClick = { /* TODO */ }, modifier = Modifier.size(24.dp).padding(start = 8.dp)) {
+            IconButton(onClick = onLongClick, modifier = Modifier.size(24.dp).padding(start = 8.dp)) {
                 Icon(
                     androidx.compose.material.icons.Icons.Default.MoreVert,
                     contentDescription = "Options",
                     tint = Color(0xFF9E9E9E),
                     modifier = Modifier.size(20.dp)
                 )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TransactionActionSheet(
+    expense: Expense,
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val isCredit = expense.type == "Credit"
+    val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+    val sign = if (isCredit) "+" else "-"
+    val amountColor = if (isCredit) Color(0xFF4CAF50) else Color(0xFFD32F2F)
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault())
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFFFBF8FF)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            // Transaction summary
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = expense.merchant.ifEmpty { "Unknown" },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = Color(0xFF1E1E1E)
+                    )
+                    Text(
+                        text = dateFormat.format(Date(expense.dateMillis)),
+                        fontSize = 12.sp,
+                        color = Color(0xFF757575)
+                    )
+                }
+                Text(
+                    text = "$sign${currencyFormatter.format(expense.amount).replace("Rs.", "₹")}",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = amountColor
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Edit option
+            Surface(
+                onClick = onEdit,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFF3EFFF)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = Color(0xFF673AB7),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Edit",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Color(0xFF673AB7)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Delete option
+            Surface(
+                onClick = onDelete,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFFFEBEE)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = Color(0xFFD32F2F),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Delete",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Color(0xFFD32F2F)
+                    )
+                }
             }
         }
     }
