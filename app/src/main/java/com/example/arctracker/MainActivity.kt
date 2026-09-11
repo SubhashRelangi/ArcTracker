@@ -575,6 +575,11 @@ fun ExpenseScreen() {
                     },
                     onExpenseLongClick = {
                         actionSheetExpense = it
+                    },
+                    selectedMonth = selectedMonth,
+                    availableMonths = availableMonths,
+                    onMonthChange = {
+                        selectedMonth = it
                     }
                 )
 

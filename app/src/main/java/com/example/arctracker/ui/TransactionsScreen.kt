@@ -41,43 +41,43 @@ import java.util.Locale
 fun TransactionsScreen(
     expenses: List<Expense>,
     onExpenseClick: (Expense) -> Unit,
-    onExpenseLongClick: (Expense) -> Unit = {}
+    onExpenseLongClick: (Expense) -> Unit = {},
+    selectedMonth: String = "",
+    availableMonths: List<MonthOption> = emptyList(),
+    onMonthChange: (String) -> Unit = {}
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) } // 0 = All, 1 = Expenses, 2 = Income
-    var selectedTimePeriod by remember { mutableStateOf("This Month") }
-    var showTimePeriodDropdown by remember { mutableStateOf(false) }
-    
-    val timePeriods = listOf("This Month", "3 Months", "6 Months", "1 Year", "Custom")
-    
-    // Calculate date ranges
+    var showMonthDropdown by remember { mutableStateOf(false) }
+
+    val selectedMonthLabel = availableMonths
+        .firstOrNull { it.key == selectedMonth }
+        ?.label
+        ?: "This Month"
+
+    val now = System.currentTimeMillis()
+
+    // Selected calendar month range (same technique as the home page)
     val calendar = Calendar.getInstance()
-    val now = calendar.timeInMillis
-    val startTime = when (selectedTimePeriod) {
-        "This Month" -> {
-            calendar.set(Calendar.DAY_OF_MONTH, 1)
-            calendar.set(Calendar.HOUR_OF_DAY, 0)
-            calendar.set(Calendar.MINUTE, 0)
-            calendar.set(Calendar.SECOND, 0)
-            calendar.timeInMillis
-        }
-        "3 Months" -> {
-            calendar.add(Calendar.MONTH, -3)
-            calendar.timeInMillis
-        }
-        "6 Months" -> {
-            calendar.add(Calendar.MONTH, -6)
-            calendar.timeInMillis
-        }
-        "1 Year" -> {
-            calendar.add(Calendar.YEAR, -1)
-            calendar.timeInMillis
-        }
-        else -> 0L // Custom could be implemented later with DatePickerDialog
+    val monthParts = selectedMonth.split("-")
+    if (monthParts.size == 2) {
+        calendar.set(monthParts[0].toInt(), monthParts[1].toInt() - 1, 1, 0, 0, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+    } else {
+        calendar.timeInMillis = now
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
     }
+    val startTime = calendar.timeInMillis
+    calendar.add(Calendar.MONTH, 1)
+    calendar.add(Calendar.MILLISECOND, -1)
+    val endTime = calendar.timeInMillis
 
     // Filter expenses
     val filteredExpenses = expenses.filter { expense ->
-        val inTimeRange = expense.dateMillis >= startTime && expense.dateMillis <= now
+        val inTimeRange = expense.dateMillis >= startTime && expense.dateMillis <= endTime
         val typeMatch = when (selectedTabIndex) {
             1 -> expense.type == "Debit"
             2 -> expense.type == "Credit"
@@ -182,7 +182,7 @@ fun TransactionsScreen(
                     }
                 }
 
-                // Time Period Dropdown
+                // Month Dropdown (same technique as the home page)
                 Box(modifier = Modifier.weight(1.2f)) {
                     Surface(
                         modifier = Modifier
@@ -190,27 +190,47 @@ fun TransactionsScreen(
                             .height(36.dp),
                         shape = RoundedCornerShape(12.dp),
                         color = Color(0xFFF0EDF5),
-                        onClick = { showTimePeriodDropdown = true }
+                        onClick = { showMonthDropdown = true }
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(selectedTimePeriod, fontSize = 13.sp, color = Color(0xFF424242), fontWeight = FontWeight.Medium)
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Color(0xFF424242))
+                            Text(
+                                selectedMonthLabel,
+                                fontSize = 13.sp,
+                                color = Color(0xFF673AB7),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Color(0xFF673AB7))
                         }
                     }
                     DropdownMenu(
-                        expanded = showTimePeriodDropdown,
-                        onDismissRequest = { showTimePeriodDropdown = false }
+                        expanded = showMonthDropdown,
+                        onDismissRequest = { showMonthDropdown = false }
                     ) {
-                        timePeriods.forEach { period ->
+                        availableMonths.forEach { month ->
                             DropdownMenuItem(
-                                text = { Text(period) },
+                                text = {
+                                    Text(
+                                        month.label,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (month.key == selectedMonth) {
+                                            FontWeight.Bold
+                                        } else {
+                                            FontWeight.Normal
+                                        },
+                                        color = if (month.key == selectedMonth) {
+                                            Color(0xFF673AB7)
+                                        } else {
+                                            Color(0xFF1E1E1E)
+                                        }
+                                    )
+                                },
                                 onClick = {
-                                    selectedTimePeriod = period
-                                    showTimePeriodDropdown = false
+                                    onMonthChange(month.key)
+                                    showMonthDropdown = false
                                 }
                             )
                         }
