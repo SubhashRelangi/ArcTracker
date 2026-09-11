@@ -116,6 +116,80 @@ fun ExpenseScreen() {
         mutableStateOf<Expense?>(null)
     }
 
+    // ---- Home page month selection (drives Money In/Out + Spending chart) ----
+    val keyFormat = remember { SimpleDateFormat("yyyy-MM", Locale.US) }
+    val currentMonthKey = remember { keyFormat.format(Date()) }
+    val currentYear = remember {
+        java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+    }
+
+    var selectedMonth by remember {
+        mutableStateOf(currentMonthKey)
+    }
+
+    // Build the month list: current month back to the month of the oldest transaction
+    val availableMonths = remember(expenses) {
+        val cal = java.util.Calendar.getInstance()
+        val oldest = expenses.minOfOrNull { it.dateMillis }
+        if (oldest != null) {
+            cal.timeInMillis = oldest
+        }
+        cal.set(java.util.Calendar.DAY_OF_MONTH, 1)
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+
+        val keyFormatLocal = SimpleDateFormat("yyyy-MM", Locale.US)
+        val monthFormat = SimpleDateFormat("MMMM", Locale.ENGLISH)
+        val monthYearFormat = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+
+        val months = mutableListOf<com.example.arctracker.ui.MonthOption>()
+        var guard = 0
+
+        while (guard < 600) {
+
+            val key = keyFormatLocal.format(cal.time)
+
+            months.add(
+                com.example.arctracker.ui.MonthOption(
+                    key = key,
+                    label = if (cal.get(java.util.Calendar.YEAR) == currentYear) {
+                        monthFormat.format(cal.time)
+                    } else {
+                        monthYearFormat.format(cal.time)
+                    }
+                )
+            )
+
+            if (key == currentMonthKey) break
+
+            cal.add(java.util.Calendar.MONTH, 1)
+            guard++
+        }
+
+        months.asReversed()
+    }
+
+    val selectedMonthLabel = availableMonths
+        .firstOrNull { it.key == selectedMonth }
+        ?.label
+        ?: "This Month"
+
+    // Transactions scoped to the selected calendar month
+    val periodExpenses = remember(selectedMonth, expenses) {
+        val cal = java.util.Calendar.getInstance()
+        val parts = selectedMonth.split("-")
+        cal.set(parts[0].toInt(), parts[1].toInt() - 1, 1, 0, 0, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        val start = cal.timeInMillis
+        cal.add(java.util.Calendar.MONTH, 1)
+        cal.add(java.util.Calendar.MILLISECOND, -1)
+        val end = cal.timeInMillis
+
+        expenses.filter { it.dateMillis in start..end }
+    }
+
     var currentRoute by remember {
         mutableStateOf("Home")
     }
@@ -635,11 +709,17 @@ fun ExpenseScreen() {
                     item {
 
                         com.example.arctracker.ui.DashboardCard(
-                            expenses = expenses
+                            expenses = periodExpenses,
+                            selectedMonth = selectedMonth,
+                            availableMonths = availableMonths,
+                            onMonthChange = {
+                                selectedMonth = it
+                            }
                         )
 
                         com.example.arctracker.ui.SpendingOverviewCard(
-                            expenses = expenses
+                            expenses = periodExpenses,
+                            periodLabel = selectedMonthLabel
                         )
 
                         Spacer(
