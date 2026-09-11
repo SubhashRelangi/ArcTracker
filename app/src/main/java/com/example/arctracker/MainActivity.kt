@@ -4,56 +4,62 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.arctracker.data.AppDatabase
 import com.example.arctracker.data.Expense
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.border
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import java.util.Date
+import java.util.Locale
+import java.util.UUID
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContent {
             MaterialTheme {
                 Surface(
@@ -70,9 +76,14 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpenseScreen() {
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val database = remember { AppDatabase.getDatabase(context) }
+
+    val database = remember {
+        AppDatabase.getDatabase(context)
+    }
+
     val dao = database.expenseDao()
 
     // Using Flow automatically refreshes when the DB changes.
@@ -131,110 +142,250 @@ fun ExpenseScreen() {
 
     fun isNotificationServiceEnabled(): Boolean {
         val pkgName = context.packageName
-        val flat = android.provider.Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+
+        val flat =
+            android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                "enabled_notification_listeners"
+            )
+
         return flat != null && flat.contains(pkgName)
     }
 
-    var hasPermission by remember { mutableStateOf(isNotificationServiceEnabled()) }
-    
-    val sharedPrefs = remember { context.getSharedPreferences("ArcTrackerPrefs", android.content.Context.MODE_PRIVATE) }
-    val isInitialSetupCompleted = sharedPrefs.getBoolean("isInitialSetupCompleted", false)
-    
+    var hasPermission by remember {
+        mutableStateOf(
+            isNotificationServiceEnabled()
+        )
+    }
+
+    val sharedPrefs = remember {
+        context.getSharedPreferences(
+            "ArcTrackerPrefs",
+            android.content.Context.MODE_PRIVATE
+        )
+    }
+
+    val isInitialSetupCompleted =
+        sharedPrefs.getBoolean(
+            "isInitialSetupCompleted",
+            false
+        )
+
     val isExistingUser = remember {
-        val dbExists = context.getDatabasePath("arctracker_database").exists()
-        val hasPrefs = sharedPrefs.contains("isAutoTrackingEnabled")
+
+        val dbExists =
+            context.getDatabasePath(
+                "arctracker_database"
+            ).exists()
+
+        val hasPrefs =
+            sharedPrefs.contains(
+                "isAutoTrackingEnabled"
+            )
+
         dbExists || hasPrefs
     }
-    
-    var localSetupCompleted by remember { mutableStateOf(isInitialSetupCompleted) }
+
+    var localSetupCompleted by remember {
+        mutableStateOf(
+            isInitialSetupCompleted
+        )
+    }
 
     LaunchedEffect(isInitialSetupCompleted) {
-        if (!isInitialSetupCompleted && isExistingUser) {
-            // Silently mark as complete for existing users
-            sharedPrefs.edit().putBoolean("isInitialSetupCompleted", true).apply()
+
+        if (
+            !isInitialSetupCompleted &&
+            isExistingUser
+        ) {
+            // Silently mark as complete for existing users.
+            sharedPrefs
+                .edit()
+                .putBoolean(
+                    "isInitialSetupCompleted",
+                    true
+                )
+                .apply()
+
             localSetupCompleted = true
         }
     }
 
     Scaffold(
+
         topBar = {
-            if (currentRoute != "Transactions") {
+
+            if (
+                currentRoute != "Transactions" &&
+                currentRoute != "SupportedApps"
+            ) {
+
                 TopAppBar(
+
                     title = {
+
                         when (currentRoute) {
-                            "Database" -> Text("Database")
-                            "ClearAllData" -> Text("Clear All Data")
-                            "SmsImport" -> Text("Import SMS")
-                            "Pending" -> Text("Pending Expenses")
-                            else -> Text("ArcTracker")
-                        }
-                    },
-                    navigationIcon = {
-                        when (currentRoute) {
-                            "Database", "ClearAllData", "SmsImport" -> {
-                                IconButton(onClick = { currentRoute = "Settings" }) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "Back"
-                                    )
-                                }
+
+                            "Database" -> {
+                                Text("Database")
                             }
+
+                            "ClearAllData" -> {
+                                Text("Clear All Data")
+                            }
+
+                            "SmsImport" -> {
+                                Text("Import SMS")
+                            }
+
+                            "BackupRestore" -> {
+                                Text("Backup & Restore")
+                            }
+
                             "Pending" -> {
-                                IconButton(onClick = { currentRoute = "Home" }) {
+                                Text("Pending Expenses")
+                            }
+
+                            else -> {
+                                Text("ArcTracker")
+                            }
+                        }
+                    },
+
+                    navigationIcon = {
+
+                        when (currentRoute) {
+
+                            "Database",
+                            "ClearAllData",
+                            "SmsImport",
+                            "BackupRestore" -> {
+
+                                IconButton(
+                                    onClick = {
+                                        currentRoute = "Settings"
+                                    }
+                                ) {
+
                                     Icon(
-                                        Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "Back"
+                                        imageVector =
+                                            Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription =
+                                            "Back"
+                                    )
+                                }
+                            }
+
+                            "Pending" -> {
+
+                                IconButton(
+                                    onClick = {
+                                        currentRoute = "Home"
+                                    }
+                                ) {
+
+                                    Icon(
+                                        imageVector =
+                                            Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription =
+                                            "Back"
                                     )
                                 }
                             }
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
+
+                    colors =
+                        TopAppBarDefaults.topAppBarColors(
+                            containerColor =
+                                MaterialTheme
+                                    .colorScheme
+                                    .primaryContainer
+                        ),
+
                     actions = {
+
                         if (currentRoute == "Home") {
-                            IconButton(onClick = { refreshTrigger++ }) {
-                                Icon(
-                                    Icons.Filled.Refresh,
-                                    contentDescription = "Refresh"
-                                )
-                            }
 
-                            IconButton(onClick = {
-                                isSearching = !isSearching
-                                if (!isSearching) {
-                                    searchQuery = ""
+                            IconButton(
+                                onClick = {
+                                    refreshTrigger++
                                 }
-                            }) {
+                            ) {
+
                                 Icon(
-                                    imageVector = if (isSearching) {
-                                        Icons.Filled.Close
-                                    } else {
-                                        Icons.Filled.Search
-                                    },
-                                    contentDescription = if (isSearching) {
-                                        "Close Search"
-                                    } else {
-                                        "Search"
-                                    }
+                                    imageVector =
+                                        Icons.Filled.Refresh,
+                                    contentDescription =
+                                        "Refresh"
                                 )
                             }
 
-                            IconButton(onClick = { currentRoute = "Pending" }) {
+                            IconButton(
+                                onClick = {
+
+                                    isSearching =
+                                        !isSearching
+
+                                    if (!isSearching) {
+                                        searchQuery = ""
+                                    }
+                                }
+                            ) {
+
+                                Icon(
+                                    imageVector =
+                                        if (isSearching) {
+                                            Icons.Filled.Close
+                                        } else {
+                                            Icons.Filled.Search
+                                        },
+
+                                    contentDescription =
+                                        if (isSearching) {
+                                            "Close Search"
+                                        } else {
+                                            "Search"
+                                        }
+                                )
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    currentRoute = "Pending"
+                                }
+                            ) {
+
                                 BadgedBox(
+
                                     badge = {
-                                        val pendingCount = expenses.count { it.isPending }
-                                        if (pendingCount > 0) {
+
+                                        val pendingCount =
+                                            expenses.count {
+                                                it.isPending
+                                            }
+
+                                        if (
+                                            pendingCount > 0
+                                        ) {
+
                                             Badge {
-                                                Text(pendingCount.toString())
+                                                Text(
+                                                    pendingCount
+                                                        .toString()
+                                                )
                                             }
                                         }
                                     }
+
                                 ) {
+
                                     Icon(
-                                        Icons.Rounded.PendingActions,
-                                        contentDescription = "Pending Expenses"
+                                        imageVector =
+                                            Icons.Rounded
+                                                .PendingActions,
+                                        contentDescription =
+                                            "Pending Expenses"
                                     )
                                 }
                             }
@@ -243,42 +394,106 @@ fun ExpenseScreen() {
                 )
             }
         },
+
         bottomBar = {
-            if (currentRoute != "ClearAllData" && currentRoute != "Pending" && currentRoute != "SmsImport") {
+
+            if (
+                currentRoute != "ClearAllData" &&
+                currentRoute != "Pending" &&
+                currentRoute != "SmsImport" &&
+                currentRoute != "BackupRestore" &&
+                currentRoute != "SupportedApps"
+            ) {
+
                 com.example.arctracker.ui.FloatingNavigationBar(
                     currentRoute = currentRoute,
-                    onNavigate = { currentRoute = it.title }
+                    onNavigate = {
+                        currentRoute = it.title
+                    }
                 )
             }
         },
+
         floatingActionButton = {
+
             if (currentRoute == "Home") {
-                FloatingActionButton(onClick = { showAddDialog = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add Expense")
+
+                FloatingActionButton(
+                    onClick = {
+                        showAddDialog = true
+                    }
+                ) {
+
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription =
+                            "Add Expense"
+                    )
                 }
             }
         }
+
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-            
-            AnimatedVisibility(visible = isSearching) {
+
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+        ) {
+
+            AnimatedVisibility(
+                visible = isSearching
+            ) {
+
                 OutlinedTextField(
+
                     value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search transactions by name...") },
+
+                    onValueChange = {
+                        searchQuery = it
+                    },
+
+                    placeholder = {
+                        Text(
+                            "Search transactions by name..."
+                        )
+                    },
+
                     singleLine = true,
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp), // Added border radius
+
+                    shape =
+                        RoundedCornerShape(24.dp),
+
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    textStyle = MaterialTheme.typography.bodyMedium,
+                        .padding(
+                            horizontal = 16.dp,
+                            vertical = 8.dp
+                        ),
+
+                    textStyle =
+                        MaterialTheme
+                            .typography
+                            .bodyMedium,
+
                     leadingIcon = {
-                        Icon(Icons.Filled.Search, contentDescription = "Search Icon", tint = MaterialTheme.colorScheme.primary)
+
+                        Icon(
+                            imageVector =
+                                Icons.Filled.Search,
+                            contentDescription =
+                                "Search Icon",
+                            tint =
+                                MaterialTheme
+                                    .colorScheme
+                                    .primary
+                        )
                     }
                 )
             }
 
             if (currentRoute == "Transactions") {
+
                 com.example.arctracker.ui.TransactionsScreen(
                     expenses = expenses,
                     onExpenseClick = {
@@ -288,28 +503,90 @@ fun ExpenseScreen() {
                         actionSheetExpense = it
                     }
                 )
+
             } else if (currentRoute == "Settings") {
-                com.example.arctracker.ui.SettingsScreen(onNavigate = { currentRoute = it })
+
+                com.example.arctracker.ui.SettingsScreen(
+                    onNavigate = {
+                        currentRoute = it
+                    }
+                )
+
             } else if (currentRoute == "ClearAllData") {
-                // ClearAllData is full screen, so we don't need padding from Scaffold here if we were using it, 
-                // but since it's inside the Column in Scaffold, we'll just show it.
-                // To remove the "ArcTracker" top bar and nav bar, we need to handle it in Scaffold.
-                com.example.arctracker.ui.ClearAllDataScreen(onNavigate = { currentRoute = it })
+
+                com.example.arctracker.ui.ClearAllDataScreen(
+                    onNavigate = {
+                        currentRoute = it
+                    }
+                )
+
             } else if (currentRoute == "SmsImport") {
-                com.example.arctracker.ui.SmsImportScreen(onNavigateBack = { currentRoute = "Settings" })
+
+                com.example.arctracker.ui.SmsImportScreen(
+                    onNavigateBack = {
+                        currentRoute = "Settings"
+                    }
+                )
+
+            } else if (currentRoute == "BackupRestore") {
+
+                com.example.arctracker.ui.BackupRestoreScreen(
+                    onNavigate = {
+                        currentRoute = it
+                    }
+                )
+
+            } else if (currentRoute == "SupportedApps") {
+
+                com.example.arctracker.ui.SupportedAppsScreen(
+                    onNavigateBack = {
+                        currentRoute = "Settings"
+                    }
+                )
+
             } else if (currentRoute == "Database") {
+
                 com.example.arctracker.ui.DatabaseScreen()
+
             } else if (currentRoute == "Pending") {
-                val pendingExpenses = expenses.filter { it.isPending }
-                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+
+                val pendingExpenses =
+                    expenses.filter {
+                        it.isPending
+                    }
+
+                LazyColumn(
+                    modifier =
+                        Modifier.fillMaxWidth()
+                ) {
+
                     if (pendingExpenses.isEmpty()) {
+
                         item {
-                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                Text("No pending expenses!", color = Color.Gray)
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment =
+                                    Alignment.Center
+                            ) {
+
+                                Text(
+                                    text =
+                                        "No pending expenses!",
+                                    color =
+                                        Color.Gray
+                                )
                             }
                         }
+
                     } else {
-                        items(pendingExpenses) { expense ->
+
+                        items(
+                            pendingExpenses
+                        ) { expense ->
+
                             ExpenseItemRow(
                                 expense = expense,
                                 isLast = false,
@@ -325,52 +602,121 @@ fun ExpenseScreen() {
                         }
                     }
                 }
+
             } else if (currentRoute != "Home") {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                    Text("$currentRoute Screen Coming Soon!", style = MaterialTheme.typography.titleLarge)
+
+                Box(
+                    modifier =
+                        Modifier.fillMaxSize(),
+                    contentAlignment =
+                        Alignment.Center
+                ) {
+
+                    Text(
+                        text =
+                            "$currentRoute Screen Coming Soon!",
+                        style =
+                            MaterialTheme
+                                .typography
+                                .titleLarge
+                    )
                 }
+
             } else {
 
-            // Using refreshTrigger just to satisfy the compose compiler that we are observing it
-            val trigger = refreshTrigger 
-            LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                item {
-                    com.example.arctracker.ui.DashboardCard(expenses = expenses)
-                    
-                    com.example.arctracker.ui.SpendingOverviewCard(expenses = expenses)
-                    // Recent Transactions Section
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White),
-                        border = BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFFF0F0F0)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                    ) {
-                        Column {
-                            // Header Row
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Recent Transactions",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    color = androidx.compose.ui.graphics.Color(0xFF1E1E1E)
+                // Keep refreshTrigger observed for manual refresh.
+                val trigger = refreshTrigger
+
+                LazyColumn(
+                    modifier =
+                        Modifier.fillMaxWidth()
+                ) {
+
+                    item {
+
+                        com.example.arctracker.ui.DashboardCard(
+                            expenses = expenses
+                        )
+
+                        com.example.arctracker.ui.SpendingOverviewCard(
+                            expenses = expenses
+                        )
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(8.dp)
+                        )
+
+                        Card(
+
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = 16.dp,
+                                    vertical = 8.dp
+                                ),
+
+                            shape =
+                                RoundedCornerShape(16.dp),
+
+                            colors =
+                                CardDefaults.cardColors(
+                                    containerColor =
+                                        Color.White
+                                ),
+
+                            border =
+                                BorderStroke(
+                                    1.dp,
+                                    Color(0xFFF0F0F0)
+                                ),
+
+                            elevation =
+                                CardDefaults.cardElevation(
+                                    defaultElevation =
+                                        0.dp
                                 )
-                                Text(
-                                    text = "View All",
-                                    fontSize = 14.sp,
-                                    color = androidx.compose.ui.graphics.Color(0xFF673AB7),
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
+
+                        ) {
+
+                            Column {
+
+                                Row(
+
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(
+                                            horizontal = 16.dp,
+                                            vertical = 16.dp
+                                        ),
+
+                                    horizontalArrangement =
+                                        Arrangement.SpaceBetween,
+
+                                    verticalAlignment =
+                                        Alignment.CenterVertically
+
+                                ) {
+
+                                    Text(
+                                        text =
+                                            "Recent Transactions",
+                                        fontWeight =
+                                            FontWeight.Bold,
+                                        fontSize = 16.sp,
+                                        color =
+                                            Color(0xFF1E1E1E)
+                                    )
+
+                                    Text(
+                                        text = "View All",
+                                        fontSize = 14.sp,
+                                        color =
+                                            Color(0xFF673AB7),
+                                        fontWeight =
+                                            FontWeight.Medium
+                                    )
+                                }
 
                                 if (
                                     displayedExpenses.isEmpty()
@@ -445,22 +791,43 @@ fun ExpenseScreen() {
         }
 
         if (showAddDialog) {
+
             AddExpenseDialog(
+
                 initialAmount = "",
+
                 initialMerchant = "",
+
                 initialType = "Debit",
+
                 initialNote = "",
-                initialDateMillis = System.currentTimeMillis(),
-                onDismiss = { showAddDialog = false },
-                onAdd = { amount, merchant, type, tag, note, dateMillis ->
-                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+
+                initialDateMillis =
+                    System.currentTimeMillis(),
+
+                onDismiss = {
+                    showAddDialog = false
+                },
+
+                onAdd = {
+                        amount,
+                        merchant,
+                        type,
+                        tag,
+                        note,
+                        dateMillis ->
+
+                    scope.launch(Dispatchers.IO) {
+
                         dao.insertExpense(
+
                             Expense(
                                 amount,
                                 merchant,
                                 dateMillis,
                                 type,
-                                UUID.randomUUID().toString(),
+                                UUID.randomUUID()
+                                    .toString(),
                                 false,
                                 "Manual Entry",
                                 tag,
@@ -468,36 +835,95 @@ fun ExpenseScreen() {
                                 "MANUAL"
                             )
                         )
+
                         showAddDialog = false
                     }
                 }
             )
         }
-        
+
         showApproveDialog?.let { pendingExpense ->
+
             AddExpenseDialog(
-                initialAmount = if (pendingExpense.amount > 0) pendingExpense.amount.toString() else "",
-                initialMerchant = if (pendingExpense.merchant != "Unknown Merchant") pendingExpense.merchant else "",
-                initialType = pendingExpense.type ?: "Debit",
-                initialNote = pendingExpense.note ?: "",
-                initialDateMillis = pendingExpense.dateMillis,
-                rawText = pendingExpense.rawText,
-                onDismiss = { showApproveDialog = null },
+
+                initialAmount =
+                    if (pendingExpense.amount > 0) {
+                        pendingExpense.amount
+                            .toString()
+                    } else {
+                        ""
+                    },
+
+                initialMerchant =
+                    if (
+                        pendingExpense.merchant !=
+                        "Unknown Merchant"
+                    ) {
+                        pendingExpense.merchant
+                    } else {
+                        ""
+                    },
+
+                initialType =
+                    pendingExpense.type ?: "Debit",
+
+                initialNote =
+                    pendingExpense.note ?: "",
+
+                initialDateMillis =
+                    pendingExpense.dateMillis,
+
+                rawText =
+                    pendingExpense.rawText,
+
+                onDismiss = {
+                    showApproveDialog = null
+                },
+
                 onDelete = {
-                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                        dao.deleteExpense(pendingExpense)
+
+                    scope.launch(Dispatchers.IO) {
+
+                        dao.deleteExpense(
+                            pendingExpense
+                        )
+
                         showApproveDialog = null
                     }
                 },
-                onAdd = { amount, merchant, type, tag, note, dateMillis ->
-                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                        pendingExpense.amount = amount
-                        pendingExpense.merchant = merchant
-                        pendingExpense.type = type
-                        pendingExpense.isPending = false
-                        pendingExpense.tag = tag
-                        pendingExpense.note = note
-                        dao.updateExpense(pendingExpense)
+
+                onAdd = {
+                        amount,
+                        merchant,
+                        type,
+                        tag,
+                        note,
+                        dateMillis ->
+
+                    scope.launch(Dispatchers.IO) {
+
+                        pendingExpense.amount =
+                            amount
+
+                        pendingExpense.merchant =
+                            merchant
+
+                        pendingExpense.type =
+                            type
+
+                        pendingExpense.isPending =
+                            false
+
+                        pendingExpense.tag =
+                            tag
+
+                        pendingExpense.note =
+                            note
+
+                        dao.updateExpense(
+                            pendingExpense
+                        )
+
                         showApproveDialog = null
                     }
                 }
@@ -703,12 +1129,40 @@ fun ExpenseItemRow(
     val isCredit =
         expense.type == "Credit"
 
-    val iconBgColor = if (isCredit) androidx.compose.ui.graphics.Color(0xFFE8F5E9) else androidx.compose.ui.graphics.Color(0xFFFFEBEE)
-    val iconColor = if (isCredit) androidx.compose.ui.graphics.Color(0xFF4CAF50) else androidx.compose.ui.graphics.Color(0xFFF44336)
-    val icon = if (isCredit) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown
+    val iconBgColor =
+        if (isCredit) {
+            Color(0xFFE8F5E9)
+        } else {
+            Color(0xFFFFEBEE)
+        }
 
-    val amountColor = if (isCredit) androidx.compose.ui.graphics.Color(0xFF4CAF50) else androidx.compose.ui.graphics.Color(0xFFD32F2F)
-    val sign = if (isCredit) "+" else "-"
+    val iconColor =
+        if (isCredit) {
+            Color(0xFF4CAF50)
+        } else {
+            Color(0xFFF44336)
+        }
+
+    val icon =
+        if (isCredit) {
+            Icons.Filled.KeyboardArrowUp
+        } else {
+            Icons.Filled.KeyboardArrowDown
+        }
+
+    val amountColor =
+        if (isCredit) {
+            Color(0xFF4CAF50)
+        } else {
+            Color(0xFFD32F2F)
+        }
+
+    val sign =
+        if (isCredit) {
+            "+"
+        } else {
+            "-"
+        }
 
     Surface(
 
@@ -724,65 +1178,132 @@ fun ExpenseItemRow(
             Color.Transparent
 
     ) {
+
         Column {
+
             Row(
+
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    .padding(
+                        horizontal = 16.dp,
+                        vertical = 12.dp
+                    ),
+
+                verticalAlignment =
+                    Alignment.CenterVertically
+
             ) {
-                // Circular Icon
+
                 Box(
+
                     modifier = Modifier
                         .size(44.dp)
-                        .background(iconBgColor, androidx.compose.foundation.shape.CircleShape),
-                    contentAlignment = androidx.compose.ui.Alignment.Center
+                        .background(
+                            iconBgColor,
+                            CircleShape
+                        ),
+
+                    contentAlignment =
+                        Alignment.Center
+
                 ) {
+
                     Icon(
                         imageVector = icon,
-                        contentDescription = expense.type,
+                        contentDescription =
+                            expense.type,
                         tint = iconColor,
-                        modifier = Modifier.size(24.dp)
+                        modifier =
+                            Modifier.size(24.dp)
                     )
                 }
-                
-                Spacer(modifier = Modifier.width(16.dp))
-                
-                // Name and Date
-                Column(modifier = Modifier.weight(1f)) {
+
+                Spacer(
+                    modifier =
+                        Modifier.width(16.dp)
+                )
+
+                Column(
+                    modifier =
+                        Modifier.weight(1f)
+                ) {
+
                     Text(
-                        text = expense.merchant,
-                        fontWeight = FontWeight.Bold,
+                        text =
+                            expense.merchant,
+                        fontWeight =
+                            FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = androidx.compose.ui.graphics.Color(0xFF1E1E1E)
+                        color =
+                            Color(0xFF1E1E1E)
                     )
+
                     Text(
-                        text = "$dateString" + (if (expense.tag != null) " • ${expense.tag}" else "") + (if (!expense.note.isNullOrBlank()) " • ${expense.note}" else ""),
+
+                        text =
+                            dateString +
+                                    if (
+                                        expense.tag != null
+                                    ) {
+                                        " • ${expense.tag}"
+                                    } else {
+                                        ""
+                                    } +
+                                    if (
+                                        !expense.note
+                                            .isNullOrBlank()
+                                    ) {
+                                        " • ${expense.note}"
+                                    } else {
+                                        ""
+                                    },
+
                         fontSize = 13.sp,
-                        color = androidx.compose.ui.graphics.Color(0xFF757575)
+
+                        color =
+                            Color(0xFF757575)
                     )
                 }
-                
-                // Amount and Type
-                Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
+
+                Column(
+                    horizontalAlignment =
+                        Alignment.End
+                ) {
+
                     Text(
-                        text = "$sign₹${expense.amount}",
-                        fontWeight = FontWeight.Bold,
+                        text =
+                            "$sign₹${expense.amount}",
+                        fontWeight =
+                            FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = amountColor
+                        color =
+                            amountColor
                     )
+
                     Text(
-                        text = expense.type,
+                        text =
+                            expense.type,
                         fontSize = 13.sp,
-                        color = androidx.compose.ui.graphics.Color(0xFF757575)
+                        color =
+                            Color(0xFF757575)
                     )
                 }
             }
-            
+
             if (!isLast) {
+
                 HorizontalDivider(
-                    modifier = Modifier.padding(start = 76.dp, end = 16.dp),
-                    color = androidx.compose.ui.graphics.Color(0xFFF5F5F5),
+
+                    modifier =
+                        Modifier.padding(
+                            start = 76.dp,
+                            end = 16.dp
+                        ),
+
+                    color =
+                        Color(0xFFF5F5F5),
+
                     thickness = 1.dp
                 )
             }
@@ -793,8 +1314,11 @@ fun ExpenseItemRow(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseDialog(
+
     initialAmount: String,
+
     initialMerchant: String,
+
     initialType: String = "Debit",
 
     initialTag: String = "",
@@ -807,9 +1331,20 @@ fun AddExpenseDialog(
         System.currentTimeMillis(),
 
     rawText: String? = null,
-    onDismiss: () -> Unit, 
+
+    onDismiss: () -> Unit,
+
     onDelete: (() -> Unit)? = null,
-    onAdd: (Double, String, String, String, String, Long) -> Unit
+
+    onAdd: (
+        Double,
+        String,
+        String,
+        String,
+        String,
+        Long
+    ) -> Unit
+
 ) {
 
     val sheetState =
@@ -866,52 +1401,131 @@ fun AddExpenseDialog(
     val textDark =
         Color(0xFF1E1E1E)
 
-    var isAnimating by remember { mutableStateOf(false) }
-    val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isAnimating) 0.95f else 1f,
-        animationSpec = androidx.compose.animation.core.spring(dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy),
-        finishedListener = {
+    var isAnimating by remember {
+        mutableStateOf(false)
+    }
+
+    val scale by animateFloatAsState(
+
+        targetValue =
             if (isAnimating) {
-                val amt = amount.toDoubleOrNull() ?: 0.0
-                if (amt > 0 && merchant.isNotBlank()) {
-                    onAdd(amt, merchant, type, tag, note, dateMillis)
+                0.95f
+            } else {
+                1f
+            },
+
+        animationSpec =
+            spring(
+                dampingRatio =
+                    Spring.DampingRatioMediumBouncy
+            ),
+
+        finishedListener = {
+
+            if (isAnimating) {
+
+                val amt =
+                    amount.toDoubleOrNull()
+                        ?: 0.0
+
+                if (
+                    amt > 0 &&
+                    merchant.isNotBlank()
+                ) {
+
+                    onAdd(
+                        amt,
+                        merchant,
+                        type,
+                        tag,
+                        note,
+                        dateMillis
+                    )
+
                 } else {
-                    isAnimating = false // Reset if invalid
+
+                    isAnimating = false
                 }
             }
         }
     )
 
     ModalBottomSheet(
+
         onDismissRequest = onDismiss,
+
         sheetState = sheetState,
-        containerColor = Color(0xFFFBF8FF),
-        dragHandle = { BottomSheetDefaults.DragHandle() }
+
+        containerColor =
+            Color(0xFFFBF8FF),
+
+        dragHandle = {
+            BottomSheetDefaults.DragHandle()
+        }
+
     ) {
+
         Column(
+
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 16.dp)
                 .imePadding()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(
+                    rememberScrollState()
+                )
+
         ) {
-            // Top Row
+
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+
+                modifier =
+                    Modifier.fillMaxWidth(),
+
+                horizontalArrangement =
+                    Arrangement.SpaceBetween,
+
+                verticalAlignment =
+                    Alignment.CenterVertically
+
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                Row(
+                    verticalAlignment =
+                        Alignment.CenterVertically
+                ) {
+
                     Box(
+
                         modifier = Modifier
                             .size(44.dp)
-                            .background(lightPurple, shape = CircleShape),
-                        contentAlignment = Alignment.Center
+                            .background(
+                                lightPurple,
+                                CircleShape
+                            ),
+
+                        contentAlignment =
+                            Alignment.Center
+
                     ) {
-                        Icon(Icons.Rounded.Add, contentDescription = null, tint = primaryPurple, modifier = Modifier.size(24.dp))
+
+                        Icon(
+                            imageVector =
+                                Icons.Rounded.Add,
+                            contentDescription = null,
+                            tint =
+                                primaryPurple,
+                            modifier =
+                                Modifier.size(24.dp)
+                        )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Spacer(
+                        modifier =
+                            Modifier.width(12.dp)
+                    )
+
                     Column {
 
                         Text(
@@ -941,276 +1555,999 @@ fun AddExpenseDialog(
                         )
                     }
                 }
+
                 IconButton(
+
                     onClick = onDismiss,
-                    modifier = Modifier.background(bgGray, shape = CircleShape).size(36.dp)
+
+                    modifier = Modifier
+                        .background(
+                            bgGray,
+                            CircleShape
+                        )
+                        .size(36.dp)
+
                 ) {
-                    Icon(Icons.Rounded.Close, contentDescription = "Close", tint = textDark, modifier = Modifier.size(20.dp))
+
+                    Icon(
+                        imageVector =
+                            Icons.Rounded.Close,
+                        contentDescription =
+                            "Close",
+                        tint =
+                            textDark,
+                        modifier =
+                            Modifier.size(20.dp)
+                    )
                 }
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Amount Input
+
+            Spacer(
+                modifier =
+                    Modifier.height(16.dp)
+            )
+
             OutlinedTextField(
+
                 value = amount,
-                onValueChange = { amount = it },
-                readOnly = onDelete != null,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                textStyle = TextStyle(fontSize = 24.sp, color = textDark),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color(0xFFEBEBEB),
-                    focusedBorderColor = primaryPurple,
-                    unfocusedContainerColor = Color.White,
-                    focusedContainerColor = Color.White
-                ),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                leadingIcon = { Text("₹", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textDark, modifier = Modifier.padding(start = 12.dp)) },
-                trailingIcon = { 
-                    Box(modifier = Modifier.padding(end = 8.dp).background(bgGray, shape = RoundedCornerShape(8.dp)).padding(6.dp)) {
-                        Icon(Icons.Outlined.Calculate, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp))
+
+                onValueChange = {
+                    amount = it
+                },
+
+                readOnly =
+                    onDelete != null,
+
+                modifier =
+                    Modifier.fillMaxWidth(),
+
+                shape =
+                    RoundedCornerShape(12.dp),
+
+                textStyle =
+                    TextStyle(
+                        fontSize = 24.sp,
+                        color = textDark
+                    ),
+
+                colors =
+                    OutlinedTextFieldDefaults.colors(
+
+                        unfocusedBorderColor =
+                            Color(0xFFEBEBEB),
+
+                        focusedBorderColor =
+                            primaryPurple,
+
+                        unfocusedContainerColor =
+                            Color.White,
+
+                        focusedContainerColor =
+                            Color.White
+                    ),
+
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType =
+                            KeyboardType.Number
+                    ),
+
+                leadingIcon = {
+
+                    Text(
+                        text = "₹",
+                        fontSize = 20.sp,
+                        fontWeight =
+                            FontWeight.Bold,
+                        color =
+                            textDark,
+                        modifier =
+                            Modifier.padding(
+                                start = 12.dp
+                            )
+                    )
+                },
+
+                trailingIcon = {
+
+                    Box(
+
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .background(
+                                bgGray,
+                                RoundedCornerShape(8.dp)
+                            )
+                            .padding(6.dp)
+
+                    ) {
+
+                        Icon(
+                            imageVector =
+                                Icons.Outlined.Calculate,
+                            contentDescription = null,
+                            tint =
+                                textDark,
+                            modifier =
+                                Modifier.size(20.dp)
+                        )
                     }
                 }
             )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Merchant Input
+
+            Spacer(
+                modifier =
+                    Modifier.height(12.dp)
+            )
+
             OutlinedTextField(
+
                 value = merchant,
-                onValueChange = { merchant = it },
-                readOnly = onDelete != null,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color(0xFFEBEBEB),
-                    focusedBorderColor = primaryPurple,
-                    unfocusedContainerColor = Color.White,
-                    focusedContainerColor = Color.White
-                ),
+
+                onValueChange = {
+                    merchant = it
+                },
+
+                readOnly =
+                    onDelete != null,
+
+                modifier =
+                    Modifier.fillMaxWidth(),
+
+                shape =
+                    RoundedCornerShape(12.dp),
+
+                colors =
+                    OutlinedTextFieldDefaults.colors(
+
+                        unfocusedBorderColor =
+                            Color(0xFFEBEBEB),
+
+                        focusedBorderColor =
+                            primaryPurple,
+
+                        unfocusedContainerColor =
+                            Color.White,
+
+                        focusedContainerColor =
+                            Color.White
+                    ),
+
                 placeholder = {
-                    Column(modifier = Modifier.padding(top = 2.dp)) {
-                        Text("Merchant / Person", fontSize = 14.sp, color = Color.Gray)
-                        Text("e.g. Zomato, Amazon, Mom", fontSize = 10.sp, color = Color.LightGray)
+
+                    Column(
+                        modifier =
+                            Modifier.padding(top = 2.dp)
+                    ) {
+
+                        Text(
+                            text =
+                                "Merchant / Person",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+
+                        Text(
+                            text =
+                                "e.g. Zomato, Amazon, Mom",
+                            fontSize = 10.sp,
+                            color =
+                                Color.LightGray
+                        )
                     }
                 },
-                leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null, tint = textDark) }
+
+                leadingIcon = {
+
+                    Icon(
+                        imageVector =
+                            Icons.Outlined.Person,
+                        contentDescription = null,
+                        tint = textDark
+                    )
+                }
             )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Category Section
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Category", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textDark)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("See all", fontSize = 12.sp, color = Color.Gray)
-                    Icon(Icons.Rounded.KeyboardArrowRight, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+
+            Spacer(
+                modifier =
+                    Modifier.height(16.dp)
+            )
+
+            Row(
+
+                modifier =
+                    Modifier.fillMaxWidth(),
+
+                horizontalArrangement =
+                    Arrangement.SpaceBetween,
+
+                verticalAlignment =
+                    Alignment.CenterVertically
+
+            ) {
+
+                Text(
+                    text = "Category",
+                    fontWeight =
+                        FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = textDark
+                )
+
+                Row(
+                    verticalAlignment =
+                        Alignment.CenterVertically
+                ) {
+
+                    Text(
+                        text = "See all",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+
+                    Icon(
+                        imageVector =
+                            Icons.Rounded
+                                .KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier =
+                            Modifier.size(16.dp)
+                    )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                val categories = if (type == "Debit") {
-                    listOf(
-                        "Food" to Icons.Outlined.Fastfood,
-                        "Travel" to Icons.Outlined.DirectionsCar,
-                        "Bills" to Icons.Outlined.Receipt,
-                        "Shopping" to Icons.Outlined.ShoppingBag,
-                        "Other" to Icons.Outlined.MoreHoriz
-                    )
-                } else {
-                    listOf(
-                        "Salary" to Icons.Outlined.Payments,
-                        "Allowance" to Icons.Outlined.Savings,
-                        "Refund" to Icons.Outlined.Replay,
-                        "Gift" to Icons.Outlined.CardGiftcard,
-                        "Other" to Icons.Outlined.MoreHoriz
-                    )
-                }
-                categories.forEach { (catName, iconRes) ->
-                    val isSelected = tag == catName
+
+            Spacer(
+                modifier =
+                    Modifier.height(8.dp)
+            )
+
+            Row(
+
+                modifier =
+                    Modifier.fillMaxWidth(),
+
+                horizontalArrangement =
+                    Arrangement.SpaceBetween
+
+            ) {
+
+                val categories =
+                    if (type == "Debit") {
+
+                        listOf(
+
+                            "Food" to
+                                    Icons.Outlined.Fastfood,
+
+                            "Travel" to
+                                    Icons.Outlined.DirectionsCar,
+
+                            "Bills" to
+                                    Icons.Outlined.Receipt,
+
+                            "Shopping" to
+                                    Icons.Outlined.ShoppingBag,
+
+                            "Other" to
+                                    Icons.Outlined.MoreHoriz
+
+                        )
+
+                    } else {
+
+                        listOf(
+
+                            "Salary" to
+                                    Icons.Outlined.Payments,
+
+                            "Allowance" to
+                                    Icons.Outlined.Savings,
+
+                            "Refund" to
+                                    Icons.Outlined.Replay,
+
+                            "Gift" to
+                                    Icons.Outlined.CardGiftcard,
+
+                            "Other" to
+                                    Icons.Outlined.MoreHoriz
+
+                        )
+                    }
+
+                categories.forEach {
+                        (catName, iconRes) ->
+
+                    val isSelected =
+                        tag == catName
+
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
+
+                        horizontalAlignment =
+                            Alignment.CenterHorizontally,
+
                         modifier = Modifier
                             .weight(1f)
-                            .padding(horizontal = 4.dp)
-                            .background(if (isSelected) lightPurple else bgGray, shape = RoundedCornerShape(10.dp))
-                            .clickable { tag = catName }
-                            .padding(vertical = 8.dp)
+                            .padding(
+                                horizontal = 4.dp
+                            )
+                            .background(
+                                if (isSelected) {
+                                    lightPurple
+                                } else {
+                                    bgGray
+                                },
+                                RoundedCornerShape(
+                                    10.dp
+                                )
+                            )
+                            .clickable {
+                                tag = catName
+                            }
+                            .padding(
+                                vertical = 8.dp
+                            )
+
                     ) {
-                        Icon(iconRes, contentDescription = catName, tint = if (isSelected) primaryPurple else textDark, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(catName, fontSize = 10.sp, color = if (isSelected) primaryPurple else textDark, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+
+                        Icon(
+
+                            imageVector =
+                                iconRes,
+
+                            contentDescription =
+                                catName,
+
+                            tint =
+                                if (isSelected) {
+                                    primaryPurple
+                                } else {
+                                    textDark
+                                },
+
+                            modifier =
+                                Modifier.size(20.dp)
+                        )
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(4.dp)
+                        )
+
+                        Text(
+
+                            text = catName,
+
+                            fontSize = 10.sp,
+
+                            color =
+                                if (isSelected) {
+                                    primaryPurple
+                                } else {
+                                    textDark
+                                },
+
+                            fontWeight =
+                                if (isSelected) {
+                                    FontWeight.Bold
+                                } else {
+                                    FontWeight.Normal
+                                }
+                        )
                     }
                 }
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Type Section
-            Text("Type", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textDark)
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                val isDebit = type == "Debit"
-                Box(modifier = Modifier
-                    .weight(1f)
-                    .background(if (isDebit) lightPurple else Color.White, shape = RoundedCornerShape(10.dp))
-                    .border(1.dp, if (isDebit) primaryPurple else Color(0xFFEBEBEB), RoundedCornerShape(10.dp))
-                    .clickable(enabled = onDelete == null) { 
-                        type = "Debit"
-                        tag = "Food"
-                    }
-                    .padding(vertical = 10.dp),
-                    contentAlignment = Alignment.Center
+
+            Spacer(
+                modifier =
+                    Modifier.height(16.dp)
+            )
+
+            Text(
+                text = "Type",
+                fontWeight =
+                    FontWeight.Bold,
+                fontSize = 14.sp,
+                color = textDark
+            )
+
+            Spacer(
+                modifier =
+                    Modifier.height(8.dp)
+            )
+
+            Row(
+                modifier =
+                    Modifier.fillMaxWidth()
+            ) {
+
+                val isDebit =
+                    type == "Debit"
+
+                Box(
+
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(
+                            if (isDebit) {
+                                lightPurple
+                            } else {
+                                Color.White
+                            },
+                            RoundedCornerShape(10.dp)
+                        )
+                        .border(
+                            1.dp,
+                            if (isDebit) {
+                                primaryPurple
+                            } else {
+                                Color(0xFFEBEBEB)
+                            },
+                            RoundedCornerShape(10.dp)
+                        )
+                        .clickable(
+                            enabled =
+                                onDelete == null
+                        ) {
+
+                            type = "Debit"
+                            tag = "Food"
+                        }
+                        .padding(
+                            vertical = 10.dp
+                        ),
+
+                    contentAlignment =
+                        Alignment.Center
+
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.RemoveCircleOutline, contentDescription = null, tint = if (isDebit) primaryPurple else textDark, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Expense (Debit)", fontSize = 13.sp, color = if (isDebit) primaryPurple else textDark, fontWeight = if (isDebit) FontWeight.Bold else FontWeight.Normal)
+
+                    Row(
+                        verticalAlignment =
+                            Alignment.CenterVertically
+                    ) {
+
+                        Icon(
+                            imageVector =
+                                Icons.Outlined
+                                    .RemoveCircleOutline,
+                            contentDescription =
+                                null,
+                            tint =
+                                if (isDebit) {
+                                    primaryPurple
+                                } else {
+                                    textDark
+                                },
+                            modifier =
+                                Modifier.size(18.dp)
+                        )
+
+                        Spacer(
+                            modifier =
+                                Modifier.width(6.dp)
+                        )
+
+                        Text(
+                            text =
+                                "Expense (Debit)",
+                            fontSize = 13.sp,
+                            color =
+                                if (isDebit) {
+                                    primaryPurple
+                                } else {
+                                    textDark
+                                },
+                            fontWeight =
+                                if (isDebit) {
+                                    FontWeight.Bold
+                                } else {
+                                    FontWeight.Normal
+                                }
+                        )
                     }
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Box(modifier = Modifier
-                    .weight(1f)
-                    .background(if (!isDebit) lightPurple else Color.White, shape = RoundedCornerShape(10.dp))
-                    .border(1.dp, if (!isDebit) primaryPurple else Color(0xFFEBEBEB), RoundedCornerShape(10.dp))
-                    .clickable(enabled = onDelete == null) { 
-                        type = "Credit"
-                        tag = "Salary"
-                    }
-                    .padding(vertical = 10.dp),
-                    contentAlignment = Alignment.Center
+
+                Spacer(
+                    modifier =
+                        Modifier.width(12.dp)
+                )
+
+                Box(
+
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(
+                            if (!isDebit) {
+                                lightPurple
+                            } else {
+                                Color.White
+                            },
+                            RoundedCornerShape(10.dp)
+                        )
+                        .border(
+                            1.dp,
+                            if (!isDebit) {
+                                primaryPurple
+                            } else {
+                                Color(0xFFEBEBEB)
+                            },
+                            RoundedCornerShape(10.dp)
+                        )
+                        .clickable(
+                            enabled =
+                                onDelete == null
+                        ) {
+
+                            type = "Credit"
+                            tag = "Salary"
+                        }
+                        .padding(
+                            vertical = 10.dp
+                        ),
+
+                    contentAlignment =
+                        Alignment.Center
+
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.AddCircleOutline, contentDescription = null, tint = if (!isDebit) primaryPurple else textDark, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Income (Credit)", fontSize = 13.sp, color = if (!isDebit) primaryPurple else textDark, fontWeight = if (!isDebit) FontWeight.Bold else FontWeight.Normal)
+
+                    Row(
+                        verticalAlignment =
+                            Alignment.CenterVertically
+                    ) {
+
+                        Icon(
+                            imageVector =
+                                Icons.Outlined
+                                    .AddCircleOutline,
+                            contentDescription =
+                                null,
+                            tint =
+                                if (!isDebit) {
+                                    primaryPurple
+                                } else {
+                                    textDark
+                                },
+                            modifier =
+                                Modifier.size(18.dp)
+                        )
+
+                        Spacer(
+                            modifier =
+                                Modifier.width(6.dp)
+                        )
+
+                        Text(
+                            text =
+                                "Income (Credit)",
+                            fontSize = 13.sp,
+                            color =
+                                if (!isDebit) {
+                                    primaryPurple
+                                } else {
+                                    textDark
+                                },
+                            fontWeight =
+                                if (!isDebit) {
+                                    FontWeight.Bold
+                                } else {
+                                    FontWeight.Normal
+                                }
+                        )
                     }
                 }
             }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Date input
-            val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
-            val dateStr = sdf.format(java.util.Date(dateMillis))
-            Box(modifier = Modifier.fillMaxWidth().clickable(enabled = onDelete == null) { showDatePicker = true }) {
+
+            Spacer(
+                modifier =
+                    Modifier.height(12.dp)
+            )
+
+            val sdf =
+                SimpleDateFormat(
+                    "MMM dd, yyyy",
+                    Locale.getDefault()
+                )
+
+            val dateStr =
+                sdf.format(
+                    Date(dateMillis)
+                )
+
+            Box(
+
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        enabled =
+                            onDelete == null
+                    ) {
+                        showDatePicker = true
+                    }
+
+            ) {
+
                 OutlinedTextField(
+
                     value = dateStr,
+
                     onValueChange = {},
+
                     readOnly = true,
+
                     enabled = false,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        disabledBorderColor = Color(0xFFEBEBEB),
-                        disabledContainerColor = Color.White,
-                        disabledTextColor = textDark,
-                        disabledLeadingIconColor = textDark,
-                        disabledTrailingIconColor = textDark
-                    ),
-                    textStyle = TextStyle(fontSize = 14.sp),
-                    leadingIcon = { Icon(Icons.Outlined.CalendarToday, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp)) },
-                    trailingIcon = { 
-                        if (onDelete == null) {
-                            Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp))
+
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+
+                    shape =
+                        RoundedCornerShape(10.dp),
+
+                    colors =
+                        OutlinedTextFieldDefaults
+                            .colors(
+
+                                disabledBorderColor =
+                                    Color(0xFFEBEBEB),
+
+                                disabledContainerColor =
+                                    Color.White,
+
+                                disabledTextColor =
+                                    textDark,
+
+                                disabledLeadingIconColor =
+                                    textDark,
+
+                                disabledTrailingIconColor =
+                                    textDark
+                            ),
+
+                    textStyle =
+                        TextStyle(
+                            fontSize = 14.sp
+                        ),
+
+                    leadingIcon = {
+
+                        Icon(
+                            imageVector =
+                                Icons.Outlined
+                                    .CalendarToday,
+                            contentDescription =
+                                null,
+                            tint =
+                                textDark,
+                            modifier =
+                                Modifier.size(20.dp)
+                        )
+                    },
+
+                    trailingIcon = {
+
+                        if (
+                            onDelete == null
+                        ) {
+
+                            Icon(
+                                imageVector =
+                                    Icons.Rounded
+                                        .KeyboardArrowDown,
+                                contentDescription =
+                                    null,
+                                tint =
+                                    textDark,
+                                modifier =
+                                    Modifier.size(20.dp)
+                            )
                         }
                     }
                 )
             }
 
             if (showDatePicker) {
-                val datePickerState = rememberDatePickerState(initialSelectedDateMillis = dateMillis)
+
+                val datePickerState =
+                    rememberDatePickerState(
+                        initialSelectedDateMillis =
+                            dateMillis
+                    )
+
                 DatePickerDialog(
-                    onDismissRequest = { showDatePicker = false },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            datePickerState.selectedDateMillis?.let { dateMillis = it }
-                            showDatePicker = false
-                        }) { Text("OK") }
+
+                    onDismissRequest = {
+                        showDatePicker = false
                     },
+
+                    confirmButton = {
+
+                        TextButton(
+
+                            onClick = {
+
+                                datePickerState
+                                    .selectedDateMillis
+                                    ?.let {
+                                        dateMillis = it
+                                    }
+
+                                showDatePicker = false
+                            }
+
+                        ) {
+
+                            Text("OK")
+                        }
+                    },
+
                     dismissButton = {
-                        TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+
+                        TextButton(
+
+                            onClick = {
+                                showDatePicker = false
+                            }
+
+                        ) {
+
+                            Text("Cancel")
+                        }
                     }
+
                 ) {
-                    DatePicker(state = datePickerState)
+
+                    DatePicker(
+                        state =
+                            datePickerState
+                    )
                 }
             }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Raw Text and Note input
+
+            Spacer(
+                modifier =
+                    Modifier.height(12.dp)
+            )
+
             if (rawText != null) {
+
                 Text(
-                    text = "Source: $rawText",
+
+                    text =
+                        "Source: $rawText",
+
                     fontSize = 12.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(bottom = 8.dp)
+
+                    color =
+                        Color.Gray,
+
+                    modifier =
+                        Modifier.padding(
+                            bottom = 8.dp
+                        )
                 )
             }
+
             OutlinedTextField(
+
                 value = note,
-                onValueChange = { note = it }, 
+
+                onValueChange = {
+                    note = it
+                },
+
                 readOnly = false,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color(0xFFEBEBEB),
-                    unfocusedContainerColor = Color.White,
-                    focusedContainerColor = Color.White
-                ),
-                textStyle = TextStyle(fontSize = 14.sp),
-                placeholder = { Text("Add a note (optional)", color = Color.Gray, fontSize = 14.sp) },
-                leadingIcon = { Icon(Icons.Outlined.Description, contentDescription = null, tint = textDark, modifier = Modifier.size(20.dp)) }
+
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+
+                shape =
+                    RoundedCornerShape(10.dp),
+
+                colors =
+                    OutlinedTextFieldDefaults
+                        .colors(
+
+                            unfocusedBorderColor =
+                                Color(0xFFEBEBEB),
+
+                            unfocusedContainerColor =
+                                Color.White,
+
+                            focusedContainerColor =
+                                Color.White
+                        ),
+
+                textStyle =
+                    TextStyle(
+                        fontSize = 14.sp
+                    ),
+
+                placeholder = {
+
+                    Text(
+                        text =
+                            "Add a note (optional)",
+                        color =
+                            Color.Gray,
+                        fontSize = 14.sp
+                    )
+                },
+
+                leadingIcon = {
+
+                    Icon(
+                        imageVector =
+                            Icons.Outlined
+                                .Description,
+                        contentDescription =
+                            null,
+                        tint =
+                            textDark,
+                        modifier =
+                            Modifier.size(20.dp)
+                    )
+                }
             )
-            
-            Spacer(modifier = Modifier.height(20.dp))
-            
-            // Buttons
-            Row(modifier = Modifier.fillMaxWidth()) {
+
+            Spacer(
+                modifier =
+                    Modifier.height(20.dp)
+            )
+
+            Row(
+                modifier =
+                    Modifier.fillMaxWidth()
+            ) {
+
                 if (onDelete != null) {
+
                     Button(
-                        onClick = { onDelete() },
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEBEE), contentColor = Color(0xFFD32F2F)),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Delete", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Button(
+
                         onClick = {
-                            val amt = amount.toDoubleOrNull() ?: 0.0
-                            if (amt > 0 && merchant.isNotBlank()) {
+                            onDelete()
+                        },
+
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+
+                        colors =
+                            ButtonDefaults
+                                .buttonColors(
+                                    containerColor =
+                                        Color(0xFFFFEBEE),
+                                    contentColor =
+                                        Color(0xFFD32F2F)
+                                ),
+
+                        shape =
+                            RoundedCornerShape(
+                                10.dp
+                            )
+
+                    ) {
+
+                        Text(
+                            text = "Delete",
+                            fontWeight =
+                                FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+
+                    Spacer(
+                        modifier =
+                            Modifier.width(12.dp)
+                    )
+
+                    Button(
+
+                        onClick = {
+
+                            val amt =
+                                amount
+                                    .toDoubleOrNull()
+                                    ?: 0.0
+
+                            if (
+                                amt > 0 &&
+                                merchant.isNotBlank()
+                            ) {
                                 isAnimating = true
                             }
                         },
+
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
-                            .graphicsLayer { scaleX = scale; scaleY = scale },
-                        colors = ButtonDefaults.buttonColors(containerColor = primaryPurple, contentColor = Color.White),
-                        shape = RoundedCornerShape(10.dp)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            },
+
+                        colors =
+                            ButtonDefaults
+                                .buttonColors(
+                                    containerColor =
+                                        primaryPurple,
+                                    contentColor =
+                                        Color.White
+                                ),
+
+                        shape =
+                            RoundedCornerShape(
+                                10.dp
+                            )
+
                     ) {
-                        Text("Complete", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+
+                        Text(
+                            text = "Complete",
+                            fontWeight =
+                                FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
                     }
+
                 } else {
+
                     Button(
+
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = lightPurple, contentColor = primaryPurple),
-                        shape = RoundedCornerShape(10.dp)
+
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+
+                        colors =
+                            ButtonDefaults
+                                .buttonColors(
+                                    containerColor =
+                                        lightPurple,
+                                    contentColor =
+                                        primaryPurple
+                                ),
+
+                        shape =
+                            RoundedCornerShape(
+                                10.dp
+                            )
+
                     ) {
-                        Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+
+                        Text(
+                            text = "Cancel",
+                            fontWeight =
+                                FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Spacer(
+                        modifier =
+                            Modifier.width(12.dp)
+                    )
+
                     Button(
+
                         onClick = {
-                            val amt = amount.toDoubleOrNull() ?: 0.0
-                            if (amt > 0 && merchant.isNotBlank()) {
+
+                            val amt =
+                                amount
+                                    .toDoubleOrNull()
+                                    ?: 0.0
+
+                            if (
+                                amt > 0 &&
+                                merchant.isNotBlank()
+                            ) {
                                 isAnimating = true
                             }
                         },
+
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)

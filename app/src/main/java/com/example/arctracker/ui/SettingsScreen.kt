@@ -171,7 +171,8 @@ fun SettingsScreen(onNavigate: (String) -> Unit = {}) {
                         showPermissionDialog = true
                     }
                 }
-            }
+            },
+            onNavigate = onNavigate
         )
         Spacer(modifier = Modifier.height(16.dp))
         DeveloperOptionsSection()
@@ -422,7 +423,7 @@ fun DataStorageSection(onNavigate: (String) -> Unit = {}) {
             title = "Backup & Restore",
             subtitle = "Export or import your data",
             isLast = false,
-            onClick = {}
+            onClick = { onNavigate("BackupRestore") }
         )
         SettingsRow(
             icon = Icons.Filled.Delete,
@@ -439,7 +440,8 @@ fun TrackingSourcesSection(
     smsTracking: Boolean,
     notifTracking: Boolean,
     onSmsTrackingChange: (Boolean) -> Unit,
-    onNotifTrackingChange: (Boolean) -> Unit
+    onNotifTrackingChange: (Boolean) -> Unit,
+    onNavigate: (String) -> Unit
 ) {
     SettingsCard(title = "Tracking Sources") {
         SettingsSwitchRow(
@@ -463,7 +465,7 @@ fun TrackingSourcesSection(
             title = "Supported Apps",
             subtitle = "Manage apps to include or exclude",
             isLast = false,
-            onClick = {}
+            onClick = { onNavigate("SupportedApps") }
         )
         SettingsRow(
             icon = Icons.Filled.Warning, // Filter or Warning icon
