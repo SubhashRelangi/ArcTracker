@@ -30,14 +30,6 @@ object TransactionValidator {
         "upi /cr", "/cr/", "cr from", "cash in"
     )
 
-    /** Noise keywords — instant reject regardless of anything else. */
-    private val noiseKeywords = listOf(
-        "otp", "one time password", "code is", "available balance",
-        "balance is", "bal is", "login", "signin", "sign in",
-        "welcome", "verify", "blocked", "unblocked", "kyc",
-        "limit changed", "statement", "mini statement", "loan offer"
-    )
-
     /** Maximum plausible single-transaction amount (sanity bound). */
     private const val MAX_AMOUNT = 10_000_000.0 // 1 crore
 
@@ -59,44 +51,39 @@ object TransactionValidator {
         val ignoreRulesEnabled = prefs.getBoolean("ignore_rules_enabled", true)
 
         if (ignoreRulesEnabled) {
-            val customIgnoreRules = prefs.getStringSet("ignore_rules", emptySet()) ?: emptySet()
-            for (ruleStr in customIgnoreRules) {
+            val rules = com.example.arctracker.utils.IgnoreRulesManager.getRules(context)
+            for (rule in rules) {
                 try {
-                    val obj = org.json.JSONObject(ruleStr)
-                    val type = obj.getString("type")
-                    val matchType = obj.getString("matchType")
-                    val value = obj.getString("value")
-                    val valueLower = value.lowercase()
-
-                    when (type) {
+                    val valueLower = rule.value.lowercase()
+                    when (rule.type) {
                         "Keyword" -> {
-                            val isMatch = when (matchType) {
+                            val isMatch = when (rule.matchType) {
                                 "Contains" -> lower.contains(valueLower)
                                 "Exact match" -> lower == valueLower
                                 "Starts with" -> lower.startsWith(valueLower)
                                 else -> false
                             }
-                            if (isMatch) return Validation(false, "Ignored by custom keyword rule: $value")
+                            if (isMatch) return Validation(false, "Ignored by keyword rule: ${rule.value}")
                         }
                         "Sender" -> {
                             val titleLower = title.lowercase()
-                            val isMatch = when (matchType) {
+                            val isMatch = when (rule.matchType) {
                                 "Contains" -> titleLower.contains(valueLower)
                                 "Exact match" -> titleLower == valueLower
                                 "Starts with" -> titleLower.startsWith(valueLower)
                                 else -> false
                             }
-                            if (isMatch) return Validation(false, "Ignored by custom sender rule: $value")
+                            if (isMatch) return Validation(false, "Ignored by sender rule: ${rule.value}")
                         }
                         "Pattern" -> {
-                            val regex = value.toRegex(RegexOption.IGNORE_CASE)
+                            val regex = rule.value.toRegex(RegexOption.IGNORE_CASE)
                             if (regex.containsMatchIn(combined)) {
-                                return Validation(false, "Ignored by custom pattern rule: $value")
+                                return Validation(false, "Ignored by pattern rule: ${rule.value}")
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    // Ignore malformed rules
+                    // Ignore malformed regex
                 }
             }
         }
@@ -106,17 +93,7 @@ object TransactionValidator {
             return Validation(false, "Empty notification")
         }
 
-        // 2. Promotional blasts are never transactions
-        if (BankSenderFilter.isPromotional(combined)) {
-            return Validation(false, "Promotional message")
-        }
-
-        // 3. Noise: OTPs, balances, logins, service messages
-        noiseKeywords.firstOrNull { lower.contains(it) }?.let {
-            return Validation(false, "Noise keyword: $it")
-        }
-
-        // 4. Must contain an explicit debit or credit synonym
+        // 2. Must contain an explicit debit or credit synonym
         val hasDebit = debitSynonyms.any { lower.contains(it) }
         val hasCredit = creditSynonyms.any { lower.contains(it) }
         if (!hasDebit && !hasCredit) {

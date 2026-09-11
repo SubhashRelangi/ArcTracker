@@ -67,58 +67,47 @@ object SmsImporter {
                     bankMessagesFound++
                     banksDetected.add(BankSenderFilter.detectBankName(address) ?: "BANK")
 
-                    // Skip marketing blasts even if they come from a bank sender
-                    if (BankSenderFilter.isPromotional(body)) {
-                        promotionalSkipped++
-                    } else {
-                        val lowerBody = body.lowercase()
-                        val isFinancial = lowerBody.contains("paid") || lowerBody.contains("debited") ||
-                                          lowerBody.contains("sent") || lowerBody.contains("payment") ||
-                                          lowerBody.contains("spent") || lowerBody.contains("deducted") ||
-                                          lowerBody.contains("received") || lowerBody.contains("credited") ||
-                                          lowerBody.contains("rs") || lowerBody.contains("inr") || lowerBody.contains("₹")
-
-                        val isIgnore = lowerBody.contains("otp") || lowerBody.contains("code is") || lowerBody.contains("cashback") || lowerBody.contains("available balance") || lowerBody.contains("loan") || lowerBody.contains("login")
-
-                        if (isFinancial && !isIgnore) {
-                            val parsed = ExpenseParser.parseExpenseData(body, address)
-                            if (parsed != null) {
-                                // Duplicate check: +/- 24 hours window.
-                                val startTime = dateMillis - (24 * 60 * 60 * 1000L)
-                                val endTime = dateMillis + (24 * 60 * 60 * 1000L)
-                                val duplicates = dao.findPotentialDuplicates(parsed.amount, parsed.type, startTime, endTime)
-
-                                val isDuplicate = duplicates.isNotEmpty()
-
-                                if (isDuplicate) {
-                                    duplicatesSkipped++
-                                } else {
-                                    dao.insertExpense(
-                                        Expense(
-                                            parsed.amount,
-                                            parsed.merchant,
-                                            dateMillis,
-                                            parsed.type,
-                                            "sms_" + UUID.randomUUID().toString(),
-                                            false,
-                                            body,
-                                            "Other",
-                                            "",
-                                            "SMS_HISTORY"
-                                        )
-                                    )
-                                    imported++
-                                    if (parsed.type == "Credit") {
-                                        totalIncomeImported += parsed.amount
-                                    } else {
-                                        totalAmountImported += parsed.amount
-                                    }
-                                }
-                            } else {
-                                ignored++
-                            }
+                    // Unified validation: handles ignore rules, parsing, and bounds
+                    val result = TransactionValidator.validate(context, body, address)
+                    
+                    if (!result.accepted) {
+                        if (result.reason.startsWith("Ignored by")) {
+                            promotionalSkipped++ // Reusing counter for any ignored rule
                         } else {
                             ignored++
+                        }
+                    } else {
+                        val parsed = result.parsed!!
+                        // Duplicate check: +/- 24 hours window.
+                        val startTime = dateMillis - (24 * 60 * 60 * 1000L)
+                        val endTime = dateMillis + (24 * 60 * 60 * 1000L)
+                        val duplicates = dao.findPotentialDuplicates(parsed.amount, parsed.type, startTime, endTime)
+
+                        val isDuplicate = duplicates.isNotEmpty()
+
+                        if (isDuplicate) {
+                            duplicatesSkipped++
+                        } else {
+                            dao.insertExpense(
+                                Expense(
+                                    parsed.amount,
+                                    parsed.merchant,
+                                    dateMillis,
+                                    parsed.type,
+                                    "sms_" + UUID.randomUUID().toString(),
+                                    false,
+                                    body,
+                                    "Other",
+                                    "",
+                                    "SMS_HISTORY"
+                                )
+                            )
+                            imported++
+                            if (parsed.type == "Credit") {
+                                totalIncomeImported += parsed.amount
+                            } else {
+                                totalAmountImported += parsed.amount
+                            }
                         }
                     }
                 }

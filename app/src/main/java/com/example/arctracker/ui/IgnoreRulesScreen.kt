@@ -21,36 +21,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.json.JSONObject
-import java.util.UUID
-
-data class IgnoreRule(
-    val id: String,
-    val type: String, // "Keyword", "Sender", "Pattern"
-    val matchType: String, // "Contains", "Exact match", "Starts with"
-    val value: String
-) {
-    fun toJson(): String {
-        return JSONObject().apply {
-            put("id", id)
-            put("type", type)
-            put("matchType", matchType)
-            put("value", value)
-        }.toString()
-    }
-
-    companion object {
-        fun fromJson(json: String): IgnoreRule {
-            val obj = JSONObject(json)
-            return IgnoreRule(
-                id = obj.getString("id"),
-                type = obj.getString("type"),
-                matchType = obj.getString("matchType"),
-                value = obj.getString("value")
-            )
-        }
-    }
-}
+import com.example.arctracker.utils.IgnoreRule
+import com.example.arctracker.utils.IgnoreRulesManager
 
 @Composable
 fun IgnoreRulesScreen() {
@@ -60,11 +32,7 @@ fun IgnoreRulesScreen() {
     var isEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("ignore_rules_enabled", true)) }
     
     var rules by remember { 
-        mutableStateOf(
-            (sharedPrefs.getStringSet("ignore_rules", emptySet()) ?: emptySet())
-                .map { IgnoreRule.fromJson(it) }
-                .sortedBy { it.value }
-        )
+        mutableStateOf(IgnoreRulesManager.getRules(context))
     }
 
     var selectedType by remember { mutableStateOf("Keyword") }
@@ -75,8 +43,8 @@ fun IgnoreRulesScreen() {
     val matchTypes = listOf("Contains", "Exact match", "Starts with")
 
     fun saveRules(newRules: List<IgnoreRule>) {
-        rules = newRules
-        sharedPrefs.edit().putStringSet("ignore_rules", newRules.map { it.toJson() }.toSet()).apply()
+        rules = newRules.sortedBy { it.value }
+        IgnoreRulesManager.saveRules(context, rules)
     }
 
     Column(
@@ -198,7 +166,7 @@ fun IgnoreRulesScreen() {
         Button(
             onClick = {
                 if (inputValue.isNotBlank()) {
-                    val newRule = IgnoreRule(UUID.randomUUID().toString(), selectedType, selectedMatchType, inputValue.trim())
+                    val newRule = IgnoreRule(java.util.UUID.randomUUID().toString(), selectedType, selectedMatchType, inputValue.trim())
                     saveRules(rules + newRule)
                     inputValue = ""
                 }
@@ -245,7 +213,15 @@ fun IgnoreRulesScreen() {
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(rule.value, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E1E1E))
-                            Text("${rule.type} • ${rule.matchType}", fontSize = 12.sp, color = Color(0xFF757575))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("${rule.type} • ${rule.matchType}", fontSize = 12.sp, color = Color(0xFF757575))
+                                if (rule.isSystem) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(color = Color(0xFFE0F7FA), shape = RoundedCornerShape(4.dp)) {
+                                        Text("System", fontSize = 10.sp, color = Color(0xFF006064), modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
+                                    }
+                                }
+                            }
                         }
                         
                         var showMenu by remember { mutableStateOf(false) }

@@ -85,15 +85,7 @@ object BankSenderFilter {
         "BNK" to "Bank"
     )
 
-    // Words that mark a message as promotional / marketing, even from a bank sender.
-    private val promotionalKeywords = listOf(
-        "offer", "% off", "off on", "discount", "win ", "winner", "lucky draw",
-        "click here", "apply now", "register now", "redeem", "limited period",
-        "subscribe", "guaranteed", "shop now", "buy now", "shop & win",
-        "cashback offer", "deal of", "use code", "coupon",
-        "personal loan", "pre-approved", "preapproved", "investment plan",
-        "fixed deposit rates", "fd rates", "credit card offer"
-    )
+
 
     /** Extracts candidate sender segments from an address, e.g.
      *  "VM-SBIUPI-S" -> ["VM", "SBIUPI", "S"] */
@@ -129,9 +121,4 @@ object BankSenderFilter {
         return null
     }
 
-    /** True if the message body looks like a marketing / promotional blast. */
-    fun isPromotional(body: String): Boolean {
-        val lower = body.lowercase()
-        return promotionalKeywords.any { lower.contains(it) }
-    }
 }
