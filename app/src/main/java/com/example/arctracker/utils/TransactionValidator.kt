@@ -51,9 +51,55 @@ object TransactionValidator {
      * Runs the full validation pipeline. Returns [Validation.accepted] = true only
      * when the notification is a genuine transaction with extractable details.
      */
-    fun validate(text: String, title: String): Validation {
+    fun validate(context: android.content.Context, text: String, title: String): Validation {
         val combined = "$title. $text".trim()
         val lower = combined.lowercase()
+
+        val prefs = context.getSharedPreferences("ArcTrackerPrefs", android.content.Context.MODE_PRIVATE)
+        val ignoreRulesEnabled = prefs.getBoolean("ignore_rules_enabled", true)
+
+        if (ignoreRulesEnabled) {
+            val customIgnoreRules = prefs.getStringSet("ignore_rules", emptySet()) ?: emptySet()
+            for (ruleStr in customIgnoreRules) {
+                try {
+                    val obj = org.json.JSONObject(ruleStr)
+                    val type = obj.getString("type")
+                    val matchType = obj.getString("matchType")
+                    val value = obj.getString("value")
+                    val valueLower = value.lowercase()
+
+                    when (type) {
+                        "Keyword" -> {
+                            val isMatch = when (matchType) {
+                                "Contains" -> lower.contains(valueLower)
+                                "Exact match" -> lower == valueLower
+                                "Starts with" -> lower.startsWith(valueLower)
+                                else -> false
+                            }
+                            if (isMatch) return Validation(false, "Ignored by custom keyword rule: $value")
+                        }
+                        "Sender" -> {
+                            val titleLower = title.lowercase()
+                            val isMatch = when (matchType) {
+                                "Contains" -> titleLower.contains(valueLower)
+                                "Exact match" -> titleLower == valueLower
+                                "Starts with" -> titleLower.startsWith(valueLower)
+                                else -> false
+                            }
+                            if (isMatch) return Validation(false, "Ignored by custom sender rule: $value")
+                        }
+                        "Pattern" -> {
+                            val regex = value.toRegex(RegexOption.IGNORE_CASE)
+                            if (regex.containsMatchIn(combined)) {
+                                return Validation(false, "Ignored by custom pattern rule: $value")
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore malformed rules
+                }
+            }
+        }
 
         // 1. Must have content
         if (combined.isBlank() || combined == ".") {

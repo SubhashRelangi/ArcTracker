@@ -57,7 +57,7 @@ class ExpenseNotificationService : NotificationListenerService() {
         // ---- Multi-check validation pipeline ----
         // Rejects promotional blasts, OTP/balance noise, and messages without
         // an explicit debit/credit synonym or a parseable amount.
-        val result = com.example.arctracker.utils.TransactionValidator.validate(text, title)
+        val result = com.example.arctracker.utils.TransactionValidator.validate(applicationContext, text, title)
         if (!result.accepted) {
             Log.d("ArcTracker", "Dropped notification ($notifKey): ${result.reason}")
             return

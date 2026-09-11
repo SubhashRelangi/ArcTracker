@@ -472,7 +472,7 @@ fun TrackingSourcesSection(
             title = "Ignore Rules",
             subtitle = "Keywords, senders or patterns to ignore",
             isLast = true,
-            onClick = {}
+            onClick = { onNavigate("IgnoreRules") }
         )
     }
 }

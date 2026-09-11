@@ -206,6 +206,7 @@ fun ExpenseScreen() {
                 "SmsImport" -> "Import Previous Transactions"
                 "BackupRestore" -> "Backup & Restore"
                 "Pending" -> "Pending Expenses"
+                "IgnoreRules" -> "Ignore Rules"
                 "Transactions" -> "ArcTracker"
                 "Settings" -> "Settings"
                 "SupportedApps" -> "Supported Apps"
@@ -217,11 +218,12 @@ fun ExpenseScreen() {
                 "Transactions" -> "All transactions, at a glance"
                 "Settings" -> "Configure your app"
                 "SupportedApps" -> "Manage monitored apps"
+                "IgnoreRules" -> "Keywords, senders or patterns to ignore"
                 else -> null
             }
 
             val onBackClick: (() -> Unit)? = when (currentRoute) {
-                "Database", "ClearAllData", "SmsImport", "BackupRestore", "SupportedApps" -> { { currentRoute = "Settings" } }
+                "Database", "ClearAllData", "SmsImport", "BackupRestore", "SupportedApps", "IgnoreRules" -> { { currentRoute = "Settings" } }
                 "Pending" -> { { currentRoute = "Home" } }
                 else -> null
             }
@@ -420,6 +422,10 @@ fun ExpenseScreen() {
             } else if (currentRoute == "Database") {
 
                 com.example.arctracker.ui.DatabaseScreen()
+
+            } else if (currentRoute == "IgnoreRules") {
+
+                com.example.arctracker.ui.IgnoreRulesScreen()
 
             } else if (currentRoute == "Pending") {
 
