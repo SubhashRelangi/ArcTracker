@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -198,185 +200,75 @@ fun ExpenseScreen() {
     Scaffold(
 
         topBar = {
+            val title = when (currentRoute) {
+                "Database" -> "Database"
+                "ClearAllData" -> "Clear All Data"
+                "SmsImport" -> "Import Previous Transactions"
+                "BackupRestore" -> "Backup & Restore"
+                "Pending" -> "Pending Expenses"
+                "Transactions" -> "ArcTracker"
+                "Settings" -> "Settings"
+                "SupportedApps" -> "Supported Apps"
+                else -> "ArcTracker"
+            }
 
-            if (
-                currentRoute != "Transactions" &&
-                currentRoute != "SupportedApps"
-            ) {
+            val subtitle = when (currentRoute) {
+                "Home" -> "Overview of your finances"
+                "Transactions" -> "All transactions, at a glance"
+                "Settings" -> "Configure your app"
+                "SupportedApps" -> "Manage monitored apps"
+                else -> null
+            }
 
-                TopAppBar(
+            val onBackClick: (() -> Unit)? = when (currentRoute) {
+                "Database", "ClearAllData", "SmsImport", "BackupRestore", "SupportedApps" -> { { currentRoute = "Settings" } }
+                "Pending" -> { { currentRoute = "Home" } }
+                else -> null
+            }
 
-                    title = {
-
-                        when (currentRoute) {
-
-                            "Database" -> {
-                                Text("Database")
-                            }
-
-                            "ClearAllData" -> {
-                                Text("Clear All Data")
-                            }
-
-                            "SmsImport" -> {
-                                Text("Import SMS")
-                            }
-
-                            "BackupRestore" -> {
-                                Text("Backup & Restore")
-                            }
-
-                            "Pending" -> {
-                                Text("Pending Expenses")
-                            }
-
-                            else -> {
-                                Text("ArcTracker")
+            com.example.arctracker.ui.ArcTrackerHeader(
+                title = title,
+                subtitle = subtitle,
+                onBackClick = onBackClick,
+                actions = {
+                    if (currentRoute == "Home") {
+                        IconButton(onClick = { refreshTrigger++ }) {
+                            Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
+                        }
+                        IconButton(onClick = {
+                            isSearching = !isSearching
+                            if (!isSearching) searchQuery = ""
+                        }) {
+                            Icon(
+                                imageVector = if (isSearching) Icons.Filled.Close else Icons.Filled.Search,
+                                contentDescription = if (isSearching) "Close Search" else "Search"
+                            )
+                        }
+                        IconButton(onClick = { currentRoute = "Pending" }) {
+                            BadgedBox(
+                                badge = {
+                                    val pendingCount = expenses.count { it.isPending }
+                                    if (pendingCount > 0) {
+                                        Badge { Text(pendingCount.toString()) }
+                                    }
+                                }
+                            ) {
+                                Icon(Icons.Rounded.PendingActions, contentDescription = "Pending Expenses")
                             }
                         }
-                    },
-
-                    navigationIcon = {
-
-                        when (currentRoute) {
-
-                            "Database",
-                            "ClearAllData",
-                            "SmsImport",
-                            "BackupRestore" -> {
-
-                                IconButton(
-                                    onClick = {
-                                        currentRoute = "Settings"
-                                    }
-                                ) {
-
-                                    Icon(
-                                        imageVector =
-                                            Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription =
-                                            "Back"
-                                    )
-                                }
-                            }
-
-                            "Pending" -> {
-
-                                IconButton(
-                                    onClick = {
-                                        currentRoute = "Home"
-                                    }
-                                ) {
-
-                                    Icon(
-                                        imageVector =
-                                            Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription =
-                                            "Back"
-                                    )
-                                }
-                            }
+                    } else if (currentRoute == "Transactions") {
+                        IconButton(onClick = { /* TODO */ }) {
+                            Icon(Icons.Default.Search, contentDescription = "Search", tint = Color(0xFF1E1E1E))
                         }
-                    },
-
-                    colors =
-                        TopAppBarDefaults.topAppBarColors(
-                            containerColor =
-                                MaterialTheme
-                                    .colorScheme
-                                    .primaryContainer
-                        ),
-
-                    actions = {
-
-                        if (currentRoute == "Home") {
-
-                            IconButton(
-                                onClick = {
-                                    refreshTrigger++
-                                }
-                            ) {
-
-                                Icon(
-                                    imageVector =
-                                        Icons.Filled.Refresh,
-                                    contentDescription =
-                                        "Refresh"
-                                )
-                            }
-
-                            IconButton(
-                                onClick = {
-
-                                    isSearching =
-                                        !isSearching
-
-                                    if (!isSearching) {
-                                        searchQuery = ""
-                                    }
-                                }
-                            ) {
-
-                                Icon(
-                                    imageVector =
-                                        if (isSearching) {
-                                            Icons.Filled.Close
-                                        } else {
-                                            Icons.Filled.Search
-                                        },
-
-                                    contentDescription =
-                                        if (isSearching) {
-                                            "Close Search"
-                                        } else {
-                                            "Search"
-                                        }
-                                )
-                            }
-
-                            IconButton(
-                                onClick = {
-                                    currentRoute = "Pending"
-                                }
-                            ) {
-
-                                BadgedBox(
-
-                                    badge = {
-
-                                        val pendingCount =
-                                            expenses.count {
-                                                it.isPending
-                                            }
-
-                                        if (
-                                            pendingCount > 0
-                                        ) {
-
-                                            Badge {
-                                                Text(
-                                                    pendingCount
-                                                        .toString()
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                ) {
-
-                                    Icon(
-                                        imageVector =
-                                            Icons.Rounded
-                                                .PendingActions,
-                                        contentDescription =
-                                            "Pending Expenses"
-                                    )
-                                }
-                            }
+                        IconButton(onClick = { /* TODO */ }) {
+                            Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = Color(0xFF1E1E1E))
+                        }
+                        IconButton(onClick = { /* TODO */ }) {
+                            Icon(Icons.Default.Download, contentDescription = "Download", tint = Color(0xFF1E1E1E))
                         }
                     }
-                )
-            }
+                }
+            )
         },
 
         bottomBar = {

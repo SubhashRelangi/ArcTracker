@@ -73,16 +73,7 @@ fun SmsImportScreen(onNavigateBack: () -> Unit) {
     var importResult by remember { mutableStateOf<SmsImporter.ImportResult?>(null) }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Import Previous Transactions") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
+
     ) { paddingValues ->
         Column(
             modifier = Modifier

@@ -123,29 +123,7 @@ fun TransactionsScreen(expenses: List<Expense>, onExpenseClick: (Expense) -> Uni
     ) {
         // Custom Header
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("ArcTracker", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = Color(0xFF1E1E1E))
-                    Text("All transactions, at a glance", fontSize = 14.sp, color = Color(0xFF673AB7).copy(alpha = 0.7f))
-                }
-                Row {
-                    IconButton(onClick = { /* TODO */ }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search", tint = Color(0xFF1E1E1E))
-                    }
-                    IconButton(onClick = { /* TODO */ }) {
-                        Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = Color(0xFF1E1E1E))
-                    }
-                    IconButton(onClick = { /* TODO */ }) {
-                        Icon(Icons.Default.Download, contentDescription = "Download", tint = Color(0xFF1E1E1E))
-                    }
-                }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
 
             // Filter Row (Chips)
             Row(

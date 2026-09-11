@@ -188,19 +188,7 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
             .fillMaxSize()
             .background(Color(0xFFFBF8FF)) // Light lavender background like mockup
     ) {
-        // Custom Top Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onNavigateBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF1E1E1E))
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Supported Apps", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1E1E))
-        }
+
 
         LazyColumn(
             modifier = Modifier
