@@ -8,9 +8,13 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -100,6 +104,92 @@ fun ExpenseScreen() {
 
     var showApproveDialog by remember {
         mutableStateOf<Expense?>(null)
+    }
+
+    var actionSheetExpense by remember {
+        mutableStateOf<Expense?>(null)
+    }
+
+    var editExpense by remember {
+        mutableStateOf<Expense?>(null)
+    }
+
+    var deleteConfirmExpense by remember {
+        mutableStateOf<Expense?>(null)
+    }
+
+    // ---- Home page month selection (drives Money In/Out + Spending chart) ----
+    val keyFormat = remember { SimpleDateFormat("yyyy-MM", Locale.US) }
+    val currentMonthKey = remember { keyFormat.format(Date()) }
+    val currentYear = remember {
+        java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+    }
+
+    var selectedMonth by remember {
+        mutableStateOf(currentMonthKey)
+    }
+
+    // Build the month list: current month back to the month of the oldest transaction
+    val availableMonths = remember(expenses) {
+        val cal = java.util.Calendar.getInstance()
+        val oldest = expenses.minOfOrNull { it.dateMillis }
+        if (oldest != null) {
+            cal.timeInMillis = oldest
+        }
+        cal.set(java.util.Calendar.DAY_OF_MONTH, 1)
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+
+        val keyFormatLocal = SimpleDateFormat("yyyy-MM", Locale.US)
+        val monthFormat = SimpleDateFormat("MMMM", Locale.ENGLISH)
+        val monthYearFormat = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH)
+
+        val months = mutableListOf<com.example.arctracker.ui.MonthOption>()
+        var guard = 0
+
+        while (guard < 600) {
+
+            val key = keyFormatLocal.format(cal.time)
+
+            months.add(
+                com.example.arctracker.ui.MonthOption(
+                    key = key,
+                    label = if (cal.get(java.util.Calendar.YEAR) == currentYear) {
+                        monthFormat.format(cal.time)
+                    } else {
+                        monthYearFormat.format(cal.time)
+                    }
+                )
+            )
+
+            if (key == currentMonthKey) break
+
+            cal.add(java.util.Calendar.MONTH, 1)
+            guard++
+        }
+
+        months.asReversed()
+    }
+
+    val selectedMonthLabel = availableMonths
+        .firstOrNull { it.key == selectedMonth }
+        ?.label
+        ?: "This Month"
+
+    // Transactions scoped to the selected calendar month
+    val periodExpenses = remember(selectedMonth, expenses) {
+        val cal = java.util.Calendar.getInstance()
+        val parts = selectedMonth.split("-")
+        cal.set(parts[0].toInt(), parts[1].toInt() - 1, 1, 0, 0, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        val start = cal.timeInMillis
+        cal.add(java.util.Calendar.MONTH, 1)
+        cal.add(java.util.Calendar.MILLISECOND, -1)
+        val end = cal.timeInMillis
+
+        expenses.filter { it.dateMillis in start..end }
     }
 
     var currentRoute by remember {
@@ -376,6 +466,14 @@ fun ExpenseScreen() {
                     expenses = expenses,
                     onExpenseClick = {
                         showApproveDialog = it
+                    },
+                    onExpenseLongClick = {
+                        actionSheetExpense = it
+                    },
+                    selectedMonth = selectedMonth,
+                    availableMonths = availableMonths,
+                    onMonthChange = {
+                        selectedMonth = it
                     }
                 )
 
@@ -472,6 +570,10 @@ fun ExpenseScreen() {
                                 onClick = {
                                     showApproveDialog =
                                         expense
+                                },
+                                onLongClick = {
+                                    actionSheetExpense =
+                                        expense
                                 }
                             )
                         }
@@ -510,11 +612,17 @@ fun ExpenseScreen() {
                     item {
 
                         com.example.arctracker.ui.DashboardCard(
-                            expenses = expenses
+                            expenses = periodExpenses,
+                            selectedMonth = selectedMonth,
+                            availableMonths = availableMonths,
+                            onMonthChange = {
+                                selectedMonth = it
+                            }
                         )
 
                         com.example.arctracker.ui.SpendingOverviewCard(
-                            expenses = expenses
+                            expenses = periodExpenses,
+                            periodLabel = selectedMonthLabel
                         )
 
                         Spacer(
@@ -648,6 +756,12 @@ fun ExpenseScreen() {
                                                         showApproveDialog =
                                                             expense
                                                     }
+                                                },
+
+                                                onLongClick = {
+
+                                                    actionSheetExpense =
+                                                        expense
                                                 }
                                             )
                                         }
@@ -799,6 +913,159 @@ fun ExpenseScreen() {
             )
         }
 
+        actionSheetExpense?.let { sheetExpense ->
+
+            com.example.arctracker.ui.TransactionActionSheet(
+
+                expense = sheetExpense,
+
+                onDismiss = {
+                    actionSheetExpense = null
+                },
+
+                onEdit = {
+                    editExpense = sheetExpense
+                    actionSheetExpense = null
+                },
+
+                onDelete = {
+                    deleteConfirmExpense = sheetExpense
+                    actionSheetExpense = null
+                }
+            )
+        }
+
+        editExpense?.let { expenseToEdit ->
+
+            AddExpenseDialog(
+
+                initialAmount =
+                    if (expenseToEdit.amount > 0) {
+                        expenseToEdit.amount.toString()
+                    } else {
+                        ""
+                    },
+
+                initialMerchant =
+                    if (
+                        expenseToEdit.merchant !=
+                        "Unknown Merchant"
+                    ) {
+                        expenseToEdit.merchant
+                    } else {
+                        ""
+                    },
+
+                initialType =
+                    expenseToEdit.type ?: "Debit",
+
+                initialTag =
+                    expenseToEdit.tag ?: "",
+
+                initialNote =
+                    expenseToEdit.note ?: "",
+
+                initialDateMillis =
+                    expenseToEdit.dateMillis,
+
+                isEditMode = true,
+
+                onDismiss = {
+                    editExpense = null
+                },
+
+                onAdd = {
+                        amount,
+                        merchant,
+                        type,
+                        tag,
+                        note,
+                        dateMillis ->
+
+                    scope.launch(Dispatchers.IO) {
+
+                        expenseToEdit.amount =
+                            amount
+
+                        expenseToEdit.merchant =
+                            merchant
+
+                        expenseToEdit.type =
+                            type
+
+                        expenseToEdit.tag =
+                            tag
+
+                        expenseToEdit.note =
+                            note
+
+                        expenseToEdit.dateMillis =
+                            dateMillis
+
+                        dao.updateExpense(
+                            expenseToEdit
+                        )
+
+                        editExpense = null
+                    }
+                }
+            )
+        }
+
+        deleteConfirmExpense?.let { expenseToDelete ->
+
+            AlertDialog(
+
+                onDismissRequest = {
+                    deleteConfirmExpense = null
+                },
+
+                title = {
+                    Text(
+                        text = "Delete Transaction?",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+
+                text = {
+                    Text(
+                        text =
+                            "This will permanently delete the transaction of ₹${expenseToDelete.amount} to ${expenseToDelete.merchant}. " +
+                                    "This action cannot be undone."
+                    )
+                },
+
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            scope.launch(Dispatchers.IO) {
+                                dao.deleteExpense(
+                                    expenseToDelete
+                                )
+                                deleteConfirmExpense = null
+                            }
+                        }
+                    ) {
+                        Text(
+                            text = "Delete",
+                            color = Color(0xFFD32F2F),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            deleteConfirmExpense = null
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
         if (
             !localSetupCompleted &&
             !isExistingUser
@@ -822,12 +1089,13 @@ fun ExpenseScreen() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ExpenseItemRow(
     expense: Expense,
     isLast: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
 
     val dateFormat =
@@ -881,10 +1149,13 @@ fun ExpenseItemRow(
 
     Surface(
 
-        onClick = onClick,
-
         modifier =
-            Modifier.fillMaxWidth(),
+            Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick
+                ),
 
         color =
             Color.Transparent
@@ -1033,7 +1304,11 @@ fun AddExpenseDialog(
 
     initialType: String = "Debit",
 
+    initialTag: String = "",
+
     initialNote: String = "",
+
+    isEditMode: Boolean = false,
 
     initialDateMillis: Long =
         System.currentTimeMillis(),
@@ -1079,7 +1354,9 @@ fun AddExpenseDialog(
     var tag by remember {
 
         mutableStateOf(
-            if (initialType == "Credit") {
+            if (initialTag.isNotBlank()) {
+                initialTag
+            } else if (initialType == "Credit") {
                 "Salary"
             } else {
                 "Food"
@@ -1236,7 +1513,9 @@ fun AddExpenseDialog(
 
                         Text(
                             text =
-                                if (rawText != null) {
+                                if (isEditMode) {
+                                    "Edit Expense"
+                                } else if (rawText != null) {
                                     "Approve Expense"
                                 } else {
                                     "Add Expense"
@@ -2277,8 +2556,13 @@ fun AddExpenseDialog(
                     ) {
 
                         Text(
+
                             text =
-                                "Add Expense",
+                                if (isEditMode) {
+                                    "Change"
+                                } else {
+                                    "Add Expense"
+                                },
                             fontWeight =
                                 FontWeight.Bold,
                             fontSize = 14.sp

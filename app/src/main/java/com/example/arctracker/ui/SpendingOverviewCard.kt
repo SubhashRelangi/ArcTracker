@@ -31,8 +31,9 @@ import java.util.Locale
 data class CategorySpending(val name: String, val amount: Double, val color: Color)
 
 @Composable
-fun SpendingOverviewCard(expenses: List<Expense>) {
+fun SpendingOverviewCard(expenses: List<Expense>, periodLabel: String = "This Month") {
     // 1. Filter out pending and non-debit expenses.
+    //    (expenses passed in are already scoped to the period selected in Total Balance section)
     val validExpenses = expenses.filter { !it.isPending && it.type == "Debit" }
 
     // 2. If empty, show empty state
@@ -41,13 +42,15 @@ fun SpendingOverviewCard(expenses: List<Expense>) {
         return
     }
 
-    // 3. Group by merchant
-    val grouped = validExpenses.groupBy { it.merchant }
-        .map { (merchant, list) ->
-            merchant to list.sumOf { it.amount }
+    // 3. Group by category tag — category-wise spending, sorted highest first
+    val grouped = validExpenses.groupBy { expense ->
+        val tag = expense.tag
+        if (tag.isNullOrBlank()) "Other" else tag
+    }
+        .map { (category, list) ->
+            category to list.sumOf { it.amount }
         }
         .sortedByDescending { it.second }
-        .take(5) // show top 5
 
     // 4. Map to CategorySpending with colors matching the design palette
     val colorPalette = listOf(
@@ -91,16 +94,13 @@ fun SpendingOverviewCard(expenses: List<Expense>) {
                     color = Color(0xFF1E1E1E)
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Static period label — scope is controlled by the dropdown
+                    // in the Total Balance section, so no dropdown here.
                     Text(
-                        text = "This Month",
-                        color = Color(0xFF757575),
-                        fontSize = 11.sp
-                    )
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowDown,
-                        contentDescription = "Dropdown",
-                        tint = Color(0xFF757575),
-                        modifier = Modifier.size(14.dp)
+                        text = periodLabel,
+                        color = Color(0xFF673AB7),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
