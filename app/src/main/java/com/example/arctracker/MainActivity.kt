@@ -367,7 +367,7 @@ fun ExpenseScreen() {
                         }
                     } else if (currentRoute == "RegexPatterns") {
                         IconButton(onClick = { /* TODO */ }) {
-                            Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = "Help", tint = Color(0xFF3F51B5))
+                            Icon(Icons.Outlined.HelpOutline, contentDescription = "Help", tint = Color(0xFF3F51B5))
                         }
                     }
                 }

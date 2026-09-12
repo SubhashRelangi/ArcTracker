@@ -53,7 +53,7 @@ data class RegexRule(
 object RegexPatternsManager {
     private const val PREFS_NAME = "ArcTrackerRegexPrefs"
     private const val RULES_KEY = "regex_rules"
-    private const val RULES_INITIALIZED_KEY = "regex_rules_initialized"
+    private const val RULES_INITIALIZED_KEY = "regex_rules_initialized_v2"
 
     private val defaultRules = listOf(
         RegexRule(
@@ -78,23 +78,44 @@ object RegexPatternsManager {
         ),
         RegexRule(
             id = "sys_merchant_1",
-            name = "Paid To Pattern",
-            description = "Matches merchants in outgoing transfers",
+            name = "UPI Merchant Pattern",
+            description = "Extracts merchant name from UPI notifications",
             category = "Name / Merchant",
-            pattern = "(?i)(?:paid to|sent to|payment to|payment of .*? to)\\s+([a-zA-Z0-9\\s@&\\-]+?)(?:\\.|\\n| on | thru | by |,|;|\\s+Info|\\s+UPI|\\z)",
+            pattern = "(?i)(?:to|at|@)\\s+([A-Za-z0-9 &._-]{2,50})",
             isSystem = true,
-            iconType = "upi",
+            iconType = "storefront",
             priority = 1
         ),
         RegexRule(
             id = "sys_merchant_2",
-            name = "Received From Pattern",
-            description = "Matches senders in incoming transfers",
+            name = "Bank Merchant Pattern",
+            description = "Extracts merchant name from bank SMS",
             category = "Name / Merchant",
-            pattern = "(?i)(?:received from|from)\\s+(?!a/c|ac\\b|account)([a-zA-Z0-9\\s@&\\-]+?)(?:\\.|\\n| on | thru | by |,|;|\\s+Info|\\s+UPI|\\z)",
+            pattern = "(?i)(?:at|in|on)\\s+([A-Za-z0-9 &._-]{2,50})",
             isSystem = true,
             iconType = "bank",
             priority = 2
+        ),
+        RegexRule(
+            id = "sys_merchant_3",
+            name = "Sender as Merchant (Fallback)",
+            description = "Uses sender name when merchant is not found",
+            category = "Name / Merchant",
+            pattern = "(?i)^([A-Za-z0-9 &._-]{2,50})",
+            isSystem = true,
+            iconType = "person",
+            priority = 3
+        ),
+        RegexRule(
+            id = "custom_merchant_1",
+            name = "Custom Merchant Pattern",
+            description = "Add pattern for a specific app or message format",
+            category = "Name / Merchant",
+            pattern = "(?i)merchant[:\\s]+([A-Za-z0-9 &._-]{2,50})",
+            isActive = false,
+            isSystem = false,
+            iconType = "custom",
+            priority = 4
         )
     )
 

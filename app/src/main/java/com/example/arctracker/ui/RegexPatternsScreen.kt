@@ -164,6 +164,8 @@ fun RegexRuleCard(rule: RegexRule, onToggle: (Boolean) -> Unit) {
                         "upi" -> Text("UPI", color = purpleColor, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 12.sp)
                         "bank" -> Icon(Icons.Filled.AccountBalance, contentDescription = null, tint = purpleColor, modifier = Modifier.size(20.dp))
                         "wallet" -> Icon(Icons.Filled.AccountBalanceWallet, contentDescription = null, tint = purpleColor, modifier = Modifier.size(20.dp))
+                        "storefront" -> Icon(Icons.Filled.Storefront, contentDescription = null, tint = purpleColor, modifier = Modifier.size(20.dp))
+                        "person" -> Icon(Icons.Filled.PersonOutline, contentDescription = null, tint = purpleColor, modifier = Modifier.size(20.dp))
                         else -> Icon(Icons.Filled.Add, contentDescription = null, tint = purpleColor, modifier = Modifier.size(20.dp))
                     }
                 }
