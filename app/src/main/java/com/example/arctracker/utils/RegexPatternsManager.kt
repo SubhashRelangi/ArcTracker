@@ -14,7 +14,8 @@ data class RegexRule(
     val isSystem: Boolean = false,
     val iconType: String = "custom", // "upi", "bank", "wallet", "custom"
     val priority: Int = 0,
-    val matches: Int = 0
+    val matches: Int = 0,
+    val testMessage: String? = null
 ) {
     fun toJson(): String {
         return JSONObject().apply {
@@ -28,6 +29,7 @@ data class RegexRule(
             put("iconType", iconType)
             put("priority", priority)
             put("matches", matches)
+            put("testMessage", testMessage)
         }.toString()
     }
 
@@ -44,7 +46,8 @@ data class RegexRule(
                 isSystem = obj.optBoolean("isSystem", false),
                 iconType = obj.optString("iconType", "custom"),
                 priority = obj.optInt("priority", 0),
-                matches = obj.optInt("matches", 0)
+                matches = obj.optInt("matches", 0),
+                testMessage = if (obj.has("testMessage") && !obj.isNull("testMessage")) obj.getString("testMessage") else null
             )
         }
     }

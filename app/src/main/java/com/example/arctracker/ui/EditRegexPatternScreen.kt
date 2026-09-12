@@ -36,6 +36,7 @@ fun EditRegexPatternScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     
     // Determine if we are editing an existing rule or creating a new one
     val initialRule = remember(ruleId) {
@@ -63,9 +64,8 @@ fun EditRegexPatternScreen(
     var name by remember { mutableStateOf(initialRule.name) }
     var description by remember { mutableStateOf(initialRule.description) }
     var pattern by remember { mutableStateOf(initialRule.pattern) }
-    var testMessage by remember { mutableStateOf("") }
-    var testResult by remember { mutableStateOf<MatchResult?>(null) }
-    var testAttempted by remember { mutableStateOf(false) }
+    var testMessage by remember { mutableStateOf(initialRule.testMessage ?: "") }
+    var showTestDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -182,12 +182,19 @@ fun EditRegexPatternScreen(
                     focusedContainerColor = Color.White
                 ),
                 trailingIcon = {
-                    Icon(
-                        imageVector = Icons.Filled.ContentCopy,
-                        contentDescription = "Copy",
-                        tint = purpleColor,
-                        modifier = Modifier.size(20.dp).clickable { /* TODO copy */ }.padding(end = 8.dp)
-                    )
+                    IconButton(
+                        onClick = {
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(pattern))
+                            android.widget.Toast.makeText(context, "Pattern copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.ContentCopy,
+                            contentDescription = "Copy",
+                            tint = purpleColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             )
 
@@ -217,15 +224,7 @@ fun EditRegexPatternScreen(
                     Text("${testMessage.length}/500", fontSize = 10.sp, color = subtitleColor, modifier = Modifier.align(Alignment.End).padding(top = 4.dp, bottom = 12.dp))
                     
                     Button(
-                        onClick = {
-                            testAttempted = true
-                            try {
-                                val regex = Regex(pattern)
-                                testResult = regex.find(testMessage)
-                            } catch (e: Exception) {
-                                testResult = null
-                            }
-                        },
+                        onClick = { showTestDialog = true },
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = purpleColor),
                         shape = RoundedCornerShape(8.dp)
@@ -234,47 +233,17 @@ fun EditRegexPatternScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Test Pattern")
                     }
-
-                    if (testAttempted && testMessage.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF9F9FB), RoundedCornerShape(8.dp))
-                                .border(1.dp, Color(0xFFE8F5E9), RoundedCornerShape(8.dp))
-                                .padding(12.dp)
-                        ) {
-                            Column {
-                                if (testResult != null) {
-                                    Text("Result (1 match)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = textColor, modifier = Modifier.padding(bottom = 8.dp))
-                                    
-                                    val match = testResult!!
-                                    val annotatedString = buildAnnotatedString {
-                                        append(testMessage.substring(0, match.range.first))
-                                        withStyle(style = SpanStyle(background = Color(0xFFE8F5E9), color = Color(0xFF2E7D32))) {
-                                            append(match.value)
-                                        }
-                                        append(testMessage.substring(match.range.last + 1))
-                                    }
-                                    
-                                    Text(annotatedString, fontSize = 12.sp, color = textColor, lineHeight = 18.sp, modifier = Modifier.padding(bottom = 12.dp))
-                                    
-                                    val extracted = if (match.groups.size > 1) match.groupValues[1] else match.value
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Extracted Data", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = textColor)
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Box(modifier = Modifier.background(Color(0xFFE8F5E9), RoundedCornerShape(16.dp)).padding(horizontal = 8.dp, vertical = 4.dp)) {
-                                            Text(extracted, color = Color(0xFF2E7D32), fontSize = 12.sp)
-                                        }
-                                    }
-                                } else {
-                                    Text("Result (0 matches)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
-                                }
-                            }
-                        }
-                    }
                 }
             }
+        }
+        
+        if (showTestDialog) {
+            val tempRule = initialRule.copy(
+                name = name,
+                pattern = pattern,
+                testMessage = testMessage.ifEmpty { null }
+            )
+            TestRuleDialog(rule = tempRule, onDismiss = { showTestDialog = false })
         }
         
         // Bottom Action Bar
@@ -319,7 +288,8 @@ fun EditRegexPatternScreen(
                     val newRule = initialRule.copy(
                         name = name,
                         description = description,
-                        pattern = pattern
+                        pattern = pattern,
+                        testMessage = testMessage.ifEmpty { null }
                     )
                     if (ruleId.isNullOrEmpty()) {
                         RegexPatternsManager.addRule(context, newRule)

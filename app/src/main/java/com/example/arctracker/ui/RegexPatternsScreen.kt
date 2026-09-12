@@ -19,8 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.arctracker.utils.RegexPatternsManager
@@ -196,7 +199,7 @@ fun RegexPatternsScreen(
 
 @Composable
 fun TestRuleDialog(rule: RegexRule, onDismiss: () -> Unit) {
-    val sampleText = when(rule.id) {
+    val sampleText = rule.testMessage ?: when(rule.id) {
         "sys_amount_1" -> "Your A/c no. ****1234 is debited with Rs. 500.00 on 29-08-2025 at GOOGLE PAY."
         "sys_amount_2" -> "Rs. 1,200.00 was debited from your account XX9876 on 01-09-2025. Info: POS transaction."
         "sys_merchant_1" -> "Paid Rs. 500 to Flipkart via UPI. TxnId: 123456"
@@ -273,6 +276,8 @@ fun RegexRuleCard(
     onDelete: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val context = LocalContext.current
 
     Card(
         modifier = Modifier
@@ -390,7 +395,13 @@ fun RegexRuleCard(
                     imageVector = Icons.Filled.ContentCopy,
                     contentDescription = "Copy",
                     tint = purpleColor,
-                    modifier = Modifier.size(16.dp).clickable { /* TODO copy */ }
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clickable {
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(rule.pattern))
+                            android.widget.Toast.makeText(context, "Pattern copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                        .padding(6.dp)
                 )
             }
             
