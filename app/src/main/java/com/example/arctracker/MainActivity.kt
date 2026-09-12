@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -50,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.arctracker.data.AppDatabase
 import com.example.arctracker.data.Expense
+import com.example.arctracker.utils.TransactionValidator
+import com.example.arctracker.utils.RegexPatternsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -196,6 +200,14 @@ fun ExpenseScreen() {
         mutableStateOf("Home")
     }
 
+    var editingRegexRuleId by remember {
+        mutableStateOf<String?>(null)
+    }
+    
+    var editingRegexRuleCategory by remember {
+        mutableStateOf("Amount")
+    }
+
     var isSearching by remember {
         mutableStateOf(false)
     }
@@ -298,6 +310,8 @@ fun ExpenseScreen() {
                 "Pending" -> "Pending Expenses"
                 "IgnoreRules" -> "Ignore Rules"
                 "DeveloperOptions" -> "Developer Options"
+                "RegexPatterns" -> "Regex Patterns"
+                "EditRegexPattern" -> if (editingRegexRuleId == null) "Add Pattern" else "Edit Pattern"
                 "Transactions" -> "ArcTracker"
                 "Settings" -> "Settings"
                 "SupportedApps" -> "Supported Apps"
@@ -311,11 +325,15 @@ fun ExpenseScreen() {
                 "SupportedApps" -> "Manage monitored apps"
                 "IgnoreRules" -> "Keywords, senders or patterns to ignore"
                 "DeveloperOptions" -> "Advanced tools for debugging and customization."
+                "RegexPatterns" -> "Define how amounts, names and transaction details are extracted."
+                "EditRegexPattern" -> null
                 else -> null
             }
 
             val onBackClick: (() -> Unit)? = when (currentRoute) {
                 "Database", "ClearAllData", "SmsImport", "BackupRestore", "SupportedApps", "IgnoreRules", "DeveloperOptions" -> { { currentRoute = "Settings" } }
+                "RegexPatterns" -> { { currentRoute = "DeveloperOptions" } }
+                "EditRegexPattern" -> { { currentRoute = "RegexPatterns" } }
                 "Pending" -> { { currentRoute = "Home" } }
                 else -> null
             }
@@ -359,6 +377,22 @@ fun ExpenseScreen() {
                         }
                         IconButton(onClick = { /* TODO */ }) {
                             Icon(Icons.Default.Download, contentDescription = "Download", tint = Color(0xFF1E1E1E))
+                        }
+                    } else if (currentRoute == "RegexPatterns") {
+                        IconButton(onClick = { /* TODO */ }) {
+                            Icon(Icons.Outlined.HelpOutline, contentDescription = "Help", tint = Color(0xFF3F51B5))
+                        }
+                    } else if (currentRoute == "EditRegexPattern") {
+                        if (editingRegexRuleId != null) {
+                            val context = LocalContext.current
+                            TextButton(onClick = {
+                                RegexPatternsManager.resetSystemRule(context, editingRegexRuleId!!)
+                                currentRoute = "RegexPatterns"
+                            }) {
+                                Icon(Icons.Filled.Refresh, contentDescription = "Reset", tint = Color(0xFF3F51B5), modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Reset", color = Color(0xFF3F51B5), fontWeight = FontWeight.Medium)
+                            }
                         }
                     }
                 }
@@ -528,9 +562,28 @@ fun ExpenseScreen() {
                 com.example.arctracker.ui.IgnoreRulesScreen()
 
             } else if (currentRoute == "DeveloperOptions") {
-
-                com.example.arctracker.ui.DeveloperOptionsScreen()
-
+                com.example.arctracker.ui.DeveloperOptionsScreen(
+                    onNavigate = { currentRoute = it }
+                )
+            } else if (currentRoute == "RegexPatterns") {
+                com.example.arctracker.ui.RegexPatternsScreen(
+                    onAddPattern = { category ->
+                        editingRegexRuleId = null
+                        editingRegexRuleCategory = category
+                        currentRoute = "EditRegexPattern"
+                    },
+                    onEditPattern = { rule ->
+                        editingRegexRuleId = rule.id
+                        editingRegexRuleCategory = rule.category
+                        currentRoute = "EditRegexPattern"
+                    }
+                )
+            } else if (currentRoute == "EditRegexPattern") {
+                com.example.arctracker.ui.EditRegexPatternScreen(
+                    ruleId = editingRegexRuleId,
+                    defaultCategory = editingRegexRuleCategory,
+                    onBack = { currentRoute = "RegexPatterns" }
+                )
             } else if (currentRoute == "Pending") {
 
                 val pendingExpenses =

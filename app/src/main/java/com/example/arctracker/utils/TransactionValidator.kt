@@ -101,7 +101,7 @@ object TransactionValidator {
         }
 
         // 5 & 6. Parse amount + merchant; parser returns null if no valid amount
-        val parsed = ExpenseParser.parseExpenseData(text, title)
+        val parsed = ExpenseParser.parseExpenseData(context, text, title)
             ?: return Validation(false, "No parseable amount")
 
         if (parsed.amount <= 0.0) {

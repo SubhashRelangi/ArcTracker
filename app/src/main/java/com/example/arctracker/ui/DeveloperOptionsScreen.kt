@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun DeveloperOptionsScreen() {
+fun DeveloperOptionsScreen(onNavigate: (String) -> Unit = {}) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -72,8 +72,7 @@ fun DeveloperOptionsScreen() {
                 icon = Icons.Filled.Search,
                 title = "Regex Patterns",
                 subtitle = "View & edit amount, name, type patterns",
-                isLast = false,
-                onClick = {}
+                onClick = { onNavigate("RegexPatterns") }
             )
             SettingsRow(
                 icon = Icons.Filled.Science,

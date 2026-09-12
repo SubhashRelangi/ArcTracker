@@ -1,56 +1,74 @@
 package com.example.arctracker.utils
 
+import android.content.Context
+
 object ExpenseParser {
     data class ParsedExpense(val amount: Double, val merchant: String, val type: String)
 
-    fun parseExpenseData(text: String, title: String): ParsedExpense? {
+    fun parseExpenseData(context: Context, text: String, title: String): ParsedExpense? {
         val combinedText = "$title. $text"
         val lowerText = combinedText.lowercase()
-        val amountRegex = Regex("(?i)(?:rs\\.?|inr|₹|rupees|amount:?)\\s*([0-9,]+\\.?[0-9]*)")
-        val amountMatch = amountRegex.find(combinedText)
         
-        if (amountMatch != null) {
-            val amountStr = amountMatch.groupValues[1].replace(",", "")
-            val amount = amountStr.toDoubleOrNull()
+        val rules = RegexPatternsManager.getRules(context).filter { it.isActive }
+        val amountRules = rules.filter { it.category == "Amount" }.sortedBy { it.priority }
+        val merchantRules = rules.filter { it.category == "Name / Merchant" }.sortedBy { it.priority }
+        
+        var amount: Double? = null
+        for (rule in amountRules) {
+            try {
+                val amountRegex = Regex(rule.pattern)
+                val match = amountRegex.find(combinedText)
+                if (match != null && match.groups.size > 1) {
+                    val amountStr = match.groupValues[1].replace(",", "")
+                    amount = amountStr.toDoubleOrNull()
+                    if (amount != null) break
+                }
+            } catch (e: Exception) {
+                // Ignore invalid regex
+            }
+        }
+        
+        // Fallback amount regex if rules didn't match anything
+        if (amount == null) {
+            val fallbackRegex = Regex("(?i)(?:rs\\.?|inr|₹|rupees|amount:?)\\s*([0-9,]+\\.?[0-9]*)")
+            val match = fallbackRegex.find(combinedText)
+            if (match != null) {
+                val amountStr = match.groupValues[1].replace(",", "")
+                amount = amountStr.toDoubleOrNull()
+            }
+        }
+        
+        if (amount != null) {
+            var merchant = "Unknown"
             
-            if (amount != null) {
-                var merchant = "Unknown"
-                
-                val terminators = "(?:\\.|\\n| on | thru | by |,|;|\\s+Info|\\s+UPI|\\z)"
-                val nameChars = "([a-zA-Z0-9\\s@&\\-]+?)"
-                
-                val merchantPatterns = listOf(
-                    Regex("(?i)(?:paid to|sent to|payment to|payment of .*? to)\\s+$nameChars$terminators"),
-                    Regex("(?i)(?:received from|from)\\s+(?!a/c|ac\\b|account)$nameChars$terminators"),
-                    Regex("(?i)to\\s+(?!a/c|ac\\b|account)$nameChars$terminators"),
-                    Regex("(?i)(?:at|spent at)\\s+$nameChars$terminators"),
-                    Regex("(?i)(?:upi|inf|info)[/:]\\s*\\d*[/]*([a-zA-Z0-9\\s@&\\-]+?)[/:]")
-                )
-                
-                for (pattern in merchantPatterns) {
+            for (rule in merchantRules) {
+                try {
+                    val pattern = Regex(rule.pattern)
                     val match = pattern.find(combinedText)
-                    if (match != null) {
+                    if (match != null && match.groups.size > 1) {
                         val extracted = match.groupValues[1].trim()
                         if (extracted.length > 2 && !extracted.equals("a", ignoreCase = true)) {
                             merchant = extracted
                             break
                         }
                     }
+                } catch (e: Exception) {
+                    // Ignore invalid regex
                 }
-                
-                if (merchant == "Unknown" && title.isNotBlank() && title.lowercase() != "messages" && !title.contains("new message")) {
-                    val cleanTitle = title.replace(Regex("(?i)(?:rs\\.?|inr|₹|rupees)\\s*[0-9,]+\\.?[0-9]*"), "").trim()
-                    merchant = if (cleanTitle.isNotBlank() && !cleanTitle.contains("paid", ignoreCase = true)) {
-                        cleanTitle
-                    } else {
-                        title
-                    }
-                }
-                
-                val type = if (lowerText.contains("received") || lowerText.contains("credited")) "Credit" else "Debit"
-                
-                return ParsedExpense(amount, merchant, type)
             }
+            
+            if (merchant == "Unknown" && title.isNotBlank() && title.lowercase() != "messages" && !title.contains("new message")) {
+                val cleanTitle = title.replace(Regex("(?i)(?:rs\\.?|inr|₹|rupees)\\s*[0-9,]+\\.?[0-9]*"), "").trim()
+                merchant = if (cleanTitle.isNotBlank() && !cleanTitle.contains("paid", ignoreCase = true)) {
+                    cleanTitle
+                } else {
+                    title
+                }
+            }
+            
+            val type = if (lowerText.contains("received") || lowerText.contains("credited")) "Credit" else "Debit"
+            
+            return ParsedExpense(amount, merchant, type)
         }
         return null
     }
