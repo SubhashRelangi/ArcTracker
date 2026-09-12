@@ -53,7 +53,7 @@ data class RegexRule(
 object RegexPatternsManager {
     private const val PREFS_NAME = "ArcTrackerRegexPrefs"
     private const val RULES_KEY = "regex_rules"
-    private const val RULES_INITIALIZED_KEY = "regex_rules_initialized_v2"
+    private const val RULES_INITIALIZED_KEY = "regex_rules_initialized_v3"
 
     private val defaultRules = listOf(
         RegexRule(
@@ -116,6 +116,37 @@ object RegexPatternsManager {
             isSystem = false,
             iconType = "custom",
             priority = 4
+        ),
+        RegexRule(
+            id = "sys_type_debit",
+            name = "Debit Keywords Pattern",
+            description = "Detects debit transactions",
+            category = "Type (Debit/Credit)",
+            pattern = "(?i)(debited|debit|paid|spent|withdrawn|purchase|sent)",
+            isSystem = true,
+            iconType = "arrow_downward",
+            priority = 1
+        ),
+        RegexRule(
+            id = "sys_type_credit",
+            name = "Credit Keywords Pattern",
+            description = "Detects credit transactions",
+            category = "Type (Debit/Credit)",
+            pattern = "(?i)(credited|credit|received|deposited|refunded|salary|cashback)",
+            isSystem = true,
+            iconType = "arrow_upward",
+            priority = 2
+        ),
+        RegexRule(
+            id = "custom_type_1",
+            name = "Custom Type Pattern",
+            description = "Add custom pattern for transaction type",
+            category = "Type (Debit/Credit)",
+            pattern = "(?i)(refund|reversal)",
+            isActive = false,
+            isSystem = false,
+            iconType = "custom",
+            priority = 3
         )
     )
 
@@ -142,5 +173,35 @@ object RegexPatternsManager {
     fun saveRules(context: Context, rules: List<RegexRule>) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putStringSet(RULES_KEY, rules.map { it.toJson() }.toSet()).apply()
+    }
+    
+    fun getRuleById(context: Context, id: String): RegexRule? {
+        return getRules(context).find { it.id == id }
+    }
+    
+    fun addRule(context: Context, rule: RegexRule) {
+        val rules = getRules(context).toMutableList()
+        rules.add(rule)
+        saveRules(context, rules)
+    }
+    
+    fun updateRule(context: Context, rule: RegexRule) {
+        val rules = getRules(context).toMutableList()
+        val index = rules.indexOfFirst { it.id == rule.id }
+        if (index != -1) {
+            rules[index] = rule
+            saveRules(context, rules)
+        }
+    }
+    
+    fun deleteRule(context: Context, id: String) {
+        val rules = getRules(context).toMutableList()
+        rules.removeAll { it.id == id }
+        saveRules(context, rules)
+    }
+    
+    fun resetSystemRule(context: Context, id: String) {
+        val defaultRule = defaultRules.find { it.id == id } ?: return
+        updateRule(context, defaultRule)
     }
 }

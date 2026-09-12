@@ -11,7 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,14 +27,19 @@ import com.example.arctracker.utils.RegexPatternsManager
 import com.example.arctracker.utils.RegexRule
 
 @Composable
-fun RegexPatternsScreen() {
+fun RegexPatternsScreen(
+    onAddPattern: (String) -> Unit,
+    onEditPattern: (RegexRule) -> Unit
+) {
     val context = LocalContext.current
     var rules by remember { mutableStateOf(RegexPatternsManager.getRules(context)) }
     
     val categories = listOf("Amount", "Name / Merchant", "Type (Debit/Credit)", "Others")
     var selectedCategory by remember { mutableStateOf(categories[0]) }
 
-    val filteredRules = rules.filter { it.category == selectedCategory }.sortedBy { it.priority }
+    val filteredRules = rules.filter { 
+        it.category == selectedCategory || (selectedCategory == "Others" && !it.isSystem)
+    }.sortedBy { it.priority }
 
     Column(
         modifier = Modifier
@@ -114,16 +119,21 @@ fun RegexPatternsScreen() {
                         val updated = rules.map { if (it.id == rule.id) it.copy(isActive = isActive) else it }
                         rules = updated
                         RegexPatternsManager.saveRules(context, updated)
+                    },
+                    onEdit = { onEditPattern(rule) },
+                    onDelete = {
+                        RegexPatternsManager.deleteRule(context, rule.id)
+                        rules = RegexPatternsManager.getRules(context)
                     }
                 )
             }
             
             item {
                 Button(
-                    onClick = { /* TODO Add custom pattern */ },
+                    onClick = { onAddPattern(selectedCategory) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp)
+                        .padding(top = 8.dp, bottom = 16.dp)
                         .height(48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = purpleColor),
                     shape = RoundedCornerShape(8.dp)
@@ -133,12 +143,60 @@ fun RegexPatternsScreen() {
                     Text("Add Custom Pattern")
                 }
             }
+            
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F5FF)),
+                    border = BorderStroke(1.dp, Color(0xFFEDE7F6)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Lightbulb,
+                            contentDescription = "Tips",
+                            tint = purpleColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Tips",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = purpleColor
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "• Use case-insensitive matching (?i)\n" +
+                                       "• Add multiple keywords separated by | (OR)\n" +
+                                       "• Test your patterns with real messages\n" +
+                                       "• Keep patterns specific to avoid false matches",
+                                fontSize = 12.sp,
+                                color = subtitleColor,
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-fun RegexRuleCard(rule: RegexRule, onToggle: (Boolean) -> Unit) {
+fun RegexRuleCard(
+    rule: RegexRule, 
+    onToggle: (Boolean) -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -154,19 +212,33 @@ fun RegexRuleCard(rule: RegexRule, onToggle: (Boolean) -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val iconBgColor = when (rule.iconType) {
+                    "arrow_downward" -> Color(0xFFFFEBEE)
+                    "arrow_upward" -> Color(0xFFE8F5E9)
+                    else -> lightPurpleColor
+                }
+                
+                val iconTintColor = when (rule.iconType) {
+                    "arrow_downward" -> Color(0xFFD32F2F)
+                    "arrow_upward" -> Color(0xFF388E3C)
+                    else -> purpleColor
+                }
+
                 Box(
                     modifier = Modifier
                         .size(40.dp)
-                        .background(lightPurpleColor, CircleShape),
+                        .background(iconBgColor, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     when (rule.iconType) {
-                        "upi" -> Text("UPI", color = purpleColor, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 12.sp)
-                        "bank" -> Icon(Icons.Filled.AccountBalance, contentDescription = null, tint = purpleColor, modifier = Modifier.size(20.dp))
-                        "wallet" -> Icon(Icons.Filled.AccountBalanceWallet, contentDescription = null, tint = purpleColor, modifier = Modifier.size(20.dp))
-                        "storefront" -> Icon(Icons.Filled.Storefront, contentDescription = null, tint = purpleColor, modifier = Modifier.size(20.dp))
-                        "person" -> Icon(Icons.Filled.PersonOutline, contentDescription = null, tint = purpleColor, modifier = Modifier.size(20.dp))
-                        else -> Icon(Icons.Filled.Add, contentDescription = null, tint = purpleColor, modifier = Modifier.size(20.dp))
+                        "upi" -> Text("UPI", color = iconTintColor, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 12.sp)
+                        "bank" -> Icon(Icons.Filled.AccountBalance, contentDescription = null, tint = iconTintColor, modifier = Modifier.size(20.dp))
+                        "wallet" -> Icon(Icons.Filled.AccountBalanceWallet, contentDescription = null, tint = iconTintColor, modifier = Modifier.size(20.dp))
+                        "storefront" -> Icon(Icons.Filled.Storefront, contentDescription = null, tint = iconTintColor, modifier = Modifier.size(20.dp))
+                        "person" -> Icon(Icons.Filled.PersonOutline, contentDescription = null, tint = iconTintColor, modifier = Modifier.size(20.dp))
+                        "arrow_downward" -> Icon(Icons.Filled.ArrowDownward, contentDescription = null, tint = iconTintColor, modifier = Modifier.size(20.dp))
+                        "arrow_upward" -> Icon(Icons.Filled.ArrowUpward, contentDescription = null, tint = iconTintColor, modifier = Modifier.size(20.dp))
+                        else -> Icon(Icons.Filled.Add, contentDescription = null, tint = iconTintColor, modifier = Modifier.size(20.dp))
                     }
                 }
                 
@@ -191,8 +263,31 @@ fun RegexRuleCard(rule: RegexRule, onToggle: (Boolean) -> Unit) {
                     )
                 )
                 
-                IconButton(onClick = {}, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = textColor, modifier = Modifier.size(20.dp))
+                Box {
+                    IconButton(onClick = { expanded = true }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = textColor, modifier = Modifier.size(20.dp))
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Edit") },
+                            onClick = {
+                                expanded = false
+                                onEdit()
+                            }
+                        )
+                        if (!rule.isSystem) {
+                            DropdownMenuItem(
+                                text = { Text("Delete", color = Color(0xFFD32F2F)) },
+                                onClick = {
+                                    expanded = false
+                                    onDelete()
+                                }
+                            )
+                        }
+                    }
                 }
             }
             
@@ -255,7 +350,7 @@ fun RegexRuleCard(rule: RegexRule, onToggle: (Boolean) -> Unit) {
                 Row(
                     modifier = Modifier
                         .background(lightPurpleColor, RoundedCornerShape(8.dp))
-                        .clickable { }
+                        .clickable { onEdit() }
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -269,7 +364,7 @@ fun RegexRuleCard(rule: RegexRule, onToggle: (Boolean) -> Unit) {
                 Row(
                     modifier = Modifier
                         .background(lightPurpleColor, RoundedCornerShape(8.dp))
-                        .clickable { }
+                        .clickable { onEdit() }
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
