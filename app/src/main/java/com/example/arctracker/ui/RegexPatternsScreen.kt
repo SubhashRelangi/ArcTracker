@@ -33,6 +33,7 @@ fun RegexPatternsScreen(
 ) {
     val context = LocalContext.current
     var rules by remember { mutableStateOf(RegexPatternsManager.getRules(context)) }
+    var ruleToTest by remember { mutableStateOf<RegexRule?>(null) }
     
     val categories = listOf("Amount", "Name / Merchant", "Type (Debit/Credit)", "Others")
     var selectedCategory by remember { mutableStateOf(categories[0]) }
@@ -121,6 +122,7 @@ fun RegexPatternsScreen(
                         RegexPatternsManager.saveRules(context, updated)
                     },
                     onEdit = { onEditPattern(rule) },
+                    onTest = { ruleToTest = rule },
                     onDelete = {
                         RegexPatternsManager.deleteRule(context, rule.id)
                         rules = RegexPatternsManager.getRules(context)
@@ -186,6 +188,80 @@ fun RegexPatternsScreen(
             }
         }
     }
+
+    if (ruleToTest != null) {
+        TestRuleDialog(rule = ruleToTest!!, onDismiss = { ruleToTest = null })
+    }
+}
+
+@Composable
+fun TestRuleDialog(rule: RegexRule, onDismiss: () -> Unit) {
+    val sampleText = when(rule.id) {
+        "sys_amount_1" -> "Your A/c no. ****1234 is debited with Rs. 500.00 on 29-08-2025 at GOOGLE PAY."
+        "sys_amount_2" -> "Rs. 1,200.00 was debited from your account XX9876 on 01-09-2025. Info: POS transaction."
+        "sys_merchant_1" -> "Paid Rs. 500 to Flipkart via UPI. TxnId: 123456"
+        "sys_merchant_2" -> "Transaction at Starbucks for Rs. 350.00 is successful."
+        "sys_type_debit" -> "Your account is debited by Rs 250."
+        "sys_type_credit" -> "Your account is credited with Rs 1,000."
+        else -> "Enter test message here to test your pattern: ${rule.name}"
+    }
+    
+    val regex = try { Regex(rule.pattern) } catch(e: Exception) { null }
+    val match = regex?.find(sampleText)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = "Test Case Output", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        },
+        text = {
+            Column {
+                if (match != null) {
+                    Text("Result (1 match)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = textColor, modifier = Modifier.padding(bottom = 8.dp))
+                    
+                    val annotatedString = androidx.compose.ui.text.buildAnnotatedString {
+                        append(sampleText.substring(0, match.range.first))
+                        withStyle(style = androidx.compose.ui.text.SpanStyle(background = Color(0xFFE8F5E9), color = Color(0xFF2E7D32))) {
+                            append(match.value)
+                        }
+                        append(sampleText.substring(match.range.last + 1))
+                    }
+                    
+                    Text(annotatedString, fontSize = 12.sp, color = textColor, lineHeight = 18.sp, modifier = Modifier.padding(bottom = 12.dp))
+                    
+                    val extracted = if (match.groups.size > 1) match.groupValues[1] else match.value
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Extracted Data", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = textColor)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(modifier = Modifier.background(Color(0xFFE8F5E9), RoundedCornerShape(16.dp)).padding(horizontal = 8.dp, vertical = 4.dp)) {
+                            Text(extracted, color = Color(0xFF2E7D32), fontSize = 12.sp)
+                        }
+                    }
+                } else {
+                    Text("Result (0 matches)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(sampleText, fontSize = 12.sp, color = textColor)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss, // For now test again just dismisses or could reset state
+                colors = ButtonDefaults.buttonColors(containerColor = purpleColor)
+            ) {
+                Text("Test Again")
+            }
+        },
+        dismissButton = {
+            OutlinedButton(
+                onClick = onDismiss,
+                border = BorderStroke(1.dp, borderColor)
+            ) {
+                Text("Back", color = textColor)
+            }
+        },
+        containerColor = Color.White
+    )
 }
 
 @Composable
@@ -193,6 +269,7 @@ fun RegexRuleCard(
     rule: RegexRule, 
     onToggle: (Boolean) -> Unit,
     onEdit: () -> Unit,
+    onTest: () -> Unit,
     onDelete: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -350,7 +427,7 @@ fun RegexRuleCard(
                 Row(
                     modifier = Modifier
                         .background(lightPurpleColor, RoundedCornerShape(8.dp))
-                        .clickable { onEdit() }
+                        .clickable { onTest() }
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
