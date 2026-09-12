@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -298,6 +300,7 @@ fun ExpenseScreen() {
                 "Pending" -> "Pending Expenses"
                 "IgnoreRules" -> "Ignore Rules"
                 "DeveloperOptions" -> "Developer Options"
+                "RegexPatterns" -> "Regex Patterns"
                 "Transactions" -> "ArcTracker"
                 "Settings" -> "Settings"
                 "SupportedApps" -> "Supported Apps"
@@ -311,11 +314,13 @@ fun ExpenseScreen() {
                 "SupportedApps" -> "Manage monitored apps"
                 "IgnoreRules" -> "Keywords, senders or patterns to ignore"
                 "DeveloperOptions" -> "Advanced tools for debugging and customization."
+                "RegexPatterns" -> "Define how amounts, names and transaction details are extracted."
                 else -> null
             }
 
             val onBackClick: (() -> Unit)? = when (currentRoute) {
                 "Database", "ClearAllData", "SmsImport", "BackupRestore", "SupportedApps", "IgnoreRules", "DeveloperOptions" -> { { currentRoute = "Settings" } }
+                "RegexPatterns" -> { { currentRoute = "DeveloperOptions" } }
                 "Pending" -> { { currentRoute = "Home" } }
                 else -> null
             }
@@ -359,6 +364,10 @@ fun ExpenseScreen() {
                         }
                         IconButton(onClick = { /* TODO */ }) {
                             Icon(Icons.Default.Download, contentDescription = "Download", tint = Color(0xFF1E1E1E))
+                        }
+                    } else if (currentRoute == "RegexPatterns") {
+                        IconButton(onClick = { /* TODO */ }) {
+                            Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = "Help", tint = Color(0xFF3F51B5))
                         }
                     }
                 }
@@ -528,9 +537,11 @@ fun ExpenseScreen() {
                 com.example.arctracker.ui.IgnoreRulesScreen()
 
             } else if (currentRoute == "DeveloperOptions") {
-
-                com.example.arctracker.ui.DeveloperOptionsScreen()
-
+                com.example.arctracker.ui.DeveloperOptionsScreen(
+                    onNavigate = { currentRoute = it }
+                )
+            } else if (currentRoute == "RegexPatterns") {
+                com.example.arctracker.ui.RegexPatternsScreen()
             } else if (currentRoute == "Pending") {
 
                 val pendingExpenses =
