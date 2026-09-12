@@ -175,7 +175,7 @@ fun SettingsScreen(onNavigate: (String) -> Unit = {}) {
             onNavigate = onNavigate
         )
         Spacer(modifier = Modifier.height(16.dp))
-        DeveloperOptionsSection()
+        DeveloperOptionsSection(onNavigate = onNavigate)
         Spacer(modifier = Modifier.height(16.dp))
         AboutSection()
     }
@@ -478,35 +478,14 @@ fun TrackingSourcesSection(
 }
 
 @Composable
-fun DeveloperOptionsSection() {
-    SettingsCard(title = "Developer Options") {
+fun DeveloperOptionsSection(onNavigate: (String) -> Unit) {
+    SettingsCard(title = "Developer Settings") {
         SettingsRow(
-            icon = Icons.Filled.Edit, // Replaced Code with Edit
-            title = "Regex Patterns",
-            subtitle = "View & edit amount, name, type patterns",
-            isLast = false,
-            onClick = {}
-        )
-        SettingsRow(
-            icon = Icons.Filled.Build,
-            title = "Test Parser",
-            subtitle = "Test parsing on custom message",
-            isLast = false,
-            onClick = {}
-        )
-        SettingsRow(
-            icon = Icons.Filled.Info, // Description or Info
-            title = "Logs",
-            subtitle = "View tracking and parsing logs",
-            isLast = false,
-            onClick = {}
-        )
-        SettingsRow(
-            icon = Icons.Filled.Settings,
-            title = "Advanced Settings",
-            subtitle = "Database, performance & memory options",
+            icon = Icons.Filled.Code,
+            title = "Developer options",
+            subtitle = "Advanced tools for debugging and customization",
             isLast = true,
-            onClick = {}
+            onClick = { onNavigate("DeveloperOptions") }
         )
     }
 }
