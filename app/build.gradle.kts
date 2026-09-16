@@ -54,10 +54,6 @@ dependencies {
     implementation(libs.material)
     implementation("androidx.compose.material:material-icons-extended")
 
-    // Room
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    annotationProcessor(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

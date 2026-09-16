@@ -50,9 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.arctracker.data.AppDatabase
 import com.example.arctracker.data.Expense
-import com.example.arctracker.utils.TransactionValidator
 import com.example.arctracker.utils.RegexPatternsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -86,21 +84,13 @@ fun ExpenseScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val database = remember {
-        AppDatabase.getDatabase(context)
+    var expenses by remember {
+        mutableStateOf(com.example.arctracker.data.MockData.getInitialExpenses())
     }
 
-    val dao = database.expenseDao()
-
-    // Using Flow automatically refreshes when the DB changes.
-    // refreshTrigger is retained for the manual refresh action.
     var refreshTrigger by remember {
         mutableStateOf(0)
     }
-
-    val expenses by dao
-        .getAllExpenses()
-        .collectAsState(initial = emptyList())
 
     var showAddDialog by remember {
         mutableStateOf(false)
@@ -227,77 +217,6 @@ fun ExpenseScreen() {
         } else {
             expenses
         }
-
-    fun isNotificationServiceEnabled(): Boolean {
-        val pkgName = context.packageName
-
-        val flat =
-            android.provider.Settings.Secure.getString(
-                context.contentResolver,
-                "enabled_notification_listeners"
-            )
-
-        return flat != null && flat.contains(pkgName)
-    }
-
-    var hasPermission by remember {
-        mutableStateOf(
-            isNotificationServiceEnabled()
-        )
-    }
-
-    val sharedPrefs = remember {
-        context.getSharedPreferences(
-            "ArcTrackerPrefs",
-            android.content.Context.MODE_PRIVATE
-        )
-    }
-
-    val isInitialSetupCompleted =
-        sharedPrefs.getBoolean(
-            "isInitialSetupCompleted",
-            false
-        )
-
-    val isExistingUser = remember {
-
-        val dbExists =
-            context.getDatabasePath(
-                "arctracker_database"
-            ).exists()
-
-        val hasPrefs =
-            sharedPrefs.contains(
-                "isAutoTrackingEnabled"
-            )
-
-        dbExists || hasPrefs
-    }
-
-    var localSetupCompleted by remember {
-        mutableStateOf(
-            isInitialSetupCompleted
-        )
-    }
-
-    LaunchedEffect(isInitialSetupCompleted) {
-
-        if (
-            !isInitialSetupCompleted &&
-            isExistingUser
-        ) {
-            // Silently mark as complete for existing users.
-            sharedPrefs
-                .edit()
-                .putBoolean(
-                    "isInitialSetupCompleted",
-                    true
-                )
-                .apply()
-
-            localSetupCompleted = true
-        }
-    }
 
     Scaffold(
 
@@ -526,6 +445,9 @@ fun ExpenseScreen() {
                 com.example.arctracker.ui.ClearAllDataScreen(
                     onNavigate = {
                         currentRoute = it
+                    },
+                    onClearData = {
+                        expenses = emptyList()
                     }
                 )
 
@@ -859,27 +781,21 @@ fun ExpenseScreen() {
                         note,
                         dateMillis ->
 
-                    scope.launch(Dispatchers.IO) {
-
-                        dao.insertExpense(
-
-                            Expense(
-                                amount,
-                                merchant,
-                                dateMillis,
-                                type,
-                                UUID.randomUUID()
-                                    .toString(),
-                                false,
-                                "Manual Entry",
-                                tag,
-                                note,
-                                "MANUAL"
-                            )
-                        )
-
-                        showAddDialog = false
-                    }
+                    val newExpense = Expense(
+                        id = (expenses.maxOfOrNull { it.id } ?: 0) + 1,
+                        amount = amount,
+                        merchant = merchant,
+                        dateMillis = dateMillis,
+                        type = type,
+                        notificationKey = UUID.randomUUID().toString(),
+                        isPending = false,
+                        rawText = "Manual Entry",
+                        tag = tag,
+                        note = note,
+                        source = "MANUAL"
+                    )
+                    expenses = listOf(newExpense) + expenses
+                    showAddDialog = false
                 }
             )
         }
@@ -923,15 +839,8 @@ fun ExpenseScreen() {
                 },
 
                 onDelete = {
-
-                    scope.launch(Dispatchers.IO) {
-
-                        dao.deleteExpense(
-                            pendingExpense
-                        )
-
-                        showApproveDialog = null
-                    }
+                    expenses = expenses.filter { it.id != pendingExpense.id }
+                    showApproveDialog = null
                 },
 
                 onAdd = {
@@ -942,32 +851,20 @@ fun ExpenseScreen() {
                         note,
                         dateMillis ->
 
-                    scope.launch(Dispatchers.IO) {
-
-                        pendingExpense.amount =
-                            amount
-
-                        pendingExpense.merchant =
-                            merchant
-
-                        pendingExpense.type =
-                            type
-
-                        pendingExpense.isPending =
-                            false
-
-                        pendingExpense.tag =
-                            tag
-
-                        pendingExpense.note =
-                            note
-
-                        dao.updateExpense(
-                            pendingExpense
-                        )
-
-                        showApproveDialog = null
+                    expenses = expenses.map {
+                        if (it.id == pendingExpense.id) {
+                            it.copy(
+                                amount = amount,
+                                merchant = merchant,
+                                type = type,
+                                tag = tag,
+                                note = note,
+                                dateMillis = dateMillis,
+                                isPending = false
+                            )
+                        } else it
                     }
+                    showApproveDialog = null
                 }
             )
         }
@@ -1041,32 +938,19 @@ fun ExpenseScreen() {
                         note,
                         dateMillis ->
 
-                    scope.launch(Dispatchers.IO) {
-
-                        expenseToEdit.amount =
-                            amount
-
-                        expenseToEdit.merchant =
-                            merchant
-
-                        expenseToEdit.type =
-                            type
-
-                        expenseToEdit.tag =
-                            tag
-
-                        expenseToEdit.note =
-                            note
-
-                        expenseToEdit.dateMillis =
-                            dateMillis
-
-                        dao.updateExpense(
-                            expenseToEdit
-                        )
-
-                        editExpense = null
+                    expenses = expenses.map {
+                        if (it.id == expenseToEdit.id) {
+                            it.copy(
+                                amount = amount,
+                                merchant = merchant,
+                                type = type,
+                                tag = tag,
+                                note = note,
+                                dateMillis = dateMillis
+                            )
+                        } else it
                     }
+                    editExpense = null
                 }
             )
         }
@@ -1097,12 +981,8 @@ fun ExpenseScreen() {
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            scope.launch(Dispatchers.IO) {
-                                dao.deleteExpense(
-                                    expenseToDelete
-                                )
-                                deleteConfirmExpense = null
-                            }
+                            expenses = expenses.filter { it.id != expenseToDelete.id }
+                            deleteConfirmExpense = null
                         }
                     ) {
                         Text(
@@ -1121,27 +1001,6 @@ fun ExpenseScreen() {
                     ) {
                         Text("Cancel")
                     }
-                }
-            )
-        }
-
-        if (
-            !localSetupCompleted &&
-            !isExistingUser
-        ) {
-
-            com.example.arctracker.ui.FirstTimeSetupDialogs(
-                onComplete = {
-
-                    sharedPrefs
-                        .edit()
-                        .putBoolean(
-                            "isInitialSetupCompleted",
-                            true
-                        )
-                        .apply()
-
-                    localSetupCompleted = true
                 }
             )
         }

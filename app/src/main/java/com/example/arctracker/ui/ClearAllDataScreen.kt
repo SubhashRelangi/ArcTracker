@@ -23,9 +23,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
-import com.example.arctracker.data.AppDatabase
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 @Composable
 fun DataItemRow(icon: ImageVector, text: String) {
@@ -36,7 +33,7 @@ fun DataItemRow(icon: ImageVector, text: String) {
         Box(
             modifier = Modifier
                 .size(24.dp)
-                .background(Color(0xFFFFEBEE), CircleShape), // Use CircleShape for the background
+                .background(Color(0xFFFFEBEE), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -53,7 +50,7 @@ fun DataItemRow(icon: ImageVector, text: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ClearAllDataScreen(onNavigate: (String) -> Unit) {
+fun ClearAllDataScreen(onNavigate: (String) -> Unit, onClearData: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showDialog by remember { mutableStateOf(false) }
@@ -107,14 +104,10 @@ fun ClearAllDataScreen(onNavigate: (String) -> Unit) {
                             }
                             Button(
                                 onClick = {
-                                    scope.launch(Dispatchers.IO) {
-                                        val db = AppDatabase.getDatabase(context)
-                                        db.expenseDao().deleteAllExpenses()
-                                        val sharedPrefs = context.getSharedPreferences("ArcTrackerPrefs", Context.MODE_PRIVATE)
-                                        sharedPrefs.edit().clear().apply()
-                                        // Just close the dialog as requested
-                                        showDialog = false
-                                    }
+                                    val sharedPrefs = context.getSharedPreferences("ArcTrackerPrefs", Context.MODE_PRIVATE)
+                                    sharedPrefs.edit().clear().apply()
+                                    onClearData()
+                                    showDialog = false
                                 },
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),

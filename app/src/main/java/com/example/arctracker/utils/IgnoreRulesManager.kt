@@ -37,46 +37,24 @@ data class IgnoreRule(
 object IgnoreRulesManager {
     private const val PREFS_NAME = "ArcTrackerPrefs"
     private const val RULES_KEY = "ignore_rules"
-    private const val RULES_INITIALIZED_KEY = "ignore_rules_initialized"
 
-    private val predefinedNoiseKeywords = listOf(
-        "otp", "one time password", "code is", "available balance",
-        "balance is", "bal is", "login", "signin", "sign in",
-        "welcome", "verify", "blocked", "unblocked", "kyc",
-        "limit changed", "statement", "mini statement", "loan offer"
-    )
-
-    private val predefinedPromoKeywords = listOf(
-        "offer", "% off", "off on", "discount", "win ", "winner", "lucky draw",
-        "click here", "apply now", "register now", "redeem", "limited period",
-        "subscribe", "guaranteed", "shop now", "buy now", "shop & win",
-        "cashback offer", "deal of", "use code", "coupon",
-        "personal loan", "pre-approved", "preapproved", "investment plan",
-        "fixed deposit rates", "fd rates", "credit card offer"
+    private val defaultRules = listOf(
+        IgnoreRule("sys_1", "Keyword", "Contains", "otp", true),
+        IgnoreRule("sys_2", "Keyword", "Contains", "one time password", true),
+        IgnoreRule("sys_3", "Keyword", "Contains", "available balance", true),
+        IgnoreRule("sys_4", "Keyword", "Contains", "cashback offer", true),
+        IgnoreRule("sys_5", "Keyword", "Contains", "pre-approved", true),
+        IgnoreRule("sys_6", "Sender", "Contains", "JD-HDFCBK", false),
+        IgnoreRule("sys_7", "Keyword", "Contains", "discount", false)
     )
 
     fun getRules(context: Context): List<IgnoreRule> {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val isInitialized = prefs.getBoolean(RULES_INITIALIZED_KEY, false)
-
-        if (!isInitialized) {
-            val defaultRules = (predefinedNoiseKeywords + predefinedPromoKeywords)
-                .distinct()
-                .mapIndexed { index, keyword ->
-                    IgnoreRule(
-                        id = "sys_$index",
-                        type = "Keyword",
-                        matchType = "Contains",
-                        value = keyword,
-                        isSystem = true
-                    )
-                }
+        val rulesSet = prefs.getStringSet(RULES_KEY, null)
+        if (rulesSet == null) {
             saveRules(context, defaultRules)
-            prefs.edit().putBoolean(RULES_INITIALIZED_KEY, true).apply()
             return defaultRules
         }
-
-        val rulesSet = prefs.getStringSet(RULES_KEY, emptySet()) ?: emptySet()
         return rulesSet.mapNotNull {
             try {
                 IgnoreRule.fromJson(it)
