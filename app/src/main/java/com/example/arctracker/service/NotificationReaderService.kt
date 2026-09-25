@@ -6,8 +6,24 @@ import android.os.Bundle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import com.example.arctracker.settings.MonitoringSettingsRepository
 import kotlinx.coroutines.launch
 import java.util.Collections
+
+/**
+ * Data holder for extracted notification text content (Step 9.4).
+ * Kept separate from [CapturedNotificationInfo] so that content extraction
+ * is strictly deferred until AFTER the privacy gate passes.
+ */
+data class NotificationContent(
+    val title: String? = null,
+    val text: String? = null,
+    val bigText: String? = null,
+    val subText: String? = null,
+    val summaryText: String? = null,
+    val infoText: String? = null,
+    val textLines: List<String> = emptyList()
+)
 
 /**
  * Data holder for a completely captured notification payload (Step 2).
@@ -56,6 +72,13 @@ class NotificationReaderService : NotificationListenerService() {
         @Volatile
         var lastCapturedNotification: CapturedNotificationInfo? = null
             internal set
+
+        /**
+         * Optional settings repository override for testing.
+         * When null, production repository from applicationContext is used.
+         */
+        @Volatile
+        var settingsRepositoryOverride: MonitoringSettingsRepository? = null
 
         var notificationListener: ((CapturedNotificationInfo) -> Unit)? = null
 
@@ -289,73 +312,156 @@ class NotificationReaderService : NotificationListenerService() {
         }
     }
 
+    fun getSettingsRepository(): MonitoringSettingsRepository {
+        settingsRepositoryOverride?.let { return it }
+        val appContext = try {
+            applicationContext ?: this
+        } catch (_: Exception) {
+            this
+        }
+        return MonitoringSettingsRepository.getInstance(appContext)
+    }
+
     /**
-     * Handles an incoming notification safely with independent permission verification.
-     * Extracts all available fields from [StatusBarNotification] and its extras.
+     * Extracts content from [Bundle] extras safely into a [NotificationContent] structure.
+     */
+    fun extractContentFromExtras(extras: Bundle?): NotificationContent {
+        if (extras == null) return NotificationContent()
+        val title = extractTextField(extras, Notification.EXTRA_TITLE)
+            ?: extractTextField(extras, "android.title.big")
+        val text = extractTextField(extras, Notification.EXTRA_TEXT)
+        val bigText = extractTextField(extras, Notification.EXTRA_BIG_TEXT)
+        val subText = extractTextField(extras, Notification.EXTRA_SUB_TEXT)
+        val summaryText = extractTextField(extras, Notification.EXTRA_SUMMARY_TEXT)
+        val infoText = extractTextField(extras, Notification.EXTRA_INFO_TEXT)
+        val textLines = extractTextLines(extras)
+
+        return NotificationContent(
+            title = title,
+            text = text,
+            bigText = bigText,
+            subText = subText,
+            summaryText = summaryText,
+            infoText = infoText,
+            textLines = textLines
+        )
+    }
+
+    /**
+     * Processes an incoming notification with Step 9.4 Privacy Gate enforcement.
+     * Checks global and package monitoring settings BEFORE invoking [contentExtractor].
+     * If the notification is blocked, [contentExtractor] is NEVER invoked, ensuring zero content access.
      *
-     * @return true if notification was captured and logged; false if ignored or permission missing.
+     * @return true if allowed, captured, and processed; false if blocked by privacy gate or permission missing.
+     */
+    fun processNotification(
+        packageName: String,
+        notificationKey: String,
+        postTime: Long,
+        channelId: String? = null,
+        category: String? = null,
+        groupKey: String? = null,
+        isGroup: Boolean = false,
+        isGroupSummary: Boolean = false,
+        flags: Int = 0,
+        contentExtractor: () -> NotificationContent
+    ): Boolean {
+        // Step 1: Independently verify Notification Access permission
+        if (!NotificationPermissionHelper.isNotificationAccessGranted(this)) {
+            Log.w(TAG, "Notification received but Notification Access permission is not granted. Discarding.")
+            return false
+        }
+
+        if (packageName.isEmpty()) {
+            return false
+        }
+
+        // Step 2: Privacy Gate - Query settings repository (FAIL-CLOSED)
+        val settings = try {
+            getSettingsRepository().getSettings()
+        } catch (e: Exception) {
+            Log.e(TAG, "Privacy gate: failed to read monitoring settings. Failing closed (blocking notification).", e)
+            return false
+        }
+
+        // Step 3: Global monitoring check - MUST return before content extraction
+        if (!settings.globalEnabled) {
+            Log.d(TAG, "Notification ignored: global monitoring is disabled")
+            return false
+        }
+
+        // Step 4: Package monitoring check - MUST return before content extraction
+        if (!settings.isAppEnabled(packageName)) {
+            Log.d(TAG, "Notification ignored: package is not enabled for monitoring")
+            return false
+        }
+
+        // Step 5: PRIVACY GATE PASSED - Now and only now extract notification content
+        val content = try {
+            contentExtractor()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting notification content in NotificationReaderService", e)
+            return false
+        }
+
+        // Step 6: Record captured notification and trigger transaction pipeline
+        return recordCapturedNotification(
+            packageName = packageName,
+            notificationKey = notificationKey,
+            postTime = postTime,
+            title = content.title,
+            text = content.text,
+            bigText = content.bigText,
+            subText = content.subText,
+            summaryText = content.summaryText,
+            infoText = content.infoText,
+            textLines = content.textLines,
+            category = category,
+            channelId = channelId,
+            groupKey = groupKey,
+            isGroup = isGroup,
+            isGroupSummary = isGroupSummary,
+            flags = flags
+        ) != null
+    }
+
+    /**
+     * Handles an incoming notification safely with independent permission and privacy gate verification.
+     * Extracts all available fields from [StatusBarNotification] extras ONLY IF the privacy gate permits processing.
+     *
+     * @return true if notification was captured and logged; false if ignored, blocked by privacy gate, or permission missing.
      */
     fun handleNotification(sbn: StatusBarNotification?): Boolean {
         if (sbn == null) {
             return false
         }
 
-        // Independently verify that Notification Access permission is currently granted before any processing
-        if (!NotificationPermissionHelper.isNotificationAccessGranted(this)) {
-            Log.w(TAG, "Notification received but Notification Access permission is not granted. Discarding.")
-            return false
+        val notification = sbn.notification
+        val channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            notification?.channelId
+        } else {
+            null
         }
 
-        return try {
-            val packageName = sbn.packageName ?: ""
-            val notificationKey = sbn.key ?: ""
-            val postTime = sbn.postTime
-            val notification = sbn.notification
-            val extras = notification?.extras
+        val groupKey = sbn.groupKey ?: notification?.group
+        val isGroup = sbn.isGroup || !groupKey.isNullOrBlank()
+        val flags = notification?.flags ?: 0
+        val isGroupSummary = (flags and Notification.FLAG_GROUP_SUMMARY) != 0
 
-            val title = extractTextField(extras, Notification.EXTRA_TITLE)
-                ?: extractTextField(extras, "android.title.big")
-            val text = extractTextField(extras, Notification.EXTRA_TEXT)
-            val bigText = extractTextField(extras, Notification.EXTRA_BIG_TEXT)
-            val subText = extractTextField(extras, Notification.EXTRA_SUB_TEXT)
-            val summaryText = extractTextField(extras, Notification.EXTRA_SUMMARY_TEXT)
-            val infoText = extractTextField(extras, Notification.EXTRA_INFO_TEXT)
-            val textLines = extractTextLines(extras)
-
-            val category = notification?.category
-            val channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                notification?.channelId
-            } else {
-                null
+        return processNotification(
+            packageName = sbn.packageName ?: "",
+            notificationKey = sbn.key ?: "",
+            postTime = sbn.postTime,
+            channelId = channelId,
+            category = notification?.category,
+            groupKey = groupKey,
+            isGroup = isGroup,
+            isGroupSummary = isGroupSummary,
+            flags = flags,
+            contentExtractor = {
+                extractContentFromExtras(notification?.extras)
             }
-
-            val groupKey = sbn.groupKey ?: notification?.group
-            val isGroup = sbn.isGroup || !groupKey.isNullOrBlank()
-            val flags = notification?.flags ?: 0
-            val isGroupSummary = (flags and Notification.FLAG_GROUP_SUMMARY) != 0
-
-            recordCapturedNotification(
-                packageName = packageName,
-                notificationKey = notificationKey,
-                postTime = postTime,
-                title = title,
-                text = text,
-                bigText = bigText,
-                subText = subText,
-                summaryText = summaryText,
-                infoText = infoText,
-                textLines = textLines,
-                category = category,
-                channelId = channelId,
-                groupKey = groupKey,
-                isGroup = isGroup,
-                isGroupSummary = isGroupSummary,
-                flags = flags
-            ) != null
-        } catch (e: Exception) {
-            Log.e(TAG, "Error handling notification in NotificationReaderService", e)
-            false
-        }
+        )
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
