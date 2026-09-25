@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 
 /**
  * Authoritative repository interface for managing ArcTracker's monitoring settings.
- * Single source of truth for global monitoring status and enabled package sets.
+ * Single source of truth for global monitoring status, enabled package sets, and user-added apps.
  */
 interface MonitoringSettingsRepository {
 
@@ -46,14 +46,35 @@ interface MonitoringSettingsRepository {
     fun resetToDefaults()
 
     /**
-     * Retrieves the full catalog of supported applications.
+     * Retrieves the full catalog of built-in supported applications.
      */
     fun getCatalog(): List<SupportedApp> = AppCatalog.allApps
+
+    /**
+     * Retrieves all user-added applications configured in settings.
+     */
+    fun getUserAddedApps(): List<SupportedApp>
+
+    /**
+     * Adds and persists a user-defined application.
+     * Automatically enables the newly added app by default without mutating globalEnabled.
+     * Duplicate packages (matching built-in or existing user apps) are rejected.
+     *
+     * @return true if added successfully, false if duplicate or invalid.
+     */
+    fun addUserApp(app: SupportedApp): Boolean
+
+    /**
+     * Returns all configured apps (built-in catalog + persisted user-added apps).
+     * Guaranteed no duplicates by package name.
+     */
+    fun getAllConfiguredApps(): List<SupportedApp>
 
     companion object {
         const val PREFS_NAME = "ArcTrackerPrefs"
         const val KEY_GLOBAL_ENABLED = "monitoring_global_enabled"
         const val KEY_ENABLED_PACKAGES = "monitored_packages"
+        const val KEY_USER_ADDED_APPS = "user_added_apps"
         const val LEGACY_KEY_AUTO_TRACKING = "isAutoTrackingEnabled"
 
         @Volatile
@@ -91,8 +112,53 @@ interface MonitoringSettingsRepository {
 }
 
 /**
+ * Pure Kotlin serializer for [SupportedApp] persistence in SharedPreferences.
+ * Safe across local JVM unit tests and real Android devices with zero external dependencies.
+ */
+object SupportedAppSerializer {
+    fun serialize(app: SupportedApp): String {
+        fun escape(s: String) = s.replace("\\", "\\\\").replace("|", "\\|")
+        return "${escape(app.packageName)}|${escape(app.displayName)}|${escape(app.description)}|${escape(app.category.id)}"
+    }
+
+    fun deserialize(raw: String): SupportedApp? {
+        val parts = mutableListOf<String>()
+        val sb = StringBuilder()
+        var escaping = false
+        for (c in raw) {
+            if (escaping) {
+                sb.append(c)
+                escaping = false
+            } else if (c == '\\') {
+                escaping = true
+            } else if (c == '|') {
+                parts.add(sb.toString())
+                sb.setLength(0)
+            } else {
+                sb.append(c)
+            }
+        }
+        parts.add(sb.toString())
+        if (parts.size < 4) return null
+        val pkg = parts[0].trim()
+        if (pkg.isBlank()) return null
+        val name = parts[1].trim().ifBlank { pkg }
+        val desc = parts[2].trim()
+        val catId = parts[3].trim()
+        val cat = AppCategory.fromId(catId) ?: AppCategory.UPI_PAYMENT
+        return SupportedApp(
+            packageName = pkg,
+            displayName = name,
+            description = desc,
+            category = cat,
+            defaultEnabled = true
+        )
+    }
+}
+
+/**
  * SharedPreferences-backed production implementation of [MonitoringSettingsRepository].
- * Preserves existing settings and provides backward compatibility with legacy preferences.
+ * Preserves existing settings, provides backward compatibility, and persists user-added apps.
  */
 class SharedPreferencesMonitoringSettingsRepository(
     private val prefs: SharedPreferences
@@ -148,11 +214,54 @@ class SharedPreferencesMonitoringSettingsRepository(
             .apply()
     }
 
+    override fun getUserAddedApps(): List<SupportedApp> = synchronized(lock) {
+        val rawSet = prefs.getStringSet(MonitoringSettingsRepository.KEY_USER_ADDED_APPS, emptySet()) ?: emptySet()
+        rawSet.mapNotNull { SupportedAppSerializer.deserialize(it) }
+    }
+
+    override fun addUserApp(app: SupportedApp): Boolean = synchronized(lock) {
+        if (app.packageName.isBlank()) return false
+
+        // Duplicate check against built-in AppCatalog
+        if (AppCatalog.containsPackage(app.packageName)) {
+            return false
+        }
+
+        // Duplicate check against existing user-added apps
+        val existingUserApps = getUserAddedApps().toMutableList()
+        if (existingUserApps.any { it.packageName.equals(app.packageName, ignoreCase = true) }) {
+            return false
+        }
+
+        existingUserApps.add(app)
+        val serializedSet = existingUserApps.map { SupportedAppSerializer.serialize(it) }.toSet()
+
+        // Enable newly added app by default in enabledPackages without touching globalEnabled
+        val currentPackages = getSettings().enabledPackages.toMutableSet()
+        currentPackages.add(app.packageName)
+
+        prefs.edit()
+            .putStringSet(MonitoringSettingsRepository.KEY_USER_ADDED_APPS, serializedSet)
+            .putStringSet(MonitoringSettingsRepository.KEY_ENABLED_PACKAGES, currentPackages)
+            .apply()
+
+        return true
+    }
+
+    override fun getAllConfiguredApps(): List<SupportedApp> = synchronized(lock) {
+        val builtIn = AppCatalog.allApps
+        val userAdded = getUserAddedApps().filter { userApp ->
+            builtIn.none { it.packageName.equals(userApp.packageName, ignoreCase = true) }
+        }
+        builtIn + userAdded
+    }
+
     override fun resetToDefaults(): Unit = synchronized(lock) {
         prefs.edit()
             .putBoolean(MonitoringSettingsRepository.KEY_GLOBAL_ENABLED, true)
             .putBoolean(MonitoringSettingsRepository.LEGACY_KEY_AUTO_TRACKING, true)
             .putStringSet(MonitoringSettingsRepository.KEY_ENABLED_PACKAGES, AppCatalog.defaultEnabledPackages)
+            .remove(MonitoringSettingsRepository.KEY_USER_ADDED_APPS)
             .apply()
     }
 }
@@ -168,6 +277,7 @@ class InMemoryMonitoringSettingsRepository(
     private val lock = Any()
     private var globalEnabled: Boolean = initialGlobalEnabled
     private val enabledPackages: MutableSet<String> = initialEnabledPackages.toMutableSet()
+    private val userAddedApps: MutableList<SupportedApp> = mutableListOf()
 
     override fun getSettings(): MonitoringSettings = synchronized(lock) {
         MonitoringSettings(
@@ -193,9 +303,32 @@ class InMemoryMonitoringSettingsRepository(
         enabledPackages.addAll(packages)
     }
 
+    override fun getUserAddedApps(): List<SupportedApp> = synchronized(lock) {
+        userAddedApps.toList()
+    }
+
+    override fun addUserApp(app: SupportedApp): Boolean = synchronized(lock) {
+        if (app.packageName.isBlank()) return false
+        if (AppCatalog.containsPackage(app.packageName)) return false
+        if (userAddedApps.any { it.packageName.equals(app.packageName, ignoreCase = true) }) return false
+
+        userAddedApps.add(app)
+        enabledPackages.add(app.packageName)
+        return true
+    }
+
+    override fun getAllConfiguredApps(): List<SupportedApp> = synchronized(lock) {
+        val builtIn = AppCatalog.allApps
+        val extra = userAddedApps.filter { userApp ->
+            builtIn.none { it.packageName.equals(userApp.packageName, ignoreCase = true) }
+        }
+        builtIn + extra
+    }
+
     override fun resetToDefaults(): Unit = synchronized(lock) {
         globalEnabled = true
         enabledPackages.clear()
         enabledPackages.addAll(AppCatalog.defaultEnabledPackages)
+        userAddedApps.clear()
     }
 }
