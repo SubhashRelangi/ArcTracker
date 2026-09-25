@@ -44,7 +44,7 @@ object NoiseDetector {
 
     // Completed transaction action pattern (to differentiate a transaction notification that mentions remaining balance)
     private val COMPLETED_TRANSACTION_ACTION_PATTERN = Regex(
-        """\b(debited|debit|credited|credit|paid|spent|sent|transferred|withdrawn|deposited|refunded)\b""",
+        """\b(debited|debit|credited|credit|paid|spent|sent|transferred|withdrawn|deposited|refunded|transaction|txn|fee)\b""",
         RegexOption.IGNORE_CASE
     )
 

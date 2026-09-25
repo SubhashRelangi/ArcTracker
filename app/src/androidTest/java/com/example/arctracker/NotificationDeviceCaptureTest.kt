@@ -245,4 +245,58 @@ class NotificationDeviceCaptureTest {
         assertEquals("Paid ₹500. UPI Ref: 998877665544", active?.bigText)
         assertEquals(active, NotificationReaderService.lastCapturedNotification)
     }
+
+    // 6. Device test: End-to-end Capture -> Normalization -> Classification -> Extraction Pipeline (Step 5)
+    @Test
+    fun testDevice_endToEndExtractionPipeline() {
+        val bigTextStyle = Notification.BigTextStyle()
+            .setBigContentTitle("Payment successful")
+            .bigText("₹500 paid to Ravi. UPI Ref: 123456789012. Avl Bal: ₹9,500")
+
+        val notification = createNotificationBuilder()
+            .setContentTitle("Payment successful")
+            .setContentText("₹500 paid to Ravi")
+            .setStyle(bigTextStyle)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .build()
+
+        // 1. Capture
+        val title = NotificationReaderService.extractTextField(notification.extras, Notification.EXTRA_TITLE)
+        val text = NotificationReaderService.extractTextField(notification.extras, Notification.EXTRA_TEXT)
+        val bigText = NotificationReaderService.extractTextField(notification.extras, Notification.EXTRA_BIG_TEXT)
+
+        val captured = service.recordCapturedNotification(
+            packageName = "com.google.android.apps.nbu.paisa.user",
+            notificationKey = "device_key_step5_pipeline",
+            postTime = System.currentTimeMillis(),
+            title = title,
+            text = text,
+            bigText = bigText
+        )
+        assertNotNull(captured)
+
+        // 2. Normalization
+        val normalized = com.example.arctracker.service.NotificationNormalizer.normalize(captured)
+        assertNotNull(normalized)
+
+        // 3. Financial Classification
+        val classification = com.example.arctracker.service.FinancialClassifier.classify(normalized!!)
+        assertEquals(com.example.arctracker.service.FinancialRelevance.FINANCIAL, classification.financialRelevance)
+        assertFalse(classification.isNoise)
+
+        // 4. Structured Extraction
+        val candidate = com.example.arctracker.service.StructuredTransactionExtractor.extract(classification)
+        assertNotNull(candidate)
+        assertEquals(500.0, candidate?.amount)
+        assertEquals("Ravi", candidate?.merchant)
+        assertEquals("123456789012", candidate?.upiTransactionId)
+        assertEquals(com.example.arctracker.service.TransactionStatus.SUCCESS, candidate?.status)
+        assertEquals(com.example.arctracker.service.TransactionDirection.DEBIT, candidate?.direction)
+
+        // Verify balance is separated as secondary amount
+        assertNotEquals(9500.0, candidate?.amount)
+        val bal = candidate?.secondaryAmounts?.find { it.type == com.example.arctracker.service.SecondaryAmountType.BALANCE }
+        assertNotNull(bal)
+        assertEquals(9500.0, bal?.amount)
+    }
 }
