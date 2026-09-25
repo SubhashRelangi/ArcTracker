@@ -111,8 +111,8 @@ class SharedPreferencesMonitoringSettingsRepository(
         }
 
         val enabledPackages = if (prefs.contains(MonitoringSettingsRepository.KEY_ENABLED_PACKAGES)) {
-            prefs.getStringSet(MonitoringSettingsRepository.KEY_ENABLED_PACKAGES, null)
-                ?: AppCatalog.defaultEnabledPackages
+            prefs.getStringSet(MonitoringSettingsRepository.KEY_ENABLED_PACKAGES, emptySet())
+                ?: emptySet()
         } else {
             AppCatalog.defaultEnabledPackages
         }
@@ -151,6 +151,7 @@ class SharedPreferencesMonitoringSettingsRepository(
     override fun resetToDefaults(): Unit = synchronized(lock) {
         prefs.edit()
             .putBoolean(MonitoringSettingsRepository.KEY_GLOBAL_ENABLED, true)
+            .putBoolean(MonitoringSettingsRepository.LEGACY_KEY_AUTO_TRACKING, true)
             .putStringSet(MonitoringSettingsRepository.KEY_ENABLED_PACKAGES, AppCatalog.defaultEnabledPackages)
             .apply()
     }

@@ -86,4 +86,59 @@ class MonitoringSettingsDeviceTest {
         assertEquals("enabledPackages must remain unchanged on device when global ON",
             initialPackages, repository.getSettings().enabledPackages)
     }
+
+    @Test
+    fun testRealDevice_individualAppToggle_persistsAcrossReload() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        repository.setAppEnabled(gpay, false)
+
+        val reloaded = MonitoringSettingsRepository.getInstance(context)
+        assertFalse("Disabled Google Pay must remain disabled across reload", reloaded.isAppEnabled(gpay))
+
+        repository.setAppEnabled(gpay, true)
+        val secondReload = MonitoringSettingsRepository.getInstance(context)
+        assertTrue("Enabled Google Pay must remain enabled across reload", secondReload.isAppEnabled(gpay))
+    }
+
+    @Test
+    fun testRealDevice_independentAppToggles_doNotAffectOtherApps() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        val phonepe = "com.phonepe.app"
+
+        repository.setAppEnabled(gpay, true)
+        repository.setAppEnabled(phonepe, false)
+
+        val reloaded = MonitoringSettingsRepository.getInstance(context)
+        assertTrue("Google Pay must be enabled", reloaded.isAppEnabled(gpay))
+        assertFalse("PhonePe must be disabled", reloaded.isAppEnabled(phonepe))
+    }
+
+    @Test
+    fun testRealDevice_appTogglesIndependentFromGlobalSwitch() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        val phonepe = "com.phonepe.app"
+
+        repository.setAppEnabled(gpay, true)
+        repository.setAppEnabled(phonepe, false)
+        repository.setGlobalEnabled(false)
+
+        val reloaded = MonitoringSettingsRepository.getInstance(context)
+        assertFalse("Global switch is OFF", reloaded.getSettings().globalEnabled)
+        assertTrue("Google Pay switch retains ON while global is OFF", reloaded.getSettings().isAppEnabled(gpay))
+        assertFalse("PhonePe switch retains OFF while global is OFF", reloaded.getSettings().isAppEnabled(phonepe))
+
+        repository.setGlobalEnabled(true)
+        val reloaded2 = MonitoringSettingsRepository.getInstance(context)
+        assertTrue("Global switch is ON", reloaded2.getSettings().globalEnabled)
+        assertTrue("Google Pay switch retains ON after global is ON", reloaded2.getSettings().isAppEnabled(gpay))
+        assertFalse("PhonePe switch retains OFF after global is ON", reloaded2.getSettings().isAppEnabled(phonepe))
+    }
+
+    @Test
+    fun testRealDevice_allAppTogglesDisabled_persistsEmptySetWithoutReapplyingDefaults() {
+        repository.setEnabledPackages(emptySet())
+
+        val reloaded = MonitoringSettingsRepository.getInstance(context)
+        assertTrue("Empty enabledPackages must not revert to defaultEnabled", reloaded.getSettings().enabledPackages.isEmpty())
+    }
 }

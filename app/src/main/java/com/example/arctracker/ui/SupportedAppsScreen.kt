@@ -30,6 +30,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.arctracker.settings.AppCatalog
+import com.example.arctracker.settings.AppCategory
 import com.example.arctracker.settings.MonitoringSettingsRepository
 
 data class MockApp(
@@ -61,36 +63,57 @@ fun SupportedAppsScreen(
             }
         )
     }
+    var enabledPackages by remember {
+        mutableStateOf(
+            try {
+                settingsRepo.getSettings().enabledPackages
+            } catch (e: Exception) {
+                android.util.Log.e("SupportedAppsScreen", "Error loading enabled packages", e)
+                AppCatalog.defaultEnabledPackages
+            }
+        )
+    }
+
+    val onToggleApp: (String, Boolean) -> Unit = remember(settingsRepo) {
+        { packageName, isChecked ->
+            val previous = enabledPackages
+            enabledPackages = if (isChecked) {
+                enabledPackages + packageName
+            } else {
+                enabledPackages - packageName
+            }
+            try {
+                settingsRepo.setAppEnabled(packageName, isChecked)
+            } catch (e: Exception) {
+                android.util.Log.e("SupportedAppsScreen", "Error saving app monitoring setting for $packageName", e)
+                enabledPackages = previous
+            }
+        }
+    }
+
     var showAddAppDialogForCategory by remember { mutableStateOf<String?>(null) }
 
     val initialApps = remember {
-        listOf(
-            MockApp("com.google.android.apps.nbu.paisa.user", "Google Pay", "UPI & Payment Apps", "UPI payments, bills, recharges", Icons.Default.Payment),
-            MockApp("com.phonepe.app", "PhonePe", "UPI & Payment Apps", "UPI payments, bills, recharges", Icons.Default.Payment),
-            MockApp("net.one97.paytm", "Paytm", "UPI & Payment Apps", "UPI payments, wallet, bills", Icons.Default.Payment),
-            MockApp("in.amazon.mShop.android.shopping", "Amazon Pay", "UPI & Payment Apps", "Shopping, UPI, bills", Icons.Default.Payment),
-            MockApp("com.dreamplug.androidapp", "CRED", "UPI & Payment Apps", "Credit card payments", Icons.Default.Payment),
-
-            MockApp("com.sbi.SBIAnywhere", "YONO SBI", "Banking Apps", "Banking, UPI", Icons.Default.AccountBalance),
-            MockApp("com.snapwork.hdfc", "HDFC Bank MobileBanking", "Banking Apps", "Banking, UPI", Icons.Default.AccountBalance),
-            MockApp("com.csam.icici.bank.imobile", "iMobile Pay by ICICI", "Banking Apps", "Banking, UPI", Icons.Default.AccountBalance),
-            MockApp("com.axis.mobile", "Axis Mobile", "Banking Apps", "Banking, UPI", Icons.Default.AccountBalance),
-
-            MockApp("com.google.android.apps.messaging", "Google Messages", "SMS & Messenger Apps", "Default SMS App", Icons.Default.Sms),
-            MockApp("com.samsung.android.messaging", "Samsung Messages", "SMS & Messenger Apps", "SMS App", Icons.Default.Sms)
-        )
+        AppCatalog.allApps.map { app ->
+            val icon = when (app.category) {
+                AppCategory.BANKING -> Icons.Default.AccountBalance
+                AppCategory.SMS_MESSENGER -> Icons.Default.Sms
+                AppCategory.UPI_PAYMENT -> Icons.Default.Payment
+            }
+            MockApp(
+                packageName = app.packageName,
+                name = app.displayName,
+                category = app.category.displayName,
+                subtitle = app.description,
+                icon = icon
+            )
+        }
     }
 
     var appsList by remember { mutableStateOf(initialApps) }
 
     val allAvailableMockApps = remember {
-        listOf(
-            MockApp("in.org.npci.upiapp", "BHIM UPI", "UPI & Payment Apps", "UPI Payments", Icons.Default.Payment),
-            MockApp("com.mobikwik_new", "MobiKwik", "UPI & Payment Apps", "Wallet, UPI, bills", Icons.Default.Payment),
-            MockApp("com.msf.kbank.mobile", "Kotak 811", "Banking Apps", "Banking, UPI", Icons.Default.AccountBalance),
-            MockApp("money.jupiter", "Jupiter", "Banking Apps", "Neobank, UPI", Icons.Default.AccountBalance),
-            MockApp("com.truecaller", "Truecaller", "SMS & Messenger Apps", "Caller ID & SMS", Icons.Default.Sms)
-        )
+        emptyList<MockApp>()
     }
 
     val groupedApps = appsList.groupBy { it.category }
@@ -169,6 +192,8 @@ fun SupportedAppsScreen(
                         apps = appsInCategory,
                         isInitiallyExpanded = categoryName == "UPI & Payment Apps",
                         isEnabled = masterEnabled,
+                        enabledPackages = enabledPackages,
+                        onToggleApp = onToggleApp,
                         onAddAppClick = { showAddAppDialogForCategory = categoryName },
                         onRemoveApp = { pkg ->
                             appsList = appsList.filter { it.packageName != pkg }
@@ -202,6 +227,8 @@ fun MockCategoryAccordion(
     apps: List<MockApp>,
     isInitiallyExpanded: Boolean,
     isEnabled: Boolean = true,
+    enabledPackages: Set<String>,
+    onToggleApp: (String, Boolean) -> Unit,
     onAddAppClick: () -> Unit,
     onRemoveApp: (String) -> Unit
 ) {
@@ -210,7 +237,7 @@ fun MockCategoryAccordion(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (isEnabled) 1f else 0.5f),
+            .alpha(if (isEnabled) 1f else 0.7f),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Color(0xFFF3E5F5))
@@ -219,7 +246,7 @@ fun MockCategoryAccordion(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(enabled = isEnabled) { isExpanded = !isExpanded }
+                    .clickable { isExpanded = !isExpanded }
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -261,9 +288,13 @@ fun MockCategoryAccordion(
                     HorizontalDivider(color = Color(0xFFF5F5F5), thickness = 1.dp)
 
                     apps.forEachIndexed { index, app ->
+                        val isChecked = enabledPackages.contains(app.packageName)
                         MockAppListItem(
                             app = app,
-                            isEnabled = isEnabled,
+                            isAppChecked = isChecked,
+                            onCheckedChange = { checked ->
+                                onToggleApp(app.packageName, checked)
+                            },
                             onRemoveApp = { onRemoveApp(app.packageName) }
                         )
                         if (index < apps.size - 1) {
@@ -279,7 +310,7 @@ fun MockCategoryAccordion(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = isEnabled) { onAddAppClick() }
+                            .clickable { onAddAppClick() }
                             .padding(vertical = 12.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
@@ -303,10 +334,10 @@ fun MockCategoryAccordion(
 @Composable
 fun MockAppListItem(
     app: MockApp,
-    isEnabled: Boolean = true,
+    isAppChecked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
     onRemoveApp: () -> Unit
 ) {
-    var isAppEnabled by remember { mutableStateOf(true) }
     var showMenu by remember { mutableStateOf(false) }
 
     Box {
@@ -314,8 +345,7 @@ fun MockAppListItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .combinedClickable(
-                    enabled = isEnabled,
-                    onClick = { isAppEnabled = !isAppEnabled },
+                    onClick = { onCheckedChange(!isAppChecked) },
                     onLongClick = { showMenu = true }
                 )
                 .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -343,9 +373,8 @@ fun MockAppListItem(
             }
 
             Switch(
-                checked = isAppEnabled,
-                onCheckedChange = { isAppEnabled = it },
-                enabled = isEnabled,
+                checked = isAppChecked,
+                onCheckedChange = onCheckedChange,
                 colors = SwitchDefaults.colors(
                     checkedTrackColor = Color(0xFF673AB7),
                     uncheckedTrackColor = Color(0xFF9E9E9E)

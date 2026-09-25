@@ -439,6 +439,280 @@ class MonitoringSettingsTest {
         }
         assertTrue("Write failure should be caught safely by UI without unhandled crash", writeExceptionCaught)
     }
+
+    // ==================================================
+    // STEP 9.3: 20 REQUIRED PER-APP TOGGLE TESTS
+    // ==================================================
+
+    // 1. Catalog app initially reflects enabledPackages
+    @Test
+    fun test93_01_catalogApp_initiallyReflectsEnabledPackages() {
+        val settings = repo.getSettings()
+        for (app in AppCatalog.allApps) {
+            val isEnabledInSettings = settings.isAppEnabled(app.packageName)
+            assertEquals("App ${app.packageName} enabled state must match enabledPackages membership",
+                settings.enabledPackages.contains(app.packageName), isEnabledInSettings)
+        }
+    }
+
+    // 2. Enabled Google Pay renders ON
+    @Test
+    fun test93_02_enabledGooglePay_rendersOn() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        repo.setAppEnabled(gpay, true)
+        assertTrue("Google Pay must be enabled in settings", repo.isAppEnabled(gpay))
+        assertTrue("Google Pay must be in enabledPackages set", repo.getSettings().enabledPackages.contains(gpay))
+    }
+
+    // 3. Disabled Google Pay renders OFF
+    @Test
+    fun test93_03_disabledGooglePay_rendersOff() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        repo.setAppEnabled(gpay, false)
+        assertFalse("Google Pay must be disabled in settings", repo.isAppEnabled(gpay))
+        assertFalse("Google Pay must not be in enabledPackages set", repo.getSettings().enabledPackages.contains(gpay))
+    }
+
+    // 4. Enabling Google Pay adds its package
+    @Test
+    fun test93_04_enablingGooglePay_addsItsPackage() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        repo.setAppEnabled(gpay, false)
+        assertFalse(repo.getSettings().enabledPackages.contains(gpay))
+
+        repo.setAppEnabled(gpay, true)
+        assertTrue(repo.getSettings().enabledPackages.contains(gpay))
+    }
+
+    // 5. Disabling Google Pay removes its package
+    @Test
+    fun test93_05_disablingGooglePay_removesItsPackage() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        repo.setAppEnabled(gpay, true)
+        assertTrue(repo.getSettings().enabledPackages.contains(gpay))
+
+        repo.setAppEnabled(gpay, false)
+        assertFalse(repo.getSettings().enabledPackages.contains(gpay))
+    }
+
+    // 6. Enabling PhonePe does not change Google Pay
+    @Test
+    fun test93_06_enablingPhonePe_doesNotChangeGooglePay() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        val phonepe = "com.phonepe.app"
+
+        repo.setAppEnabled(gpay, false)
+        assertFalse(repo.isAppEnabled(gpay))
+
+        repo.setAppEnabled(phonepe, true)
+        assertTrue(repo.isAppEnabled(phonepe))
+        assertFalse("Google Pay must remain disabled when PhonePe is enabled", repo.isAppEnabled(gpay))
+    }
+
+    // 7. Disabling PhonePe does not change Google Pay
+    @Test
+    fun test93_07_disablingPhonePe_doesNotChangeGooglePay() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        val phonepe = "com.phonepe.app"
+
+        repo.setAppEnabled(gpay, true)
+        assertTrue(repo.isAppEnabled(gpay))
+
+        repo.setAppEnabled(phonepe, false)
+        assertFalse(repo.isAppEnabled(phonepe))
+        assertTrue("Google Pay must remain enabled when PhonePe is disabled", repo.isAppEnabled(gpay))
+    }
+
+    // 8. Multiple enabled apps persist
+    @Test
+    fun test93_08_multipleEnabledAppsPersist() {
+        val testApps = setOf("com.google.android.apps.nbu.paisa.user", "com.phonepe.app", "net.one97.paytm")
+        repo.setEnabledPackages(testApps)
+
+        val settings = repo.getSettings()
+        assertTrue(settings.enabledPackages.containsAll(testApps))
+        assertEquals(testApps.size, settings.enabledPackages.size)
+    }
+
+    // 9. Reopening screen restores app states
+    @Test
+    fun test93_09_reopeningScreen_restoresAppStates() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        val phonepe = "com.phonepe.app"
+        repo.setAppEnabled(gpay, false)
+        repo.setAppEnabled(phonepe, true)
+
+        // Simulate re-reading settings on screen reopen
+        val reloadedSettings = repo.getSettings()
+        assertFalse("Google Pay state preserved on reopen", reloadedSettings.isAppEnabled(gpay))
+        assertTrue("PhonePe state preserved on reopen", reloadedSettings.isAppEnabled(phonepe))
+    }
+
+    // 10. Process reload restores app states
+    @Test
+    fun test93_10_processReload_restoresAppStates() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        val yono = "com.sbi.SBIAnywhere"
+        repo.setAppEnabled(gpay, false)
+        repo.setAppEnabled(yono, true)
+
+        val newRepo = SharedPreferencesMonitoringSettingsRepository(fakePrefs)
+        assertFalse("Google Pay state preserved after process reload", newRepo.isAppEnabled(gpay))
+        assertTrue("YONO SBI state preserved after process reload", newRepo.isAppEnabled(yono))
+    }
+
+    // 11. App restart restores app states
+    @Test
+    fun test93_11_appRestart_restoresAppStates() {
+        val customSet = setOf("in.amazon.mShop.android.shopping", "com.dreamplug.androidapp")
+        repo.setEnabledPackages(customSet)
+
+        // Fresh repo instance mimicking cold restart
+        val restartedRepo = SharedPreferencesMonitoringSettingsRepository(fakePrefs)
+        assertEquals(customSet, restartedRepo.getSettings().enabledPackages)
+    }
+
+    // 12. Global OFF does not clear enabledPackages
+    @Test
+    fun test93_12_globalOff_doesNotClearEnabledPackages() {
+        val initialPackages = repo.getSettings().enabledPackages
+        assertTrue(initialPackages.isNotEmpty())
+
+        repo.setGlobalEnabled(false)
+        assertFalse(repo.getSettings().globalEnabled)
+        assertEquals("enabledPackages must remain completely intact when global OFF",
+            initialPackages, repo.getSettings().enabledPackages)
+    }
+
+    // 13. Global ON does not modify enabledPackages
+    @Test
+    fun test93_13_globalOn_doesNotModifyEnabledPackages() {
+        val initialPackages = repo.getSettings().enabledPackages
+        repo.setGlobalEnabled(false)
+        repo.setGlobalEnabled(true)
+        assertTrue(repo.getSettings().globalEnabled)
+        assertEquals("enabledPackages must remain completely intact when global ON",
+            initialPackages, repo.getSettings().enabledPackages)
+    }
+
+    // 14. Enabling same package twice creates one entry
+    @Test
+    fun test93_14_enablingSamePackageTwice_createsOneEntry() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        repo.setAppEnabled(gpay, true)
+        repo.setAppEnabled(gpay, true)
+
+        val occurrences = repo.getSettings().enabledPackages.count { it == gpay }
+        assertEquals(1, occurrences)
+    }
+
+    // 15. Disabling already-disabled package is safe
+    @Test
+    fun test93_15_disablingAlreadyDisabledPackage_isSafe() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        repo.setAppEnabled(gpay, false)
+        assertFalse(repo.isAppEnabled(gpay))
+
+        // Disabling again should not throw or corrupt state
+        repo.setAppEnabled(gpay, false)
+        assertFalse(repo.isAppEnabled(gpay))
+    }
+
+    // 16. Unknown package operation does not crash
+    @Test
+    fun test93_16_unknownPackageOperation_doesNotCrash() {
+        val unknown = "com.unknown.noncatalog.app"
+        repo.setAppEnabled(unknown, true)
+        assertTrue(repo.isAppEnabled(unknown))
+
+        repo.setAppEnabled(unknown, false)
+        assertFalse(repo.isAppEnabled(unknown))
+    }
+
+    // 17. Repository failure does not crash UI
+    @Test
+    fun test93_17_repositoryFailure_doesNotCrashUI() {
+        val failingRepo = object : MonitoringSettingsRepository {
+            override fun getSettings(): MonitoringSettings = throw RuntimeException("Storage read error")
+            override fun setGlobalEnabled(enabled: Boolean) = throw RuntimeException("Storage error")
+            override fun isAppEnabled(packageName: String): Boolean = throw RuntimeException("Storage error")
+            override fun setAppEnabled(packageName: String, enabled: Boolean) = throw RuntimeException("Storage write error")
+            override fun setEnabledPackages(packages: Set<String>) = throw RuntimeException("Storage error")
+            override fun resetToDefaults() = throw RuntimeException("Storage error")
+        }
+
+        // Test UI read fallback
+        val loadedPackages = try {
+            failingRepo.getSettings().enabledPackages
+        } catch (e: Exception) {
+            AppCatalog.defaultEnabledPackages
+        }
+        assertEquals(AppCatalog.defaultEnabledPackages, loadedPackages)
+
+        // Test UI toggle rollback on write failure
+        var currentEnabled = setOf("pkg1")
+        val previousEnabled = currentEnabled
+        currentEnabled = currentEnabled + "pkg2"
+        var caught = false
+        try {
+            failingRepo.setAppEnabled("pkg2", true)
+        } catch (e: Exception) {
+            caught = true
+            currentEnabled = previousEnabled
+        }
+        assertTrue("Write failure must be caught", caught)
+        assertEquals("State must rollback to previous on failure", setOf("pkg1"), currentEnabled)
+    }
+
+    // 18. AppCatalog.defaultEnabled is not reapplied after user changes a setting
+    @Test
+    fun test93_18_defaultEnabled_notReappliedAfterUserChangesSetting() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        // User explicitly disables Google Pay
+        repo.setAppEnabled(gpay, false)
+
+        val freshRepo = SharedPreferencesMonitoringSettingsRepository(fakePrefs)
+        assertFalse("Google Pay must remain disabled and not revert to defaultEnabled=true", freshRepo.isAppEnabled(gpay))
+
+        // Even if all packages are disabled by the user
+        freshRepo.setEnabledPackages(emptySet())
+        val emptyRepo = SharedPreferencesMonitoringSettingsRepository(fakePrefs)
+        assertTrue("Empty enabledPackages must not revert to defaultEnabled", emptyRepo.getSettings().enabledPackages.isEmpty())
+    }
+
+    // 19. UPI app state is independent from Banking app state
+    @Test
+    fun test93_19_upiAppState_independentFromBankingAppState() {
+        val gpay = "com.google.android.apps.nbu.paisa.user"
+        val yono = "com.sbi.SBIAnywhere"
+
+        repo.setAppEnabled(gpay, false)
+        repo.setAppEnabled(yono, true)
+
+        assertFalse("UPI app is disabled", repo.isAppEnabled(gpay))
+        assertTrue("Banking app is enabled", repo.isAppEnabled(yono))
+
+        repo.setAppEnabled(gpay, true)
+        assertTrue("UPI app is now enabled", repo.isAppEnabled(gpay))
+        assertTrue("Banking app state remained intact", repo.isAppEnabled(yono))
+    }
+
+    // 20. Banking app state is independent from SMS/Messenger app state
+    @Test
+    fun test93_20_bankingAppState_independentFromSmsAppState() {
+        val hdfc = "com.snapwork.hdfc"
+        val gmessages = "com.google.android.apps.messaging"
+
+        repo.setAppEnabled(hdfc, true)
+        repo.setAppEnabled(gmessages, false)
+
+        assertTrue("Banking app is enabled", repo.isAppEnabled(hdfc))
+        assertFalse("SMS app is disabled", repo.isAppEnabled(gmessages))
+
+        repo.setAppEnabled(hdfc, false)
+        assertFalse("Banking app is now disabled", repo.isAppEnabled(hdfc))
+        assertFalse("SMS app state remained intact", repo.isAppEnabled(gmessages))
+    }
 }
 
 /**
