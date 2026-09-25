@@ -60,6 +60,7 @@ class DefaultInstalledAppsProvider(private val context: Context) : InstalledApps
 
             for (resolveInfo in resolveInfos) {
                 val pkg = resolveInfo.activityInfo?.packageName ?: continue
+                if (pkg.equals(context.packageName, ignoreCase = true)) continue
                 if (result.containsKey(pkg)) continue
 
                 val label = try {

@@ -284,7 +284,7 @@ fun ExpenseScreen() {
                 "EditRegexPattern" -> if (editingRegexRuleId == null) "Add Pattern" else "Edit Pattern"
                 "Transactions" -> "ArcTracker"
                 "Settings" -> "Settings"
-                "SupportedApps" -> "Supported Apps"
+                "SupportedApps" -> "Monitored Apps"
                 else -> "ArcTracker"
             }
 
@@ -292,7 +292,7 @@ fun ExpenseScreen() {
                 "Home" -> "Overview of your finances"
                 "Transactions" -> "All transactions, at a glance"
                 "Settings" -> "Configure your app"
-                "SupportedApps" -> "Manage monitored apps"
+                "SupportedApps" -> "Choose which apps can be monitored"
                 "IgnoreRules" -> "Keywords, senders or patterns to ignore"
                 "DeveloperOptions" -> "Advanced tools for debugging and customization."
                 "RegexPatterns" -> "Define how amounts, names and transaction details are extracted."

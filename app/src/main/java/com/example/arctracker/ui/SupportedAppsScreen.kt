@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.*
@@ -133,6 +134,16 @@ fun SupportedAppsScreen(
         )
     }
 
+    var isNotificationTrackingEnabled by remember {
+        mutableStateOf(
+            try {
+                settingsRepo.isNotificationTrackingEnabled()
+            } catch (e: Exception) {
+                true
+            }
+        )
+    }
+
     var configuredApps by remember {
         mutableStateOf(
             try {
@@ -152,6 +163,7 @@ fun SupportedAppsScreen(
         try {
             val settings = settingsRepo.getSettings()
             masterEnabled = settings.globalEnabled
+            isNotificationTrackingEnabled = settingsRepo.isNotificationTrackingEnabled()
             enabledPackages = settings.enabledPackages
             configuredApps = settingsRepo.getAllConfiguredApps()
             val freshInstalled = appsProvider.getInstalledApps()
@@ -204,6 +216,9 @@ fun SupportedAppsScreen(
     // State for Edit App dialog
     var appToEdit by remember { mutableStateOf<SupportedApp?>(null) }
 
+    // State for Remove App confirmation dialog
+    var appToRemove by remember { mutableStateOf<SupportedApp?>(null) }
+
     // Authoritative category order: UPI & Payment Apps, Banking Apps, SMS & Messenger Apps
     val orderedCategories = remember {
         listOf(
@@ -238,14 +253,17 @@ fun SupportedAppsScreen(
         activeSupportedApps.groupBy { it.category }
     }
 
-    // Addable Apps: Currently installed apps that are not yet configured as Supported Apps
+    // Addable Apps: Currently installed apps that are not yet configured as Supported Apps (excluding ArcTracker)
     val configuredPackageSet = remember(configuredApps) {
         configuredApps.map { it.packageName.lowercase() }.toSet()
     }
 
-    val addableApps = remember(installedApps, configuredPackageSet) {
-        installedApps.filter { !configuredPackageSet.contains(it.packageName.lowercase()) }
-            .distinctBy { it.packageName.lowercase() }
+    val currentPackageName = context.packageName.lowercase()
+    val addableApps = remember(installedApps, configuredPackageSet, currentPackageName) {
+        installedApps.filter {
+            val lower = it.packageName.lowercase()
+            lower != currentPackageName && !configuredPackageSet.contains(lower)
+        }.distinctBy { it.packageName.lowercase() }
     }
 
     fun confirmAdd(app: InstalledAppInfo, category: AppCategory) {
@@ -295,6 +313,19 @@ fun SupportedAppsScreen(
         }
 
         appToEdit = null
+        refreshState()
+    }
+
+    fun confirmRemove(app: SupportedApp) {
+        try {
+            val success = settingsRepo.removeUserApp(app.packageName)
+            if (!success) {
+                android.util.Log.e("SupportedAppsScreen", "Failed to remove user app ${app.packageName}")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SupportedAppsScreen", "Error removing user app ${app.packageName}", e)
+        }
+        appToRemove = null
         refreshState()
     }
 
@@ -371,7 +402,7 @@ fun SupportedAppsScreen(
                         apps = appsInCategory,
                         installedInfoMap = installedInfoMap,
                         isInitiallyExpanded = (category == AppCategory.UPI_PAYMENT),
-                        isEnabled = masterEnabled,
+                        isEnabled = masterEnabled && isNotificationTrackingEnabled,
                         enabledPackages = enabledPackages,
                         onToggleApp = onToggleApp,
                         onAddAppClick = {
@@ -379,6 +410,9 @@ fun SupportedAppsScreen(
                         },
                         onEditAppClick = { app ->
                             appToEdit = app
+                        },
+                        onRemoveAppClick = { app ->
+                            appToRemove = app
                         }
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -408,6 +442,46 @@ fun SupportedAppsScreen(
                 onConfirm = { newCategory ->
                     confirmEdit(targetApp, newCategory)
                 }
+            )
+        }
+
+        // Remove User-Added App Confirmation Dialog
+        if (appToRemove != null) {
+            val targetApp = appToRemove!!
+            AlertDialog(
+                onDismissRequest = { appToRemove = null },
+                title = {
+                    Text(
+                        text = "Remove ${targetApp.displayName}?",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = Color(0xFF1E1E1E)
+                    )
+                },
+                text = {
+                    Text(
+                        text = "This will remove the app from your Supported Apps configuration.\n\nThe app will not be monitored until you add it again.",
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        color = Color(0xFF49454F)
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { confirmRemove(targetApp) }
+                    ) {
+                        Text("Remove", color = Color(0xFFBA1A1A), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { appToRemove = null }
+                    ) {
+                        Text("Cancel", color = Color(0xFF673AB7))
+                    }
+                },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(16.dp)
             )
         }
     }
@@ -635,7 +709,8 @@ fun CategoryAccordion(
     enabledPackages: Set<String>,
     onToggleApp: (String, Boolean) -> Unit,
     onAddAppClick: () -> Unit = {},
-    onEditAppClick: (SupportedApp) -> Unit = {}
+    onEditAppClick: (SupportedApp) -> Unit = {},
+    onRemoveAppClick: (SupportedApp) -> Unit = {}
 ) {
     var isExpanded by remember { mutableStateOf(isInitiallyExpanded) }
 
@@ -705,11 +780,15 @@ fun CategoryAccordion(
                                 icon = appIcon,
                                 isUserAdded = isUserAdded,
                                 isAppChecked = isChecked,
+                                isRowEnabled = isEnabled,
                                 onCheckedChange = { checked ->
                                     onToggleApp(app.packageName, checked)
                                 },
                                 onEditClick = if (isUserAdded) {
                                     { onEditAppClick(app) }
+                                } else null,
+                                onRemoveClick = if (isUserAdded) {
+                                    { onRemoveAppClick(app) }
                                 } else null
                             )
                             if (index < apps.size - 1) {
@@ -726,7 +805,7 @@ fun CategoryAccordion(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onAddAppClick() }
+                            .clickable(enabled = isEnabled) { onAddAppClick() }
                             .padding(vertical = 12.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
@@ -734,11 +813,16 @@ fun CategoryAccordion(
                         Icon(
                             imageVector = Icons.Filled.Add,
                             contentDescription = "Add App",
-                            tint = Color(0xFF673AB7),
+                            tint = if (isEnabled) Color(0xFF673AB7) else Color(0xFF9E9E9E),
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("+ Add App", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF673AB7))
+                        Text(
+                            "+ Add App",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = if (isEnabled) Color(0xFF673AB7) else Color(0xFF9E9E9E)
+                        )
                     }
                 }
             }
@@ -752,13 +836,15 @@ fun SupportedAppListItem(
     icon: Any? = null,
     isUserAdded: Boolean = false,
     isAppChecked: Boolean = true,
+    isRowEnabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit = {},
-    onEditClick: (() -> Unit)? = null
+    onEditClick: (() -> Unit)? = null,
+    onRemoveClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!isAppChecked) }
+            .clickable(enabled = isRowEnabled) { onCheckedChange(!isAppChecked) }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -798,17 +884,34 @@ fun SupportedAppListItem(
             )
         }
 
-        if (isUserAdded && onEditClick != null) {
-            IconButton(
-                onClick = onEditClick,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit ${app.displayName}",
-                    tint = Color(0xFF757575),
-                    modifier = Modifier.size(18.dp)
-                )
+        if (isUserAdded) {
+            if (onEditClick != null) {
+                IconButton(
+                    onClick = onEditClick,
+                    enabled = isRowEnabled,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit ${app.displayName}",
+                        tint = if (isRowEnabled) Color(0xFF757575) else Color(0xFFBDBDBD),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            if (onRemoveClick != null) {
+                IconButton(
+                    onClick = onRemoveClick,
+                    enabled = isRowEnabled,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = "Remove ${app.displayName}",
+                        tint = if (isRowEnabled) Color(0xFFBA1A1A) else Color(0xFFE57373),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(4.dp))
         } else {
@@ -817,7 +920,8 @@ fun SupportedAppListItem(
 
         Switch(
             checked = isAppChecked,
-            onCheckedChange = onCheckedChange,
+            onCheckedChange = if (isRowEnabled) onCheckedChange else null,
+            enabled = isRowEnabled,
             colors = SwitchDefaults.colors(
                 checkedTrackColor = Color(0xFF673AB7),
                 uncheckedTrackColor = Color(0xFF9E9E9E)

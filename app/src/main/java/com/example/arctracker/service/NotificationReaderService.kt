@@ -390,6 +390,12 @@ class NotificationReaderService : NotificationListenerService() {
             return false
         }
 
+        // App Notifications source check - MUST return before content extraction
+        if (!settings.isNotificationTrackingEnabled) {
+            Log.d(TAG, "Notification ignored: notification tracking is disabled")
+            return false
+        }
+
         // Step 4: Package monitoring check - MUST return before content extraction
         if (!settings.isAppEnabled(packageName)) {
             Log.d(TAG, "Notification ignored: package is not enabled for monitoring")

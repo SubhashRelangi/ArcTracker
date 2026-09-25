@@ -55,7 +55,7 @@ interface MonitoringSettingsRepository {
      * Retrieves all user-added applications configured in settings.
      * Guaranteed deterministic deduplication by package name.
      */
-    fun getUserAddedApps(): List<SupportedApp>
+    fun getUserAddedApps(): List<SupportedApp> = emptyList()
 
     /**
      * Adds and persists a user-defined application.
@@ -64,7 +64,7 @@ interface MonitoringSettingsRepository {
      *
      * @return true if added successfully, false if duplicate or invalid.
      */
-    fun addUserApp(app: SupportedApp): Boolean
+    fun addUserApp(app: SupportedApp): Boolean = false
 
     /**
      * Updates an existing user-added application definition (e.g. changing its category).
@@ -74,13 +74,24 @@ interface MonitoringSettingsRepository {
      *
      * @return true if updated successfully, false if app not found or built-in.
      */
-    fun updateUserApp(app: SupportedApp): Boolean
+    fun updateUserApp(app: SupportedApp): Boolean = false
+
+    /**
+     * Removes an existing user-added application from ArcTracker's configuration.
+     * Built-in AppCatalog applications cannot be removed.
+     * Removes all user-added definitions matching [packageName] (case-insensitive).
+     * Removes [packageName] from enabledPackages set.
+     * Preserves globalEnabled and all other applications.
+     *
+     * @return true if successfully removed and persisted, false if package is blank, built-in, or not found.
+     */
+    fun removeUserApp(packageName: String): Boolean = false
 
     /**
      * Returns all configured apps (built-in catalog + persisted user-added apps).
      * Guaranteed no duplicates by package name.
      */
-    fun getAllConfiguredApps(): List<SupportedApp>
+    fun getAllConfiguredApps(): List<SupportedApp> = getCatalog()
 
     /**
      * Reconciles monitoring activity by verifying that global monitoring is ON,
@@ -97,12 +108,34 @@ interface MonitoringSettingsRepository {
         return getSettings().enabledPackages.intersect(installedPackages)
     }
 
+    /**
+     * Returns whether notification tracking is enabled.
+     */
+    fun isNotificationTrackingEnabled(): Boolean = getSettings().isNotificationTrackingEnabled
+
+    /**
+     * Sets whether notification tracking is enabled.
+     */
+    fun setNotificationTrackingEnabled(enabled: Boolean) {}
+
+    /**
+     * Returns whether SMS tracking is enabled.
+     */
+    fun isSmsTrackingEnabled(): Boolean = true
+
+    /**
+     * Sets whether SMS tracking is enabled.
+     */
+    fun setSmsTrackingEnabled(enabled: Boolean) {}
+
     companion object {
         const val PREFS_NAME = "ArcTrackerPrefs"
         const val KEY_GLOBAL_ENABLED = "monitoring_global_enabled"
         const val KEY_ENABLED_PACKAGES = "monitored_packages"
         const val KEY_USER_ADDED_APPS = "user_added_apps"
         const val LEGACY_KEY_AUTO_TRACKING = "isAutoTrackingEnabled"
+        const val KEY_NOTIFICATION_TRACKING_ENABLED = "isNotificationTrackingEnabled"
+        const val KEY_SMS_TRACKING_ENABLED = "isSmsTrackingEnabled"
 
         @Volatile
         private var INSTANCE: MonitoringSettingsRepository? = null
@@ -131,9 +164,16 @@ interface MonitoringSettingsRepository {
          */
         fun createInMemory(
             initialGlobalEnabled: Boolean = true,
-            initialEnabledPackages: Set<String> = AppCatalog.defaultEnabledPackages
+            initialEnabledPackages: Set<String> = AppCatalog.defaultEnabledPackages,
+            initialNotificationTrackingEnabled: Boolean = true,
+            initialSmsTrackingEnabled: Boolean = true
         ): MonitoringSettingsRepository {
-            return InMemoryMonitoringSettingsRepository(initialGlobalEnabled, initialEnabledPackages)
+            return InMemoryMonitoringSettingsRepository(
+                initialGlobalEnabled,
+                initialEnabledPackages,
+                initialNotificationTrackingEnabled,
+                initialSmsTrackingEnabled
+            )
         }
     }
 }
@@ -210,10 +250,36 @@ class SharedPreferencesMonitoringSettingsRepository(
             AppCatalog.defaultEnabledPackages
         }
 
+        val isNotificationTrackingEnabled = prefs.getBoolean(
+            MonitoringSettingsRepository.KEY_NOTIFICATION_TRACKING_ENABLED,
+            true
+        )
+
         MonitoringSettings(
             globalEnabled = globalEnabled,
-            enabledPackages = enabledPackages.toSet()
+            enabledPackages = enabledPackages.toSet(),
+            isNotificationTrackingEnabled = isNotificationTrackingEnabled
         )
+    }
+
+    override fun isNotificationTrackingEnabled(): Boolean = synchronized(lock) {
+        prefs.getBoolean(MonitoringSettingsRepository.KEY_NOTIFICATION_TRACKING_ENABLED, true)
+    }
+
+    override fun setNotificationTrackingEnabled(enabled: Boolean): Unit = synchronized(lock) {
+        prefs.edit()
+            .putBoolean(MonitoringSettingsRepository.KEY_NOTIFICATION_TRACKING_ENABLED, enabled)
+            .apply()
+    }
+
+    override fun isSmsTrackingEnabled(): Boolean = synchronized(lock) {
+        prefs.getBoolean(MonitoringSettingsRepository.KEY_SMS_TRACKING_ENABLED, true)
+    }
+
+    override fun setSmsTrackingEnabled(enabled: Boolean): Unit = synchronized(lock) {
+        prefs.edit()
+            .putBoolean(MonitoringSettingsRepository.KEY_SMS_TRACKING_ENABLED, enabled)
+            .apply()
     }
 
     override fun setGlobalEnabled(enabled: Boolean): Unit = synchronized(lock) {
@@ -309,6 +375,36 @@ class SharedPreferencesMonitoringSettingsRepository(
         return true
     }
 
+    override fun removeUserApp(packageName: String): Boolean = synchronized(lock) {
+        if (packageName.isBlank()) return false
+        // Built-in catalog apps must NOT be removed
+        if (AppCatalog.containsPackage(packageName)) return false
+
+        val rawSet = prefs.getStringSet(MonitoringSettingsRepository.KEY_USER_ADDED_APPS, emptySet()) ?: emptySet()
+        val allUserApps = rawSet.mapNotNull { SupportedAppSerializer.deserialize(it) }
+        val matchingApps = allUserApps.filter { it.packageName.equals(packageName, ignoreCase = true) }
+        if (matchingApps.isEmpty()) {
+            return false
+        }
+
+        // Filter out all instances of this package (handles duplicate/corrupt data safety)
+        val remainingUserApps = allUserApps.filterNot { it.packageName.equals(packageName, ignoreCase = true) }
+        val serializedSet = remainingUserApps.map { SupportedAppSerializer.serialize(it) }.toSet()
+
+        // Clean up from enabledPackages (remove all case-insensitive matches)
+        val currentPackages = getSettings().enabledPackages.toMutableSet()
+        currentPackages.removeAll { it.equals(packageName, ignoreCase = true) }
+
+        return try {
+            prefs.edit()
+                .putStringSet(MonitoringSettingsRepository.KEY_USER_ADDED_APPS, serializedSet)
+                .putStringSet(MonitoringSettingsRepository.KEY_ENABLED_PACKAGES, currentPackages)
+                .commit()
+        } catch (e: Throwable) {
+            false
+        }
+    }
+
     override fun getAllConfiguredApps(): List<SupportedApp> = synchronized(lock) {
         val builtIn = AppCatalog.allApps
         val seen = mutableSetOf<String>()
@@ -333,6 +429,8 @@ class SharedPreferencesMonitoringSettingsRepository(
         prefs.edit()
             .putBoolean(MonitoringSettingsRepository.KEY_GLOBAL_ENABLED, true)
             .putBoolean(MonitoringSettingsRepository.LEGACY_KEY_AUTO_TRACKING, true)
+            .putBoolean(MonitoringSettingsRepository.KEY_NOTIFICATION_TRACKING_ENABLED, true)
+            .putBoolean(MonitoringSettingsRepository.KEY_SMS_TRACKING_ENABLED, true)
             .putStringSet(MonitoringSettingsRepository.KEY_ENABLED_PACKAGES, AppCatalog.defaultEnabledPackages)
             .remove(MonitoringSettingsRepository.KEY_USER_ADDED_APPS)
             .apply()
@@ -344,19 +442,40 @@ class SharedPreferencesMonitoringSettingsRepository(
  */
 class InMemoryMonitoringSettingsRepository(
     initialGlobalEnabled: Boolean = true,
-    initialEnabledPackages: Set<String> = AppCatalog.defaultEnabledPackages
+    initialEnabledPackages: Set<String> = AppCatalog.defaultEnabledPackages,
+    initialNotificationTrackingEnabled: Boolean = true,
+    initialSmsTrackingEnabled: Boolean = true
 ) : MonitoringSettingsRepository {
 
     private val lock = Any()
     private var globalEnabled: Boolean = initialGlobalEnabled
+    private var isNotificationTracking: Boolean = initialNotificationTrackingEnabled
+    private var isSmsTracking: Boolean = initialSmsTrackingEnabled
     private val enabledPackages: MutableSet<String> = initialEnabledPackages.toMutableSet()
     private val userAddedApps: MutableList<SupportedApp> = mutableListOf()
 
     override fun getSettings(): MonitoringSettings = synchronized(lock) {
         MonitoringSettings(
             globalEnabled = globalEnabled,
-            enabledPackages = enabledPackages.toSet()
+            enabledPackages = enabledPackages.toSet(),
+            isNotificationTrackingEnabled = isNotificationTracking
         )
+    }
+
+    override fun isNotificationTrackingEnabled(): Boolean = synchronized(lock) {
+        isNotificationTracking
+    }
+
+    override fun setNotificationTrackingEnabled(enabled: Boolean): Unit = synchronized(lock) {
+        isNotificationTracking = enabled
+    }
+
+    override fun isSmsTrackingEnabled(): Boolean = synchronized(lock) {
+        isSmsTracking
+    }
+
+    override fun setSmsTrackingEnabled(enabled: Boolean): Unit = synchronized(lock) {
+        isSmsTracking = enabled
     }
 
     override fun setGlobalEnabled(enabled: Boolean): Unit = synchronized(lock) {
@@ -408,6 +527,18 @@ class InMemoryMonitoringSettingsRepository(
         return true
     }
 
+    override fun removeUserApp(packageName: String): Boolean = synchronized(lock) {
+        if (packageName.isBlank()) return false
+        if (AppCatalog.containsPackage(packageName)) return false
+
+        val matching = userAddedApps.filter { it.packageName.equals(packageName, ignoreCase = true) }
+        if (matching.isEmpty()) return false
+
+        userAddedApps.removeAll { it.packageName.equals(packageName, ignoreCase = true) }
+        enabledPackages.removeAll { it.equals(packageName, ignoreCase = true) }
+        return true
+    }
+
     override fun getAllConfiguredApps(): List<SupportedApp> = synchronized(lock) {
         val builtIn = AppCatalog.allApps
         val seen = mutableSetOf<String>()
@@ -428,6 +559,8 @@ class InMemoryMonitoringSettingsRepository(
 
     override fun resetToDefaults(): Unit = synchronized(lock) {
         globalEnabled = true
+        isNotificationTracking = true
+        isSmsTracking = true
         enabledPackages.clear()
         enabledPackages.addAll(AppCatalog.defaultEnabledPackages)
         userAddedApps.clear()

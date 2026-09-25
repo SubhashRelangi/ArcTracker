@@ -8,7 +8,8 @@ package com.example.arctracker.settings
  */
 data class MonitoringSettings(
     val globalEnabled: Boolean = true,
-    val enabledPackages: Set<String> = emptySet()
+    val enabledPackages: Set<String> = emptySet(),
+    val isNotificationTrackingEnabled: Boolean = true
 ) {
     /**
      * Returns true if the given package is enabled in the selected package set.
@@ -18,9 +19,9 @@ data class MonitoringSettings(
     }
 
     /**
-     * Returns true if both the global master switch and the package-specific switch are enabled.
+     * Returns true if the global master switch, notification source switch, and the package-specific switch are enabled.
      */
     fun isMonitoringActive(packageName: String): Boolean {
-        return globalEnabled && isAppEnabled(packageName)
+        return globalEnabled && isNotificationTrackingEnabled && isAppEnabled(packageName)
     }
 }
