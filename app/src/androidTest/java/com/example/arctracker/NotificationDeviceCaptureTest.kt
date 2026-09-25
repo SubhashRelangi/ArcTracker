@@ -299,4 +299,62 @@ class NotificationDeviceCaptureTest {
         assertNotNull(bal)
         assertEquals(9500.0, bal?.amount)
     }
+
+    // 7. Device test: End-to-end Capture -> Normalization -> Classification -> Extraction -> Validation Pipeline (Step 6)
+    @Test
+    fun testDevice_endToEndValidationPipeline() {
+        val bigTextStyle = Notification.BigTextStyle()
+            .setBigContentTitle("Payment successful")
+            .bigText("₹500 paid to Ravi. UPI Ref: 123456789012. Avl Bal: ₹9,500")
+
+        val notification = createNotificationBuilder()
+            .setContentTitle("Payment successful")
+            .setContentText("₹500 paid to Ravi")
+            .setStyle(bigTextStyle)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .build()
+
+        // 1. Capture
+        val title = NotificationReaderService.extractTextField(notification.extras, Notification.EXTRA_TITLE)
+        val text = NotificationReaderService.extractTextField(notification.extras, Notification.EXTRA_TEXT)
+        val bigText = NotificationReaderService.extractTextField(notification.extras, Notification.EXTRA_BIG_TEXT)
+
+        val captured = service.recordCapturedNotification(
+            packageName = "com.google.android.apps.nbu.paisa.user",
+            notificationKey = "device_key_step6_pipeline",
+            postTime = System.currentTimeMillis(),
+            title = title,
+            text = text,
+            bigText = bigText
+        )
+        assertNotNull(captured)
+
+        // 2. Normalization
+        val normalized = com.example.arctracker.service.NotificationNormalizer.normalize(captured)
+        assertNotNull(normalized)
+
+        // 3. Financial Classification
+        val classification = com.example.arctracker.service.FinancialClassifier.classify(normalized!!)
+        assertEquals(com.example.arctracker.service.FinancialRelevance.FINANCIAL, classification.financialRelevance)
+
+        // 4. Structured Extraction
+        val candidate = com.example.arctracker.service.StructuredTransactionExtractor.extract(classification)
+        assertNotNull(candidate)
+
+        // 5. Validation + Confidence (Step 6)
+        val validationResult = com.example.arctracker.service.TransactionValidator.validate(candidate!!, classification)
+
+        assertEquals(com.example.arctracker.service.ValidationState.ACCEPTABLE, validationResult.validationState)
+        assertEquals(com.example.arctracker.service.EvidenceLevel.VERY_STRONG, validationResult.evidenceLevel)
+        assertTrue(validationResult.isStructurallyValid)
+        assertTrue(validationResult.isAcceptable)
+        assertFalse(validationResult.isRejected)
+        assertFalse(validationResult.needsReview)
+
+        // Verify explainable evidence reasons
+        assertTrue(validationResult.validationReasons.isNotEmpty())
+        assertTrue(validationResult.supportingSignals.contains("VALID_POSITIVE_AMOUNT"))
+        assertTrue(validationResult.supportingSignals.contains("DIRECTION_DEBIT"))
+        assertTrue(validationResult.supportingSignals.contains("VALID_MERCHANT_NAME"))
+    }
 }
