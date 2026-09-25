@@ -100,6 +100,7 @@ fun SupportedAppsScreen(
     var installedApps by remember {
         mutableStateOf<List<InstalledAppInfo>>(emptyList())
     }
+    var hasLoadedInstalledApps by remember { mutableStateOf(false) }
 
     fun refreshState() {
         try {
@@ -107,9 +108,11 @@ fun SupportedAppsScreen(
             masterEnabled = settings.globalEnabled
             enabledPackages = settings.enabledPackages
             configuredApps = settingsRepo.getAllConfiguredApps()
-            installedApps = appsProvider.getInstalledApps()
+            val freshInstalled = appsProvider.getInstalledApps()
+            installedApps = freshInstalled
+            hasLoadedInstalledApps = true
         } catch (e: Exception) {
-            android.util.Log.e("SupportedAppsScreen", "Error refreshing monitoring state", e)
+            android.util.Log.e("SupportedAppsScreen", "Error refreshing monitoring state; preserving previous state", e)
         }
     }
 
@@ -163,18 +166,25 @@ fun SupportedAppsScreen(
         )
     }
 
-    // Active Supported Apps: Configured apps that are currently installed on this device
-    val installedPackageSet = remember(installedApps) {
-        installedApps.map { it.packageName }.toSet()
+    // Installed packages map: packageName (lowercase) -> InstalledAppInfo
+    val installedInfoMap = remember(installedApps) {
+        installedApps.associateBy { it.packageName.lowercase() }
     }
 
-    val activeSupportedApps = remember(configuredApps, installedPackageSet) {
-        // If installedApps is populated, strictly filter to installed packages.
-        // If provider returned empty (e.g. preview or unpopulated test), fall back safely to configured apps.
-        if (installedPackageSet.isNotEmpty()) {
-            configuredApps.filter { installedPackageSet.contains(it.packageName) }
+    // Active Supported Apps: Configured apps that are currently installed on this device
+    val activeSupportedApps = remember(configuredApps, installedInfoMap, hasLoadedInstalledApps) {
+        if (hasLoadedInstalledApps) {
+            val seen = mutableSetOf<String>()
+            configuredApps.mapNotNull { configuredApp ->
+                val lowerPkg = configuredApp.packageName.lowercase()
+                val installedInfo = installedInfoMap[lowerPkg] ?: return@mapNotNull null
+                if (!seen.add(lowerPkg)) return@mapNotNull null
+                // Update display metadata from PackageManager if available, strictly preserving category
+                val freshName = installedInfo.displayName.takeIf { it.isNotBlank() } ?: configuredApp.displayName
+                configuredApp.copy(displayName = freshName)
+            }
         } else {
-            configuredApps
+            configuredApps.distinctBy { it.packageName.lowercase() }
         }
     }
 
@@ -184,11 +194,12 @@ fun SupportedAppsScreen(
 
     // Addable Apps: Currently installed apps that are not yet configured as Supported Apps
     val configuredPackageSet = remember(configuredApps) {
-        configuredApps.map { it.packageName }.toSet()
+        configuredApps.map { it.packageName.lowercase() }.toSet()
     }
 
     val addableApps = remember(installedApps, configuredPackageSet) {
-        installedApps.filter { !configuredPackageSet.contains(it.packageName) }
+        installedApps.filter { !configuredPackageSet.contains(it.packageName.lowercase()) }
+            .distinctBy { it.packageName.lowercase() }
     }
 
     fun confirmAdd(app: InstalledAppInfo, category: AppCategory) {

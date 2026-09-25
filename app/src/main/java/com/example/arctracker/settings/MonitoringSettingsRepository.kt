@@ -2,6 +2,7 @@ package com.example.arctracker.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 
 /**
  * Authoritative repository interface for managing ArcTracker's monitoring settings.
@@ -52,6 +53,7 @@ interface MonitoringSettingsRepository {
 
     /**
      * Retrieves all user-added applications configured in settings.
+     * Guaranteed deterministic deduplication by package name.
      */
     fun getUserAddedApps(): List<SupportedApp>
 
@@ -69,6 +71,21 @@ interface MonitoringSettingsRepository {
      * Guaranteed no duplicates by package name.
      */
     fun getAllConfiguredApps(): List<SupportedApp>
+
+    /**
+     * Reconciles monitoring activity by verifying that global monitoring is ON,
+     * the package switch is ON, and the package is physically installed on the device.
+     */
+    fun isPackageEffectivelyMonitored(packageName: String, isInstalled: Boolean): Boolean {
+        return isMonitoringActive(packageName) && isInstalled
+    }
+
+    /**
+     * Returns the set of packages that are both enabled for monitoring and currently installed.
+     */
+    fun getEffectiveMonitoredPackages(installedPackages: Set<String>): Set<String> {
+        return getSettings().enabledPackages.intersect(installedPackages)
+    }
 
     companion object {
         const val PREFS_NAME = "ArcTrackerPrefs"
@@ -216,7 +233,20 @@ class SharedPreferencesMonitoringSettingsRepository(
 
     override fun getUserAddedApps(): List<SupportedApp> = synchronized(lock) {
         val rawSet = prefs.getStringSet(MonitoringSettingsRepository.KEY_USER_ADDED_APPS, emptySet()) ?: emptySet()
-        rawSet.mapNotNull { SupportedAppSerializer.deserialize(it) }
+        val list = rawSet.mapNotNull { SupportedAppSerializer.deserialize(it) }
+        val seen = mutableSetOf<String>()
+        val deduplicated = mutableListOf<SupportedApp>()
+        for (app in list) {
+            val lowerPkg = app.packageName.lowercase()
+            if (seen.add(lowerPkg)) {
+                deduplicated.add(app)
+            } else {
+                try {
+                    Log.w("MonitoringSettingsRepo", "Duplicate user-added app found for ${app.packageName}; ignoring duplicate")
+                } catch (e: Throwable) {}
+            }
+        }
+        deduplicated
     }
 
     override fun addUserApp(app: SupportedApp): Boolean = synchronized(lock) {
@@ -250,10 +280,22 @@ class SharedPreferencesMonitoringSettingsRepository(
 
     override fun getAllConfiguredApps(): List<SupportedApp> = synchronized(lock) {
         val builtIn = AppCatalog.allApps
-        val userAdded = getUserAddedApps().filter { userApp ->
-            builtIn.none { it.packageName.equals(userApp.packageName, ignoreCase = true) }
+        val seen = mutableSetOf<String>()
+        val result = mutableListOf<SupportedApp>()
+
+        // Built-in catalog definitions take precedence
+        for (app in builtIn) {
+            if (seen.add(app.packageName.lowercase())) {
+                result.add(app)
+            }
         }
-        builtIn + userAdded
+        // Add user-added definitions if not duplicate
+        for (userApp in getUserAddedApps()) {
+            if (seen.add(userApp.packageName.lowercase())) {
+                result.add(userApp)
+            }
+        }
+        result
     }
 
     override fun resetToDefaults(): Unit = synchronized(lock) {
@@ -304,7 +346,14 @@ class InMemoryMonitoringSettingsRepository(
     }
 
     override fun getUserAddedApps(): List<SupportedApp> = synchronized(lock) {
-        userAddedApps.toList()
+        val seen = mutableSetOf<String>()
+        val deduplicated = mutableListOf<SupportedApp>()
+        for (app in userAddedApps) {
+            if (seen.add(app.packageName.lowercase())) {
+                deduplicated.add(app)
+            }
+        }
+        deduplicated
     }
 
     override fun addUserApp(app: SupportedApp): Boolean = synchronized(lock) {
@@ -319,10 +368,20 @@ class InMemoryMonitoringSettingsRepository(
 
     override fun getAllConfiguredApps(): List<SupportedApp> = synchronized(lock) {
         val builtIn = AppCatalog.allApps
-        val extra = userAddedApps.filter { userApp ->
-            builtIn.none { it.packageName.equals(userApp.packageName, ignoreCase = true) }
+        val seen = mutableSetOf<String>()
+        val result = mutableListOf<SupportedApp>()
+
+        for (app in builtIn) {
+            if (seen.add(app.packageName.lowercase())) {
+                result.add(app)
+            }
         }
-        builtIn + extra
+        for (userApp in getUserAddedApps()) {
+            if (seen.add(userApp.packageName.lowercase())) {
+                result.add(userApp)
+            }
+        }
+        result
     }
 
     override fun resetToDefaults(): Unit = synchronized(lock) {
