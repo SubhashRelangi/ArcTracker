@@ -280,12 +280,14 @@ class SharedPreferencesMonitoringSettingsRepository(
         val currentPackages = getSettings().enabledPackages.toMutableSet()
         currentPackages.add(app.packageName)
 
-        prefs.edit()
-            .putStringSet(MonitoringSettingsRepository.KEY_USER_ADDED_APPS, serializedSet)
-            .putStringSet(MonitoringSettingsRepository.KEY_ENABLED_PACKAGES, currentPackages)
-            .apply()
-
-        return true
+        return try {
+            prefs.edit()
+                .putStringSet(MonitoringSettingsRepository.KEY_USER_ADDED_APPS, serializedSet)
+                .putStringSet(MonitoringSettingsRepository.KEY_ENABLED_PACKAGES, currentPackages)
+                .commit()
+        } catch (e: Throwable) {
+            false
+        }
     }
 
     override fun updateUserApp(app: SupportedApp): Boolean = synchronized(lock) {
