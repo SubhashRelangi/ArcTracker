@@ -2,6 +2,7 @@ package com.example.arctracker.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.AccountBalance
@@ -24,11 +26,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.drawable.toBitmap
 import com.example.arctracker.settings.*
 
 data class MockApp(
@@ -40,7 +45,7 @@ data class MockApp(
 )
 
 /**
- * Resolves an icon for the given category with safe fallback.
+ * Resolves an icon for the category header with safe fallback.
  */
 fun getCategoryIcon(category: AppCategory?): ImageVector {
     return when (category) {
@@ -48,6 +53,47 @@ fun getCategoryIcon(category: AppCategory?): ImageVector {
         AppCategory.SMS_MESSENGER -> Icons.Default.Sms
         AppCategory.UPI_PAYMENT -> Icons.Default.Payment
         null -> Icons.Default.Payment
+    }
+}
+
+/**
+ * Renders a real application icon loaded from PackageManager, or falls back to a generic app icon.
+ * Never uses the category icon as an application icon fallback.
+ */
+@Composable
+fun AppIconView(
+    icon: Any?,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    fallbackIcon: ImageVector = Icons.Default.Apps
+) {
+    val bitmap = remember(icon) {
+        if (icon is android.graphics.drawable.Drawable) {
+            try {
+                icon.toBitmap(width = 96, height = 96).asImageBitmap()
+            } catch (e: Throwable) {
+                null
+            }
+        } else if (icon is ImageBitmap) {
+            icon
+        } else {
+            null
+        }
+    }
+
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap,
+            contentDescription = contentDescription,
+            modifier = modifier
+        )
+    } else {
+        Icon(
+            imageVector = fallbackIcon,
+            contentDescription = contentDescription,
+            tint = Color(0xFF673AB7),
+            modifier = modifier
+        )
     }
 }
 
@@ -152,10 +198,11 @@ fun SupportedAppsScreen(
         }
     }
 
-    var showAddAppDialogForCategory by remember { mutableStateOf<AppCategory?>(null) }
-    var appToCategorize by remember { mutableStateOf<InstalledAppInfo?>(null) }
-    var selectedCategory by remember { mutableStateOf(AppCategory.UPI_PAYMENT) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    // State for Add App dialog inside a specific category
+    var categoryForAdd by remember { mutableStateOf<AppCategory?>(null) }
+
+    // State for Edit App dialog
+    var appToEdit by remember { mutableStateOf<SupportedApp?>(null) }
 
     // Authoritative category order: UPI & Payment Apps, Banking Apps, SMS & Messenger Apps
     val orderedCategories = remember {
@@ -179,7 +226,6 @@ fun SupportedAppsScreen(
                 val lowerPkg = configuredApp.packageName.lowercase()
                 val installedInfo = installedInfoMap[lowerPkg] ?: return@mapNotNull null
                 if (!seen.add(lowerPkg)) return@mapNotNull null
-                // Update display metadata from PackageManager if available, strictly preserving category
                 val freshName = installedInfo.displayName.takeIf { it.isNotBlank() } ?: configuredApp.displayName
                 configuredApp.copy(displayName = freshName)
             }
@@ -203,22 +249,19 @@ fun SupportedAppsScreen(
     }
 
     fun confirmAdd(app: InstalledAppInfo, category: AppCategory) {
-        // 1. Verify the package is still installed
         if (!appsProvider.isPackageInstalled(app.packageName)) {
-            errorMessage = "Application is no longer installed on this device."
             refreshState()
+            categoryForAdd = null
             return
         }
 
-        // 2. Verify it is not already supported
         val currentConfigured = settingsRepo.getAllConfiguredApps()
         if (currentConfigured.any { it.packageName.equals(app.packageName, ignoreCase = true) }) {
-            errorMessage = "Application is already configured as a supported app."
             refreshState()
+            categoryForAdd = null
             return
         }
 
-        // 3. Persist the user-added app definition (and enables package by default)
         val newSupportedApp = SupportedApp(
             packageName = app.packageName,
             displayName = app.displayName,
@@ -227,22 +270,31 @@ fun SupportedAppsScreen(
             defaultEnabled = true
         )
 
-        val success = try {
+        try {
             settingsRepo.addUserApp(newSupportedApp)
         } catch (e: Exception) {
             android.util.Log.e("SupportedAppsScreen", "Error persisting user added app", e)
-            false
         }
 
-        if (!success) {
-            errorMessage = "Failed to add application."
+        categoryForAdd = null
+        refreshState()
+    }
+
+    fun confirmEdit(app: SupportedApp, newCategory: AppCategory) {
+        if (!appsProvider.isPackageInstalled(app.packageName)) {
+            refreshState()
+            appToEdit = null
             return
         }
 
-        // 4. Close category selection dialog and refresh screen state
-        appToCategorize = null
-        showAddAppDialogForCategory = null
-        errorMessage = null
+        val updated = app.copy(category = newCategory)
+        try {
+            settingsRepo.updateUserApp(updated)
+        } catch (e: Exception) {
+            android.util.Log.e("SupportedAppsScreen", "Error updating user app category", e)
+        }
+
+        appToEdit = null
         refreshState()
     }
 
@@ -310,192 +362,51 @@ fun SupportedAppsScreen(
                 }
             }
 
-            // SUPPORTED APPS Section
+            // SUPPORTED APPS Categories (each containing its own + Add App action)
             orderedCategories.forEach { category ->
                 val appsInCategory = groupedActiveApps[category] ?: emptyList()
                 item(key = category.id) {
                     CategoryAccordion(
                         category = category,
                         apps = appsInCategory,
+                        installedInfoMap = installedInfoMap,
                         isInitiallyExpanded = (category == AppCategory.UPI_PAYMENT),
                         isEnabled = masterEnabled,
                         enabledPackages = enabledPackages,
                         onToggleApp = onToggleApp,
                         onAddAppClick = {
-                            showAddAppDialogForCategory = category
+                            categoryForAdd = category
+                        },
+                        onEditAppClick = { app ->
+                            appToEdit = app
                         }
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }
-
-            // ADD APPS Section
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Add Apps",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = Color(0xFF1E1E1E),
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
-                )
-                Text(
-                    text = "Apps currently installed on your phone but not yet configured as Supported Apps.",
-                    fontSize = 12.sp,
-                    color = Color(0xFF757575),
-                    lineHeight = 16.sp,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
-                )
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 24.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFF3E5F5))
-                ) {
-                    if (addableApps.isEmpty()) {
-                        Text(
-                            text = "No additional installed apps found to add.",
-                            fontSize = 13.sp,
-                            color = Color(0xFF9E9E9E),
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    } else {
-                        Column {
-                            addableApps.forEachIndexed { index, app ->
-                                AddAppListItem(
-                                    app = app,
-                                    onAddClick = {
-                                        appToCategorize = app
-                                        selectedCategory = AppCategory.UPI_PAYMENT
-                                        errorMessage = null
-                                    }
-                                )
-                                if (index < addableApps.size - 1) {
-                                    HorizontalDivider(
-                                        color = Color(0xFFF5F5F5),
-                                        thickness = 1.dp,
-                                        modifier = Modifier.padding(start = 64.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
 
-        // Category Selection Dialog for Add Apps flow
-        if (appToCategorize != null) {
-            val app = appToCategorize!!
-            AlertDialog(
-                onDismissRequest = {
-                    appToCategorize = null
-                    errorMessage = null
-                },
-                title = {
-                    Text(
-                        "Add Application",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = Color(0xFF1E1E1E)
-                    )
-                },
-                text = {
-                    Column {
-                        Text(
-                            app.displayName,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = Color(0xFF1E1E1E)
-                        )
-                        Text(
-                            app.packageName,
-                            fontSize = 12.sp,
-                            color = Color(0xFF757575)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            "Select category",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
-                            color = Color(0xFF1E1E1E)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        AppCategory.values().forEach { cat ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { selectedCategory = cat }
-                                    .padding(vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(
-                                    selected = (selectedCategory == cat),
-                                    onClick = { selectedCategory = cat },
-                                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF673AB7))
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(cat.displayName, fontSize = 14.sp, color = Color(0xFF1E1E1E))
-                            }
-                        }
-
-                        if (errorMessage != null) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(errorMessage!!, color = Color(0xFFD32F2F), fontSize = 12.sp)
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = { confirmAdd(app, selectedCategory) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Add", color = Color.White)
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            appToCategorize = null
-                            errorMessage = null
-                        }
-                    ) {
-                        Text("Cancel", color = Color(0xFF757575))
-                    }
-                },
-                containerColor = Color.White,
-                shape = RoundedCornerShape(16.dp)
+        // Category-Specific Add App Selector Dialog
+        if (categoryForAdd != null) {
+            val targetCategory = categoryForAdd!!
+            AddAppSelectorDialog(
+                category = targetCategory,
+                availableApps = addableApps,
+                onDismiss = { categoryForAdd = null },
+                onConfirm = { selectedApp ->
+                    confirmAdd(selectedApp, targetCategory)
+                }
             )
         }
 
-        // Quick add dialog when "+ Add App" inside a category accordion is clicked
-        if (showAddAppDialogForCategory != null) {
-            val targetCategory = showAddAppDialogForCategory!!
-            val mockAppItems = addableApps.map {
-                MockApp(
-                    packageName = it.packageName,
-                    name = it.displayName,
-                    category = targetCategory.displayName,
-                    subtitle = it.packageName,
-                    icon = Icons.Default.Apps
-                )
-            }
-            MockAddAppDialog(
-                category = targetCategory.displayName,
-                availableApps = mockAppItems,
-                onDismiss = { showAddAppDialogForCategory = null },
-                onAppSelected = { selectedMockApp ->
-                    val installedApp = addableApps.find { it.packageName == selectedMockApp.packageName }
-                    if (installedApp != null) {
-                        confirmAdd(installedApp, targetCategory)
-                    } else {
-                        showAddAppDialogForCategory = null
-                    }
+        // Edit User-Added App Dialog
+        if (appToEdit != null) {
+            val targetApp = appToEdit!!
+            EditUserAppDialog(
+                app = targetApp,
+                onDismiss = { appToEdit = null },
+                onConfirm = { newCategory ->
+                    confirmEdit(targetApp, newCategory)
                 }
             )
         }
@@ -503,72 +414,228 @@ fun SupportedAppsScreen(
 }
 
 @Composable
-fun AddAppListItem(
-    app: InstalledAppInfo,
-    onAddClick: () -> Unit
+fun AddAppSelectorDialog(
+    category: AppCategory,
+    availableApps: List<InstalledAppInfo>,
+    onDismiss: () -> Unit,
+    onConfirm: (InstalledAppInfo) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(Color(0xFFEDE7F6), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Apps,
-                contentDescription = app.displayName,
-                tint = Color(0xFF673AB7),
-                modifier = Modifier.size(20.dp)
-            )
-        }
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedApp by remember { mutableStateOf<InstalledAppInfo?>(null) }
 
-        Spacer(modifier = Modifier.width(16.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = app.displayName,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = Color(0xFF1E1E1E),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = app.packageName,
-                fontSize = 12.sp,
-                color = Color(0xFF9E9E9E),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Button(
-            onClick = onAddClick,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7)),
-            shape = RoundedCornerShape(8.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
-        ) {
-            Text("Add", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+    val filteredApps = remember(searchQuery, availableApps) {
+        if (searchQuery.isBlank()) availableApps
+        else availableApps.filter {
+            it.displayName.contains(searchQuery, ignoreCase = true) ||
+            it.packageName.contains(searchQuery, ignoreCase = true)
         }
     }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "Add to ${category.displayName}",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = Color(0xFF1E1E1E)
+            )
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search apps...") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF673AB7),
+                        unfocusedBorderColor = Color(0xFFE0E0E0)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                )
+
+                if (filteredApps.isEmpty()) {
+                    Text(
+                        text = if (searchQuery.isBlank()) "No available installed apps to add." else "No matching apps found.",
+                        fontSize = 13.sp,
+                        color = Color(0xFF9E9E9E),
+                        modifier = Modifier.padding(16.dp)
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 280.dp)
+                    ) {
+                        items(filteredApps, key = { it.packageName }) { app ->
+                            val isSelected = selectedApp?.packageName == app.packageName
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { selectedApp = app }
+                                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(Color(0xFFEDE7F6), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AppIconView(
+                                        icon = app.icon,
+                                        contentDescription = app.displayName,
+                                        modifier = Modifier.size(24.dp),
+                                        fallbackIcon = Icons.Default.Apps
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = app.displayName,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF1E1E1E),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = app.packageName,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF757575),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = { selectedApp = app },
+                                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF673AB7))
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    selectedApp?.let { onConfirm(it) }
+                },
+                enabled = selectedApp != null,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF673AB7),
+                    disabledContainerColor = Color(0xFFE0E0E0)
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Add", color = if (selectedApp != null) Color.White else Color(0xFF9E9E9E))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = Color(0xFF757575))
+            }
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+
+@Composable
+fun EditUserAppDialog(
+    app: SupportedApp,
+    onDismiss: () -> Unit,
+    onConfirm: (AppCategory) -> Unit
+) {
+    var selectedCategory by remember { mutableStateOf(app.category) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "Edit Application",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = Color(0xFF1E1E1E)
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    app.displayName,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color(0xFF1E1E1E)
+                )
+                Text(
+                    app.packageName,
+                    fontSize = 12.sp,
+                    color = Color(0xFF757575)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "Current category",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    color = Color(0xFF1E1E1E)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                AppCategory.values().forEach { cat ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedCategory = cat }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (selectedCategory == cat),
+                            onClick = { selectedCategory = cat },
+                            colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF673AB7))
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(cat.displayName, fontSize = 14.sp, color = Color(0xFF1E1E1E))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(selectedCategory) },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Save", color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = Color(0xFF757575))
+            }
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(16.dp)
+    )
 }
 
 @Composable
 fun CategoryAccordion(
     category: AppCategory,
     apps: List<SupportedApp>,
+    installedInfoMap: Map<String, InstalledAppInfo> = emptyMap(),
     isInitiallyExpanded: Boolean = (category == AppCategory.UPI_PAYMENT),
     isEnabled: Boolean = true,
     enabledPackages: Set<String>,
     onToggleApp: (String, Boolean) -> Unit,
-    onAddAppClick: () -> Unit = {}
+    onAddAppClick: () -> Unit = {},
+    onEditAppClick: (SupportedApp) -> Unit = {}
 ) {
     var isExpanded by remember { mutableStateOf(isInitiallyExpanded) }
 
@@ -630,12 +697,20 @@ fun CategoryAccordion(
                     } else {
                         apps.forEachIndexed { index, app ->
                             val isChecked = enabledPackages.contains(app.packageName)
+                            val isUserAdded = !AppCatalog.containsPackage(app.packageName)
+                            val appIcon = installedInfoMap[app.packageName.lowercase()]?.icon
+
                             SupportedAppListItem(
                                 app = app,
+                                icon = appIcon,
+                                isUserAdded = isUserAdded,
                                 isAppChecked = isChecked,
                                 onCheckedChange = { checked ->
                                     onToggleApp(app.packageName, checked)
-                                }
+                                },
+                                onEditClick = if (isUserAdded) {
+                                    { onEditAppClick(app) }
+                                } else null
                             )
                             if (index < apps.size - 1) {
                                 HorizontalDivider(
@@ -663,7 +738,7 @@ fun CategoryAccordion(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Add App", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF673AB7))
+                        Text("+ Add App", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF673AB7))
                     }
                 }
             }
@@ -674,8 +749,11 @@ fun CategoryAccordion(
 @Composable
 fun SupportedAppListItem(
     app: SupportedApp,
-    isAppChecked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    icon: Any? = null,
+    isUserAdded: Boolean = false,
+    isAppChecked: Boolean = true,
+    onCheckedChange: (Boolean) -> Unit = {},
+    onEditClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -690,11 +768,11 @@ fun SupportedAppListItem(
                 .background(Color(0xFFEDE7F6), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = getCategoryIcon(app.category),
+            AppIconView(
+                icon = icon,
                 contentDescription = app.displayName,
-                tint = Color(0xFF673AB7),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(24.dp),
+                fallbackIcon = Icons.Default.Apps
             )
         }
 
@@ -720,7 +798,22 @@ fun SupportedAppListItem(
             )
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        if (isUserAdded && onEditClick != null) {
+            IconButton(
+                onClick = onEditClick,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit ${app.displayName}",
+                    tint = Color(0xFF757575),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(4.dp))
+        } else {
+            Spacer(modifier = Modifier.width(8.dp))
+        }
 
         Switch(
             checked = isAppChecked,
@@ -783,80 +876,4 @@ fun MockAppListItem(
         isAppChecked = isAppChecked,
         onCheckedChange = onCheckedChange
     )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MockAddAppDialog(
-    category: String,
-    availableApps: List<MockApp>,
-    onDismiss: () -> Unit,
-    onAppSelected: (MockApp) -> Unit
-) {
-    var searchQuery by remember { mutableStateOf("") }
-
-    val filteredApps = remember(searchQuery, availableApps) {
-        if (searchQuery.isBlank()) availableApps
-        else availableApps.filter { it.name.contains(searchQuery, ignoreCase = true) }
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = Color.White
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            Text(
-                "Add to $category",
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                color = Color(0xFF1E1E1E),
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                placeholder = { Text("Search apps...") },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF673AB7),
-                    unfocusedBorderColor = Color(0xFFE0E0E0)
-                )
-            )
-
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
-            ) {
-                items(filteredApps) { app ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onAppSelected(app) }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(Color(0xFFEDE7F6), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(app.icon, contentDescription = null, tint = Color(0xFF673AB7), modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(app.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1E1E1E))
-                            Text(app.packageName, fontSize = 12.sp, color = Color(0xFF757575))
-                        }
-                    }
-                }
-            }
-        }
-    }
 }

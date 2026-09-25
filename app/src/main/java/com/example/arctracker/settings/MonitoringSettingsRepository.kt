@@ -67,6 +67,16 @@ interface MonitoringSettingsRepository {
     fun addUserApp(app: SupportedApp): Boolean
 
     /**
+     * Updates an existing user-added application definition (e.g. changing its category).
+     * Built-in AppCatalog applications cannot be modified.
+     * Package name remains immutable.
+     * Enabled package state and global monitoring remain untouched.
+     *
+     * @return true if updated successfully, false if app not found or built-in.
+     */
+    fun updateUserApp(app: SupportedApp): Boolean
+
+    /**
      * Returns all configured apps (built-in catalog + persisted user-added apps).
      * Guaranteed no duplicates by package name.
      */
@@ -278,6 +288,25 @@ class SharedPreferencesMonitoringSettingsRepository(
         return true
     }
 
+    override fun updateUserApp(app: SupportedApp): Boolean = synchronized(lock) {
+        if (app.packageName.isBlank()) return false
+        // Built-in apps cannot be modified
+        if (AppCatalog.containsPackage(app.packageName)) return false
+
+        val existingUserApps = getUserAddedApps().toMutableList()
+        val index = existingUserApps.indexOfFirst { it.packageName.equals(app.packageName, ignoreCase = true) }
+        if (index == -1) return false
+
+        existingUserApps[index] = app
+        val serializedSet = existingUserApps.map { SupportedAppSerializer.serialize(it) }.toSet()
+
+        prefs.edit()
+            .putStringSet(MonitoringSettingsRepository.KEY_USER_ADDED_APPS, serializedSet)
+            .apply()
+
+        return true
+    }
+
     override fun getAllConfiguredApps(): List<SupportedApp> = synchronized(lock) {
         val builtIn = AppCatalog.allApps
         val seen = mutableSetOf<String>()
@@ -363,6 +392,17 @@ class InMemoryMonitoringSettingsRepository(
 
         userAddedApps.add(app)
         enabledPackages.add(app.packageName)
+        return true
+    }
+
+    override fun updateUserApp(app: SupportedApp): Boolean = synchronized(lock) {
+        if (app.packageName.isBlank()) return false
+        if (AppCatalog.containsPackage(app.packageName)) return false
+
+        val index = userAddedApps.indexOfFirst { it.packageName.equals(app.packageName, ignoreCase = true) }
+        if (index == -1) return false
+
+        userAddedApps[index] = app
         return true
     }
 
