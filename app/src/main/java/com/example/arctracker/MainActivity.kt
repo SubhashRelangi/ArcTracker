@@ -50,7 +50,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.example.arctracker.data.Expense
+import com.example.arctracker.service.NotificationPermissionHelper
+import com.example.arctracker.ui.NotificationPermissionDialog
 import com.example.arctracker.utils.RegexPatternsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -82,7 +87,31 @@ class MainActivity : ComponentActivity() {
 fun ExpenseScreen() {
 
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
+
+    var isNotificationAccessGranted by remember {
+        mutableStateOf(NotificationPermissionHelper.isNotificationAccessGranted(context))
+    }
+
+    var hasDismissedNotificationPermissionDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
+                if (isNotificationAccessGranted != granted) {
+                    isNotificationAccessGranted = granted
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     var expenses by remember {
         mutableStateOf(com.example.arctracker.data.MockData.getInitialExpenses())
@@ -1001,6 +1030,17 @@ fun ExpenseScreen() {
                     ) {
                         Text("Cancel")
                     }
+                }
+            )
+        }
+
+        if (!isNotificationAccessGranted && !hasDismissedNotificationPermissionDialog) {
+            NotificationPermissionDialog(
+                onGrantClick = {
+                    NotificationPermissionHelper.openNotificationAccessSettings(context)
+                },
+                onDismiss = {
+                    hasDismissedNotificationPermissionDialog = true
                 }
             )
         }
