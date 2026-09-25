@@ -106,6 +106,51 @@ data class TransactionRecord(
                 timestamp = c.postTime
             )
         }
+
+        fun fromExpense(expense: com.example.arctracker.data.Expense): TransactionRecord {
+            val srcType = when (expense.source) {
+                "NOTIFICATION" -> TransactionSourceType.NOTIFICATION
+                "SMS_HISTORY" -> TransactionSourceType.SMS_HISTORY
+                "MANUAL" -> TransactionSourceType.MANUAL
+                else -> TransactionSourceType.UNKNOWN
+            }
+            val textToSearch = "${expense.note ?: ""} ${expense.rawText ?: ""}"
+
+            // Extract UTR/Ref if present in note or rawText
+            val utrMatch = Regex("""(?i)\b(?:utr|rrn|upi\s*ref|ref(?:\s*no|\s*id)?)\s*[:\-]?\s*([A-Za-z0-9]{4,32})\b""").find(textToSearch)
+            val extractedUtr = utrMatch?.groupValues?.get(1)
+
+            // Extract account suffix if present
+            val accMatch = Regex("""(?i)\b(?:a/c|acct|acc|card)\s*(?:no\.?)?\s*[*xX]{0,4}(\d{4})\b""").find(textToSearch)
+            val extractedAcc = accMatch?.groupValues?.get(1)
+
+            // Extract UPI ID if present
+            val upiMatch = Regex("""([a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64})""").find(textToSearch)
+            val extractedUpi = upiMatch?.groupValues?.get(1)
+
+            val recId = if (expense.notificationKey.isNotBlank()) expense.notificationKey else expense.id.toString()
+
+            return TransactionRecord(
+                id = recId,
+                sourceNotificationKey = expense.notificationKey.takeIf { it.isNotBlank() },
+                sourceType = srcType,
+                amount = expense.amount,
+                currency = "INR",
+                merchant = expense.merchant,
+                counterparty = null,
+                direction = if (expense.type.equals("Credit", ignoreCase = true)) TransactionDirection.CREDIT else TransactionDirection.DEBIT,
+                status = if (expense.isPending) TransactionStatus.PENDING else TransactionStatus.SUCCESS,
+                referenceId = extractedUtr,
+                utr = extractedUtr,
+                rrn = null,
+                upiTransactionId = null,
+                upiId = extractedUpi,
+                accountSuffix = extractedAcc,
+                cardSuffix = null,
+                timestamp = expense.dateMillis,
+                rawText = expense.rawText
+            )
+        }
     }
 }
 

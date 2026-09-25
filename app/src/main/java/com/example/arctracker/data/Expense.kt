@@ -1,6 +1,19 @@
 package com.example.arctracker.data
 
+import androidx.room.Entity
+import androidx.room.Index
+import androidx.room.PrimaryKey
+
+@Entity(
+    tableName = "expenses",
+    indices = [
+        Index(value = ["notificationKey"]),
+        Index(value = ["dateMillis"]),
+        Index(value = ["isPending"])
+    ]
+)
 data class Expense(
+    @PrimaryKey(autoGenerate = true)
     var id: Int = 0,
     var amount: Double,
     var merchant: String,

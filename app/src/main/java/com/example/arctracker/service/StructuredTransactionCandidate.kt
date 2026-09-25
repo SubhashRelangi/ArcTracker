@@ -85,7 +85,8 @@ data class StructuredTransactionCandidate(
     val isUpdate: Boolean = false,
     val groupKey: String? = null,
     val isGroup: Boolean = false,
-    val isGroupSummary: Boolean = false
+    val isGroupSummary: Boolean = false,
+    val rawContent: String? = null
 ) {
     /**
      * Retrieves the evidence object for a specific field if present.

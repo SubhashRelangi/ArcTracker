@@ -242,7 +242,8 @@ object StructuredTransactionExtractor {
             isUpdate = notification.isUpdate,
             groupKey = notification.groupKey,
             isGroup = notification.isGroup,
-            isGroupSummary = notification.isGroupSummary
+            isGroupSummary = notification.isGroupSummary,
+            rawContent = notification.normalizedCombinedText
         )
     }
 

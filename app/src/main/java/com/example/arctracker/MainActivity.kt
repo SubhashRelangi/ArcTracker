@@ -113,8 +113,30 @@ fun ExpenseScreen() {
         }
     }
 
+    val database = remember { com.example.arctracker.data.AppDatabase.getDatabase(context) }
+    val expenseDao = remember { database.expenseDao() }
+    val dbExpenses by expenseDao.getAllExpenses().collectAsState(initial = emptyList())
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(Dispatchers.IO) {
+            try {
+                if (expenseDao.getCount() == 0) {
+                    expenseDao.insertAll(com.example.arctracker.data.MockData.getInitialExpenses())
+                }
+            } catch (e: Exception) {
+                // Safe ignore
+            }
+        }
+    }
+
     var expenses by remember {
         mutableStateOf(com.example.arctracker.data.MockData.getInitialExpenses())
+    }
+
+    LaunchedEffect(dbExpenses) {
+        if (dbExpenses.isNotEmpty()) {
+            expenses = dbExpenses
+        }
     }
 
     var refreshTrigger by remember {
@@ -477,6 +499,11 @@ fun ExpenseScreen() {
                     },
                     onClearData = {
                         expenses = emptyList()
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                expenseDao.clearAll()
+                            } catch (_: Exception) {}
+                        }
                     }
                 )
 
@@ -811,7 +838,7 @@ fun ExpenseScreen() {
                         dateMillis ->
 
                     val newExpense = Expense(
-                        id = (expenses.maxOfOrNull { it.id } ?: 0) + 1,
+                        id = 0,
                         amount = amount,
                         merchant = merchant,
                         dateMillis = dateMillis,
@@ -824,6 +851,12 @@ fun ExpenseScreen() {
                         source = "MANUAL"
                     )
                     expenses = listOf(newExpense) + expenses
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            val id = expenseDao.insert(newExpense)
+                            newExpense.id = id.toInt()
+                        } catch (_: Exception) {}
+                    }
                     showAddDialog = false
                 }
             )
@@ -869,6 +902,11 @@ fun ExpenseScreen() {
 
                 onDelete = {
                     expenses = expenses.filter { it.id != pendingExpense.id }
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            expenseDao.delete(pendingExpense)
+                        } catch (_: Exception) {}
+                    }
                     showApproveDialog = null
                 },
 
@@ -880,18 +918,22 @@ fun ExpenseScreen() {
                         note,
                         dateMillis ->
 
+                    val updated = pendingExpense.copy(
+                        amount = amount,
+                        merchant = merchant,
+                        type = type,
+                        tag = tag,
+                        note = note,
+                        dateMillis = dateMillis,
+                        isPending = false
+                    )
                     expenses = expenses.map {
-                        if (it.id == pendingExpense.id) {
-                            it.copy(
-                                amount = amount,
-                                merchant = merchant,
-                                type = type,
-                                tag = tag,
-                                note = note,
-                                dateMillis = dateMillis,
-                                isPending = false
-                            )
-                        } else it
+                        if (it.id == pendingExpense.id) updated else it
+                    }
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            expenseDao.update(updated)
+                        } catch (_: Exception) {}
                     }
                     showApproveDialog = null
                 }
@@ -967,17 +1009,21 @@ fun ExpenseScreen() {
                         note,
                         dateMillis ->
 
+                    val updated = expenseToEdit.copy(
+                        amount = amount,
+                        merchant = merchant,
+                        type = type,
+                        tag = tag,
+                        note = note,
+                        dateMillis = dateMillis
+                    )
                     expenses = expenses.map {
-                        if (it.id == expenseToEdit.id) {
-                            it.copy(
-                                amount = amount,
-                                merchant = merchant,
-                                type = type,
-                                tag = tag,
-                                note = note,
-                                dateMillis = dateMillis
-                            )
-                        } else it
+                        if (it.id == expenseToEdit.id) updated else it
+                    }
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            expenseDao.update(updated)
+                        } catch (_: Exception) {}
                     }
                     editExpense = null
                 }
@@ -1011,6 +1057,11 @@ fun ExpenseScreen() {
                     TextButton(
                         onClick = {
                             expenses = expenses.filter { it.id != expenseToDelete.id }
+                            scope.launch(Dispatchers.IO) {
+                                try {
+                                    expenseDao.delete(expenseToDelete)
+                                } catch (_: Exception) {}
+                            }
                             deleteConfirmExpense = null
                         }
                     ) {

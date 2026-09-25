@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import kotlinx.coroutines.launch
 import java.util.Collections
 
 /**
@@ -40,6 +41,9 @@ data class CapturedNotificationInfo(
  * Does not parse transactions, classify data, or alter persistent databases.
  */
 class NotificationReaderService : NotificationListenerService() {
+
+    private val serviceJob = kotlinx.coroutines.SupervisorJob()
+    private val serviceScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + serviceJob)
 
     companion object {
         private const val TAG = "NotificationReader"
@@ -187,6 +191,7 @@ class NotificationReaderService : NotificationListenerService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        serviceJob.cancel()
         isConnected = false
         Log.d(TAG, "NotificationReaderService destroyed.")
     }
@@ -267,6 +272,16 @@ class NotificationReaderService : NotificationListenerService() {
 
             lastCapturedNotification = captured
             notificationListener?.invoke(captured)
+
+            // Step 8: Trigger end-to-end transaction pipeline safely on background IO thread
+            serviceScope.launch {
+                try {
+                    TransactionPersistenceManager.processCapturedNotification(applicationContext, captured)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Safe catch: pipeline failure in NotificationReaderService", e)
+                }
+            }
+
             captured
         } catch (e: Exception) {
             Log.e(TAG, "Error recording captured notification in NotificationReaderService", e)
