@@ -65,6 +65,7 @@ fun SettingsScreen(onNavigate: (String) -> Unit = {}) {
                     .putBoolean("isAutoTrackingEnabled", isEnabled)
                     .putBoolean("isSmsTrackingEnabled", isEnabled)
                     .putBoolean("isNotificationTrackingEnabled", isEnabled)
+                    .putBoolean(com.example.arctracker.settings.MonitoringSettingsRepository.KEY_GLOBAL_ENABLED, isEnabled)
                     .apply()
             }
         )

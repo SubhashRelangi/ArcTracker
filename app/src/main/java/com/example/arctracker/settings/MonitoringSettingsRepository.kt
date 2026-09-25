@@ -126,6 +126,7 @@ class SharedPreferencesMonitoringSettingsRepository(
     override fun setGlobalEnabled(enabled: Boolean): Unit = synchronized(lock) {
         prefs.edit()
             .putBoolean(MonitoringSettingsRepository.KEY_GLOBAL_ENABLED, enabled)
+            .putBoolean(MonitoringSettingsRepository.LEGACY_KEY_AUTO_TRACKING, enabled)
             .apply()
     }
 

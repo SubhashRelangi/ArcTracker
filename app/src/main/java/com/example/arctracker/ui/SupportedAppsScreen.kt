@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.arctracker.settings.MonitoringSettingsRepository
 
 data class MockApp(
     val packageName: String,
@@ -41,8 +42,25 @@ data class MockApp(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
-    var masterEnabled by remember { mutableStateOf(true) }
+fun SupportedAppsScreen(
+    onNavigateBack: () -> Unit,
+    repository: MonitoringSettingsRepository? = null
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settingsRepo = remember {
+        repository ?: MonitoringSettingsRepository.getInstance(context)
+    }
+
+    var masterEnabled by remember {
+        mutableStateOf(
+            try {
+                settingsRepo.getSettings().globalEnabled
+            } catch (e: Exception) {
+                android.util.Log.e("SupportedAppsScreen", "Error loading monitoring settings", e)
+                true
+            }
+        )
+    }
     var showAddAppDialogForCategory by remember { mutableStateOf<String?>(null) }
 
     val initialApps = remember {
@@ -127,7 +145,14 @@ fun SupportedAppsScreen(onNavigateBack: () -> Unit) {
                         }
                         Switch(
                             checked = masterEnabled,
-                            onCheckedChange = { masterEnabled = it },
+                            onCheckedChange = { isChecked ->
+                                masterEnabled = isChecked
+                                try {
+                                    settingsRepo.setGlobalEnabled(isChecked)
+                                } catch (e: Exception) {
+                                    android.util.Log.e("SupportedAppsScreen", "Error saving global monitoring setting", e)
+                                }
+                            },
                             colors = SwitchDefaults.colors(checkedTrackColor = Color(0xFF673AB7))
                         )
                     }
