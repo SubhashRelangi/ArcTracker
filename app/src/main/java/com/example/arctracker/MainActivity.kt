@@ -2,6 +2,7 @@ package com.example.arctracker
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -55,6 +56,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.arctracker.data.Expense
 import com.example.arctracker.service.NotificationPermissionHelper
+import com.example.arctracker.service.SmsPermissionHelper
+import com.example.arctracker.ui.InitialSmsImportDialog
 import com.example.arctracker.ui.NotificationPermissionDialog
 import com.example.arctracker.utils.RegexPatternsManager
 import kotlinx.coroutines.Dispatchers
@@ -90,11 +93,23 @@ fun ExpenseScreen() {
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
 
+    val settingsRepo = remember {
+        com.example.arctracker.settings.MonitoringSettingsRepository.getInstance(context)
+    }
+
     var isNotificationAccessGranted by remember {
         mutableStateOf(NotificationPermissionHelper.isNotificationAccessGranted(context))
     }
 
     var hasDismissedNotificationPermissionDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var pendingHomeNotificationGrant by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var hasDismissedInitialSmsImportDialog by rememberSaveable {
         mutableStateOf(false)
     }
 
@@ -104,6 +119,19 @@ fun ExpenseScreen() {
                 val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
                 if (isNotificationAccessGranted != granted) {
                     isNotificationAccessGranted = granted
+                }
+                if (pendingHomeNotificationGrant) {
+                    pendingHomeNotificationGrant = false
+                    if (granted) {
+                        settingsRepo.setGlobalEnabled(true)
+                        settingsRepo.setNotificationTrackingEnabled(true)
+                    } else {
+                        settingsRepo.setGlobalEnabled(false)
+                        settingsRepo.setNotificationTrackingEnabled(false)
+                    }
+                }
+                if (SmsPermissionHelper.isSmsPermissionGranted(context)) {
+                    SmsPermissionHelper.setInitialImportCompleted(context, true)
                 }
             }
         }
@@ -117,26 +145,12 @@ fun ExpenseScreen() {
     val expenseDao = remember { database.expenseDao() }
     val dbExpenses by expenseDao.getAllExpenses().collectAsState(initial = emptyList())
 
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.withContext(Dispatchers.IO) {
-            try {
-                if (expenseDao.getCount() == 0) {
-                    expenseDao.insertAll(com.example.arctracker.data.MockData.getInitialExpenses())
-                }
-            } catch (e: Exception) {
-                // Safe ignore
-            }
-        }
-    }
-
     var expenses by remember {
-        mutableStateOf(com.example.arctracker.data.MockData.getInitialExpenses())
+        mutableStateOf(emptyList<Expense>())
     }
 
     LaunchedEffect(dbExpenses) {
-        if (dbExpenses.isNotEmpty()) {
-            expenses = dbExpenses
-        }
+        expenses = dbExpenses
     }
 
     var refreshTrigger by remember {
@@ -237,8 +251,31 @@ fun ExpenseScreen() {
         expenses.filter { it.dateMillis in start..end }
     }
 
-    var currentRoute by remember {
-        mutableStateOf("Home")
+    var backStack by rememberSaveable {
+        mutableStateOf(listOf("Home"))
+    }
+    val currentRoute = backStack.lastOrNull() ?: "Home"
+
+    fun navigateTo(route: String) {
+        if (route == "Home") {
+            backStack = listOf("Home")
+        } else if (route == "Transactions" || route == "Settings") {
+            backStack = listOf("Home", route)
+        } else {
+            if (backStack.lastOrNull() != route) {
+                backStack = backStack + route
+            }
+        }
+    }
+
+    fun navigateBack() {
+        if (backStack.size > 1) {
+            backStack = backStack.dropLast(1)
+        }
+    }
+
+    BackHandler(enabled = backStack.size > 1) {
+        navigateBack()
     }
 
     var editingRegexRuleId by remember {
@@ -272,47 +309,45 @@ fun ExpenseScreen() {
     Scaffold(
 
         topBar = {
-            val title = when (currentRoute) {
-                "Database" -> "Database"
-                "ClearAllData" -> "Clear All Data"
-                "SmsImport" -> "Import Previous Transactions"
-                "BackupRestore" -> "Backup & Restore"
-                "Pending" -> "Pending Expenses"
-                "IgnoreRules" -> "Ignore Rules"
-                "DeveloperOptions" -> "Developer Options"
-                "RegexPatterns" -> "Regex Patterns"
-                "EditRegexPattern" -> if (editingRegexRuleId == null) "Add Pattern" else "Edit Pattern"
-                "Transactions" -> "ArcTracker"
-                "Settings" -> "Settings"
-                "SupportedApps" -> "Monitored Apps"
-                else -> "ArcTracker"
-            }
+            if (currentRoute != "SmsImport") {
+                val title = when (currentRoute) {
+                    "Database" -> "Database"
+                    "ClearAllData" -> "Clear All Data"
+                    "BackupRestore" -> "Backup & Restore"
+                    "Pending" -> "Pending Expenses"
+                    "IgnoreRules" -> "Ignore Rules"
+                    "DeveloperOptions" -> "Developer Options"
+                    "RegexPatterns" -> "Regex Patterns"
+                    "EditRegexPattern" -> if (editingRegexRuleId == null) "Add Pattern" else "Edit Pattern"
+                    "Transactions" -> "ArcTracker"
+                    "Settings" -> "Settings"
+                    "SupportedApps" -> "Monitored Apps"
+                    else -> "ArcTracker"
+                }
 
-            val subtitle = when (currentRoute) {
-                "Home" -> "Overview of your finances"
-                "Transactions" -> "All transactions, at a glance"
-                "Settings" -> "Configure your app"
-                "SupportedApps" -> "Choose which apps can be monitored"
-                "IgnoreRules" -> "Keywords, senders or patterns to ignore"
-                "DeveloperOptions" -> "Advanced tools for debugging and customization."
-                "RegexPatterns" -> "Define how amounts, names and transaction details are extracted."
-                "EditRegexPattern" -> null
-                else -> null
-            }
+                val subtitle = when (currentRoute) {
+                    "Home" -> "Overview of your finances"
+                    "Transactions" -> "All transactions, at a glance"
+                    "Settings" -> "Configure your app"
+                    "SupportedApps" -> "Choose which apps can be monitored"
+                    "IgnoreRules" -> "Keywords, senders or patterns to ignore"
+                    "DeveloperOptions" -> "Advanced tools for debugging and customization."
+                    "RegexPatterns" -> "Define how amounts, names and transaction details are extracted."
+                    "EditRegexPattern" -> null
+                    else -> null
+                }
 
-            val onBackClick: (() -> Unit)? = when (currentRoute) {
-                "Database", "ClearAllData", "SmsImport", "BackupRestore", "SupportedApps", "IgnoreRules", "DeveloperOptions" -> { { currentRoute = "Settings" } }
-                "RegexPatterns" -> { { currentRoute = "DeveloperOptions" } }
-                "EditRegexPattern" -> { { currentRoute = "RegexPatterns" } }
-                "Pending" -> { { currentRoute = "Home" } }
-                else -> null
-            }
+                val onBackClick: (() -> Unit)? = if (backStack.size > 1 && currentRoute != "Transactions") {
+                    { navigateBack() }
+                } else {
+                    null
+                }
 
-            com.example.arctracker.ui.ArcTrackerHeader(
-                title = title,
-                subtitle = subtitle,
-                onBackClick = onBackClick,
-                actions = {
+                com.example.arctracker.ui.ArcTrackerHeader(
+                    title = title,
+                    subtitle = subtitle,
+                    onBackClick = onBackClick,
+                    actions = {
                     if (currentRoute == "Home") {
                         IconButton(onClick = { refreshTrigger++ }) {
                             Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
@@ -326,7 +361,7 @@ fun ExpenseScreen() {
                                 contentDescription = if (isSearching) "Close Search" else "Search"
                             )
                         }
-                        IconButton(onClick = { currentRoute = "Pending" }) {
+                        IconButton(onClick = { navigateTo("Pending") }) {
                             BadgedBox(
                                 badge = {
                                     val pendingCount = expenses.count { it.isPending }
@@ -357,7 +392,7 @@ fun ExpenseScreen() {
                             val context = LocalContext.current
                             TextButton(onClick = {
                                 RegexPatternsManager.resetSystemRule(context, editingRegexRuleId!!)
-                                currentRoute = "RegexPatterns"
+                                navigateBack()
                             }) {
                                 Icon(Icons.Filled.Refresh, contentDescription = "Reset", tint = Color(0xFF3F51B5), modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -367,6 +402,7 @@ fun ExpenseScreen() {
                     }
                 }
             )
+            }
         },
 
         bottomBar = {
@@ -382,7 +418,7 @@ fun ExpenseScreen() {
                 com.example.arctracker.ui.FloatingNavigationBar(
                     currentRoute = currentRoute,
                     onNavigate = {
-                        currentRoute = it.title
+                        navigateTo(it.title)
                     }
                 )
             }
@@ -485,25 +521,51 @@ fun ExpenseScreen() {
 
             } else if (currentRoute == "Settings") {
 
+                val calToday = java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }
+                val startOfDay = calToday.timeInMillis
+
+                val calMonth = java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.DAY_OF_MONTH, 1)
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }
+                val startOfMonth = calMonth.timeInMillis
+
+                val todayTxnCount = expenses.count { it.dateMillis >= startOfDay && !it.isPending }
+                val thisMonthTxnCount = expenses.count { it.dateMillis >= startOfMonth && !it.isPending }
+
                 com.example.arctracker.ui.SettingsScreen(
                     onNavigate = {
-                        currentRoute = it
-                    }
+                        navigateTo(it)
+                    },
+                    todayCount = todayTxnCount,
+                    thisMonthCount = thisMonthTxnCount
                 )
 
             } else if (currentRoute == "ClearAllData") {
 
                 com.example.arctracker.ui.ClearAllDataScreen(
                     onNavigate = {
-                        currentRoute = it
+                        navigateTo(it)
                     },
                     onClearData = {
+                        val repo = com.example.arctracker.settings.MonitoringSettingsRepository.getInstance(context)
+                        val wasCompleted = repo.isInitialSmsImportCompleted()
                         expenses = emptyList()
                         scope.launch(Dispatchers.IO) {
                             try {
                                 expenseDao.clearAll()
                             } catch (_: Exception) {}
                         }
+                        repo.setInitialSmsImportCompleted(wasCompleted)
+                        navigateBack()
                     }
                 )
 
@@ -511,7 +573,7 @@ fun ExpenseScreen() {
 
                 com.example.arctracker.ui.SmsImportScreen(
                     onNavigateBack = {
-                        currentRoute = "Settings"
+                        navigateBack()
                     }
                 )
 
@@ -519,7 +581,7 @@ fun ExpenseScreen() {
 
                 com.example.arctracker.ui.BackupRestoreScreen(
                     onNavigate = {
-                        currentRoute = it
+                        navigateTo(it)
                     }
                 )
 
@@ -527,7 +589,7 @@ fun ExpenseScreen() {
 
                 com.example.arctracker.ui.SupportedAppsScreen(
                     onNavigateBack = {
-                        currentRoute = "Settings"
+                        navigateBack()
                     }
                 )
 
@@ -541,26 +603,26 @@ fun ExpenseScreen() {
 
             } else if (currentRoute == "DeveloperOptions") {
                 com.example.arctracker.ui.DeveloperOptionsScreen(
-                    onNavigate = { currentRoute = it }
+                    onNavigate = { navigateTo(it) }
                 )
             } else if (currentRoute == "RegexPatterns") {
                 com.example.arctracker.ui.RegexPatternsScreen(
                     onAddPattern = { category ->
                         editingRegexRuleId = null
                         editingRegexRuleCategory = category
-                        currentRoute = "EditRegexPattern"
+                        navigateTo("EditRegexPattern")
                     },
                     onEditPattern = { rule ->
                         editingRegexRuleId = rule.id
                         editingRegexRuleCategory = rule.category
-                        currentRoute = "EditRegexPattern"
+                        navigateTo("EditRegexPattern")
                     }
                 )
             } else if (currentRoute == "EditRegexPattern") {
                 com.example.arctracker.ui.EditRegexPatternScreen(
                     ruleId = editingRegexRuleId,
                     defaultCategory = editingRegexRuleCategory,
-                    onBack = { currentRoute = "RegexPatterns" }
+                    onBack = { navigateBack() }
                 )
             } else if (currentRoute == "Pending") {
 
@@ -876,12 +938,11 @@ fun ExpenseScreen() {
 
                 initialMerchant =
                     if (
-                        pendingExpense.merchant !=
-                        "Unknown Merchant"
+                        pendingExpense.merchant.isNotBlank()
                     ) {
                         pendingExpense.merchant
                     } else {
-                        ""
+                        "Unknown Merchant"
                     },
 
                 initialType =
@@ -1088,10 +1149,23 @@ fun ExpenseScreen() {
         if (!isNotificationAccessGranted && !hasDismissedNotificationPermissionDialog) {
             NotificationPermissionDialog(
                 onGrantClick = {
+                    pendingHomeNotificationGrant = true
                     NotificationPermissionHelper.openNotificationAccessSettings(context)
                 },
                 onDismiss = {
                     hasDismissedNotificationPermissionDialog = true
+                    settingsRepo.setGlobalEnabled(false)
+                    settingsRepo.setNotificationTrackingEnabled(false)
+                }
+            )
+        } else if (!hasDismissedInitialSmsImportDialog && !SmsPermissionHelper.isInitialImportCompleted(context)) {
+            InitialSmsImportDialog(
+                onDismiss = {
+                    hasDismissedInitialSmsImportDialog = true
+                },
+                onComplete = {
+                    hasDismissedInitialSmsImportDialog = true
+                    SmsPermissionHelper.setInitialImportCompleted(context, true)
                 }
             )
         }
@@ -1393,6 +1467,10 @@ fun AddExpenseDialog(
     val textDark =
         Color(0xFF1E1E1E)
 
+    var amountError by remember {
+        mutableStateOf(false)
+    }
+
     var isAnimating by remember {
         mutableStateOf(false)
     }
@@ -1585,10 +1663,16 @@ fun AddExpenseDialog(
 
                 onValueChange = {
                     amount = it
+                    if (amountError && (it.toDoubleOrNull() ?: 0.0) > 0.0) {
+                        amountError = false
+                    }
                 },
 
-                readOnly =
-                    onDelete != null,
+                isError = amountError,
+
+                supportingText = if (amountError) {
+                    { Text("Please enter a valid amount greater than 0", color = Color(0xFFD32F2F), fontSize = 11.sp) }
+                } else null,
 
                 modifier =
                     Modifier.fillMaxWidth(),
@@ -1679,9 +1763,6 @@ fun AddExpenseDialog(
                 onValueChange = {
                     merchant = it
                 },
-
-                readOnly =
-                    onDelete != null,
 
                 modifier =
                     Modifier.fillMaxWidth(),
@@ -2444,21 +2525,25 @@ fun AddExpenseDialog(
                                     .toDoubleOrNull()
                                     ?: 0.0
 
-                            if (
-                                amt > 0 &&
-                                merchant.isNotBlank()
-                            ) {
-                                isAnimating = true
+                            if (amt <= 0.0) {
+                                amountError = true
+                            } else {
+                                amountError = false
+                                val resolvedMerchant = if (merchant.isNotBlank()) merchant.trim() else "Unknown Merchant"
+                                onAdd(
+                                    amt,
+                                    resolvedMerchant,
+                                    type,
+                                    tag,
+                                    note,
+                                    dateMillis
+                                )
                             }
                         },
 
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
-                            .graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                            },
+                            .height(48.dp),
 
                         colors =
                             ButtonDefaults
@@ -2532,21 +2617,25 @@ fun AddExpenseDialog(
                                     .toDoubleOrNull()
                                     ?: 0.0
 
-                            if (
-                                amt > 0 &&
-                                merchant.isNotBlank()
-                            ) {
-                                isAnimating = true
+                            if (amt <= 0.0) {
+                                amountError = true
+                            } else {
+                                amountError = false
+                                val resolvedMerchant = if (merchant.isNotBlank()) merchant.trim() else "Unknown Merchant"
+                                onAdd(
+                                    amt,
+                                    resolvedMerchant,
+                                    type,
+                                    tag,
+                                    note,
+                                    dateMillis
+                                )
                             }
                         },
 
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
-                            .graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                            },
+                            .height(48.dp),
 
                         colors =
                             ButtonDefaults
