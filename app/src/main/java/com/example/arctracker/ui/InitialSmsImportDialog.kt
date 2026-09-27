@@ -60,6 +60,7 @@ fun InitialSmsImportDialog(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
+            SmsPermissionHelper.setInitialImportCompleted(context, true)
             currentStep = InitialImportDialogStep.SCANNING
             scope.launch {
                 val threeMonthsAgo = SmsPermissionHelper.calculateThreeMonthsAgoTimestamp()
@@ -170,6 +171,7 @@ fun InitialSmsImportDialog(
                         Button(
                             onClick = {
                                 if (SmsPermissionHelper.isSmsPermissionGranted(context)) {
+                                    SmsPermissionHelper.setInitialImportCompleted(context, true)
                                     currentStep = InitialImportDialogStep.SCANNING
                                     scope.launch {
                                         val threeMonthsAgo = SmsPermissionHelper.calculateThreeMonthsAgoTimestamp()

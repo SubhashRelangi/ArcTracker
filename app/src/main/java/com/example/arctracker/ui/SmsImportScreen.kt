@@ -90,6 +90,7 @@ fun SmsImportScreen(
                 hasSmsPermission = granted
                 if (granted) {
                     isPermanentlyDenied = false
+                    SmsPermissionHelper.setInitialImportCompleted(context, true)
                 }
             }
         }
@@ -102,6 +103,7 @@ fun SmsImportScreen(
     val isDateRangeValid = startDateMillis <= endDateMillis
 
     fun triggerScan() {
+        SmsPermissionHelper.setInitialImportCompleted(context, true)
         errorMessage = null
         currentPhase = SmsImportUiPhase.SCANNING
         isCancelled = false
@@ -132,6 +134,7 @@ fun SmsImportScreen(
         hasSmsPermission = isGranted
         if (isGranted) {
             isPermanentlyDenied = false
+            SmsPermissionHelper.setInitialImportCompleted(context, true)
             triggerScan()
         } else {
             // User denied permission: stay on SELECT_RANGE, do NOT report terminal error
@@ -550,6 +553,7 @@ fun SmsImportScreen(
                                         currentPhase = SmsImportUiPhase.SELECT_RANGE
                                     } else if (impRes is SmsImportResult.Success) {
                                         importResult = impRes
+                                        SmsPermissionHelper.setInitialImportCompleted(context, true)
                                         currentPhase = SmsImportUiPhase.IMPORT_COMPLETE
                                     } else if (impRes is SmsImportResult.Failure) {
                                         errorMessage = impRes.message

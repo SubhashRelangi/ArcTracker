@@ -74,6 +74,9 @@ fun SettingsScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
                 hasNotifAccess = granted
+                userPrefGlobalEnabled = settingsRepo.getSettings().globalEnabled
+                smsTracking = settingsRepo.isSmsTrackingEnabled()
+                notifTracking = settingsRepo.isNotificationTrackingEnabled()
                 if (pendingPermissionAction == "AUTO_TRACKING") {
                     pendingPermissionAction = null
                     if (granted) {

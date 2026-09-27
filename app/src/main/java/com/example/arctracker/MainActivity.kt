@@ -93,11 +93,19 @@ fun ExpenseScreen() {
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
 
+    val settingsRepo = remember {
+        com.example.arctracker.settings.MonitoringSettingsRepository.getInstance(context)
+    }
+
     var isNotificationAccessGranted by remember {
         mutableStateOf(NotificationPermissionHelper.isNotificationAccessGranted(context))
     }
 
     var hasDismissedNotificationPermissionDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var pendingHomeNotificationGrant by rememberSaveable {
         mutableStateOf(false)
     }
 
@@ -111,6 +119,19 @@ fun ExpenseScreen() {
                 val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
                 if (isNotificationAccessGranted != granted) {
                     isNotificationAccessGranted = granted
+                }
+                if (pendingHomeNotificationGrant) {
+                    pendingHomeNotificationGrant = false
+                    if (granted) {
+                        settingsRepo.setGlobalEnabled(true)
+                        settingsRepo.setNotificationTrackingEnabled(true)
+                    } else {
+                        settingsRepo.setGlobalEnabled(false)
+                        settingsRepo.setNotificationTrackingEnabled(false)
+                    }
+                }
+                if (SmsPermissionHelper.isSmsPermissionGranted(context)) {
+                    SmsPermissionHelper.setInitialImportCompleted(context, true)
                 }
             }
         }
@@ -1128,10 +1149,13 @@ fun ExpenseScreen() {
         if (!isNotificationAccessGranted && !hasDismissedNotificationPermissionDialog) {
             NotificationPermissionDialog(
                 onGrantClick = {
+                    pendingHomeNotificationGrant = true
                     NotificationPermissionHelper.openNotificationAccessSettings(context)
                 },
                 onDismiss = {
                     hasDismissedNotificationPermissionDialog = true
+                    settingsRepo.setGlobalEnabled(false)
+                    settingsRepo.setNotificationTrackingEnabled(false)
                 }
             )
         } else if (!hasDismissedInitialSmsImportDialog && !SmsPermissionHelper.isInitialImportCompleted(context)) {

@@ -280,7 +280,7 @@ class SharedPreferencesMonitoringSettingsRepository(
     override fun setNotificationTrackingEnabled(enabled: Boolean): Unit = synchronized(lock) {
         prefs.edit()
             .putBoolean(MonitoringSettingsRepository.KEY_NOTIFICATION_TRACKING_ENABLED, enabled)
-            .apply()
+            .commit()
     }
 
     override fun isSmsTrackingEnabled(): Boolean = synchronized(lock) {
@@ -290,14 +290,14 @@ class SharedPreferencesMonitoringSettingsRepository(
     override fun setSmsTrackingEnabled(enabled: Boolean): Unit = synchronized(lock) {
         prefs.edit()
             .putBoolean(MonitoringSettingsRepository.KEY_SMS_TRACKING_ENABLED, enabled)
-            .apply()
+            .commit()
     }
 
     override fun setGlobalEnabled(enabled: Boolean): Unit = synchronized(lock) {
         prefs.edit()
             .putBoolean(MonitoringSettingsRepository.KEY_GLOBAL_ENABLED, enabled)
             .putBoolean(MonitoringSettingsRepository.LEGACY_KEY_AUTO_TRACKING, enabled)
-            .apply()
+            .commit()
     }
 
     override fun setAppEnabled(packageName: String, enabled: Boolean): Unit = synchronized(lock) {
@@ -443,7 +443,7 @@ class SharedPreferencesMonitoringSettingsRepository(
     override fun setInitialSmsImportCompleted(completed: Boolean): Unit = synchronized(lock) {
         prefs.edit()
             .putBoolean(MonitoringSettingsRepository.KEY_INITIAL_SMS_IMPORT_COMPLETED, completed)
-            .apply()
+            .commit()
     }
 
     override fun resetToDefaults(): Unit = synchronized(lock) {

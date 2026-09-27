@@ -75,7 +75,15 @@ object SmsPermissionHelper {
      * Checks whether the first-time 3-month historical SMS import has been completed.
      */
     fun isInitialImportCompleted(context: Context): Boolean {
-        return MonitoringSettingsRepository.getInstance(context).isInitialSmsImportCompleted()
+        val repo = MonitoringSettingsRepository.getInstance(context)
+        if (repo.isInitialSmsImportCompleted()) {
+            return true
+        }
+        if (isSmsPermissionGranted(context)) {
+            repo.setInitialSmsImportCompleted(true)
+            return true
+        }
+        return false
     }
 
     /**
