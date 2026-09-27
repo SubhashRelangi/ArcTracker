@@ -55,6 +55,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.arctracker.data.Expense
 import com.example.arctracker.service.NotificationPermissionHelper
+import com.example.arctracker.service.SmsPermissionHelper
+import com.example.arctracker.ui.InitialSmsImportDialog
 import com.example.arctracker.ui.NotificationPermissionDialog
 import com.example.arctracker.utils.RegexPatternsManager
 import kotlinx.coroutines.Dispatchers
@@ -95,6 +97,10 @@ fun ExpenseScreen() {
     }
 
     var hasDismissedNotificationPermissionDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var hasDismissedInitialSmsImportDialog by rememberSaveable {
         mutableStateOf(false)
     }
 
@@ -1092,6 +1098,16 @@ fun ExpenseScreen() {
                 },
                 onDismiss = {
                     hasDismissedNotificationPermissionDialog = true
+                }
+            )
+        } else if (!hasDismissedInitialSmsImportDialog && !SmsPermissionHelper.isInitialImportCompleted(context)) {
+            InitialSmsImportDialog(
+                onDismiss = {
+                    hasDismissedInitialSmsImportDialog = true
+                },
+                onComplete = {
+                    hasDismissedInitialSmsImportDialog = true
+                    SmsPermissionHelper.setInitialImportCompleted(context, true)
                 }
             )
         }

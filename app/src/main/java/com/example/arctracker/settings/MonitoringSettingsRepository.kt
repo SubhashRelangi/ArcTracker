@@ -128,6 +128,16 @@ interface MonitoringSettingsRepository {
      */
     fun setSmsTrackingEnabled(enabled: Boolean) {}
 
+    /**
+     * Returns whether the initial historical SMS import has been completed.
+     */
+    fun isInitialSmsImportCompleted(): Boolean = false
+
+    /**
+     * Sets whether the initial historical SMS import has been completed.
+     */
+    fun setInitialSmsImportCompleted(completed: Boolean) {}
+
     companion object {
         const val PREFS_NAME = "ArcTrackerPrefs"
         const val KEY_GLOBAL_ENABLED = "monitoring_global_enabled"
@@ -136,6 +146,7 @@ interface MonitoringSettingsRepository {
         const val LEGACY_KEY_AUTO_TRACKING = "isAutoTrackingEnabled"
         const val KEY_NOTIFICATION_TRACKING_ENABLED = "isNotificationTrackingEnabled"
         const val KEY_SMS_TRACKING_ENABLED = "isSmsTrackingEnabled"
+        const val KEY_INITIAL_SMS_IMPORT_COMPLETED = "initial_sms_import_completed"
 
         @Volatile
         private var INSTANCE: MonitoringSettingsRepository? = null
@@ -425,12 +436,23 @@ class SharedPreferencesMonitoringSettingsRepository(
         result
     }
 
+    override fun isInitialSmsImportCompleted(): Boolean = synchronized(lock) {
+        prefs.getBoolean(MonitoringSettingsRepository.KEY_INITIAL_SMS_IMPORT_COMPLETED, false)
+    }
+
+    override fun setInitialSmsImportCompleted(completed: Boolean): Unit = synchronized(lock) {
+        prefs.edit()
+            .putBoolean(MonitoringSettingsRepository.KEY_INITIAL_SMS_IMPORT_COMPLETED, completed)
+            .apply()
+    }
+
     override fun resetToDefaults(): Unit = synchronized(lock) {
         prefs.edit()
             .putBoolean(MonitoringSettingsRepository.KEY_GLOBAL_ENABLED, true)
             .putBoolean(MonitoringSettingsRepository.LEGACY_KEY_AUTO_TRACKING, true)
             .putBoolean(MonitoringSettingsRepository.KEY_NOTIFICATION_TRACKING_ENABLED, true)
             .putBoolean(MonitoringSettingsRepository.KEY_SMS_TRACKING_ENABLED, true)
+            .putBoolean(MonitoringSettingsRepository.KEY_INITIAL_SMS_IMPORT_COMPLETED, false)
             .putStringSet(MonitoringSettingsRepository.KEY_ENABLED_PACKAGES, AppCatalog.defaultEnabledPackages)
             .remove(MonitoringSettingsRepository.KEY_USER_ADDED_APPS)
             .apply()
@@ -557,10 +579,21 @@ class InMemoryMonitoringSettingsRepository(
         result
     }
 
+    private var initialSmsImportCompleted: Boolean = false
+
+    override fun isInitialSmsImportCompleted(): Boolean = synchronized(lock) {
+        initialSmsImportCompleted
+    }
+
+    override fun setInitialSmsImportCompleted(completed: Boolean): Unit = synchronized(lock) {
+        initialSmsImportCompleted = completed
+    }
+
     override fun resetToDefaults(): Unit = synchronized(lock) {
         globalEnabled = true
         isNotificationTracking = true
         isSmsTracking = true
+        initialSmsImportCompleted = false
         enabledPackages.clear()
         enabledPackages.addAll(AppCatalog.defaultEnabledPackages)
         userAddedApps.clear()
