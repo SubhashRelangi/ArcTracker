@@ -62,7 +62,7 @@ object TransactionDeduplicator {
             }
 
             if (sameSourceMatch != null) {
-                val timeDiff = abs(candStruct.postTime - sameSourceMatch.timestamp)
+                val timeDiff = abs(candStruct.transactionTimestamp - sameSourceMatch.transactionTimestamp)
 
                 // Check if this represents an update to the existing event
                 val isStatusUpdate = candStruct.status != null &&
@@ -112,7 +112,7 @@ object TransactionDeduplicator {
 
                 if (commonRefs.isNotEmpty()) {
                     val matchedRef = commonRefs.first()
-                    val timeDiff = abs(candStruct.postTime - existing.timestamp)
+                    val timeDiff = abs(candStruct.transactionTimestamp - existing.transactionTimestamp)
 
                     // Conflict Check 1: Incompatible Amounts
                     if (candStruct.amount != null && existing.amount != null && candStruct.amount != existing.amount) {
@@ -221,7 +221,7 @@ object TransactionDeduplicator {
                 }
 
                 // Check time compatibility
-                val timeDiff = abs(candStruct.postTime - existing.timestamp)
+                val timeDiff = abs(candStruct.transactionTimestamp - existing.transactionTimestamp)
                 if (timeDiff > FINGERPRINT_CORRELATION_WINDOW_MS) {
                     continue
                 }
@@ -261,8 +261,12 @@ object TransactionDeduplicator {
                     )
                 }
 
-                if (hasUpiConflict || hasMerchantConflict) {
-                    // Conflicting party information -> separate transaction (e.g. ₹500 to Ravi vs ₹500 to Amazon)
+                val candRefs = extractReferenceSet(candStruct)
+                val existRefs = extractReferenceSet(existing)
+                val hasRefConflict = candRefs.isNotEmpty() && existRefs.isNotEmpty() && candRefs.intersect(existRefs).isEmpty()
+
+                if (hasUpiConflict || hasMerchantConflict || hasRefConflict) {
+                    // Conflicting party or explicit transaction reference -> separate transaction
                     continue
                 }
 
@@ -272,12 +276,35 @@ object TransactionDeduplicator {
                 val sameUpiId = candUpi != null && existUpi != null && candUpi.lowercase() == existUpi.lowercase()
 
                 // Evaluate Fingerprint Strength:
-                // Must have Amount + Direction + Time PLUS at least one verified entity/account identifier (Account/Card, UPI ID, or Merchant within 60s)
+                // Must have Amount + Direction + Time PLUS at least one verified entity/account identifier (Account/Card, UPI ID, or Merchant)
+                val hasExplicitContentTimeDiff = (candStruct.transactionTimestampSource == TimestampSource.CONTENT || existing.timestampSource == TimestampSource.CONTENT) && timeDiff > 0L
+
+                if (sameMerchant && !sameInstrument && !sameUpiId && hasExplicitContentTimeDiff && timeDiff <= 60_000L) {
+                    // Close time difference with merchant match but missing instrument / UPI corroboration
+                    return TransactionDeduplicationResult(
+                        candidate = candidate,
+                        decision = DedupDecision.NEEDS_REVIEW,
+                        strategy = MatchStrategy.STRONG_FINGERPRINT,
+                        matchedRecordId = existing.id,
+                        matchedRecord = existing,
+                        matchingSignals = listOf(
+                            "AMOUNT_MATCH: ${candStruct.amount}",
+                            "DIRECTION_MATCH: ${candStruct.direction}",
+                            "MERCHANT_MATCH: $candMerchantNorm",
+                            "CLOSE_TIME: ${timeDiff / 1000}s"
+                        ),
+                        conflictingSignals = listOf("INSUFFICIENT_IDENTITY_EVIDENCE: lacking instrument suffix or UPI ID with differing timestamps"),
+                        timeDifferenceMillis = timeDiff,
+                        reason = "Matching amount, direction, and merchant with close timestamps (${timeDiff / 1000}s) but lacking corroborating instrument or reference identity"
+                    )
+                }
+
                 val isStrongFingerprint = when {
                     sameMerchant && (sameInstrument || sameUpiId) -> true
                     sameInstrument && (candStruct.merchant == null || existing.merchant == null) -> true
                     sameUpiId -> true
-                    sameMerchant && timeDiff <= 60_000L -> true
+                    sameMerchant && timeDiff == 0L -> true
+                    sameMerchant && !hasExplicitContentTimeDiff && timeDiff <= 60_000L -> true
                     else -> false
                 }
 

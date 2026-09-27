@@ -36,6 +36,15 @@ enum class SecondaryAmountType {
 }
 
 /**
+ * Provenance / source of the extracted transaction timestamp (Step 10.1).
+ */
+enum class TimestampSource {
+    CONTENT,
+    NOTIFICATION_POST_TIME,
+    FALLBACK
+}
+
+/**
  * Represents a secondary monetary value detected in notification context.
  * Kept separate from the primary transaction amount.
  */
@@ -67,6 +76,8 @@ data class StructuredTransactionCandidate(
     val sourceNotificationKey: String,
     val packageName: String,
     val postTime: Long,
+    val transactionTimestamp: Long = postTime,
+    val transactionTimestampSource: TimestampSource = TimestampSource.NOTIFICATION_POST_TIME,
     val amount: Double? = null,
     val currency: String? = null,
     val merchant: String? = null,

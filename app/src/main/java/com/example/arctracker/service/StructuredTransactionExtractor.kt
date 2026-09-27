@@ -140,6 +140,33 @@ object StructuredTransactionExtractor {
         """(?i)\b(?:card)\s*(?:no\.?)?\s*(?:ending\s*(?:with|in)?)?\s*(?:[xX*]*(\d{3,6}))\b"""
     )
 
+    private val MONTH_MAP = mapOf(
+        "jan" to 0, "january" to 0,
+        "feb" to 1, "february" to 1,
+        "mar" to 2, "march" to 2,
+        "apr" to 3, "april" to 3,
+        "may" to 4,
+        "jun" to 5, "june" to 5,
+        "jul" to 6, "july" to 6,
+        "aug" to 7, "august" to 7,
+        "sep" to 8, "september" to 8,
+        "oct" to 9, "october" to 9,
+        "nov" to 10, "november" to 10,
+        "dec" to 11, "december" to 11
+    )
+
+    private val DATE_TIME_PATTERN = Regex(
+        """(?i)\b(\d{1,2})[-/ ]([A-Za-z]{3,9}|\d{1,2})(?:[-/ ](\d{2,4}))?\s*(?:at\s+|,\s*|\s+)\s*([01]?[0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?\s*(am|pm)?\b"""
+    )
+
+    private val TIME_DATE_PATTERN = Regex(
+        """(?i)\b([01]?[0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?\s*(am|pm)?\s+(?:on|dated)\s+(\d{1,2})[-/ ]([A-Za-z]{3,9}|\d{1,2})(?:[-/ ](\d{2,4}))?\b"""
+    )
+
+    private val TIME_ONLY_PATTERN = Regex(
+        """(?i)\b(?:at\s+|time\s*[:\-]?\s*)?([01]?[0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?\s*(am|pm)?\b"""
+    )
+
     // Boundary words that terminate a merchant phrase
     private val MERCHANT_BOUNDARY_PATTERN = Regex(
         """(?i)\b(on|using|via|ref|txn|avl|balance|a/c|account|card|upi ref|utr|rrn|successful|completed|failed|pending)\b"""
@@ -375,12 +402,23 @@ object StructuredTransactionExtractor {
         val accountSuffix = extractAccountSuffix(segmentText, evidenceMap) ?: extractAccountSuffix(wholeNotification.normalizedCombinedText, evidenceMap)
         val cardSuffix = extractCardSuffix(segmentText, evidenceMap) ?: extractCardSuffix(wholeNotification.normalizedCombinedText, evidenceMap)
 
+        // 8. Transaction Timestamp Extraction
+        val extractedTimestamp = extractTransactionTimestamp(segmentText, wholeNotification.postTime, evidenceMap)
+            ?: if (totalSegments == 1) extractTransactionTimestamp(wholeNotification.normalizedCombinedText, wholeNotification.postTime, evidenceMap) else null
+        val (txnTimestamp, txnTimestampSource) = extractedTimestamp ?: if (wholeNotification.postTime > 0) {
+            Pair(wholeNotification.postTime, TimestampSource.NOTIFICATION_POST_TIME)
+        } else {
+            Pair(System.currentTimeMillis(), TimestampSource.FALLBACK)
+        }
+
         val sourceKey = if (totalSegments > 1) "${wholeNotification.notificationKey}#$subIndex" else wholeNotification.notificationKey
 
         return StructuredTransactionCandidate(
             sourceNotificationKey = sourceKey,
             packageName = wholeNotification.packageName,
             postTime = wholeNotification.postTime,
+            transactionTimestamp = txnTimestamp,
+            transactionTimestampSource = txnTimestampSource,
             amount = extractedAmount,
             currency = currency,
             merchant = merchant,
@@ -445,10 +483,20 @@ object StructuredTransactionExtractor {
         val accountSuffix = extractAccountSuffix(text, evidenceMap)
         val cardSuffix = extractCardSuffix(text, evidenceMap)
 
+        // 8. Transaction Timestamp Extraction
+        val (txnTimestamp, txnTimestampSource) = extractTransactionTimestamp(text, notification.postTime, evidenceMap)
+            ?: if (notification.postTime > 0) {
+                Pair(notification.postTime, TimestampSource.NOTIFICATION_POST_TIME)
+            } else {
+                Pair(System.currentTimeMillis(), TimestampSource.FALLBACK)
+            }
+
         return StructuredTransactionCandidate(
             sourceNotificationKey = notification.notificationKey,
             packageName = notification.packageName,
             postTime = notification.postTime,
+            transactionTimestamp = txnTimestamp,
+            transactionTimestampSource = txnTimestampSource,
             amount = extractedAmount,
             currency = currency,
             merchant = merchant,
@@ -1011,5 +1059,117 @@ object StructuredTransactionExtractor {
             ruleOrPattern = "CARD_SUFFIX_PATTERN"
         )
         return suffix
+    }
+
+    fun extractTransactionTimestamp(
+        text: String,
+        postTime: Long,
+        evidenceMap: MutableMap<String, FieldEvidence>? = null
+    ): Pair<Long, TimestampSource>? {
+        val anchorTime = if (postTime > 0) postTime else System.currentTimeMillis()
+        val baseCal = java.util.Calendar.getInstance().apply {
+            timeInMillis = anchorTime
+        }
+
+        // 1. Try Date + Time (e.g. "25-Sep-2026 10:30", "25-Sep at 10:30 AM", "25/09/2026 10:30")
+        val matchDateTime = DATE_TIME_PATTERN.find(text)
+        if (matchDateTime != null) {
+            val day = matchDateTime.groupValues[1].toIntOrNull() ?: 1
+            val monthStr = matchDateTime.groupValues[2].lowercase()
+            val month = MONTH_MAP[monthStr] ?: (monthStr.toIntOrNull()?.minus(1) ?: baseCal.get(java.util.Calendar.MONTH))
+            val yearStr = matchDateTime.groupValues[3]
+            val year = if (yearStr.isNotBlank()) {
+                val y = yearStr.toInt()
+                if (y < 100) 2000 + y else y
+            } else {
+                baseCal.get(java.util.Calendar.YEAR)
+            }
+            var hour = matchDateTime.groupValues[4].toInt()
+            val minute = matchDateTime.groupValues[5].toInt()
+            val secondStr = matchDateTime.groupValues[6]
+            val second = if (secondStr.isNotBlank()) secondStr.toInt() else 0
+            val amPm = matchDateTime.groupValues[7].lowercase()
+            if (amPm == "pm" && hour < 12) hour += 12
+            if (amPm == "am" && hour == 12) hour = 0
+
+            val cal = java.util.Calendar.getInstance().apply {
+                set(year, month, day, hour, minute, second)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            val ts = cal.timeInMillis
+            evidenceMap?.put("transactionTimestamp", FieldEvidence(
+                fieldName = "transactionTimestamp",
+                extractedValue = ts.toString(),
+                sourceSnippet = matchDateTime.value,
+                ruleOrPattern = "DATE_TIME_PATTERN"
+            ))
+            return Pair(ts, TimestampSource.CONTENT)
+        }
+
+        // 2. Try Time + Date (e.g. "10:30 AM on 25-Sep", "10:30 on 25/09/2026")
+        val matchTimeDate = TIME_DATE_PATTERN.find(text)
+        if (matchTimeDate != null) {
+            var hour = matchTimeDate.groupValues[1].toInt()
+            val minute = matchTimeDate.groupValues[2].toInt()
+            val secondStr = matchTimeDate.groupValues[3]
+            val second = if (secondStr.isNotBlank()) secondStr.toInt() else 0
+            val amPm = matchTimeDate.groupValues[4].lowercase()
+            if (amPm == "pm" && hour < 12) hour += 12
+            if (amPm == "am" && hour == 12) hour = 0
+
+            val day = matchTimeDate.groupValues[5].toIntOrNull() ?: 1
+            val monthStr = matchTimeDate.groupValues[6].lowercase()
+            val month = MONTH_MAP[monthStr] ?: (monthStr.toIntOrNull()?.minus(1) ?: baseCal.get(java.util.Calendar.MONTH))
+            val yearStr = matchTimeDate.groupValues[7]
+            val year = if (yearStr.isNotBlank()) {
+                val y = yearStr.toInt()
+                if (y < 100) 2000 + y else y
+            } else {
+                baseCal.get(java.util.Calendar.YEAR)
+            }
+
+            val cal = java.util.Calendar.getInstance().apply {
+                set(year, month, day, hour, minute, second)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            val ts = cal.timeInMillis
+            evidenceMap?.put("transactionTimestamp", FieldEvidence(
+                fieldName = "transactionTimestamp",
+                extractedValue = ts.toString(),
+                sourceSnippet = matchTimeDate.value,
+                ruleOrPattern = "TIME_DATE_PATTERN"
+            ))
+            return Pair(ts, TimestampSource.CONTENT)
+        }
+
+        // 3. Try Time Only (e.g. "at 10:30 AM", "10:30", "time 14:30")
+        val matchTime = TIME_ONLY_PATTERN.find(text)
+        if (matchTime != null) {
+            var hour = matchTime.groupValues[1].toInt()
+            val minute = matchTime.groupValues[2].toInt()
+            val secondStr = matchTime.groupValues[3]
+            val second = if (secondStr.isNotBlank()) secondStr.toInt() else 0
+            val amPm = matchTime.groupValues[4].lowercase()
+            if (amPm == "pm" && hour < 12) hour += 12
+            if (amPm == "am" && hour == 12) hour = 0
+
+            val cal = java.util.Calendar.getInstance().apply {
+                timeInMillis = anchorTime
+                set(java.util.Calendar.HOUR_OF_DAY, hour)
+                set(java.util.Calendar.MINUTE, minute)
+                set(java.util.Calendar.SECOND, second)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            val ts = cal.timeInMillis
+            evidenceMap?.put("transactionTimestamp", FieldEvidence(
+                fieldName = "transactionTimestamp",
+                extractedValue = ts.toString(),
+                sourceSnippet = matchTime.value,
+                ruleOrPattern = "TIME_ONLY_PATTERN"
+            ))
+            return Pair(ts, TimestampSource.CONTENT)
+        }
+
+        return null
     }
 }

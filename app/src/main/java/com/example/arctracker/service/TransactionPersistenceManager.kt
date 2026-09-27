@@ -107,6 +107,7 @@ object TransactionPersistenceManager {
             }
 
             val results = mutableListOf<ExpensePersistenceResult>()
+            val claimedRecordIds = mutableSetOf<String>()
             for (candidate in candidates) {
                 val validated = TransactionValidator.validate(candidate, classification)
                 if (validated.isRejected) {
@@ -128,7 +129,7 @@ object TransactionPersistenceManager {
                     continue
                 }
 
-                val res = processValidatedCandidate(validated, dao)
+                val res = processValidatedCandidate(validated, dao, claimedRecordIds)
                 results.add(res)
             }
 
@@ -200,7 +201,8 @@ object TransactionPersistenceManager {
      */
     suspend fun processValidatedCandidate(
         validated: ValidatedTransactionCandidate,
-        dao: ExpenseDao
+        dao: ExpenseDao,
+        claimedRecordIds: MutableSet<String>? = null
     ): ExpensePersistenceResult {
         if (validated.isRejected) {
             val reason = validated.rejectionReasons.joinToString("; ").ifBlank { "Validation rejected" }
@@ -218,10 +220,17 @@ object TransactionPersistenceManager {
         return try {
             // Targeted query lookup: fetch only relevant correlation/dedup candidates instead of full table
             val targetedExpenses = findTargetedCandidates(validated, dao)
-            val existingRecords = targetedExpenses.map { TransactionRecord.fromExpense(it) }
+            val existingRecords = targetedExpenses
+                .filter { expense ->
+                    claimedRecordIds == null || (!claimedRecordIds.contains(expense.id.toString()) && !claimedRecordIds.contains(expense.notificationKey))
+                }
+                .map { TransactionRecord.fromExpense(it) }
 
             // Step 7: Deduplication and Cross-Source Correlation
             val dedupResult = TransactionDeduplicator.evaluate(validated, existingRecords)
+            if (dedupResult.matchedRecordId != null) {
+                claimedRecordIds?.add(dedupResult.matchedRecordId)
+            }
 
             // Step 8: Room Database Persistence based on deduplication decision
             val result = processDedupResult(dedupResult, dao, targetedExpenses)
@@ -254,7 +263,13 @@ object TransactionPersistenceManager {
             }
         }
 
-        val candTime = if (validated.candidate.postTime > 0) validated.candidate.postTime else System.currentTimeMillis()
+        val candTime = if (validated.candidate.transactionTimestamp > 0) {
+            validated.candidate.transactionTimestamp
+        } else if (validated.candidate.postTime > 0) {
+            validated.candidate.postTime
+        } else {
+            System.currentTimeMillis()
+        }
         val windowMs = TransactionDeduplicator.REFERENCE_ID_CORRELATION_WINDOW_MS
         val windowStart = candTime - windowMs
         val windowEnd = candTime + windowMs
@@ -476,7 +491,13 @@ object TransactionPersistenceManager {
             ?: candidate.counterparty?.takeIf { it.isNotBlank() }
             ?: ""
 
-        val dateMillis = if (candidate.postTime > 0) candidate.postTime else System.currentTimeMillis()
+        val dateMillis = if (candidate.transactionTimestamp > 0) {
+            candidate.transactionTimestamp
+        } else if (candidate.postTime > 0) {
+            candidate.postTime
+        } else {
+            System.currentTimeMillis()
+        }
         val type = if (candidate.direction == TransactionDirection.CREDIT) "Credit" else "Debit"
         val tag = inferTag(candidate)
         val note = buildNote(candidate, extraNote)

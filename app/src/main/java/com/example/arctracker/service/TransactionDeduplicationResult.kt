@@ -78,6 +78,8 @@ data class TransactionRecord(
     val accountSuffix: String? = null,
     val cardSuffix: String? = null,
     val timestamp: Long = 0L,
+    val transactionTimestamp: Long = timestamp,
+    val timestampSource: TimestampSource = TimestampSource.NOTIFICATION_POST_TIME,
     val rawText: String? = null
 ) {
     companion object {
@@ -103,7 +105,9 @@ data class TransactionRecord(
                 upiId = c.upiId,
                 accountSuffix = c.accountSuffix,
                 cardSuffix = c.cardSuffix,
-                timestamp = c.postTime
+                timestamp = c.transactionTimestamp,
+                transactionTimestamp = c.transactionTimestamp,
+                timestampSource = c.transactionTimestampSource
             )
         }
 
@@ -148,6 +152,8 @@ data class TransactionRecord(
                 accountSuffix = extractedAcc,
                 cardSuffix = null,
                 timestamp = expense.dateMillis,
+                transactionTimestamp = expense.dateMillis,
+                timestampSource = TimestampSource.NOTIFICATION_POST_TIME,
                 rawText = expense.rawText
             )
         }
