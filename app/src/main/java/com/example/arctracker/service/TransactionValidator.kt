@@ -29,7 +29,8 @@ object TransactionValidator {
      */
     fun validate(
         candidate: StructuredTransactionCandidate,
-        classification: NotificationClassificationResult? = null
+        classification: NotificationClassificationResult? = null,
+        userAccounts: List<UserAccountContext> = emptyList()
     ): ValidatedTransactionCandidate {
         val validationReasons = mutableListOf<String>()
         val rejectionReasons = mutableListOf<String>()
@@ -79,8 +80,8 @@ object TransactionValidator {
             supportingSignals.add("VALID_CURRENCY")
         }
 
-        // Merchant validation
-        val merchant = candidate.merchant
+        // Merchant / Counterparty validation
+        val merchant = candidate.merchant ?: candidate.counterparty ?: candidate.upiId
         if (merchant != null) {
             when {
                 merchant.isBlank() -> {
@@ -143,6 +144,13 @@ object TransactionValidator {
                 rejectionReasons.add("Account suffix exceeds maximum length: $accountSuffix")
             } else {
                 supportingSignals.add("VALID_ACCOUNT_SUFFIX")
+                if (userAccounts.isNotEmpty()) {
+                    val matchedAccount = userAccounts.firstOrNull { it.matchesAccountSuffix(accountSuffix) }
+                    if (matchedAccount != null) {
+                        supportingSignals.add("KNOWN_USER_ACCOUNT")
+                        validationReasons.add("Account matches configured user account: ${matchedAccount.bankName ?: matchedAccount.accountSuffix}")
+                    }
+                }
             }
         }
 

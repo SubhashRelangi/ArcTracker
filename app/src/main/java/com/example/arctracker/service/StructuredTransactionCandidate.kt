@@ -41,6 +41,7 @@ enum class SecondaryAmountType {
 enum class TimestampSource {
     CONTENT,
     NOTIFICATION_POST_TIME,
+    SMS_RECEIVE_TIME,
     FALLBACK
 }
 
@@ -97,10 +98,24 @@ data class StructuredTransactionCandidate(
     val groupKey: String? = null,
     val isGroup: Boolean = false,
     val isGroupSummary: Boolean = false,
-    val rawContent: String? = null
+    val rawContent: String? = null,
+    val bank: String? = null,
+    val paymentRail: String? = null,
+    val transactionDateString: String? = null,
+    val transactionTimeString: String? = null,
+    val temporalEvidence: TemporalTransactionEvidence? = null
 ) {
     /**
      * Retrieves the evidence object for a specific field if present.
      */
     fun getEvidence(fieldName: String): FieldEvidence? = evidence[fieldName]
+
+    val transactionDate: String?
+        get() = transactionDateString
+
+    val transactionTime: String
+        get() = transactionTimeString ?: "UNKNOWN"
+
+    val balance: Double?
+        get() = secondaryAmounts.firstOrNull { it.type == SecondaryAmountType.BALANCE }?.amount
 }

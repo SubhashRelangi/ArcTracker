@@ -113,6 +113,8 @@ object TransactionDeduplicator {
                 if (commonRefs.isNotEmpty()) {
                     val matchedRef = commonRefs.first()
                     val timeDiff = abs(candStruct.transactionTimestamp - existing.transactionTimestamp)
+                    val arrivalDiff = if (candStruct.postTime > 0 && existing.timestamp > 0) abs(candStruct.postTime - existing.timestamp) else timeDiff
+                    val effectiveTimeDiff = minOf(timeDiff, arrivalDiff)
 
                     // Conflict Check 1: Incompatible Amounts
                     if (candStruct.amount != null && existing.amount != null && candStruct.amount != existing.amount) {
@@ -124,7 +126,7 @@ object TransactionDeduplicator {
                             matchedRecord = existing,
                             matchingSignals = listOf("REFERENCE_ID_MATCH: $matchedRef"),
                             conflictingSignals = listOf("AMOUNT_MISMATCH: candidate=${candStruct.amount}, existing=${existing.amount}"),
-                            timeDifferenceMillis = timeDiff,
+                            timeDifferenceMillis = effectiveTimeDiff,
                             reason = "Matching reference ID ($matchedRef) but conflicting amounts: ${candStruct.amount} vs ${existing.amount}"
                         )
                     }
@@ -141,13 +143,13 @@ object TransactionDeduplicator {
                             matchedRecord = existing,
                             matchingSignals = listOf("REFERENCE_ID_MATCH: $matchedRef"),
                             conflictingSignals = listOf("DIRECTION_MISMATCH: candidate=${candStruct.direction}, existing=${existing.direction}"),
-                            timeDifferenceMillis = timeDiff,
+                            timeDifferenceMillis = effectiveTimeDiff,
                             reason = "Matching reference ID ($matchedRef) but conflicting directions: ${candStruct.direction} vs ${existing.direction}"
                         )
                     }
 
                     // Time window validation for reference matching
-                    if (timeDiff > REFERENCE_ID_CORRELATION_WINDOW_MS) {
+                    if (effectiveTimeDiff > REFERENCE_ID_CORRELATION_WINDOW_MS) {
                         return TransactionDeduplicationResult(
                             candidate = candidate,
                             decision = DedupDecision.NEEDS_REVIEW,
@@ -155,8 +157,8 @@ object TransactionDeduplicator {
                             matchedRecordId = existing.id,
                             matchedRecord = existing,
                             matchingSignals = listOf("REFERENCE_ID_MATCH: $matchedRef"),
-                            conflictingSignals = listOf("TIME_WINDOW_EXCEEDED: ${timeDiff / (1000 * 3600)}h > 48h"),
-                            timeDifferenceMillis = timeDiff,
+                            conflictingSignals = listOf("TIME_WINDOW_EXCEEDED: ${effectiveTimeDiff / (1000 * 3600)}h > 48h"),
+                            timeDifferenceMillis = effectiveTimeDiff,
                             reason = "Matching reference ID ($matchedRef) but time difference exceeds 48-hour window"
                         )
                     }
@@ -178,7 +180,7 @@ object TransactionDeduplicator {
                         matchedRecord = existing,
                         matchingSignals = signals,
                         correlationEvidence = "Common explicit reference ID '$matchedRef' across sources (${candStruct.packageName} <-> ${existing.sourceType})",
-                        timeDifferenceMillis = timeDiff,
+                        timeDifferenceMillis = effectiveTimeDiff,
                         reason = "Strong reference identifier ($matchedRef) matches existing record with compatible context"
                     )
                 }

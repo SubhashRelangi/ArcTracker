@@ -162,6 +162,26 @@ object TransactionPersistenceManager {
     }
 
     /**
+     * Unified pipeline entry point for any [TransactionSourceEvent] (Notification or SMS_HISTORY)
+     * using [ExpenseDao] (Milestone 1).
+     */
+    suspend fun processSourceEvent(
+        event: TransactionSourceEvent,
+        dao: ExpenseDao
+    ): List<ExpensePersistenceResult> {
+        val captured = event.toCapturedNotificationInfo()
+        return processCapturedNotificationAll(captured, dao)
+    }
+
+    suspend fun processSourceEvent(
+        context: Context,
+        event: TransactionSourceEvent,
+        database: AppDatabase = AppDatabase.getDatabase(context)
+    ): List<ExpensePersistenceResult> {
+        return processSourceEvent(event, database.expenseDao())
+    }
+
+    /**
      * Pipeline entry point for historical SMS messages using ExpenseDao.
      */
     suspend fun processSms(
@@ -171,15 +191,19 @@ object TransactionPersistenceManager {
         timestamp: Long,
         dao: ExpenseDao
     ): ExpensePersistenceResult {
-        val captured = CapturedNotificationInfo(
-            packageName = sender,
-            notificationKey = "sms_$smsId",
-            postTime = timestamp,
+        val event = TransactionSourceEvent(
+            sourceType = TransactionSourceType.SMS_HISTORY,
+            sourceId = "sms_$smsId",
+            sender = sender,
+            rawText = body,
+            eventTimestamp = timestamp,
             title = sender,
-            text = body,
             category = "sms"
         )
-        return processCapturedNotification(captured, dao)
+        val results = processSourceEvent(event, dao)
+        return results.firstOrNull { it is ExpensePersistenceResult.Inserted || it is ExpensePersistenceResult.ReviewPending || it is ExpensePersistenceResult.Updated || it is ExpensePersistenceResult.Enriched }
+            ?: results.firstOrNull()
+            ?: ExpensePersistenceResult.IgnoredNonFinancial("No transactions processed")
     }
 
     /**

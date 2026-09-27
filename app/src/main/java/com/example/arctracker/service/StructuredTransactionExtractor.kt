@@ -37,7 +37,7 @@ object StructuredTransactionExtractor {
 
     // Numbers preceded directly by action verbs (without currency symbols)
     private val ACTION_PRECEDED_AMOUNT_PATTERN = Regex(
-        """(?i)\b(?:debited|credited|paid|spent|sent|transferred|withdrawn|deposited|refunded|payment of|txn of|transfer of)\s*(?:by|of|for|is|:)?\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)\b"""
+        """(?i)\b(?:debited|debit|credited|credit|paid|spent|sent|transferred|withdrawn|deposited|refunded|deducted|received|payment of|txn of|transfer of)\s*(?:by|of|for|is|:)?\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)\b"""
     )
 
     // Context detection patterns for amount categorization
@@ -66,7 +66,7 @@ object StructuredTransactionExtractor {
     )
 
     private val TRANSACTION_ACTION_CONTEXT_PATTERN = Regex(
-        """(?i)\b(paid|debited|spent|sent|transferred|credited|received|withdrawn|deposited|refunded|deducted|payment of|txn of|transfer of|purchase|order payment|payment successful|transaction successful)\b"""
+        """(?i)\b(paid|debited|debit|spent|sent|transferred|credited|credit|received|withdrawn|deposited|refunded|deducted|payment of|txn of|transfer of|purchase|order payment|payment successful|transaction successful)\b"""
     )
 
     // Status patterns
@@ -92,15 +92,17 @@ object StructuredTransactionExtractor {
 
     // Merchant / Payee patterns (allows optional intervening amount like "Paid ₹500 to Amazon")
     private val OUTGOING_MERCHANT_PATTERNS = listOf(
-        Regex("""(?i)\b(?:paid|sent|transferred|transfer|payment)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:to|at|towards)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
-        Regex("""(?i)\b(?:debited)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:for payment to|towards|to|at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:paid|sent|transferred|transfer|trf|payment)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:to|at|towards)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:debited|debit)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:for\s+(?:upi\s+)?to|for payment to|towards|to|at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
         Regex("""(?i)\b(?:purchase at|purchase on|spent at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
         Regex("""(?i)\bpayment(?:\s+of)?(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:to|at|towards)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
-        Regex("""(?i)\b(?:paid to|sent to|transferred to)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50}?)(?:\s+(?:for|of|is)?\s*(?:rs\.?|inr|₹)\s*\d)""")
+        Regex("""(?i)\b(?:paid to|sent to|transferred to|trf to)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50}?)(?:\s+(?:for|of|is)?\s*(?:rs\.?|inr|₹)\s*\d)"""),
+        Regex("""(?i)\btrf\s+(?:to\s+)?([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})""")
     )
 
     private val INCOMING_MERCHANT_PATTERNS = listOf(
-        Regex("""(?i)\b(?:received|money received|transfer|credited)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+from\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:received|money received|transfer|trf|credited)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+from\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:received\s+(?:a\s+)?payment\s+of|payment\s+of)(?:[^\n!?]*?)\s+from\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
         Regex("""(?i)\b(?:refund of.*(?:received from|from))\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
         Regex("""(?i)\brefund\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?\s+from\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})""")
     )
@@ -119,6 +121,10 @@ object StructuredTransactionExtractor {
         """(?i)\b(?:upi\s*ref(?:erence)?(?:\s*no\.?)?|upi\s*txn(?:\s*id)?)\s*[:\-#]?\s*([a-zA-Z0-9]{6,30})\b"""
     )
 
+    private val UPI_SLASH_REF_PATTERN = Regex(
+        """(?i)\bUPI/(?:CREDIT|DEBIT)/([a-zA-Z0-9]{6,30})\b"""
+    )
+
     private val UTR_PATTERN = Regex(
         """(?i)\bUTR\s*[:\-#]?\s*([a-zA-Z0-9]{9,30})\b"""
     )
@@ -128,7 +134,7 @@ object StructuredTransactionExtractor {
     )
 
     private val GENERAL_REF_PATTERN = Regex(
-        """(?i)\b(?:ref\s*(?:no\.?|num(?:ber)?\.?)?|reference\s*(?:no\.?|num(?:ber)?\.?)?|txn\s*(?:id)?|transaction\s*(?:id)?)\s*[:\-#]?\s*([a-zA-Z0-9]{4,30})\b"""
+        """(?i)\b(?:ref\s*(?:no\.?|num(?:ber)?\.?)?|refno\.?|reference\s*(?:no\.?|num(?:ber)?\.?)?|txn\s*(?:id)?|transaction\s*(?:id)?)\s*[:\-#]?\s*([a-zA-Z0-9]{4,30})\b"""
     )
 
     // Account / Card suffix patterns
@@ -167,9 +173,17 @@ object StructuredTransactionExtractor {
         """(?i)\b(?:at\s+|time\s*[:\-]?\s*)?([01]?[0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?\s*(am|pm)?\b"""
     )
 
+    private val DATE_NAMED_MONTH_PATTERN = Regex(
+        """(?i)\b(?:on\s+(?:date\s+)?)?(\d{1,2})[-/ ]?([A-Za-z]{3,9})[-/ ]?(\d{2,4})\b"""
+    )
+
+    private val DATE_NUMERIC_PATTERN = Regex(
+        """(?i)\b(?:on\s+(?:date\s+)?)?(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\b"""
+    )
+
     // Boundary words that terminate a merchant phrase
     private val MERCHANT_BOUNDARY_PATTERN = Regex(
-        """(?i)\b(on|using|via|ref|txn|avl|balance|a/c|account|card|upi ref|utr|rrn|successful|completed|failed|pending)\b"""
+        """(?i)\b(on|using|via|thru|through|ref|refno|txn|avl|balance|bal|a/c|account|card|upi ref|utr|rrn|info|if not|call|sms|successful|completed|failed|pending)\b"""
     )
 
     // Phrases that look like merchants but are accounts / methods
@@ -402,14 +416,21 @@ object StructuredTransactionExtractor {
         val accountSuffix = extractAccountSuffix(segmentText, evidenceMap) ?: extractAccountSuffix(wholeNotification.normalizedCombinedText, evidenceMap)
         val cardSuffix = extractCardSuffix(segmentText, evidenceMap) ?: extractCardSuffix(wholeNotification.normalizedCombinedText, evidenceMap)
 
-        // 8. Transaction Timestamp Extraction
-        val extractedTimestamp = extractTransactionTimestamp(segmentText, wholeNotification.postTime, evidenceMap)
-            ?: if (totalSegments == 1) extractTransactionTimestamp(wholeNotification.normalizedCombinedText, wholeNotification.postTime, evidenceMap) else null
-        val (txnTimestamp, txnTimestampSource) = extractedTimestamp ?: if (wholeNotification.postTime > 0) {
-            Pair(wholeNotification.postTime, TimestampSource.NOTIFICATION_POST_TIME)
-        } else {
-            Pair(System.currentTimeMillis(), TimestampSource.FALLBACK)
-        }
+        // 8. Temporal & Bank Details
+        val temporal = extractTemporalDetails(segmentText, wholeNotification.postTime, evidenceMap)
+
+        val bank = extractBank(
+            text = segmentText,
+            sender = wholeNotification.packageName,
+            accountSuffix = accountSuffix
+        ) ?: extractBank(
+            text = wholeNotification.normalizedCombinedText,
+            sender = wholeNotification.packageName,
+            accountSuffix = accountSuffix
+        )
+
+        val paymentRail = extractPaymentRail(segmentText)
+            ?: extractPaymentRail(wholeNotification.normalizedCombinedText)
 
         val sourceKey = if (totalSegments > 1) "${wholeNotification.notificationKey}#$subIndex" else wholeNotification.notificationKey
 
@@ -417,8 +438,8 @@ object StructuredTransactionExtractor {
             sourceNotificationKey = sourceKey,
             packageName = wholeNotification.packageName,
             postTime = wholeNotification.postTime,
-            transactionTimestamp = txnTimestamp,
-            transactionTimestampSource = txnTimestampSource,
+            transactionTimestamp = temporal.timestamp,
+            transactionTimestampSource = temporal.source,
             amount = extractedAmount,
             currency = currency,
             merchant = merchant,
@@ -438,7 +459,12 @@ object StructuredTransactionExtractor {
             groupKey = wholeNotification.groupKey,
             isGroup = wholeNotification.isGroup,
             isGroupSummary = wholeNotification.isGroupSummary,
-            rawContent = segmentText
+            rawContent = segmentText,
+            bank = bank,
+            paymentRail = paymentRail,
+            transactionDateString = temporal.dateString,
+            transactionTimeString = temporal.timeString,
+            temporalEvidence = temporal.temporalEvidence
         )
     }
 
@@ -483,20 +509,23 @@ object StructuredTransactionExtractor {
         val accountSuffix = extractAccountSuffix(text, evidenceMap)
         val cardSuffix = extractCardSuffix(text, evidenceMap)
 
-        // 8. Transaction Timestamp Extraction
-        val (txnTimestamp, txnTimestampSource) = extractTransactionTimestamp(text, notification.postTime, evidenceMap)
-            ?: if (notification.postTime > 0) {
-                Pair(notification.postTime, TimestampSource.NOTIFICATION_POST_TIME)
-            } else {
-                Pair(System.currentTimeMillis(), TimestampSource.FALLBACK)
-            }
+        // 8. Temporal & Bank Details
+        val temporal = extractTemporalDetails(text, notification.postTime, evidenceMap)
+
+        val bank = extractBank(
+            text = text,
+            sender = notification.packageName,
+            accountSuffix = accountSuffix
+        )
+
+        val paymentRail = extractPaymentRail(text)
 
         return StructuredTransactionCandidate(
             sourceNotificationKey = notification.notificationKey,
             packageName = notification.packageName,
             postTime = notification.postTime,
-            transactionTimestamp = txnTimestamp,
-            transactionTimestampSource = txnTimestampSource,
+            transactionTimestamp = temporal.timestamp,
+            transactionTimestampSource = temporal.source,
             amount = extractedAmount,
             currency = currency,
             merchant = merchant,
@@ -516,7 +545,12 @@ object StructuredTransactionExtractor {
             groupKey = notification.groupKey,
             isGroup = notification.isGroup,
             isGroupSummary = notification.isGroupSummary,
-            rawContent = notification.normalizedCombinedText
+            rawContent = notification.normalizedCombinedText,
+            bank = bank,
+            paymentRail = paymentRail,
+            transactionDateString = temporal.dateString,
+            transactionTimeString = temporal.timeString,
+            temporalEvidence = temporal.temporalEvidence
         )
     }
 
@@ -604,23 +638,28 @@ object StructuredTransactionExtractor {
             )
         }
 
-        // 3. Check Action-Preceded amounts without currency (e.g. "debited by 250")
+        // 3. Check Action-Preceded amounts without currency (e.g. "debited by 250", "debited by 10.00")
         for (match in ACTION_PRECEDED_AMOUNT_PATTERN.findAll(text)) {
             val numStr = match.groups[1]?.value ?: continue
             val clean = numStr.replace(",", "")
             val parsed = clean.toDoubleOrNull() ?: continue
+            if (parsed <= 0.0) continue
+
+            // Ensure not a phone number or reference number (10+ digits without decimal point)
+            if (clean.length >= 10 && !clean.contains(".")) continue
 
             // Ensure not inside already matched currency amount or account suffix
             val numStart = match.value.lastIndexOf(numStr) + match.range.first
             if (candidates.any { numStart >= it.startIndex && numStart <= it.endIndex }) continue
 
-            // Ensure not preceded by account/card/ref markers
-            val preContext = text.substring(max(0, match.range.first - 15), match.range.first)
-            if (preContext.contains("a/c", ignoreCase = true) ||
-                preContext.contains("account", ignoreCase = true) ||
-                preContext.contains("card", ignoreCase = true) ||
-                preContext.contains("ref", ignoreCase = true) ||
-                preContext.contains("xx", ignoreCase = true)) {
+            // Ensure text between action verb and number does not contain account/card/ref markers
+            val verbToNum = match.value.substring(0, match.value.lastIndexOf(numStr))
+            if (verbToNum.contains("a/c", ignoreCase = true) ||
+                verbToNum.contains("account", ignoreCase = true) ||
+                verbToNum.contains("card", ignoreCase = true) ||
+                verbToNum.contains("ref", ignoreCase = true) ||
+                verbToNum.contains("vpa", ignoreCase = true) ||
+                verbToNum.contains("xx", ignoreCase = true)) {
                 continue
             }
 
@@ -762,8 +801,39 @@ object StructuredTransactionExtractor {
             return TransactionDirection.UNKNOWN
         }
 
-        val hasDebitExplicit = Regex("""(?i)\b(paid to|sent to|transferred to|debited from|spent at|purchase at|paid at|debited by|debited for|paid using|debited)\b""").containsMatchIn(text)
-        val hasCreditExplicit = Regex("""(?i)\b(received from|credited to|credited with|deposited|refund of .* received|cashback received|credited)\b""").containsMatchIn(text)
+        // 1. Check for beneficiary credit in an account debit message:
+        // E.g. "Your a/c ... is debited for Rs.100 ... and credited to VPA 9704147837-3@axl"
+        val isAccountDebitedBeneficiaryCredited = Regex(
+            """(?i)\b(?:debited|debit)\b.*?\b(?:and\s+)?credited\s+to\s+(?:vpa\b|beneficiary\b|[a-zA-Z0-9.\-_]+@)"""
+        ).containsMatchIn(text)
+
+        if (isAccountDebitedBeneficiaryCredited) {
+            evidenceMap["direction"] = FieldEvidence(
+                fieldName = "direction",
+                extractedValue = TransactionDirection.DEBIT.name,
+                sourceSnippet = "User account debited with beneficiary credit clause",
+                ruleOrPattern = "ACCOUNT_DEBIT_BENEFICIARY_CREDIT"
+            )
+            return TransactionDirection.DEBIT
+        }
+
+        // 2. Check for account credited with sender debited:
+        val isAccountCreditedSenderDebited = Regex(
+            """(?i)\b(?:credited|credit)\b.*?\b(?:and\s+)?debited\s+from\b"""
+        ).containsMatchIn(text)
+
+        if (isAccountCreditedSenderDebited) {
+            evidenceMap["direction"] = FieldEvidence(
+                fieldName = "direction",
+                extractedValue = TransactionDirection.CREDIT.name,
+                sourceSnippet = "User account credited with sender debit clause",
+                ruleOrPattern = "ACCOUNT_CREDIT_SENDER_DEBIT"
+            )
+            return TransactionDirection.CREDIT
+        }
+
+        val hasDebitExplicit = Regex("""(?i)\b(paid to|sent to|transferred to|debited from|spent at|purchase at|paid at|debited by|debited for|paid using|debited|debit)\b""").containsMatchIn(text)
+        val hasCreditExplicit = Regex("""(?i)\b(received from|credited to|credited with|deposited|refund of .* received|cashback received|credited|credit)\b""").containsMatchIn(text)
 
         // General debit and credit terms (including "credit card" vs "debited")
         val hasDebitWord = Regex("""(?i)\b(debited|debit|paid|spent|withdrawn)\b""").containsMatchIn(text)
@@ -979,6 +1049,22 @@ object StructuredTransactionExtractor {
             }
         }
 
+        if (upiRef == null) {
+            val upiSlashMatch = UPI_SLASH_REF_PATTERN.find(text)
+            if (upiSlashMatch != null) {
+                val slashRef = upiSlashMatch.groups[1]?.value?.trim()
+                if (slashRef != null) {
+                    upiRef = slashRef
+                    evidenceMap["upiTransactionId"] = FieldEvidence(
+                        fieldName = "upiTransactionId",
+                        extractedValue = slashRef,
+                        sourceSnippet = upiSlashMatch.value,
+                        ruleOrPattern = "UPI_SLASH_REF_PATTERN"
+                    )
+                }
+            }
+        }
+
         val utrMatch = UTR_PATTERN.find(text)
         if (utrMatch != null) {
             utr = utrMatch.groups[1]?.value?.trim()
@@ -1008,8 +1094,12 @@ object StructuredTransactionExtractor {
         val genMatch = GENERAL_REF_PATTERN.find(text)
         if (genMatch != null) {
             val candidate = genMatch.groups[1]?.value?.trim()
-            // Avoid capturing word "No" or trivial noise
-            if (candidate != null && !candidate.equals("no", ignoreCase = true) && candidate.length >= 3) {
+            // Avoid capturing word "No", trivial noise, or helpline numbers
+            if (candidate != null &&
+                !candidate.equals("no", ignoreCase = true) &&
+                !candidate.startsWith("1800") &&
+                !candidate.startsWith("1860") &&
+                candidate.length >= 3) {
                 generalRef = candidate
                 evidenceMap["referenceId"] = FieldEvidence(
                     fieldName = "referenceId",
@@ -1061,17 +1151,25 @@ object StructuredTransactionExtractor {
         return suffix
     }
 
-    fun extractTransactionTimestamp(
+    data class ExtractedTemporalDetails(
+        val timestamp: Long,
+        val source: TimestampSource,
+        val dateString: String?,
+        val timeString: String?,
+        val temporalEvidence: TemporalTransactionEvidence
+    )
+
+    fun extractTemporalDetails(
         text: String,
-        postTime: Long,
+        anchorTime: Long,
         evidenceMap: MutableMap<String, FieldEvidence>? = null
-    ): Pair<Long, TimestampSource>? {
-        val anchorTime = if (postTime > 0) postTime else System.currentTimeMillis()
+    ): ExtractedTemporalDetails {
+        val baseTime = if (anchorTime > 0) anchorTime else System.currentTimeMillis()
         val baseCal = java.util.Calendar.getInstance().apply {
-            timeInMillis = anchorTime
+            timeInMillis = baseTime
         }
 
-        // 1. Try Date + Time (e.g. "25-Sep-2026 10:30", "25-Sep at 10:30 AM", "25/09/2026 10:30")
+        // 1. Try Date + Time (e.g. "02/09/2026 09:59", "15/09/2026 14:57:23", "25-Sep-2026 10:30")
         val matchDateTime = DATE_TIME_PATTERN.find(text)
         if (matchDateTime != null) {
             val day = matchDateTime.groupValues[1].toIntOrNull() ?: 1
@@ -1092,18 +1190,40 @@ object StructuredTransactionExtractor {
             if (amPm == "pm" && hour < 12) hour += 12
             if (amPm == "am" && hour == 12) hour = 0
 
+            val dateCal = java.util.Calendar.getInstance().apply {
+                set(year, month, day, 0, 0, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
             val cal = java.util.Calendar.getInstance().apply {
                 set(year, month, day, hour, minute, second)
                 set(java.util.Calendar.MILLISECOND, 0)
             }
             val ts = cal.timeInMillis
+            val dateTs = dateCal.timeInMillis
+            val rawDateStr = matchDateTime.groupValues[0].substringBefore(" at ").substringBefore(",").substringBefore(" ").trim()
+            val rawTimeStr = String.format("%02d:%02d%s", hour, minute, if (secondStr.isNotBlank()) String.format(":%02d", second) else "")
+
             evidenceMap?.put("transactionTimestamp", FieldEvidence(
                 fieldName = "transactionTimestamp",
                 extractedValue = ts.toString(),
                 sourceSnippet = matchDateTime.value,
                 ruleOrPattern = "DATE_TIME_PATTERN"
             ))
-            return Pair(ts, TimestampSource.CONTENT)
+
+            val temporal = TemporalTransactionEvidence(
+                transactionDateMillis = dateTs,
+                transactionTimeMillis = ts,
+                sourceEventTimeMillis = baseTime,
+                timestampSource = TimestampSource.CONTENT
+            )
+
+            return ExtractedTemporalDetails(
+                timestamp = ts,
+                source = TimestampSource.CONTENT,
+                dateString = rawDateStr,
+                timeString = rawTimeStr,
+                temporalEvidence = temporal
+            )
         }
 
         // 2. Try Time + Date (e.g. "10:30 AM on 25-Sep", "10:30 on 25/09/2026")
@@ -1128,21 +1248,134 @@ object StructuredTransactionExtractor {
                 baseCal.get(java.util.Calendar.YEAR)
             }
 
+            val dateCal = java.util.Calendar.getInstance().apply {
+                set(year, month, day, 0, 0, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
             val cal = java.util.Calendar.getInstance().apply {
                 set(year, month, day, hour, minute, second)
                 set(java.util.Calendar.MILLISECOND, 0)
             }
             val ts = cal.timeInMillis
+            val dateTs = dateCal.timeInMillis
+            val rawTimeStr = String.format("%02d:%02d%s", hour, minute, if (secondStr.isNotBlank()) String.format(":%02d", second) else "")
+            val rawDateStr = matchTimeDate.value.substringAfter("on ").substringAfter("dated ").trim()
+
             evidenceMap?.put("transactionTimestamp", FieldEvidence(
                 fieldName = "transactionTimestamp",
                 extractedValue = ts.toString(),
                 sourceSnippet = matchTimeDate.value,
                 ruleOrPattern = "TIME_DATE_PATTERN"
             ))
-            return Pair(ts, TimestampSource.CONTENT)
+
+            val temporal = TemporalTransactionEvidence(
+                transactionDateMillis = dateTs,
+                transactionTimeMillis = ts,
+                sourceEventTimeMillis = baseTime,
+                timestampSource = TimestampSource.CONTENT
+            )
+
+            return ExtractedTemporalDetails(
+                timestamp = ts,
+                source = TimestampSource.CONTENT,
+                dateString = rawDateStr,
+                timeString = rawTimeStr,
+                temporalEvidence = temporal
+            )
         }
 
-        // 3. Try Time Only (e.g. "at 10:30 AM", "10:30", "time 14:30")
+        // 3. Try Date Only (Named Month: e.g. "on date 02Sep26", "on 02-Sep-2026")
+        val matchNamedDate = DATE_NAMED_MONTH_PATTERN.find(text)
+        if (matchNamedDate != null) {
+            val day = matchNamedDate.groupValues[1].toIntOrNull() ?: 1
+            val monthStr = matchNamedDate.groupValues[2].lowercase()
+            val month = MONTH_MAP[monthStr]
+            if (month != null && day in 1..31) {
+                val yearStr = matchNamedDate.groupValues[3]
+                val year = if (yearStr.isNotBlank()) {
+                    val y = yearStr.toInt()
+                    if (y < 100) 2000 + y else y
+                } else {
+                    baseCal.get(java.util.Calendar.YEAR)
+                }
+
+                val dateCal = java.util.Calendar.getInstance().apply {
+                    set(year, month, day, 0, 0, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }
+                val dateTs = dateCal.timeInMillis
+                val rawDateStr = matchNamedDate.value.replace(Regex("""(?i)^on\s+(?:date\s+)?"""), "").trim()
+
+                evidenceMap?.put("transactionTimestamp", FieldEvidence(
+                    fieldName = "transactionTimestamp",
+                    extractedValue = dateTs.toString(),
+                    sourceSnippet = matchNamedDate.value,
+                    ruleOrPattern = "DATE_NAMED_MONTH_PATTERN"
+                ))
+
+                val temporal = TemporalTransactionEvidence(
+                    transactionDateMillis = dateTs,
+                    transactionTimeMillis = null, // Explicitly null: message had no time
+                    sourceEventTimeMillis = baseTime,
+                    timestampSource = TimestampSource.CONTENT
+                )
+
+                return ExtractedTemporalDetails(
+                    timestamp = dateTs,
+                    source = TimestampSource.CONTENT,
+                    dateString = rawDateStr,
+                    timeString = null, // Will result in transactionTime = "UNKNOWN"
+                    temporalEvidence = temporal
+                )
+            }
+        }
+
+        // 4. Try Date Only (Numeric Month: e.g. "on 02-09-26", "15/09/2026")
+        val matchNumDate = DATE_NUMERIC_PATTERN.find(text)
+        if (matchNumDate != null) {
+            val day = matchNumDate.groupValues[1].toIntOrNull() ?: 1
+            val monthNum = matchNumDate.groupValues[2].toIntOrNull() ?: 1
+            if (day in 1..31 && monthNum in 1..12) {
+                val yearStr = matchNumDate.groupValues[3]
+                val year = if (yearStr.isNotBlank()) {
+                    val y = yearStr.toInt()
+                    if (y < 100) 2000 + y else y
+                } else {
+                    baseCal.get(java.util.Calendar.YEAR)
+                }
+
+                val dateCal = java.util.Calendar.getInstance().apply {
+                    set(year, monthNum - 1, day, 0, 0, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }
+                val dateTs = dateCal.timeInMillis
+                val rawDateStr = matchNumDate.value.replace(Regex("""(?i)^on\s+(?:date\s+)?"""), "").trim()
+
+                evidenceMap?.put("transactionTimestamp", FieldEvidence(
+                    fieldName = "transactionTimestamp",
+                    extractedValue = dateTs.toString(),
+                    sourceSnippet = matchNumDate.value,
+                    ruleOrPattern = "DATE_NUMERIC_PATTERN"
+                ))
+
+                val temporal = TemporalTransactionEvidence(
+                    transactionDateMillis = dateTs,
+                    transactionTimeMillis = null, // Explicitly null: message had no time
+                    sourceEventTimeMillis = baseTime,
+                    timestampSource = TimestampSource.CONTENT
+                )
+
+                return ExtractedTemporalDetails(
+                    timestamp = dateTs,
+                    source = TimestampSource.CONTENT,
+                    dateString = rawDateStr,
+                    timeString = null, // Will result in transactionTime = "UNKNOWN"
+                    temporalEvidence = temporal
+                )
+            }
+        }
+
+        // 5. Try Time Only (e.g. "at 10:30 AM", "10:30", "time 14:30")
         val matchTime = TIME_ONLY_PATTERN.find(text)
         if (matchTime != null) {
             var hour = matchTime.groupValues[1].toInt()
@@ -1154,22 +1387,131 @@ object StructuredTransactionExtractor {
             if (amPm == "am" && hour == 12) hour = 0
 
             val cal = java.util.Calendar.getInstance().apply {
-                timeInMillis = anchorTime
+                timeInMillis = baseTime
                 set(java.util.Calendar.HOUR_OF_DAY, hour)
                 set(java.util.Calendar.MINUTE, minute)
                 set(java.util.Calendar.SECOND, second)
                 set(java.util.Calendar.MILLISECOND, 0)
             }
             val ts = cal.timeInMillis
+            val rawTimeStr = matchTime.value.trim()
             evidenceMap?.put("transactionTimestamp", FieldEvidence(
                 fieldName = "transactionTimestamp",
                 extractedValue = ts.toString(),
                 sourceSnippet = matchTime.value,
                 ruleOrPattern = "TIME_ONLY_PATTERN"
             ))
-            return Pair(ts, TimestampSource.CONTENT)
+
+            val temporal = TemporalTransactionEvidence(
+                transactionDateMillis = null,
+                transactionTimeMillis = ts,
+                sourceEventTimeMillis = baseTime,
+                timestampSource = TimestampSource.CONTENT
+            )
+
+            return ExtractedTemporalDetails(
+                timestamp = ts,
+                source = TimestampSource.CONTENT,
+                dateString = null,
+                timeString = rawTimeStr,
+                temporalEvidence = temporal
+            )
+        }
+
+        // 6. Fallback (neither date nor time in content)
+        val fallbackSource = if (anchorTime > 0) TimestampSource.NOTIFICATION_POST_TIME else TimestampSource.FALLBACK
+        val temporal = TemporalTransactionEvidence(
+            transactionDateMillis = null,
+            transactionTimeMillis = null,
+            sourceEventTimeMillis = baseTime,
+            timestampSource = fallbackSource
+        )
+
+        return ExtractedTemporalDetails(
+            timestamp = baseTime,
+            source = fallbackSource,
+            dateString = null,
+            timeString = null,
+            temporalEvidence = temporal
+        )
+    }
+
+    fun extractTransactionTimestamp(
+        text: String,
+        postTime: Long,
+        evidenceMap: MutableMap<String, FieldEvidence>? = null
+    ): Pair<Long, TimestampSource>? {
+        val details = extractTemporalDetails(text, postTime, evidenceMap)
+        return if (details.source == TimestampSource.CONTENT) {
+            Pair(details.timestamp, details.source)
+        } else {
+            null
+        }
+    }
+
+    fun extractPaymentRail(text: String): String? {
+        val match = Regex("""(?i)\b(UPI|IMPS|NEFT|RTGS|ATM|POS|CARD|NETBANKING)\b""").find(text)
+        return match?.value?.uppercase()
+    }
+
+    fun extractBank(
+        text: String,
+        sender: String? = null,
+        userAccounts: List<UserAccountContext> = emptyList(),
+        accountSuffix: String? = null
+    ): String? {
+        // 1. User Account Context
+        if (accountSuffix != null && userAccounts.isNotEmpty()) {
+            val matched = userAccounts.firstOrNull { it.matchesAccountSuffix(accountSuffix) }
+            if (!matched?.bankName.isNullOrBlank()) {
+                return normalizeBankName(matched?.bankName!!)
+            }
+        }
+
+        // 2. Trailing hyphen/dash suffix: e.g. "-IPPB", "-SBI", "-APGBank", ".-IPPB"
+        val suffixMatch = Regex("""(?i)[-–—]\s*([A-Za-z0-9]{2,15}(?:Bank|BK)?)\s*[.]?\s*$""").find(text)
+        if (suffixMatch != null) {
+            val raw = suffixMatch.groupValues[1].trim()
+            if (isValidBankToken(raw)) return normalizeBankName(raw)
+        }
+
+        // 3. "thru <Bank>" e.g. "thru IPPB"
+        val thruMatch = Regex("""(?i)\bthru\s+([A-Za-z0-9]{2,15})\b""").find(text)
+        if (thruMatch != null) {
+            val raw = thruMatch.groupValues[1].trim()
+            if (isValidBankToken(raw)) return normalizeBankName(raw)
+        }
+
+        // 4. Any hyphenated bank code in text: e.g. "-IPPB", "-SBI", "-APGBank"
+        val anyHyphenMatch = Regex("""(?i)[-–—](IPPB|SBI|APGBank|APGB|HDFC|ICICI|AXIS|PNB|BOB|KOTAK|CANARA)\b""").find(text)
+        if (anyHyphenMatch != null) {
+            return normalizeBankName(anyHyphenMatch.groupValues[1])
+        }
+
+        // 5. Sender / Header (e.g. "AD-IPPB", "SBIUPI", "VK-SBI", "APGB", "APGBank")
+        if (!sender.isNullOrBlank()) {
+            val cleanSender = sender.substringAfter("-").trim()
+            for (candidate in listOf("IPPB", "SBI", "APGBank", "APGB", "HDFC", "ICICI", "AXIS", "PNB", "BOB", "KOTAK", "CANARA")) {
+                if (cleanSender.contains(candidate, ignoreCase = true)) {
+                    return normalizeBankName(candidate)
+                }
+            }
         }
 
         return null
+    }
+
+    private fun normalizeBankName(raw: String): String {
+        return when {
+            raw.equals("APGBank", ignoreCase = true) -> "APGBank"
+            raw.equals("APGB", ignoreCase = true) -> "APGB"
+            else -> raw.uppercase()
+        }
+    }
+
+    private fun isValidBankToken(token: String): Boolean {
+        val lower = token.lowercase()
+        val noise = setOf("sms", "otp", "call", "info", "team", "app", "alert", "care", "help")
+        return token.length in 2..15 && token !in noise
     }
 }
