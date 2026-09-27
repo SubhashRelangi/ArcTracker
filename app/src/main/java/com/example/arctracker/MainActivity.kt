@@ -527,15 +527,15 @@ fun ExpenseScreen() {
                         navigateTo(it)
                     },
                     onClearData = {
+                        val repo = com.example.arctracker.settings.MonitoringSettingsRepository.getInstance(context)
+                        val wasCompleted = repo.isInitialSmsImportCompleted()
                         expenses = emptyList()
-                        if (!SmsPermissionHelper.isInitialImportCompleted(context)) {
-                            hasDismissedInitialSmsImportDialog = false
-                        }
                         scope.launch(Dispatchers.IO) {
                             try {
                                 expenseDao.clearAll()
                             } catch (_: Exception) {}
                         }
+                        repo.setInitialSmsImportCompleted(wasCompleted)
                         navigateBack()
                     }
                 )

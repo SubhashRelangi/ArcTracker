@@ -74,6 +74,21 @@ object FinancialClassifier {
         val text = notification.normalizedCombinedText
         val packageName = notification.packageName
 
+        // 0. Check Unsupported Language Policy (Milestone 5.2)
+        if (LanguagePolicyHelper.shouldRejectAsUnsupportedLanguage(text)) {
+            return NotificationClassificationResult(
+                normalized = notification,
+                financialRelevance = FinancialRelevance.NON_FINANCIAL,
+                isNoise = true,
+                noiseCategory = NoiseCategory.UNSUPPORTED_LANGUAGE,
+                directionHint = DirectionHint.UNKNOWN,
+                matchedFinancialSignals = emptyList(),
+                matchedNoiseSignals = listOf("UNSUPPORTED_NON_ENGLISH_LANGUAGE"),
+                classificationReasons = listOf("Classified as NON_FINANCIAL: unsupported non-English content without strong English completed-transaction evidence"),
+                noiseReasons = listOf("Contains unsupported non-English script without strong English completed-transaction evidence")
+            )
+        }
+
         // 1. Evaluate Noise first
         val noiseResult = NoiseDetector.detectNoise(notification, ignoreRules)
 

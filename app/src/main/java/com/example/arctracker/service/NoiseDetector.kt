@@ -34,7 +34,11 @@ object NoiseDetector {
         Regex("""\b(?:unlimited\s+5g|unlimited\s+calls|high[\s-]speed data)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:free|complimentary)\s+(?:hotstar|subscription|ott|membership|access)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:enjoy|get)\s+(?:the\s+)?(?:offer|benefits|subscription)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:starting at|starts at|just for)\s+(?:rs\.?|inr|₹)?\s*\d+\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(?:starting at|starts at|just for)\s+(?:rs\.?|inr|₹)?\s*\d+\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:subscribe now|subscribe today|join now|try now|get premium)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:get|enjoy|subscribe to)\s+(?:[A-Za-z]+\s+)?(?:premium|membership|vip|subscription|plan|pack)\s+(?:for|at|@)?\s*(?:rs\.?|inr|₹)?\s*\d+\b""", RegexOption.IGNORE_CASE),
+        Regex("""\bfor\s+\d+\s+(?:months?|days?|years?)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:offer price|plan price|introductory price)\b""", RegexOption.IGNORE_CASE)
     )
 
     // 3. Loan / Credit marketing patterns
@@ -102,6 +106,18 @@ object NoiseDetector {
         val matchedSignals = mutableListOf<String>()
         val reasons = mutableListOf<String>()
         var primaryCategory = NoiseCategory.NONE
+
+        // 0. Check Unsupported Language Policy (Milestone 5.2)
+        if (LanguagePolicyHelper.shouldRejectAsUnsupportedLanguage(text)) {
+            matchedSignals.add("UNSUPPORTED_NON_ENGLISH_LANGUAGE")
+            reasons.add("Contains unsupported non-English script without strong English completed-transaction evidence")
+            return NoiseDetectionResult(
+                isNoise = true,
+                primaryCategory = NoiseCategory.UNSUPPORTED_LANGUAGE,
+                matchedSignals = matchedSignals,
+                reasons = reasons
+            )
+        }
 
         // 1. Check custom & system IgnoreRules from IgnoreRulesManager
         for (rule in ignoreRules) {

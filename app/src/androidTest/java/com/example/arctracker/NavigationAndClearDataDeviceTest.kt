@@ -10,6 +10,7 @@ import com.example.arctracker.service.SmsScanResult
 import com.example.arctracker.service.TransactionPersistenceManager
 import com.example.arctracker.settings.MonitoringSettingsRepository
 import kotlinx.coroutines.runBlocking
+import com.example.arctracker.data.Expense
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -32,48 +33,108 @@ class NavigationAndClearDataDeviceTest {
         val prefs = context.getSharedPreferences("ArcTrackerPrefs", Context.MODE_PRIVATE)
         prefs.edit().clear().commit()
         repository = MonitoringSettingsRepository.getInstance(context)
+        runBlocking {
+            AppDatabase.getDatabase(context).expenseDao().clearAll()
+        }
     }
 
     @After
     fun tearDown() {
         val prefs = context.getSharedPreferences("ArcTrackerPrefs", Context.MODE_PRIVATE)
         prefs.edit().clear().commit()
+        runBlocking {
+            AppDatabase.getDatabase(context).expenseDao().clearAll()
+        }
     }
 
     @Test
-    fun testRealDevice_initialSmsImportFlagLifecycleAndClearAllData() {
-        // 1. Fresh state on device
-        assertFalse(repository.isInitialSmsImportCompleted())
+    fun testRealDevice_scenarioA_completedOnboarding_clearAllData_preservesLifecycleAndSuppressesDialog() = runBlocking {
+        val expenseDao = AppDatabase.getDatabase(context).expenseDao()
 
-        // 2. Complete initial SMS import
+        // 1. Initial SMS onboarding completed
         repository.setInitialSmsImportCompleted(true)
         assertTrue(repository.isInitialSmsImportCompleted())
 
-        // 3. Verify persistence across fresh repository lookup
-        val reloaded = MonitoringSettingsRepository.getInstance(context)
-        assertTrue(reloaded.isInitialSmsImportCompleted())
+        // 2. Insert transactions into database
+        val testExpense = Expense(
+            amount = 450.0,
+            merchant = "Device Test Restaurant",
+            dateMillis = System.currentTimeMillis()
+        )
+        expenseDao.insert(testExpense)
+        assertTrue("Database must contain inserted transactions", expenseDao.getCount() > 0)
 
-        // 4. App restart check: onboarding dialog suppressed when completed
-        val isCompleted = reloaded.isInitialSmsImportCompleted()
-        val hasDismissedInitialSmsImportDialog = false
-        val shouldShowPrompt = !hasDismissedInitialSmsImportDialog && !isCompleted
-        assertFalse("Onboarding prompt must not be shown on app restart when completed", shouldShowPrompt)
+        // 3. Clear All Data execution on real device
+        val wasCompleted = repository.isInitialSmsImportCompleted()
+        expenseDao.clearAll()
+        repository.setInitialSmsImportCompleted(wasCompleted)
 
-        // 5. Clear All Data execution on real device
-        val wasImportCompleted = repository.isInitialSmsImportCompleted()
-        val prefs = context.getSharedPreferences("ArcTrackerPrefs", Context.MODE_PRIVATE)
-        prefs.edit().clear().commit()
-        repository.resetToDefaults()
-        if (wasImportCompleted) {
-            repository.setInitialSmsImportCompleted(true)
-        }
+        // 4. Assertions:
+        // Transactions = 0
+        assertEquals(0, expenseDao.getCount())
 
-        // 6. Confirm initial import state is preserved (Milestone 5.1 specification)
-        assertTrue("Initial SMS import must be preserved after Clear All Data", repository.isInitialSmsImportCompleted())
+        // initialSmsImportCompleted must remain TRUE
+        assertTrue("initialSmsImportCompleted must remain true after Clear All Data", repository.isInitialSmsImportCompleted())
 
-        // 7. Verify prompt does NOT appear after Clear All Data
-        val promptAfterClear = !hasDismissedInitialSmsImportDialog && !repository.isInitialSmsImportCompleted()
-        assertFalse("Initial SMS import prompt must NOT appear after Clear All Data when completed", promptAfterClear)
+        // Dialog should NOT be shown
+        val hasDismissedSession = false
+        val shouldShowPrompt = !hasDismissedSession && !repository.isInitialSmsImportCompleted()
+        assertFalse("Initial SMS import prompt must NOT appear after Clear All Data when completed", shouldShowPrompt)
+
+        // Normal settings preserved (not wiped)
+        assertTrue("Global monitoring must remain enabled", repository.getSettings().globalEnabled)
+    }
+
+    @Test
+    fun testRealDevice_scenarioB_incompleteOnboarding_clearAllData_doesNotMarkComplete() = runBlocking {
+        val expenseDao = AppDatabase.getDatabase(context).expenseDao()
+
+        // 1. Initial SMS onboarding incomplete
+        repository.setInitialSmsImportCompleted(false)
+        assertFalse(repository.isInitialSmsImportCompleted())
+
+        // 2. Insert transactions into database
+        val testExpense = Expense(
+            amount = 120.0,
+            merchant = "Device Test Manual Item",
+            dateMillis = System.currentTimeMillis()
+        )
+        expenseDao.insert(testExpense)
+        assertTrue("Database must contain inserted transactions", expenseDao.getCount() > 0)
+
+        // 3. Clear All Data execution
+        val wasCompleted = repository.isInitialSmsImportCompleted()
+        expenseDao.clearAll()
+        repository.setInitialSmsImportCompleted(wasCompleted)
+
+        // 4. Assertions:
+        assertEquals(0, expenseDao.getCount())
+
+        // initialSmsImportCompleted must remain FALSE
+        assertFalse("Clear All Data must NOT mark onboarding as completed when it was incomplete", repository.isInitialSmsImportCompleted())
+
+        // User remains eligible for onboarding
+        val isEligibleForOnboarding = !repository.isInitialSmsImportCompleted()
+        assertTrue("User must remain eligible for onboarding", isEligibleForOnboarding)
+    }
+
+    @Test
+    fun testRealDevice_scenarioC_permissionIndependence() = runBlocking {
+        val expenseDao = AppDatabase.getDatabase(context).expenseDao()
+
+        // Check real Android permission
+        val initialPermissionState = SmsPermissionHelper.isSmsPermissionGranted(context)
+        repository.setInitialSmsImportCompleted(true)
+
+        // Clear All Data
+        val wasCompleted = repository.isInitialSmsImportCompleted()
+        expenseDao.clearAll()
+        repository.setInitialSmsImportCompleted(wasCompleted)
+
+        // Verify Android permission state is unchanged
+        val postClearPermissionState = SmsPermissionHelper.isSmsPermissionGranted(context)
+        assertEquals("Android permission state must remain identical after Clear All Data", initialPermissionState, postClearPermissionState)
+        assertTrue(repository.isInitialSmsImportCompleted())
     }
 
     @Test

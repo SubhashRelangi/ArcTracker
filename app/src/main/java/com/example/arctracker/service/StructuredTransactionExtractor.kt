@@ -70,7 +70,7 @@ object StructuredTransactionExtractor {
     )
 
     private val PLAN_OR_OFFER_CONTEXT_PATTERN = Regex(
-        """(?i)\b(?:plan\s+(?:of|at|for|@)?|pack\s+(?:of|at|for|@)?|starting\s+at|starts\s+at|special\s+offer|recharge\s+with\s+(?:rs\.?|inr|₹)?\s*\d+\s+plan)\b"""
+        """(?i)\b(?:plan\s+(?:of|at|for|@)?|pack\s+(?:of|at|for|@)?|starting\s+at|starts\s+at|special\s+offer|offer\s+price|plan\s+price|recharge\s+with\s+(?:rs\.?|inr|₹)?\s*\d+|recharge\s+plan|subscribe\s+now|get\s+[A-Za-z0-9]+\s+premium|premium\s+for\s+(?:rs\.?|inr|₹)?\s*\d+|for\s+\d+\s+(?:months?|days?|years?))\b"""
     )
 
     // Status patterns
@@ -138,7 +138,7 @@ object StructuredTransactionExtractor {
     )
 
     private val GENERAL_REF_PATTERN = Regex(
-        """(?i)\b(?:ref\s*(?:no\.?|num(?:ber)?\.?)?|refno\.?|reference\s*(?:no\.?|num(?:ber)?\.?)?|txn\s*(?:id)?|transaction\s*(?:id)?)\s*[:\-#]?\s*([a-zA-Z0-9]{4,30})\b"""
+        """(?i)\b(?:ref\s*(?:no\.?|num(?:ber)?\.?)?|refno\.?|reference\s*(?:no\.?|num(?:ber)?\.?)?|txn\s*(?:id)?|transaction\s*(?:id)?|recharge\s*(?:id|no\.?|num(?:ber)?\.?|ref(?:erence)?\.?))\s*[:\-#]?\s*([a-zA-Z0-9]{4,30})\b"""
     )
 
     // Account / Card suffix patterns
@@ -413,8 +413,17 @@ object StructuredTransactionExtractor {
         // 5. Merchant / Counterparty Extraction from segment
         val (merchant, counterparty) = extractMerchantAndCounterparty(segmentText, upiId, evidenceMap)
 
-        // 6. Reference IDs (UTR, RRN, UPI Ref, Gen Ref) from segment
-        val (refId, utr, rrn, upiTxnId) = extractReferences(segmentText, evidenceMap)
+        // 6. Reference IDs (UTR, RRN, UPI Ref, Gen Ref) from segment, falling back to whole text
+        val segmentRefs = extractReferences(segmentText, evidenceMap)
+        val wholeRefs = if (segmentRefs.refId == null || segmentRefs.utr == null || segmentRefs.rrn == null || segmentRefs.upiTxnId == null) {
+            extractReferences(wholeNotification.normalizedCombinedText, evidenceMap)
+        } else {
+            segmentRefs
+        }
+        val refId = segmentRefs.refId ?: wholeRefs.refId
+        val utr = segmentRefs.utr ?: wholeRefs.utr
+        val rrn = segmentRefs.rrn ?: wholeRefs.rrn
+        val upiTxnId = segmentRefs.upiTxnId ?: wholeRefs.upiTxnId
 
         // 7. Account / Card Suffix
         val accountSuffix = extractAccountSuffix(segmentText, evidenceMap) ?: extractAccountSuffix(wholeNotification.normalizedCombinedText, evidenceMap)
@@ -580,6 +589,10 @@ object StructuredTransactionExtractor {
         secondaryAmounts: MutableList<SecondaryAmount>,
         evidenceMap: MutableMap<String, FieldEvidence>
     ): Double? {
+        if (LanguagePolicyHelper.shouldRejectAsUnsupportedLanguage(text)) {
+            return null
+        }
+
         val candidates = mutableListOf<ParsedAmountCandidate>()
 
         // Helper to extract clause containing a range (split by periods and newlines)
@@ -693,7 +706,8 @@ object StructuredTransactionExtractor {
             candidate.isTotal = TOTAL_CONTEXT_PATTERN.containsMatchIn(clause)
 
             candidate.hasActionVerb = TRANSACTION_ACTION_CONTEXT_PATTERN.containsMatchIn(clause)
-            candidate.isPlanOrOffer = PLAN_OR_OFFER_CONTEXT_PATTERN.containsMatchIn(clause) && !candidate.hasActionVerb
+            val isConditionalOffer = Regex("""(?i)\bpay\s+(?:rs\.?|inr|₹)?\s*\d+.*(?:and get|to get|and receive)\b""").containsMatchIn(clause)
+            candidate.isPlanOrOffer = (PLAN_OR_OFFER_CONTEXT_PATTERN.containsMatchIn(clause) || isConditionalOffer) && !candidate.hasActionVerb
 
             // If an action verb exists in the clause and it's not explicitly labeled balance/fee/tax/cashback/limit
             if (candidate.hasActionVerb && !candidate.isBalance && !candidate.isFee && !candidate.isTax && !candidate.isCashback && !candidate.isLimit) {
@@ -1100,12 +1114,16 @@ object StructuredTransactionExtractor {
             }
         }
 
-        val genMatch = GENERAL_REF_PATTERN.find(text)
-        if (genMatch != null) {
+        val genMatches = GENERAL_REF_PATTERN.findAll(text)
+        for (genMatch in genMatches) {
             val candidate = genMatch.groups[1]?.value?.trim()
-            // Avoid capturing word "No", trivial noise, or helpline numbers
+            // Avoid capturing word "No", trivial noise, status words, or helpline numbers
             if (candidate != null &&
                 !candidate.equals("no", ignoreCase = true) &&
+                !candidate.equals("successful", ignoreCase = true) &&
+                !candidate.equals("completed", ignoreCase = true) &&
+                !candidate.equals("failed", ignoreCase = true) &&
+                !candidate.equals("pending", ignoreCase = true) &&
                 !candidate.startsWith("1800") &&
                 !candidate.startsWith("1860") &&
                 candidate.length >= 3) {
@@ -1116,6 +1134,7 @@ object StructuredTransactionExtractor {
                     sourceSnippet = genMatch.value,
                     ruleOrPattern = "GENERAL_REF_PATTERN"
                 )
+                break
             }
         }
 

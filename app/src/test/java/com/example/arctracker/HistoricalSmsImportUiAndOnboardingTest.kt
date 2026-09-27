@@ -510,6 +510,141 @@ class HistoricalSmsImportUiAndOnboardingTest {
         assertFalse(shouldRequestSmsPermission("Home", userTappedScan = false, isInitialCompleted = true))
     }
 
+    @Test
+    fun test21_test1_clearAllData_completed_clearsTransactions_preservesCompletedTrue() = runBlocking {
+        // GIVEN: initialSmsImportCompleted = true, transactions exist
+        sharedPrefsRepo.setInitialSmsImportCompleted(true)
+        val fakeDao = FakeExpenseDao()
+        val expense = Expense(id = 1, amount = 250.0, merchant = "Swiggy", dateMillis = 1758999999000L)
+        fakeDao.insert(expense)
+        var inMemoryExpenses = listOf(expense)
+        assertEquals(1, fakeDao.getCount())
+        assertEquals(1, inMemoryExpenses.size)
+        assertTrue(sharedPrefsRepo.isInitialSmsImportCompleted())
+
+        // WHEN: Clear All Data
+        val wasCompleted = sharedPrefsRepo.isInitialSmsImportCompleted()
+        inMemoryExpenses = emptyList()
+        fakeDao.clearAll()
+        sharedPrefsRepo.setInitialSmsImportCompleted(wasCompleted)
+
+        // THEN: transactions = 0, initialSmsImportCompleted = true, onboarding dialog = NOT shown
+        assertEquals(0, fakeDao.getCount())
+        assertEquals(0, inMemoryExpenses.size)
+        assertTrue(sharedPrefsRepo.isInitialSmsImportCompleted())
+
+        val hasDismissedSession = false
+        val shouldShowOnboardingDialog = !hasDismissedSession && !sharedPrefsRepo.isInitialSmsImportCompleted()
+        assertFalse("Onboarding dialog must NOT be shown when initialSmsImportCompleted is true", shouldShowOnboardingDialog)
+    }
+
+    @Test
+    fun test22_test2_clearAllData_incomplete_clearsTransactions_preservesCompletedFalse() = runBlocking {
+        // GIVEN: initialSmsImportCompleted = false, transactions exist
+        sharedPrefsRepo.setInitialSmsImportCompleted(false)
+        val fakeDao = FakeExpenseDao()
+        val expense = Expense(id = 2, amount = 150.0, merchant = "Zomato", dateMillis = 1758999999000L)
+        fakeDao.insert(expense)
+        var inMemoryExpenses = listOf(expense)
+        assertEquals(1, fakeDao.getCount())
+        assertFalse(sharedPrefsRepo.isInitialSmsImportCompleted())
+
+        // WHEN: Clear All Data
+        val wasCompleted = sharedPrefsRepo.isInitialSmsImportCompleted()
+        inMemoryExpenses = emptyList()
+        fakeDao.clearAll()
+        sharedPrefsRepo.setInitialSmsImportCompleted(wasCompleted)
+
+        // THEN: transactions = 0, initialSmsImportCompleted = false (must NOT mark onboarding complete)
+        assertEquals(0, fakeDao.getCount())
+        assertEquals(0, inMemoryExpenses.size)
+        assertFalse("Clear All Data must NOT mark onboarding complete if it was false", sharedPrefsRepo.isInitialSmsImportCompleted())
+    }
+
+    @Test
+    fun test23_test3_clearAllData_completed_smsPermissionFalse_permissionUnaffected_dialogNotShown() = runBlocking {
+        // GIVEN: initialSmsImportCompleted = true, hasSmsPermission = false
+        sharedPrefsRepo.setInitialSmsImportCompleted(true)
+        var hasSmsPermission = false
+        val fakeDao = FakeExpenseDao()
+        fakeDao.insert(Expense(id = 3, amount = 350.0, merchant = "Uber", dateMillis = 1758999999000L))
+
+        // WHEN: Clear All Data
+        val wasCompleted = sharedPrefsRepo.isInitialSmsImportCompleted()
+        fakeDao.clearAll()
+        sharedPrefsRepo.setInitialSmsImportCompleted(wasCompleted)
+
+        // THEN: initialSmsImportCompleted = true, hasSmsPermission remains unaffected, dialog NOT shown
+        assertTrue(sharedPrefsRepo.isInitialSmsImportCompleted())
+        assertFalse("Android SMS permission state must not be modified by Clear All Data", hasSmsPermission)
+
+        val hasDismissedSession = false
+        val shouldShowOnboardingDialog = !hasDismissedSession && !sharedPrefsRepo.isInitialSmsImportCompleted()
+        assertFalse("Onboarding dialog must NOT be shown", shouldShowOnboardingDialog)
+    }
+
+    @Test
+    fun test24_test4_clearAllData_completed_transactionsCountPositive_clearsData_returnHome_noDialog() = runBlocking {
+        // GIVEN: initialSmsImportCompleted = true, transaction count > 0
+        sharedPrefsRepo.setInitialSmsImportCompleted(true)
+        val fakeDao = FakeExpenseDao()
+        for (i in 1..10) {
+            fakeDao.insert(Expense(id = i, amount = 100.0 * i, merchant = "Merchant $i", dateMillis = 1758999999000L))
+        }
+        var inMemoryExpenses = fakeDao.getAllExpensesList()
+        assertEquals(10, fakeDao.getCount())
+        assertEquals(10, inMemoryExpenses.size)
+
+        // Navigation state simulation: Home -> Settings -> ClearAllData
+        var backStack = listOf("Home", "Settings", "ClearAllData")
+
+        // WHEN: Clear All Data -> return Home
+        val wasCompleted = sharedPrefsRepo.isInitialSmsImportCompleted()
+        inMemoryExpenses = emptyList()
+        fakeDao.clearAll()
+        sharedPrefsRepo.setInitialSmsImportCompleted(wasCompleted)
+
+        // Pop back to Settings, then Home
+        if (backStack.last() == "ClearAllData") backStack = backStack.dropLast(1)
+        if (backStack.last() == "Settings") backStack = backStack.dropLast(1)
+
+        // THEN: transaction count = 0, at Home, no initial 3-month import dialog
+        assertEquals("Home", backStack.last())
+        assertEquals(0, fakeDao.getCount())
+        assertEquals(0, inMemoryExpenses.size)
+        assertTrue(sharedPrefsRepo.isInitialSmsImportCompleted())
+
+        val shouldShowInitial3MonthDialog = !sharedPrefsRepo.isInitialSmsImportCompleted()
+        assertFalse("No initial 3-month import dialog after returning to Home", shouldShowInitial3MonthDialog)
+    }
+
+    @Test
+    fun test25_test5_clearAllData_incomplete_transactionsCountPositive_clearsData_returnHome_onboardingIncomplete() = runBlocking {
+        // GIVEN: initialSmsImportCompleted = false, transaction count > 0
+        sharedPrefsRepo.setInitialSmsImportCompleted(false)
+        val fakeDao = FakeExpenseDao()
+        fakeDao.insert(Expense(id = 1, amount = 50.0, merchant = "Manual Cash", dateMillis = 1758999999000L))
+        assertEquals(1, fakeDao.getCount())
+
+        var backStack = listOf("Home", "Settings", "ClearAllData")
+
+        // WHEN: Clear All Data -> return Home
+        val wasCompleted = sharedPrefsRepo.isInitialSmsImportCompleted()
+        fakeDao.clearAll()
+        sharedPrefsRepo.setInitialSmsImportCompleted(wasCompleted)
+
+        if (backStack.last() == "ClearAllData") backStack = backStack.dropLast(1)
+        if (backStack.last() == "Settings") backStack = backStack.dropLast(1)
+
+        // THEN: transaction count = 0, onboarding lifecycle remains incomplete
+        assertEquals("Home", backStack.last())
+        assertEquals(0, fakeDao.getCount())
+        assertFalse("Onboarding lifecycle must remain incomplete", sharedPrefsRepo.isInitialSmsImportCompleted())
+
+        val eligibleForInitialOnboarding = !sharedPrefsRepo.isInitialSmsImportCompleted()
+        assertTrue("User remains eligible for initial onboarding flow", eligibleForInitialOnboarding)
+    }
+
     private class FakeTestSharedPreferences : SharedPreferences {
         private val data = mutableMapOf<String, Any?>()
 

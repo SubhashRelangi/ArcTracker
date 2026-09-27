@@ -186,9 +186,10 @@ object TransactionValidator {
             val amountEvidence = candidate.getEvidence("amount")
             if (amountEvidence != null) {
                 val snippetLower = amountEvidence.sourceSnippet.lowercase()
-                val isBalanceSnippet = snippetLower.contains("available balance") || snippetLower.contains("avl bal")
+                val isBalanceSnippet = snippetLower.contains("available balance") || snippetLower.contains("avl bal") || snippetLower.contains("account balance is") || snippetLower.contains("balance is") || snippetLower.contains("bal is") || snippetLower.contains("your account balance")
                 val isOtpSnippet = snippetLower.contains("otp") || snippetLower.contains("one time password")
-                val isLimitSnippet = snippetLower.contains("limit")
+                val isLimitSnippet = snippetLower.contains("limit") || snippetLower.contains("transaction limit")
+                val isPlanOrOfferSnippet = snippetLower.contains("recharge plan") || snippetLower.contains("plan for") || snippetLower.contains("get spotify premium") || snippetLower.contains("subscribe now") || snippetLower.contains("offer price") || snippetLower.contains("cashback offer")
 
                 if (isBalanceSnippet && !snippetLower.contains("debited") && !snippetLower.contains("paid") && !snippetLower.contains("credited")) {
                     rejectionReasons.add("Amount evidence corresponds to balance inquiry rather than transaction event")
@@ -202,8 +203,18 @@ object TransactionValidator {
                     rejectionReasons.add("Amount evidence corresponds to a transaction or credit limit")
                     contradictingSignals.add("AMOUNT_FROM_LIMIT")
                 }
+                if (isPlanOrOfferSnippet && !snippetLower.contains("debited") && !snippetLower.contains("credited") && !snippetLower.contains("was successful")) {
+                    rejectionReasons.add("Amount evidence corresponds to plan or offer price")
+                    contradictingSignals.add("AMOUNT_FROM_OFFER")
+                }
             } else if (candidate.evidence.isNotEmpty()) {
                 warnings.add("Amount lacks explicit field evidence mapping")
+            }
+
+            val rawText = candidate.rawContent ?: ""
+            if (LanguagePolicyHelper.shouldRejectAsUnsupportedLanguage(rawText)) {
+                rejectionReasons.add("Message contains unsupported non-English script without strong English completed-transaction evidence")
+                contradictingSignals.add("UNSUPPORTED_NON_ENGLISH_LANGUAGE")
             }
 
             // Check against secondary amounts
