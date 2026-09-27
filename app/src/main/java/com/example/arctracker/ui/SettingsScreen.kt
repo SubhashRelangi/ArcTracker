@@ -16,13 +16,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.example.arctracker.service.NotificationPermissionHelper
+import com.example.arctracker.settings.MonitoringSettingsRepository
 
 val purpleColor = Color(0xFF673AB7)
 val lightPurpleColor = Color(0xFFEDE7F6)
@@ -31,18 +39,61 @@ val subtitleColor = Color(0xFF757575)
 val borderColor = Color(0xFFF0F0F0)
 
 @Composable
-fun SettingsScreen(onNavigate: (String) -> Unit = {}) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val sharedPrefs = remember { context.getSharedPreferences("ArcTrackerPrefs", android.content.Context.MODE_PRIVATE) }
-    
-    var autoTracking by remember { 
-        mutableStateOf(sharedPrefs.getBoolean("isAutoTrackingEnabled", true)) 
+fun SettingsScreen(
+    onNavigate: (String) -> Unit = {},
+    repository: MonitoringSettingsRepository? = null
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val settingsRepo = remember {
+        repository ?: MonitoringSettingsRepository.getInstance(context)
     }
-    var smsTracking by remember { 
-        mutableStateOf(sharedPrefs.getBoolean("isSmsTrackingEnabled", true)) 
+
+    var autoTracking by remember {
+        mutableStateOf(settingsRepo.getSettings().globalEnabled)
     }
-    var notifTracking by remember { 
-        mutableStateOf(sharedPrefs.getBoolean("isNotificationTrackingEnabled", true)) 
+    var smsTracking by remember {
+        mutableStateOf(settingsRepo.isSmsTrackingEnabled())
+    }
+    var notifTracking by remember {
+        mutableStateOf(settingsRepo.isNotificationTrackingEnabled())
+    }
+
+    var pendingPermissionAction by rememberSaveable { mutableStateOf<String?>(null) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
+                if (pendingPermissionAction == "AUTO_TRACKING") {
+                    pendingPermissionAction = null
+                    if (granted) {
+                        autoTracking = true
+                        settingsRepo.setGlobalEnabled(true)
+                    } else {
+                        autoTracking = false
+                    }
+                } else if (pendingPermissionAction == "NOTIF_TRACKING") {
+                    pendingPermissionAction = null
+                    if (granted) {
+                        notifTracking = true
+                        settingsRepo.setNotificationTrackingEnabled(true)
+                    } else {
+                        notifTracking = false
+                    }
+                } else {
+                    // Permission revoked outside the app
+                    if (!granted && notifTracking) {
+                        notifTracking = false
+                        settingsRepo.setNotificationTrackingEnabled(false)
+                    }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     Column(
@@ -58,29 +109,46 @@ fun SettingsScreen(onNavigate: (String) -> Unit = {}) {
         TrackerStatusSection(
             autoTracking = autoTracking,
             onAutoTrackingChange = { isEnabled ->
-                autoTracking = isEnabled
-                smsTracking = isEnabled
-                notifTracking = isEnabled
-                sharedPrefs.edit()
-                    .putBoolean("isAutoTrackingEnabled", isEnabled)
-                    .putBoolean("isSmsTrackingEnabled", isEnabled)
-                    .putBoolean("isNotificationTrackingEnabled", isEnabled)
-                    .apply()
+                if (isEnabled) {
+                    if (!NotificationPermissionHelper.isNotificationAccessGranted(context)) {
+                        autoTracking = false
+                        pendingPermissionAction = "AUTO_TRACKING"
+                        NotificationPermissionHelper.openNotificationAccessSettings(context)
+                    } else {
+                        autoTracking = true
+                        settingsRepo.setGlobalEnabled(true)
+                    }
+                } else {
+                    autoTracking = false
+                    settingsRepo.setGlobalEnabled(false)
+                }
             }
         )
         Spacer(modifier = Modifier.height(16.dp))
         DataStorageSection(onNavigate = onNavigate)
         Spacer(modifier = Modifier.height(16.dp))
         TrackingSourcesSection(
+            autoTracking = autoTracking,
             smsTracking = smsTracking,
             notifTracking = notifTracking,
-            onSmsTrackingChange = {
-                smsTracking = it
-                sharedPrefs.edit().putBoolean("isSmsTrackingEnabled", it).apply()
+            onSmsTrackingChange = { isEnabled ->
+                smsTracking = isEnabled
+                settingsRepo.setSmsTrackingEnabled(isEnabled)
             },
-            onNotifTrackingChange = {
-                notifTracking = it
-                sharedPrefs.edit().putBoolean("isNotificationTrackingEnabled", it).apply()
+            onNotifTrackingChange = { isEnabled ->
+                if (isEnabled) {
+                    if (!NotificationPermissionHelper.isNotificationAccessGranted(context)) {
+                        notifTracking = false
+                        pendingPermissionAction = "NOTIF_TRACKING"
+                        NotificationPermissionHelper.openNotificationAccessSettings(context)
+                    } else {
+                        notifTracking = true
+                        settingsRepo.setNotificationTrackingEnabled(true)
+                    }
+                } else {
+                    notifTracking = false
+                    settingsRepo.setNotificationTrackingEnabled(false)
+                }
             },
             onNavigate = onNavigate
         )
@@ -122,6 +190,7 @@ fun SettingsRow(
     title: String,
     subtitle: String,
     isLast: Boolean = false,
+    enabled: Boolean = true,
     iconTint: Color = purpleColor,
     iconBgColor: Color = lightPurpleColor,
     onClick: (() -> Unit)? = null,
@@ -134,11 +203,13 @@ fun SettingsRow(
         )
     }
 ) {
+    val alpha = if (enabled) 1f else 0.38f
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = onClick != null) { onClick?.invoke() }
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .clickable(enabled = enabled && onClick != null) { onClick?.invoke() }
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .alpha(alpha),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -190,17 +261,20 @@ fun SettingsSwitchRow(
     subtitle: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    isLast: Boolean = false
+    isLast: Boolean = false,
+    enabled: Boolean = true
 ) {
     SettingsRow(
         icon = icon,
         title = title,
         subtitle = subtitle,
         isLast = isLast,
+        enabled = enabled,
         rightContent = {
             Switch(
                 checked = checked,
-                onCheckedChange = onCheckedChange,
+                onCheckedChange = if (enabled) onCheckedChange else null,
+                enabled = enabled,
                 modifier = Modifier.scale(0.7f).offset(x = 8.dp),
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
@@ -287,8 +361,8 @@ fun TrackerStatusSection(
     SettingsCard(title = "Tracker Status") {
         SettingsSwitchRow(
             icon = Icons.Filled.CheckCircle,
-            title = "Auto Tracking",
-            subtitle = "Actively listening to notifications & SMS",
+            title = "Automatic Tracking",
+            subtitle = "Automatically track transactions in the background",
             checked = autoTracking,
             onCheckedChange = onAutoTrackingChange,
             isLast = false
@@ -347,6 +421,7 @@ fun DataStorageSection(onNavigate: (String) -> Unit = {}) {
 
 @Composable
 fun TrackingSourcesSection(
+    autoTracking: Boolean,
     smsTracking: Boolean,
     notifTracking: Boolean,
     onSmsTrackingChange: (Boolean) -> Unit,
@@ -356,24 +431,27 @@ fun TrackingSourcesSection(
     SettingsCard(title = "Tracking Sources") {
         SettingsSwitchRow(
             icon = Icons.Filled.Email,
-            title = "SMS Tracking",
-            subtitle = "Read and parse SMS messages",
+            title = "SMS Messages",
+            subtitle = "Read transaction messages from SMS",
             checked = smsTracking,
             onCheckedChange = onSmsTrackingChange,
+            enabled = autoTracking,
             isLast = false
         )
         SettingsSwitchRow(
             icon = Icons.Filled.Notifications,
-            title = "Notification Tracking",
-            subtitle = "Listen to UPI & banking app notifications",
+            title = "App Notifications",
+            subtitle = "Monitor notifications from selected apps",
             checked = notifTracking,
             onCheckedChange = onNotifTrackingChange,
+            enabled = autoTracking,
             isLast = false
         )
         SettingsRow(
             icon = Icons.AutoMirrored.Filled.List,
-            title = "Supported Apps",
-            subtitle = "Manage apps to include or exclude",
+            title = "Monitored Apps",
+            subtitle = "Choose which apps can be monitored",
+            enabled = autoTracking && notifTracking,
             isLast = false,
             onClick = { onNavigate("SupportedApps") }
         )
