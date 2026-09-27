@@ -1,7 +1,10 @@
 package com.example.arctracker.ui
 
 import android.Manifest
+import android.app.Activity
 import android.app.DatePickerDialog
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -18,14 +21,19 @@ import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.example.arctracker.service.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -49,6 +57,7 @@ fun SmsImportScreen(
     manager: HistoricalSmsImportManager? = null
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
@@ -68,33 +77,69 @@ fun SmsImportScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isCancelled by remember { mutableStateOf(false) }
 
+    var hasSmsPermission by remember {
+        mutableStateOf(SmsPermissionHelper.isSmsPermissionGranted(context))
+    }
+    var hasRequestedPermissionThisSession by rememberSaveable { mutableStateOf(false) }
+    var isPermanentlyDenied by remember { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val granted = SmsPermissionHelper.isSmsPermissionGranted(context)
+                hasSmsPermission = granted
+                if (granted) {
+                    isPermanentlyDenied = false
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     val isDateRangeValid = startDateMillis <= endDateMillis
+
+    fun triggerScan() {
+        errorMessage = null
+        currentPhase = SmsImportUiPhase.SCANNING
+        isCancelled = false
+        scope.launch {
+            val res = importManager.scan(startDateMillis, endDateMillis) { prog ->
+                scanProgress = prog
+                !isCancelled
+            }
+            if (isCancelled || res is SmsScanResult.Cancelled) {
+                currentPhase = SmsImportUiPhase.SELECT_RANGE
+            } else if (res is SmsScanResult.Success) {
+                scanResult = res
+                currentPhase = SmsImportUiPhase.SCAN_PREVIEW
+            } else if (res is SmsScanResult.Failure) {
+                errorMessage = res.message
+                currentPhase = SmsImportUiPhase.ERROR
+            } else if (res is SmsScanResult.PermissionRequired) {
+                hasSmsPermission = false
+                currentPhase = SmsImportUiPhase.SELECT_RANGE
+            }
+        }
+    }
 
     // Permission launcher for READ_SMS
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
+        hasSmsPermission = isGranted
         if (isGranted) {
-            // Trigger scan immediately on grant
-            currentPhase = SmsImportUiPhase.SCANNING
-            isCancelled = false
-            scope.launch {
-                val res = importManager.scan(startDateMillis, endDateMillis) { prog ->
-                    scanProgress = prog
-                    !isCancelled
-                }
-                if (isCancelled || res is SmsScanResult.Cancelled) {
-                    currentPhase = SmsImportUiPhase.SELECT_RANGE
-                } else if (res is SmsScanResult.Success) {
-                    scanResult = res
-                    currentPhase = SmsImportUiPhase.SCAN_PREVIEW
-                } else if (res is SmsScanResult.Failure) {
-                    errorMessage = res.message
-                    currentPhase = SmsImportUiPhase.ERROR
-                }
-            }
+            isPermanentlyDenied = false
+            triggerScan()
         } else {
-            errorMessage = "READ_SMS permission was denied. Please grant permission to scan previous messages."
+            // User denied permission: stay on SELECT_RANGE, do NOT report terminal error
+            currentPhase = SmsImportUiPhase.SELECT_RANGE
+            val activity = context.findActivity()
+            if (activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_SMS)) {
+                isPermanentlyDenied = true
+            }
         }
     }
 
@@ -285,6 +330,54 @@ fun SmsImportScreen(
                         }
                     }
 
+                    // Informational permission card when READ_SMS is not yet granted
+                    if (!hasSmsPermission) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E5F5))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Info,
+                                    contentDescription = null,
+                                    tint = Color(0xFF673AB7),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "SMS Permission",
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF1E1E1E)
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = if (isPermanentlyDenied)
+                                            "SMS permission is required to scan previous messages. Please allow SMS permission in App Settings."
+                                        else
+                                            "SMS permission is required to scan previous messages.",
+                                        fontSize = 12.sp,
+                                        lineHeight = 16.sp,
+                                        color = Color(0xFF555555)
+                                    )
+                                }
+                                if (isPermanentlyDenied) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    TextButton(
+                                        onClick = { SmsPermissionHelper.openAppSettings(context) },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text("Settings", color = Color(0xFF673AB7), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Error Message (if any)
                     if (errorMessage != null) {
                         Card(
@@ -306,27 +399,21 @@ fun SmsImportScreen(
                             if (!isDateRangeValid) return@Button
 
                             if (SmsPermissionHelper.isSmsPermissionGranted(context)) {
-                                currentPhase = SmsImportUiPhase.SCANNING
-                                isCancelled = false
-                                scope.launch {
-                                    val res = importManager.scan(startDateMillis, endDateMillis) { prog ->
-                                        scanProgress = prog
-                                        !isCancelled
-                                    }
-                                    if (isCancelled || res is SmsScanResult.Cancelled) {
-                                        currentPhase = SmsImportUiPhase.SELECT_RANGE
-                                    } else if (res is SmsScanResult.Success) {
-                                        scanResult = res
-                                        currentPhase = SmsImportUiPhase.SCAN_PREVIEW
-                                    } else if (res is SmsScanResult.Failure) {
-                                        errorMessage = res.message
-                                        currentPhase = SmsImportUiPhase.ERROR
-                                    } else if (res is SmsScanResult.PermissionRequired) {
-                                        permissionLauncher.launch(Manifest.permission.READ_SMS)
-                                    }
-                                }
+                                hasSmsPermission = true
+                                isPermanentlyDenied = false
+                                triggerScan()
                             } else {
-                                permissionLauncher.launch(Manifest.permission.READ_SMS)
+                                val activity = context.findActivity()
+                                val permanentlyDenied = hasRequestedPermissionThisSession && activity != null &&
+                                    !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_SMS)
+
+                                if (permanentlyDenied) {
+                                    isPermanentlyDenied = true
+                                    SmsPermissionHelper.openAppSettings(context)
+                                } else {
+                                    hasRequestedPermissionThisSession = true
+                                    permissionLauncher.launch(Manifest.permission.READ_SMS)
+                                }
                             }
                         },
                         enabled = isDateRangeValid,
@@ -648,3 +735,13 @@ fun ResultRow(icon: ImageVector, text: String, tint: Color = Color(0xFF757575)) 
         Text(text, fontSize = 13.sp, color = Color(0xFF1E1E1E))
     }
 }
+
+private fun Context.findActivity(): Activity? {
+    var ctx = this
+    while (ctx is ContextWrapper) {
+        if (ctx is Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
+

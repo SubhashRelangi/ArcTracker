@@ -124,26 +124,12 @@ fun ExpenseScreen() {
     val expenseDao = remember { database.expenseDao() }
     val dbExpenses by expenseDao.getAllExpenses().collectAsState(initial = emptyList())
 
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.withContext(Dispatchers.IO) {
-            try {
-                if (expenseDao.getCount() == 0) {
-                    expenseDao.insertAll(com.example.arctracker.data.MockData.getInitialExpenses())
-                }
-            } catch (e: Exception) {
-                // Safe ignore
-            }
-        }
-    }
-
     var expenses by remember {
-        mutableStateOf(com.example.arctracker.data.MockData.getInitialExpenses())
+        mutableStateOf(emptyList<Expense>())
     }
 
     LaunchedEffect(dbExpenses) {
-        if (dbExpenses.isNotEmpty()) {
-            expenses = dbExpenses
-        }
+        expenses = dbExpenses
     }
 
     var refreshTrigger by remember {
@@ -514,10 +500,32 @@ fun ExpenseScreen() {
 
             } else if (currentRoute == "Settings") {
 
+                val calToday = java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }
+                val startOfDay = calToday.timeInMillis
+
+                val calMonth = java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.DAY_OF_MONTH, 1)
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }
+                val startOfMonth = calMonth.timeInMillis
+
+                val todayTxnCount = expenses.count { it.dateMillis >= startOfDay && !it.isPending }
+                val thisMonthTxnCount = expenses.count { it.dateMillis >= startOfMonth && !it.isPending }
+
                 com.example.arctracker.ui.SettingsScreen(
                     onNavigate = {
                         navigateTo(it)
-                    }
+                    },
+                    todayCount = todayTxnCount,
+                    thisMonthCount = thisMonthTxnCount
                 )
 
             } else if (currentRoute == "ClearAllData") {

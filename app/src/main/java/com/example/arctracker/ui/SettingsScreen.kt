@@ -41,7 +41,9 @@ val borderColor = Color(0xFFF0F0F0)
 @Composable
 fun SettingsScreen(
     onNavigate: (String) -> Unit = {},
-    repository: MonitoringSettingsRepository? = null
+    repository: MonitoringSettingsRepository? = null,
+    todayCount: Int = 0,
+    thisMonthCount: Int = 0
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -49,7 +51,10 @@ fun SettingsScreen(
         repository ?: MonitoringSettingsRepository.getInstance(context)
     }
 
-    var autoTracking by remember {
+    var hasNotifAccess by remember {
+        mutableStateOf(NotificationPermissionHelper.isNotificationAccessGranted(context))
+    }
+    var userPrefGlobalEnabled by remember {
         mutableStateOf(settingsRepo.getSettings().globalEnabled)
     }
     var smsTracking by remember {
@@ -59,19 +64,24 @@ fun SettingsScreen(
         mutableStateOf(settingsRepo.isNotificationTrackingEnabled())
     }
 
+    val effectiveAutoTracking = userPrefGlobalEnabled && hasNotifAccess
+    val effectiveNotifTracking = notifTracking && hasNotifAccess
+
     var pendingPermissionAction by rememberSaveable { mutableStateOf<String?>(null) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
+                hasNotifAccess = granted
                 if (pendingPermissionAction == "AUTO_TRACKING") {
                     pendingPermissionAction = null
                     if (granted) {
-                        autoTracking = true
+                        userPrefGlobalEnabled = true
                         settingsRepo.setGlobalEnabled(true)
                     } else {
-                        autoTracking = false
+                        userPrefGlobalEnabled = false
+                        settingsRepo.setGlobalEnabled(false)
                     }
                 } else if (pendingPermissionAction == "NOTIF_TRACKING") {
                     pendingPermissionAction = null
@@ -79,11 +89,6 @@ fun SettingsScreen(
                         notifTracking = true
                         settingsRepo.setNotificationTrackingEnabled(true)
                     } else {
-                        notifTracking = false
-                    }
-                } else {
-                    // Permission revoked outside the app
-                    if (!granted && notifTracking) {
                         notifTracking = false
                         settingsRepo.setNotificationTrackingEnabled(false)
                     }
@@ -107,30 +112,31 @@ fun SettingsScreen(
         AccountsSection()
         Spacer(modifier = Modifier.height(16.dp))
         TrackerStatusSection(
-            autoTracking = autoTracking,
+            autoTracking = effectiveAutoTracking,
             onAutoTrackingChange = { isEnabled ->
                 if (isEnabled) {
                     if (!NotificationPermissionHelper.isNotificationAccessGranted(context)) {
-                        autoTracking = false
                         pendingPermissionAction = "AUTO_TRACKING"
                         NotificationPermissionHelper.openNotificationAccessSettings(context)
                     } else {
-                        autoTracking = true
+                        userPrefGlobalEnabled = true
                         settingsRepo.setGlobalEnabled(true)
                     }
                 } else {
-                    autoTracking = false
+                    userPrefGlobalEnabled = false
                     settingsRepo.setGlobalEnabled(false)
                 }
-            }
+            },
+            todayCount = todayCount,
+            thisMonthCount = thisMonthCount
         )
         Spacer(modifier = Modifier.height(16.dp))
         DataStorageSection(onNavigate = onNavigate)
         Spacer(modifier = Modifier.height(16.dp))
         TrackingSourcesSection(
-            autoTracking = autoTracking,
+            autoTracking = effectiveAutoTracking,
             smsTracking = smsTracking,
-            notifTracking = notifTracking,
+            notifTracking = effectiveNotifTracking,
             onSmsTrackingChange = { isEnabled ->
                 smsTracking = isEnabled
                 settingsRepo.setSmsTrackingEnabled(isEnabled)
@@ -138,7 +144,6 @@ fun SettingsScreen(
             onNotifTrackingChange = { isEnabled ->
                 if (isEnabled) {
                     if (!NotificationPermissionHelper.isNotificationAccessGranted(context)) {
-                        notifTracking = false
                         pendingPermissionAction = "NOTIF_TRACKING"
                         NotificationPermissionHelper.openNotificationAccessSettings(context)
                     } else {
@@ -356,7 +361,9 @@ fun AccountsSection() {
 @Composable
 fun TrackerStatusSection(
     autoTracking: Boolean,
-    onAutoTrackingChange: (Boolean) -> Unit
+    onAutoTrackingChange: (Boolean) -> Unit,
+    todayCount: Int = 0,
+    thisMonthCount: Int = 0
 ) {
     SettingsCard(title = "Tracker Status") {
         SettingsSwitchRow(
@@ -371,7 +378,7 @@ fun TrackerStatusSection(
         SettingsRow(
             icon = Icons.AutoMirrored.Filled.List,
             title = "Tracking Stats",
-            subtitle = "Today: 8 transactions • This month: 126",
+            subtitle = "Today: $todayCount transactions • This month: $thisMonthCount",
             isLast = true,
             onClick = {}
         )
@@ -380,6 +387,23 @@ fun TrackerStatusSection(
 
 @Composable
 fun DataStorageSection(onNavigate: (String) -> Unit = {}) {
+    val context = LocalContext.current
+    val dbSizeText = remember {
+        try {
+            val dbFile = context.getDatabasePath("arctracker_database")
+            if (dbFile != null && dbFile.exists()) {
+                val bytes = dbFile.length()
+                if (bytes < 1024) "${bytes} B"
+                else if (bytes < 1024 * 1024) "%.1f KB".format(bytes / 1024.0)
+                else "%.2f MB".format(bytes / (1024.0 * 1024.0))
+            } else {
+                "0 KB"
+            }
+        } catch (_: Exception) {
+            "0 KB"
+        }
+    }
+
     SettingsCard(title = "Data & Storage") {
         SettingsRow(
             icon = Icons.Filled.Info,
@@ -389,7 +413,7 @@ fun DataStorageSection(onNavigate: (String) -> Unit = {}) {
             onClick = { onNavigate("Database") },
             rightContent = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("2.48 MB", fontSize = 11.sp, color = subtitleColor)
+                    Text(dbSizeText, fontSize = 11.sp, color = subtitleColor)
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Go", tint = textColor, modifier = Modifier.size(16.dp))
                 }
