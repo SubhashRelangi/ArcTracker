@@ -528,7 +528,9 @@ fun ExpenseScreen() {
                     },
                     onClearData = {
                         expenses = emptyList()
-                        hasDismissedInitialSmsImportDialog = false
+                        if (!SmsPermissionHelper.isInitialImportCompleted(context)) {
+                            hasDismissedInitialSmsImportDialog = false
+                        }
                         scope.launch(Dispatchers.IO) {
                             try {
                                 expenseDao.clearAll()
@@ -907,12 +909,11 @@ fun ExpenseScreen() {
 
                 initialMerchant =
                     if (
-                        pendingExpense.merchant !=
-                        "Unknown Merchant"
+                        pendingExpense.merchant.isNotBlank()
                     ) {
                         pendingExpense.merchant
                     } else {
-                        ""
+                        "Unknown Merchant"
                     },
 
                 initialType =
@@ -1434,6 +1435,10 @@ fun AddExpenseDialog(
     val textDark =
         Color(0xFF1E1E1E)
 
+    var amountError by remember {
+        mutableStateOf(false)
+    }
+
     var isAnimating by remember {
         mutableStateOf(false)
     }
@@ -1626,10 +1631,16 @@ fun AddExpenseDialog(
 
                 onValueChange = {
                     amount = it
+                    if (amountError && (it.toDoubleOrNull() ?: 0.0) > 0.0) {
+                        amountError = false
+                    }
                 },
 
-                readOnly =
-                    onDelete != null,
+                isError = amountError,
+
+                supportingText = if (amountError) {
+                    { Text("Please enter a valid amount greater than 0", color = Color(0xFFD32F2F), fontSize = 11.sp) }
+                } else null,
 
                 modifier =
                     Modifier.fillMaxWidth(),
@@ -1720,9 +1731,6 @@ fun AddExpenseDialog(
                 onValueChange = {
                     merchant = it
                 },
-
-                readOnly =
-                    onDelete != null,
 
                 modifier =
                     Modifier.fillMaxWidth(),
@@ -2485,21 +2493,25 @@ fun AddExpenseDialog(
                                     .toDoubleOrNull()
                                     ?: 0.0
 
-                            if (
-                                amt > 0 &&
-                                merchant.isNotBlank()
-                            ) {
-                                isAnimating = true
+                            if (amt <= 0.0) {
+                                amountError = true
+                            } else {
+                                amountError = false
+                                val resolvedMerchant = if (merchant.isNotBlank()) merchant.trim() else "Unknown Merchant"
+                                onAdd(
+                                    amt,
+                                    resolvedMerchant,
+                                    type,
+                                    tag,
+                                    note,
+                                    dateMillis
+                                )
                             }
                         },
 
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
-                            .graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                            },
+                            .height(48.dp),
 
                         colors =
                             ButtonDefaults
@@ -2573,21 +2585,25 @@ fun AddExpenseDialog(
                                     .toDoubleOrNull()
                                     ?: 0.0
 
-                            if (
-                                amt > 0 &&
-                                merchant.isNotBlank()
-                            ) {
-                                isAnimating = true
+                            if (amt <= 0.0) {
+                                amountError = true
+                            } else {
+                                amountError = false
+                                val resolvedMerchant = if (merchant.isNotBlank()) merchant.trim() else "Unknown Merchant"
+                                onAdd(
+                                    amt,
+                                    resolvedMerchant,
+                                    type,
+                                    tag,
+                                    note,
+                                    dateMillis
+                                )
                             }
                         },
 
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
-                            .graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                            },
+                            .height(48.dp),
 
                         colors =
                             ButtonDefaults

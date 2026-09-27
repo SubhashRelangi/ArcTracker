@@ -60,16 +60,20 @@ class NavigationAndClearDataDeviceTest {
         assertFalse("Onboarding prompt must not be shown on app restart when completed", shouldShowPrompt)
 
         // 5. Clear All Data execution on real device
+        val wasImportCompleted = repository.isInitialSmsImportCompleted()
         val prefs = context.getSharedPreferences("ArcTrackerPrefs", Context.MODE_PRIVATE)
         prefs.edit().clear().commit()
         repository.resetToDefaults()
+        if (wasImportCompleted) {
+            repository.setInitialSmsImportCompleted(true)
+        }
 
-        // 6. Confirm initial import state is reset
-        assertFalse("Initial SMS import must be reset after Clear All Data", repository.isInitialSmsImportCompleted())
+        // 6. Confirm initial import state is preserved (Milestone 5.1 specification)
+        assertTrue("Initial SMS import must be preserved after Clear All Data", repository.isInitialSmsImportCompleted())
 
-        // 7. Verify prompt can appear again after Clear All Data
+        // 7. Verify prompt does NOT appear after Clear All Data
         val promptAfterClear = !hasDismissedInitialSmsImportDialog && !repository.isInitialSmsImportCompleted()
-        assertTrue("Initial SMS import prompt must become available again after Clear All Data", promptAfterClear)
+        assertFalse("Initial SMS import prompt must NOT appear after Clear All Data when completed", promptAfterClear)
     }
 
     @Test

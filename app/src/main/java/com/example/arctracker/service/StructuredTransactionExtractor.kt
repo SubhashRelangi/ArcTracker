@@ -66,7 +66,11 @@ object StructuredTransactionExtractor {
     )
 
     private val TRANSACTION_ACTION_CONTEXT_PATTERN = Regex(
-        """(?i)\b(paid|debited|debit|spent|sent|transferred|credited|credit|received|withdrawn|deposited|refunded|deducted|payment of|txn of|transfer of|purchase|order payment|payment successful|transaction successful)\b"""
+        """(?i)\b(paid|debited|debit|spent|sent|transferred|credited|credit|received|withdrawn|deposited|refunded|deducted|payment of|txn of|transfer of|purchase|order payment|payment successful|transaction successful|recharge(?:d)?\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed)|recharge of)\b"""
+    )
+
+    private val PLAN_OR_OFFER_CONTEXT_PATTERN = Regex(
+        """(?i)\b(?:plan\s+(?:of|at|for|@)?|pack\s+(?:of|at|for|@)?|starting\s+at|starts\s+at|special\s+offer|recharge\s+with\s+(?:rs\.?|inr|₹)?\s*\d+\s+plan)\b"""
     )
 
     // Status patterns
@@ -566,6 +570,7 @@ object StructuredTransactionExtractor {
         var isCashback: Boolean = false,
         var isTax: Boolean = false,
         var isTotal: Boolean = false,
+        var isPlanOrOffer: Boolean = false,
         var hasActionVerb: Boolean = false,
         var hasCurrencyMarker: Boolean = false
     )
@@ -688,6 +693,7 @@ object StructuredTransactionExtractor {
             candidate.isTotal = TOTAL_CONTEXT_PATTERN.containsMatchIn(clause)
 
             candidate.hasActionVerb = TRANSACTION_ACTION_CONTEXT_PATTERN.containsMatchIn(clause)
+            candidate.isPlanOrOffer = PLAN_OR_OFFER_CONTEXT_PATTERN.containsMatchIn(clause) && !candidate.hasActionVerb
 
             // If an action verb exists in the clause and it's not explicitly labeled balance/fee/tax/cashback/limit
             if (candidate.hasActionVerb && !candidate.isBalance && !candidate.isFee && !candidate.isTax && !candidate.isCashback && !candidate.isLimit) {
@@ -716,12 +722,15 @@ object StructuredTransactionExtractor {
                 c.isTotal -> secondaryAmounts.add(
                     SecondaryAmount(SecondaryAmountType.TOTAL, c.amount, c.rawSnippet, c.clauseSnippet)
                 )
+                c.isPlanOrOffer -> secondaryAmounts.add(
+                    SecondaryAmount(SecondaryAmountType.OTHER, c.amount, c.rawSnippet, c.clauseSnippet)
+                )
             }
         }
 
-        // Filter valid transaction candidates (must not be balance, limit, fee, cashback, or tax)
+        // Filter valid transaction candidates (must not be balance, limit, fee, cashback, tax, or plan price)
         val validCandidates = candidates.filter {
-            !it.isBalance && !it.isLimit && !it.isFee && !it.isCashback && !it.isTax
+            !it.isBalance && !it.isLimit && !it.isFee && !it.isCashback && !it.isTax && !it.isPlanOrOffer
         }
 
         if (validCandidates.isEmpty()) {

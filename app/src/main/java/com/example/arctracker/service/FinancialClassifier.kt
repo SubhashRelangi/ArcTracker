@@ -31,7 +31,7 @@ object FinancialClassifier {
     private val DEBIT_ACTION_PATTERNS = listOf(
         Regex("""\b(paid|debited|deducted|spent|sent|transferred|withdrawn|purchased|charged)\b""", RegexOption.IGNORE_CASE),
         Regex("""\bdebit\b(?!\s*card)""", RegexOption.IGNORE_CASE),
-        Regex("""\b(paid to|sent to|transferred to|payment to|payment of|transfer to|debited from|debited by|debited for|spent at|purchase at|purchase on)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(paid to|sent to|transferred to|payment to|payment of|transfer to|debited from|debited by|debited for|spent at|purchase at|purchase on|recharge of|recharged with|recharged for)\b""", RegexOption.IGNORE_CASE)
     )
 
     // Credit / Incoming action indicators
@@ -43,7 +43,9 @@ object FinancialClassifier {
 
     // Explicit transaction confirmation phrases
     private val TRANSACTION_SUCCESS_PATTERNS = listOf(
-        Regex("""\b(payment successful|transaction successful|transfer successful|order payment successful|payment completed)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(payment successful|transaction successful|transfer successful|order payment successful|payment completed)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:recharge|bill payment|payment|transaction|transfer|order payment)\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed|processed)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:recharge of|payment of)\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed|processed)\b""", RegexOption.IGNORE_CASE)
     )
 
     // Currency and financial context indicators

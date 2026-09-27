@@ -447,12 +447,13 @@ class SharedPreferencesMonitoringSettingsRepository(
     }
 
     override fun resetToDefaults(): Unit = synchronized(lock) {
+        val wasInitialCompleted = prefs.getBoolean(MonitoringSettingsRepository.KEY_INITIAL_SMS_IMPORT_COMPLETED, false)
         prefs.edit()
             .putBoolean(MonitoringSettingsRepository.KEY_GLOBAL_ENABLED, true)
             .putBoolean(MonitoringSettingsRepository.LEGACY_KEY_AUTO_TRACKING, true)
             .putBoolean(MonitoringSettingsRepository.KEY_NOTIFICATION_TRACKING_ENABLED, true)
             .putBoolean(MonitoringSettingsRepository.KEY_SMS_TRACKING_ENABLED, true)
-            .putBoolean(MonitoringSettingsRepository.KEY_INITIAL_SMS_IMPORT_COMPLETED, false)
+            .putBoolean(MonitoringSettingsRepository.KEY_INITIAL_SMS_IMPORT_COMPLETED, wasInitialCompleted)
             .putStringSet(MonitoringSettingsRepository.KEY_ENABLED_PACKAGES, AppCatalog.defaultEnabledPackages)
             .remove(MonitoringSettingsRepository.KEY_USER_ADDED_APPS)
             .apply()
@@ -593,7 +594,7 @@ class InMemoryMonitoringSettingsRepository(
         globalEnabled = true
         isNotificationTracking = true
         isSmsTracking = true
-        initialSmsImportCompleted = false
+        // initialSmsImportCompleted is preserved as onboarding state is first-time only
         enabledPackages.clear()
         enabledPackages.addAll(AppCatalog.defaultEnabledPackages)
         userAddedApps.clear()

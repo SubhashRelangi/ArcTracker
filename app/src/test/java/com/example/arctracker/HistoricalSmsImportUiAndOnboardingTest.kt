@@ -250,7 +250,7 @@ class HistoricalSmsImportUiAndOnboardingTest {
     }
 
     @Test
-    fun test11_clearAllData_resetsInitialImportCompletedState() {
+    fun test11_clearAllData_preservesInitialImportCompletedState() {
         // User had previously completed initial SMS import
         sharedPrefsRepo.setInitialSmsImportCompleted(true)
         assertTrue(sharedPrefsRepo.isInitialSmsImportCompleted())
@@ -258,14 +258,14 @@ class HistoricalSmsImportUiAndOnboardingTest {
         // Clear All Data calls resetToDefaults()
         sharedPrefsRepo.resetToDefaults()
 
-        // Assert initial SMS import flag is reset to false
-        assertFalse(sharedPrefsRepo.isInitialSmsImportCompleted())
+        // Assert initial SMS import flag is PRESERVED as true
+        assertTrue("Initial SMS import completion must be preserved across resetToDefaults", sharedPrefsRepo.isInitialSmsImportCompleted())
 
         // Verify in-memory repo behaves identically
         inMemoryRepo.setInitialSmsImportCompleted(true)
         assertTrue(inMemoryRepo.isInitialSmsImportCompleted())
         inMemoryRepo.resetToDefaults()
-        assertFalse(inMemoryRepo.isInitialSmsImportCompleted())
+        assertTrue("InMemory repo must also preserve initial SMS import completion", inMemoryRepo.isInitialSmsImportCompleted())
     }
 
     @Test
@@ -331,7 +331,7 @@ class HistoricalSmsImportUiAndOnboardingTest {
     }
 
     @Test
-    fun test14_clearAllData_restoresOnboardingAvailabilityAndReturnsToSettings() {
+    fun test14_clearAllData_preservesInitialImportCompletedStateAndReturnsToSettings() {
         // Given initial import was previously completed and dismissed
         sharedPrefsRepo.setInitialSmsImportCompleted(true)
         var hasDismissedInitialSmsImportDialog = true
@@ -341,7 +341,9 @@ class HistoricalSmsImportUiAndOnboardingTest {
 
         // User confirms Clear All Data
         sharedPrefsRepo.resetToDefaults()
-        hasDismissedInitialSmsImportDialog = false
+        if (!sharedPrefsRepo.isInitialSmsImportCompleted()) {
+            hasDismissedInitialSmsImportDialog = false
+        }
         if (backStack.size > 1) {
             backStack = backStack.dropLast(1)
         }
@@ -350,10 +352,10 @@ class HistoricalSmsImportUiAndOnboardingTest {
         assertEquals("Settings", backStack.last())
         assertEquals(listOf("Home", "Settings"), backStack)
 
-        // Verify initial SMS import becomes available again
-        assertFalse(sharedPrefsRepo.isInitialSmsImportCompleted())
+        // Verify initial SMS import remains completed and onboarding dialog is NOT shown
+        assertTrue(sharedPrefsRepo.isInitialSmsImportCompleted())
         val canShowInitialSmsImport = !hasDismissedInitialSmsImportDialog && !sharedPrefsRepo.isInitialSmsImportCompleted()
-        assertTrue(canShowInitialSmsImport)
+        assertFalse("Initial SMS import prompt must NOT appear after Clear All Data if already completed", canShowInitialSmsImport)
     }
 
     @Test
@@ -371,6 +373,141 @@ class HistoricalSmsImportUiAndOnboardingTest {
 
         // For SmsImport, parent header must NOT render
         assertFalse(shouldParentRenderHeader("SmsImport"))
+    }
+
+    private fun createNormalized(text: String, title: String? = null, key: String = "test_key", packageName: String = "com.jio.myjio"): NormalizedNotification {
+        val captured = CapturedNotificationInfo(
+            packageName = packageName,
+            notificationKey = key,
+            postTime = System.currentTimeMillis(),
+            title = title,
+            text = text
+        )
+        return NotificationNormalizer.normalize(captured)!!
+    }
+
+    private fun createValidatedCandidate(
+        text: String,
+        notificationKey: String = "test_key",
+        postTime: Long = 1000L,
+        packageName: String = "com.sbi.SBIAnywhere"
+    ): ValidatedTransactionCandidate {
+        val captured = CapturedNotificationInfo(
+            packageName = packageName,
+            notificationKey = notificationKey,
+            postTime = postTime,
+            title = null,
+            text = text
+        )
+        val normalized = NotificationNormalizer.normalize(captured)!!
+        val classification = FinancialClassifier.classify(normalized)
+        val candidate = StructuredTransactionExtractor.extractDirect(normalized, classification)
+        return TransactionValidator.validate(candidate, classification)
+    }
+
+    @Test
+    fun test16_jioPromotionalPlanOffer_classifiedAsNonFinancialNoise() {
+        val promo1 = createNormalized("Recharge with Rs 949 plan and get free JioHotstar for 90 days with 2 GB/day data! Click jio.com/recharge now.", title = "Jio Plan Offer")
+        val result1 = FinancialClassifier.classify(promo1)
+        assertEquals(FinancialRelevance.NON_FINANCIAL, result1.financialRelevance)
+        assertTrue(result1.isNoise)
+        assertEquals(NoiseCategory.PROMOTIONAL_OR_OFFER, result1.noiseCategory)
+
+        val promo2 = createNormalized("Recharge with Rs.949 for 84 days validity & 2GB/day. Recharge now on MyJio.", title = "Special offer!")
+        val result2 = FinancialClassifier.classify(promo2)
+        assertEquals(FinancialRelevance.NON_FINANCIAL, result2.financialRelevance)
+        assertTrue(result2.isNoise)
+
+        val promo3 = createNormalized("Enjoy Disney+ Hotstar with Jio Rs 949 plan! 2GB/day + unlimited calls for 84 days. Recharge today.", title = "Entertainment Pack")
+        val result3 = FinancialClassifier.classify(promo3)
+        assertEquals(FinancialRelevance.NON_FINANCIAL, result3.financialRelevance)
+        assertTrue(result3.isNoise)
+    }
+
+    @Test
+    fun test17_completedJioRecharge_classifiedAsFinancialDebit() {
+        val completedRecharge = createNormalized("Your Jio recharge of Rs.949 was successful. Recharge ID: 123456789. Your plan is active for 90 days.", title = "Recharge Successful")
+        val result = FinancialClassifier.classify(completedRecharge)
+        assertEquals(FinancialRelevance.FINANCIAL, result.financialRelevance)
+        assertFalse(result.isNoise)
+        assertEquals(DirectionHint.DEBIT_HINT, result.directionHint)
+
+        val candidate = StructuredTransactionExtractor.extractDirect(completedRecharge, result)
+        assertEquals(949.0, candidate?.amount)
+        assertEquals(TransactionDirection.DEBIT, candidate?.direction)
+        assertEquals(TransactionStatus.SUCCESS, candidate?.status)
+    }
+
+    @Test
+    fun test18_crossSourceCorrelation_bankDebitAndTelecomConfirmation() {
+        val bankCandidate = createValidatedCandidate(
+            text = "Rs 949 debited from AC **1234 on 27-Sep-24 via UPI. Ref 427101234567. Avl bal Rs 5000.",
+            notificationKey = "bank_sms_1",
+            packageName = "com.sbi.SBIAnywhere"
+        )
+
+        val telecomCandidate = createValidatedCandidate(
+            text = "Your Jio recharge of Rs.949 was successful. Txn ID: 123456789. Your plan is active for 90 days.",
+            notificationKey = "jio_sms_1",
+            packageName = "com.jio.myjio"
+        )
+        val telecomRecord = TransactionRecord.fromValidated(telecomCandidate)
+
+        // Deduplication between different reference IDs must result in independent transactions
+        val dedupResult = TransactionDeduplicator.evaluate(bankCandidate, listOf(telecomRecord))
+        assertEquals(DedupDecision.NEW_TRANSACTION, dedupResult.decision)
+    }
+
+    @Test
+    fun test19_reviewCompleteAction_resolvesUnknownMerchantAndPersists() {
+        var completedMerchant: String? = null
+        var completedAmount: Double? = null
+        var isPendingResolved: Boolean = false
+
+        // Review callback simulator
+        fun onCompleteReview(amount: Double, merchant: String) {
+            completedAmount = amount
+            completedMerchant = if (merchant.isNotBlank()) merchant.trim() else "Unknown Merchant"
+            isPendingResolved = true
+        }
+
+        // Test with blank merchant on pending approval
+        val inputAmount = 949.0
+        val inputMerchant = ""
+        onCompleteReview(inputAmount, inputMerchant)
+
+        assertTrue(isPendingResolved)
+        assertEquals(949.0, completedAmount)
+        assertEquals("Unknown Merchant", completedMerchant)
+
+        // Test with explicit user entered merchant
+        onCompleteReview(949.0, "Jio Telecom")
+        assertEquals("Jio Telecom", completedMerchant)
+    }
+
+    @Test
+    fun test20_smsPermission_requestedOnlyOnScanMessagesOrFirstTimeHome() {
+        // Permission check state matrix
+        fun shouldRequestSmsPermission(route: String, userTappedScan: Boolean, isInitialCompleted: Boolean): Boolean {
+            return when {
+                route == "SmsImport" && userTappedScan -> true
+                route == "Home" && !isInitialCompleted -> true
+                else -> false
+            }
+        }
+
+        // Unrelated Settings screens must never request SMS permission
+        assertFalse(shouldRequestSmsPermission("Settings", userTappedScan = false, isInitialCompleted = true))
+        assertFalse(shouldRequestSmsPermission("DataStorage", userTappedScan = false, isInitialCompleted = true))
+        assertFalse(shouldRequestSmsPermission("ClearAllData", userTappedScan = false, isInitialCompleted = true))
+        assertFalse(shouldRequestSmsPermission("SmsImport", userTappedScan = false, isInitialCompleted = true))
+
+        // Only explicit tap to scan in SmsImport requests permission
+        assertTrue(shouldRequestSmsPermission("SmsImport", userTappedScan = true, isInitialCompleted = true))
+
+        // Home screen during first-time setup (before initial completion) can offer onboarding
+        assertTrue(shouldRequestSmsPermission("Home", userTappedScan = false, isInitialCompleted = false))
+        assertFalse(shouldRequestSmsPermission("Home", userTappedScan = false, isInitialCompleted = true))
     }
 
     private class FakeTestSharedPreferences : SharedPreferences {

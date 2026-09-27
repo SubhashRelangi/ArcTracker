@@ -104,9 +104,14 @@ fun ClearAllDataScreen(onNavigate: (String) -> Unit, onClearData: () -> Unit = {
                             }
                             Button(
                                 onClick = {
+                                    val repo = com.example.arctracker.settings.MonitoringSettingsRepository.getInstance(context)
+                                    val wasImportCompleted = repo.isInitialSmsImportCompleted()
                                     val sharedPrefs = context.getSharedPreferences("ArcTrackerPrefs", Context.MODE_PRIVATE)
                                     sharedPrefs.edit().clear().apply()
-                                    com.example.arctracker.settings.MonitoringSettingsRepository.getInstance(context).resetToDefaults()
+                                    repo.resetToDefaults()
+                                    if (wasImportCompleted) {
+                                        repo.setInitialSmsImportCompleted(true)
+                                    }
                                     onClearData()
                                     showDialog = false
                                 },
