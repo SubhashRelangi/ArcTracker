@@ -29,13 +29,15 @@ object FinancialClassifier {
 
     // Debit / Outgoing action indicators
     private val DEBIT_ACTION_PATTERNS = listOf(
-        Regex("""\b(paid|debited|debit|deducted|spent|sent|transferred|withdrawn|purchase|purchased|charged|fee|charges?)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(paid to|sent to|transferred to|payment to|payment of|transfer to)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(paid|debited|deducted|spent|sent|transferred|withdrawn|purchased|charged)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\bdebit\b(?!\s*card)""", RegexOption.IGNORE_CASE),
+        Regex("""\b(paid to|sent to|transferred to|payment to|payment of|transfer to|debited from|debited by|debited for|spent at|purchase at|purchase on)\b""", RegexOption.IGNORE_CASE)
     )
 
     // Credit / Incoming action indicators
     private val CREDIT_ACTION_PATTERNS = listOf(
-        Regex("""\b(credited|credit|deposited|received|refunded|refund|cashback received|money received|money added)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(credited|deposited|received|refunded|refund|cashback received|money received|money added)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\bcredit\b(?!\s*card|\s*score|\s*limit)""", RegexOption.IGNORE_CASE),
         Regex("""\b(received from|credited to|credited with|added to wallet)\b""", RegexOption.IGNORE_CASE)
     )
 
@@ -53,7 +55,7 @@ object FinancialClassifier {
 
     // General / Weak financial keywords (insufficient on their own without action or currency)
     private val WEAK_FINANCIAL_KEYWORD_PATTERNS = listOf(
-        Regex("""\b(transaction|payment|upi|transfer|account|a/c)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(transaction|payment|upi|transfer|account|a/c|fee|charges?)\b""", RegexOption.IGNORE_CASE)
     )
 
     /**

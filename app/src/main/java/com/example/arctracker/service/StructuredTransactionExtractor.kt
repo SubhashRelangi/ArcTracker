@@ -92,12 +92,17 @@ object StructuredTransactionExtractor {
 
     // Merchant / Payee patterns (allows optional intervening amount like "Paid ₹500 to Amazon")
     private val OUTGOING_MERCHANT_PATTERNS = listOf(
-        Regex("""(?i)\b(?:paid|sent|transferred|transfer|payment)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:to|at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
-        Regex("""(?i)\b(?:purchase at|purchase on)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})""")
+        Regex("""(?i)\b(?:paid|sent|transferred|transfer|payment)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:to|at|towards)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:debited)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:for payment to|towards|to|at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:purchase at|purchase on|spent at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\bpayment(?:\s+of)?(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:to|at|towards)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:paid to|sent to|transferred to)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50}?)(?:\s+(?:for|of|is)?\s*(?:rs\.?|inr|₹)\s*\d)""")
     )
 
     private val INCOMING_MERCHANT_PATTERNS = listOf(
-        Regex("""(?i)\b(?:received|money received|transfer|credited)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+from\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})""")
+        Regex("""(?i)\b(?:received|money received|transfer|credited)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+from\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:refund of.*(?:received from|from))\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\brefund\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?\s+from\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})""")
     )
 
     private val REVERSAL_MERCHANT_PATTERN = Regex(
@@ -137,25 +142,72 @@ object StructuredTransactionExtractor {
 
     // Boundary words that terminate a merchant phrase
     private val MERCHANT_BOUNDARY_PATTERN = Regex(
-        """(?i)\b(on|using|via|ref|txn|avl|balance|a/c|account|card|upi ref|utr|rrn)\b"""
+        """(?i)\b(on|using|via|ref|txn|avl|balance|a/c|account|card|upi ref|utr|rrn|successful|completed|failed|pending)\b"""
     )
 
     // Phrases that look like merchants but are accounts / methods
     private val INVALID_MERCHANT_PREFIX_PATTERN = Regex(
-        """(?i)^(account|a/c|acct|your account|card|vpa|upi id|upi)\b"""
+        """(?i)^(account|a/c|acct|your account|card|vpa|upi id|upi|bank|your bank)\b"""
     )
 
     /**
+     * Extracts ALL structured transaction candidates from a [NotificationClassificationResult] (Step 10).
+     * Supports one notification containing 0, 1, or N independent transaction candidates.
+     */
+    fun extractAll(
+        classification: NotificationClassificationResult
+    ): List<StructuredTransactionCandidate> {
+        if (classification.isNoise || classification.financialRelevance == FinancialRelevance.NON_FINANCIAL) {
+            return emptyList()
+        }
+
+        val notification = classification.normalized
+        val segments = segmentNotification(notification)
+
+        val candidates = mutableListOf<StructuredTransactionCandidate>()
+
+        if (segments.size > 1) {
+            for ((index, segment) in segments.withIndex()) {
+                val candidate = extractFromSegment(
+                    segmentText = segment,
+                    wholeNotification = notification,
+                    classification = classification,
+                    subIndex = index,
+                    totalSegments = segments.size
+                )
+                if (candidate != null) {
+                    candidates.add(candidate)
+                }
+            }
+        }
+
+        // If segmentation did not produce candidates, evaluate as a single global notification
+        if (candidates.isEmpty()) {
+            candidates.add(extractInternal(notification, classification))
+        }
+
+        return candidates
+    }
+
+    /**
+     * Extracts all structured transaction candidates directly from a normalized notification.
+     */
+    fun extractAll(
+        notification: NormalizedNotification,
+        ignoreRules: List<IgnoreRule> = emptyList()
+    ): List<StructuredTransactionCandidate> {
+        val classification = FinancialClassifier.classify(notification, ignoreRules)
+        return extractAll(classification)
+    }
+
+    /**
      * Extracts structured transaction candidate from a [NotificationClassificationResult].
-     * Returns null if the notification is classified as noise or non-financial.
+     * Returns the primary/first candidate or null if none.
      */
     fun extract(
         classification: NotificationClassificationResult
     ): StructuredTransactionCandidate? {
-        if (classification.isNoise || classification.financialRelevance == FinancialRelevance.NON_FINANCIAL) {
-            return null
-        }
-        return extractInternal(classification.normalized, classification)
+        return extractAll(classification).firstOrNull()
     }
 
     /**
@@ -177,6 +229,179 @@ object StructuredTransactionExtractor {
         classification: NotificationClassificationResult? = null
     ): StructuredTransactionCandidate {
         return extractInternal(notification, classification)
+    }
+
+    /**
+     * Segments a notification into individual transaction clauses/lines.
+     */
+    fun segmentNotification(notification: NormalizedNotification): List<String> {
+        val lines = notification.normalizedTextLines.map { it.trim() }.filter { it.isNotBlank() }
+
+        // 1. InboxStyle textLines
+        if (lines.size > 1) {
+            val candidateLines = lines.filter { line ->
+                hasTransactionActionOrAmount(line) && !isPureSummaryLine(line)
+            }
+            val nonSubsumedLines = candidateLines.filter { line ->
+                candidateLines.none { other -> other.length > line.length && other.contains(line, ignoreCase = true) }
+            }
+            if (nonSubsumedLines.size > 1) {
+                return nonSubsumedLines
+            }
+        }
+
+        // 2. Newline-separated in bigText or combinedText
+        val fullText = notification.normalizedCombinedText
+        val textByNewlines = fullText.split('\n').map { it.trim() }.filter { it.isNotBlank() }
+        if (textByNewlines.size > 1) {
+            val candidateLines = textByNewlines.filter { line ->
+                hasTransactionActionOrAmount(line) && !isPureSummaryLine(line)
+            }
+            val nonSubsumedLines = candidateLines.filter { line ->
+                candidateLines.none { other -> other.length > line.length && other.contains(line, ignoreCase = true) }
+            }
+            if (nonSubsumedLines.size > 1) {
+                return nonSubsumedLines
+            }
+        }
+
+        // 3. Numbered entries: e.g. "1. Paid ₹500... 2. Paid ₹250..." or "1) ... 2) ..."
+        val numberedPattern = Regex("""(?:\s|^)(?=[0-9]{1,2}[.)]\s*(?:paid|debited|spent|sent|transferred|credited|received|refunded|payment|txn|₹|rs\.?)\b)""", RegexOption.IGNORE_CASE)
+        val numberedSplits = fullText.split(numberedPattern).map { it.trim() }.filter { it.isNotBlank() }
+        if (numberedSplits.size > 1) {
+            val valid = numberedSplits.filter { hasTransactionActionOrAmount(it) && !isPureSummaryLine(it) }
+            if (valid.size > 1) {
+                return valid
+            }
+        }
+
+        // 4. Bullet entries: "• Paid ₹500... • Paid ₹250..."
+        if (fullText.contains("•") || fullText.contains(" - ")) {
+            val bulletSplits = fullText.split(Regex("""(?:\s|^)[•\-]\s*""")).map { it.trim() }.filter { it.isNotBlank() }
+            if (bulletSplits.size > 1) {
+                val valid = bulletSplits.filter { hasTransactionActionOrAmount(it) && !isPureSummaryLine(it) }
+                if (valid.size > 1) {
+                    return valid
+                }
+            }
+        }
+
+        // 5. Clause splits (periods, semicolons, and/&)
+        val clauseSplits = splitIntoActionClauses(fullText)
+        if (clauseSplits.size > 1) {
+            return clauseSplits
+        }
+
+        return listOf(fullText)
+    }
+
+    private fun splitIntoActionClauses(fullText: String): List<String> {
+        val clauseRegex = Regex("""(?<=[.!?;])\s+(?=(?:transaction\s*[0-9]*\s*[:\-]?\s*)?(?:(?:₹|rs\.?|inr)\s*[0-9]+.*?\b(?:paid|debited|spent|sent|transferred|credited|received|refunded)\b|(?:paid|debited|spent|sent|transferred|credited|received|refunded|payment of|txn of|transfer of)\b))""", RegexOption.IGNORE_CASE)
+        val clauses = fullText.split(clauseRegex).map { it.trim() }.filter { it.isNotBlank() }
+        if (clauses.size > 1) {
+            val valid = clauses.filter { hasTransactionActionOrAmount(it) && !isPureSummaryLine(it) }
+            if (valid.size > 1) {
+                return valid
+            }
+        }
+
+        val conjRegex = Regex("""\s+(?:and|&)\s+(?=(?:transaction\s*[0-9]*\s*[:\-]?\s*)?(?:paid|debited|spent|sent|transferred|credited|received|refunded|payment of|txn of|transfer of|(?:₹|rs\.?|inr)\s*[0-9]+)\b)""", RegexOption.IGNORE_CASE)
+        val conjClauses = fullText.split(conjRegex).map { it.trim() }.filter { it.isNotBlank() }
+        if (conjClauses.size > 1) {
+            val valid = conjClauses.filter { hasTransactionActionOrAmount(it) && !isPureSummaryLine(it) }
+            if (valid.size > 1) {
+                return valid
+            }
+        }
+
+        return listOf(fullText)
+    }
+
+    private fun hasTransactionActionOrAmount(line: String): Boolean {
+        val hasAction = Regex("""(?i)\b(paid|debited|spent|sent|transferred|credited|received|refunded|payment|txn)\b""").containsMatchIn(line)
+        val hasAmount = CURRENCY_PREFIX_AMOUNT_PATTERN.containsMatchIn(line) ||
+                CURRENCY_SUFFIX_AMOUNT_PATTERN.containsMatchIn(line) ||
+                ACTION_PRECEDED_AMOUNT_PATTERN.containsMatchIn(line)
+        return hasAction && hasAmount
+    }
+
+    private fun isPureSummaryLine(line: String): Boolean {
+        val trimmed = line.trim()
+        val isTotalOnly = Regex("""(?i)^(?:grand\s+)?total\s*[:\-]?\s*(?:(?:rs\.?|inr|₹)\s*)?[0-9,]+(?:\.[0-9]{1,2})?\s*[.!?]?$""").matches(trimmed)
+        val isBalanceOnly = Regex("""(?i)^(?:available\s+balance|avl\s+bal|balance|bal)\s*[:\-]?\s*(?:(?:rs\.?|inr|₹)\s*)?[0-9,]+(?:\.[0-9]{1,2})?\s*[.!?]?$""").matches(trimmed)
+        return isTotalOnly || isBalanceOnly
+    }
+
+    private fun extractFromSegment(
+        segmentText: String,
+        wholeNotification: NormalizedNotification,
+        classification: NotificationClassificationResult?,
+        subIndex: Int,
+        totalSegments: Int
+    ): StructuredTransactionCandidate? {
+        val evidenceMap = mutableMapOf<String, FieldEvidence>()
+        val secondaryAmounts = mutableListOf<SecondaryAmount>()
+
+        // 1. Amount Extraction within this segment
+        val extractedAmount = extractAmount(segmentText, secondaryAmounts, evidenceMap)
+        if (extractedAmount == null || extractedAmount <= 0.0) {
+            return null
+        }
+
+        // Currency
+        val currency = if (segmentText.contains("₹") || segmentText.contains("rs", ignoreCase = true) || segmentText.contains("inr", ignoreCase = true) ||
+            wholeNotification.normalizedCombinedText.contains("₹") || wholeNotification.normalizedCombinedText.contains("rs", ignoreCase = true) || wholeNotification.normalizedCombinedText.contains("inr", ignoreCase = true)) {
+            "INR"
+        } else {
+            null
+        }
+
+        // 2. Status Extraction
+        val status = extractStatus(segmentText, evidenceMap) ?: extractStatus(wholeNotification.normalizedCombinedText, evidenceMap)
+
+        // 3. Direction Extraction
+        val direction = extractDirection(segmentText, classification, status, evidenceMap)
+
+        // 4. UPI ID Extraction
+        val upiId = extractUpiId(segmentText, evidenceMap) ?: extractUpiId(wholeNotification.normalizedCombinedText, evidenceMap)
+
+        // 5. Merchant / Counterparty Extraction from segment
+        val (merchant, counterparty) = extractMerchantAndCounterparty(segmentText, upiId, evidenceMap)
+
+        // 6. Reference IDs (UTR, RRN, UPI Ref, Gen Ref) from segment
+        val (refId, utr, rrn, upiTxnId) = extractReferences(segmentText, evidenceMap)
+
+        // 7. Account / Card Suffix
+        val accountSuffix = extractAccountSuffix(segmentText, evidenceMap) ?: extractAccountSuffix(wholeNotification.normalizedCombinedText, evidenceMap)
+        val cardSuffix = extractCardSuffix(segmentText, evidenceMap) ?: extractCardSuffix(wholeNotification.normalizedCombinedText, evidenceMap)
+
+        val sourceKey = if (totalSegments > 1) "${wholeNotification.notificationKey}#$subIndex" else wholeNotification.notificationKey
+
+        return StructuredTransactionCandidate(
+            sourceNotificationKey = sourceKey,
+            packageName = wholeNotification.packageName,
+            postTime = wholeNotification.postTime,
+            amount = extractedAmount,
+            currency = currency,
+            merchant = merchant,
+            counterparty = counterparty,
+            direction = direction,
+            status = status,
+            referenceId = refId,
+            utr = utr,
+            rrn = rrn,
+            upiTransactionId = upiTxnId,
+            upiId = upiId,
+            accountSuffix = accountSuffix,
+            cardSuffix = cardSuffix,
+            secondaryAmounts = secondaryAmounts,
+            evidence = evidenceMap,
+            isUpdate = wholeNotification.isUpdate,
+            groupKey = wholeNotification.groupKey,
+            isGroup = wholeNotification.isGroup,
+            isGroupSummary = wholeNotification.isGroupSummary,
+            rawContent = segmentText
+        )
     }
 
     private fun extractInternal(
@@ -655,6 +880,10 @@ object StructuredTransactionExtractor {
         }
 
         if (cleaned.length < 2) {
+            return Pair(null, null)
+        }
+
+        if (cleaned.equals("unknown", ignoreCase = true) || cleaned.equals("unknown merchant", ignoreCase = true)) {
             return Pair(null, null)
         }
 

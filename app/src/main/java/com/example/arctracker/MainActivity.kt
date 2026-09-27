@@ -1223,7 +1223,7 @@ fun ExpenseItemRow(
 
                     Text(
                         text =
-                            expense.merchant,
+                            expense.merchant.ifBlank { "Unknown" },
                         fontWeight =
                             FontWeight.Bold,
                         fontSize = 15.sp,

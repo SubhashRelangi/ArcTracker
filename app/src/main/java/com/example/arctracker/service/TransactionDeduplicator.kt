@@ -200,6 +200,16 @@ object TransactionDeduplicator {
                     continue
                 }
 
+                // Sibling transactions from the same multi-transaction notification are independent
+                val existKey = existing.sourceNotificationKey
+                if (!existKey.isNullOrBlank() && notifKey.isNotBlank()) {
+                    val existParent = existKey.substringBefore("#")
+                    val candParent = notifKey.substringBefore("#")
+                    if (existParent == candParent && existKey != notifKey) {
+                        continue
+                    }
+                }
+
                 // Check amount match
                 if (existing.amount == null || candStruct.amount != existing.amount) {
                     continue

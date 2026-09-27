@@ -70,6 +70,7 @@ object TransactionValidator {
             }
         } else {
             warnings.add("Transaction amount is absent")
+            contradictingSignals.add("AMOUNT_IS_ABSENT")
         }
 
         // Currency validation

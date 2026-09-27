@@ -49,17 +49,34 @@ object TransactionPersistenceManager {
     /**
      * Complete pipeline entry point for a captured notification using ExpenseDao.
      */
+    /**
+     * Complete pipeline entry point for a captured notification using ExpenseDao.
+     * Supports one notification containing 0, 1, or N independent transaction candidates.
+     */
     suspend fun processCapturedNotification(
         captured: CapturedNotificationInfo,
         dao: ExpenseDao
     ): ExpensePersistenceResult {
+        val results = processCapturedNotificationAll(captured, dao)
+        return results.firstOrNull { it is ExpensePersistenceResult.Inserted || it is ExpensePersistenceResult.ReviewPending || it is ExpensePersistenceResult.Updated || it is ExpensePersistenceResult.Enriched }
+            ?: results.firstOrNull()
+            ?: ExpensePersistenceResult.IgnoredNonFinancial("No transactions processed")
+    }
+
+    /**
+     * Processes all transaction candidates found within a captured notification.
+     */
+    suspend fun processCapturedNotificationAll(
+        captured: CapturedNotificationInfo,
+        dao: ExpenseDao
+    ): List<ExpensePersistenceResult> {
         return try {
             // Step 3: Normalization
             val normalized = NotificationNormalizer.normalize(captured)
             if (normalized == null) {
                 val res = ExpensePersistenceResult.IgnoredNonFinancial("Notification could not be normalized")
                 persistenceListener?.invoke(res)
-                return res
+                return listOf(res)
             }
 
             // Step 4: Financial Classification + Noise Detection
@@ -69,7 +86,7 @@ object TransactionPersistenceManager {
                 Log.d(TAG, "Notification ${captured.notificationKey} ignored: not financially relevant")
                 val res = ExpensePersistenceResult.IgnoredNonFinancial("Notification is not financially relevant")
                 persistenceListener?.invoke(res)
-                return res
+                return listOf(res)
             }
 
             if (classification.isNoise) {
@@ -77,35 +94,50 @@ object TransactionPersistenceManager {
                 Log.d(TAG, "Notification ${captured.notificationKey} ignored: classified as noise ($reason)")
                 val res = ExpensePersistenceResult.IgnoredNonFinancial("Notification classified as noise: $reason")
                 persistenceListener?.invoke(res)
-                return res
+                return listOf(res)
             }
 
-            // Step 5: Structured Transaction Extraction
-            val candidate = StructuredTransactionExtractor.extract(classification)
-            if (candidate == null) {
-                Log.d(TAG, "Notification ${captured.notificationKey} ignored: structured extraction returned null")
+            // Step 5: Structured Transaction Extraction (Support multi-candidate)
+            val candidates = StructuredTransactionExtractor.extractAll(classification)
+            if (candidates.isEmpty()) {
+                Log.d(TAG, "Notification ${captured.notificationKey} ignored: structured extraction returned empty")
                 val res = ExpensePersistenceResult.IgnoredNonFinancial("No structured transaction candidate could be extracted")
                 persistenceListener?.invoke(res)
-                return res
+                return listOf(res)
             }
 
-            // Step 6: Validation + Confidence
-            val validated = TransactionValidator.validate(candidate, classification)
-            if (validated.isRejected) {
-                val reason = validated.rejectionReasons.joinToString("; ").ifBlank { "Validation rejected" }
-                Log.d(TAG, "Notification ${captured.notificationKey} rejected by validator: $reason")
-                val res = ExpensePersistenceResult.Rejected("Transaction candidate rejected: $reason")
-                persistenceListener?.invoke(res)
-                return res
+            val results = mutableListOf<ExpensePersistenceResult>()
+            for (candidate in candidates) {
+                val validated = TransactionValidator.validate(candidate, classification)
+                if (validated.isRejected) {
+                    val reason = validated.rejectionReasons.joinToString("; ").ifBlank { "Validation rejected" }
+                    Log.d(TAG, "Notification candidate ${candidate.sourceNotificationKey} rejected by validator: $reason")
+                    val res = ExpensePersistenceResult.Rejected("Transaction candidate rejected: $reason")
+                    persistenceListener?.invoke(res)
+                    results.add(res)
+                    continue
+                }
+
+                // Invariant Guard: Strictly reject absent or non-positive amount
+                val amount = candidate.amount
+                if (amount == null || amount <= 0.0 || amount.isNaN() || amount.isInfinite()) {
+                    Log.d(TAG, "Notification candidate ${candidate.sourceNotificationKey} rejected: invalid amount ($amount)")
+                    val res = ExpensePersistenceResult.Rejected("Transaction amount is absent, non-positive, or non-finite: $amount")
+                    persistenceListener?.invoke(res)
+                    results.add(res)
+                    continue
+                }
+
+                val res = processValidatedCandidate(validated, dao)
+                results.add(res)
             }
 
-            // Steps 7 & 8: Deduplication, Correlation, and Persistence
-            processValidatedCandidate(validated, dao)
+            results
         } catch (e: Exception) {
-            Log.e(TAG, "Unhandled error in processCapturedNotification", e)
+            Log.e(TAG, "Unhandled error in processCapturedNotificationAll", e)
             val res = ExpensePersistenceResult.Error(e, e.message ?: "Pipeline processing error")
             persistenceListener?.invoke(res)
-            res
+            listOf(res)
         }
     }
 
@@ -118,6 +150,14 @@ object TransactionPersistenceManager {
         database: AppDatabase = AppDatabase.getDatabase(context)
     ): ExpensePersistenceResult {
         return processCapturedNotification(captured, database.expenseDao())
+    }
+
+    suspend fun processCapturedNotificationAll(
+        context: Context,
+        captured: CapturedNotificationInfo,
+        database: AppDatabase = AppDatabase.getDatabase(context)
+    ): List<ExpensePersistenceResult> {
+        return processCapturedNotificationAll(captured, database.expenseDao())
     }
 
     /**
@@ -165,6 +205,13 @@ object TransactionPersistenceManager {
         if (validated.isRejected) {
             val reason = validated.rejectionReasons.joinToString("; ").ifBlank { "Validation rejected" }
             val res = ExpensePersistenceResult.Rejected("Transaction candidate rejected: $reason")
+            persistenceListener?.invoke(res)
+            return res
+        }
+
+        val amount = validated.candidate.amount
+        if (amount == null || amount <= 0.0 || amount.isNaN() || amount.isInfinite()) {
+            val res = ExpensePersistenceResult.Rejected("Transaction amount is absent, non-positive, or non-finite: $amount")
             persistenceListener?.invoke(res)
             return res
         }
@@ -356,6 +403,10 @@ object TransactionPersistenceManager {
 
                 DedupDecision.NEEDS_REVIEW -> {
                     // Conflicting signals or ambiguous candidate -> Routes to Pending Expenses!
+                    val amount = candidate.amount
+                    if (amount == null || amount <= 0.0 || amount.isNaN() || amount.isInfinite()) {
+                        return@withLock ExpensePersistenceResult.Rejected("Cannot insert review transaction with invalid amount: $amount")
+                    }
                     if (existingByKey != null) {
                         return@withLock ExpensePersistenceResult.SkippedDuplicate(existingByKey, "Already recorded")
                     }
@@ -392,6 +443,11 @@ object TransactionPersistenceManager {
         result: TransactionDeduplicationResult,
         dao: ExpenseDao
     ): ExpensePersistenceResult {
+        val amount = candidate.amount
+        if (amount == null || amount <= 0.0 || amount.isNaN() || amount.isInfinite()) {
+            return ExpensePersistenceResult.Rejected("Cannot insert transaction with invalid amount: $amount")
+        }
+
         val isPending = result.candidate.needsReview ||
             candidate.status == TransactionStatus.PENDING
 
@@ -410,10 +466,15 @@ object TransactionPersistenceManager {
         isPending: Boolean,
         extraNote: String? = null
     ): Expense {
-        val amount = candidate.amount ?: 0.0
-        val merchant = candidate.merchant?.takeIf { it.isNotBlank() && it != "Unknown" }
+        val amount = candidate.amount
+            ?: throw IllegalArgumentException("Candidate amount cannot be null when mapping to Expense")
+        require(amount > 0.0 && !amount.isNaN() && !amount.isInfinite()) {
+            "Expense amount must be strictly positive and finite, was $amount"
+        }
+
+        val merchant = candidate.merchant?.takeIf { it.isNotBlank() && !it.equals("Unknown", ignoreCase = true) && !it.equals("Unknown Merchant", ignoreCase = true) }
             ?: candidate.counterparty?.takeIf { it.isNotBlank() }
-            ?: "Unknown Merchant"
+            ?: ""
 
         val dateMillis = if (candidate.postTime > 0) candidate.postTime else System.currentTimeMillis()
         val type = if (candidate.direction == TransactionDirection.CREDIT) "Credit" else "Debit"

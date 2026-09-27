@@ -22,8 +22,10 @@ object NoiseDetector {
         Regex("""\b(cashback offer|special offer|limited time offer|exclusive offer|festive offer|mega offer)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(shop now|buy now|order now|claim now|avail now|book now)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(discount|coupon|promo code|promocode|voucher)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(reward points? expiring|cashback reward|scratch card|win rewards?)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(flat\s+(?:rs\.?|inr|₹)?\s*\d+\s+off|upto\s+\d+%\s+off|up to\s+\d+%\s+off)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(reward points? expiring|cashback reward|scratch card|win rewards?|win scratch cards?)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(flat\s+(?:rs\.?|inr|₹)?\s*\d+\s+off|upto\s+\d+%\s+off|up to\s+\d+%\s+off)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:send money to.*(?:win|reward|cashback|scratch)|pay now (?:to|and)|you can pay|recharge for|recharge with|pay your .* and get)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:save on your next|on your next purchase|invite friends and earn)\b""", RegexOption.IGNORE_CASE)
     )
 
     // 3. Loan / Credit marketing patterns
@@ -39,18 +41,18 @@ object NoiseDetector {
 
     // 5. Balance inquiry / Balance only patterns
     private val BALANCE_INQUIRY_PATTERNS = listOf(
-        Regex("""\b(available balance|current balance|clear balance|acc balance|a/c balance|bal is|balance is|bal:)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(available balance|current balance|clear balance|acc balance|a/c balance|bal is|balance is|bal\s*[:=\-]|account balance is|your account balance is)\b""", RegexOption.IGNORE_CASE)
     )
 
     // Completed transaction action pattern (to differentiate a transaction notification that mentions remaining balance)
     private val COMPLETED_TRANSACTION_ACTION_PATTERN = Regex(
-        """\b(debited|debit|credited|credit|paid|spent|sent|transferred|withdrawn|deposited|refunded|transaction|txn|fee)\b""",
+        """\b(debited|debit|credited|credit|paid|spent|sent|transferred|withdrawn|deposited|refunded|transaction|txn)\b""",
         RegexOption.IGNORE_CASE
     )
 
     // 6. Informational statement patterns
     private val INFORMATIONAL_PATTERNS = listOf(
-        Regex("""\b(statement generated|statement available|monthly statement|e-statement|account summary|transaction history available|bill reminder|bill is generated|due date is)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(statement generated|statement available|monthly statement|e-statement|account summary|transaction history available|bill reminder|payment reminder|reminder\s*[:\-]|due date is|due date|bill is generated|bill due|amount due|payment due|due on|pay by|pay before|upcoming payment)\b""", RegexOption.IGNORE_CASE)
     )
 
     // 7. Hypothetical / Conditional / Offer terms patterns
