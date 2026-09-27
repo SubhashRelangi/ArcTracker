@@ -2,6 +2,7 @@ package com.example.arctracker
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -243,8 +244,31 @@ fun ExpenseScreen() {
         expenses.filter { it.dateMillis in start..end }
     }
 
-    var currentRoute by remember {
-        mutableStateOf("Home")
+    var backStack by rememberSaveable {
+        mutableStateOf(listOf("Home"))
+    }
+    val currentRoute = backStack.lastOrNull() ?: "Home"
+
+    fun navigateTo(route: String) {
+        if (route == "Home") {
+            backStack = listOf("Home")
+        } else if (route == "Transactions" || route == "Settings") {
+            backStack = listOf("Home", route)
+        } else {
+            if (backStack.lastOrNull() != route) {
+                backStack = backStack + route
+            }
+        }
+    }
+
+    fun navigateBack() {
+        if (backStack.size > 1) {
+            backStack = backStack.dropLast(1)
+        }
+    }
+
+    BackHandler(enabled = backStack.size > 1) {
+        navigateBack()
     }
 
     var editingRegexRuleId by remember {
@@ -278,47 +302,45 @@ fun ExpenseScreen() {
     Scaffold(
 
         topBar = {
-            val title = when (currentRoute) {
-                "Database" -> "Database"
-                "ClearAllData" -> "Clear All Data"
-                "SmsImport" -> "Import Previous Transactions"
-                "BackupRestore" -> "Backup & Restore"
-                "Pending" -> "Pending Expenses"
-                "IgnoreRules" -> "Ignore Rules"
-                "DeveloperOptions" -> "Developer Options"
-                "RegexPatterns" -> "Regex Patterns"
-                "EditRegexPattern" -> if (editingRegexRuleId == null) "Add Pattern" else "Edit Pattern"
-                "Transactions" -> "ArcTracker"
-                "Settings" -> "Settings"
-                "SupportedApps" -> "Monitored Apps"
-                else -> "ArcTracker"
-            }
+            if (currentRoute != "SmsImport") {
+                val title = when (currentRoute) {
+                    "Database" -> "Database"
+                    "ClearAllData" -> "Clear All Data"
+                    "BackupRestore" -> "Backup & Restore"
+                    "Pending" -> "Pending Expenses"
+                    "IgnoreRules" -> "Ignore Rules"
+                    "DeveloperOptions" -> "Developer Options"
+                    "RegexPatterns" -> "Regex Patterns"
+                    "EditRegexPattern" -> if (editingRegexRuleId == null) "Add Pattern" else "Edit Pattern"
+                    "Transactions" -> "ArcTracker"
+                    "Settings" -> "Settings"
+                    "SupportedApps" -> "Monitored Apps"
+                    else -> "ArcTracker"
+                }
 
-            val subtitle = when (currentRoute) {
-                "Home" -> "Overview of your finances"
-                "Transactions" -> "All transactions, at a glance"
-                "Settings" -> "Configure your app"
-                "SupportedApps" -> "Choose which apps can be monitored"
-                "IgnoreRules" -> "Keywords, senders or patterns to ignore"
-                "DeveloperOptions" -> "Advanced tools for debugging and customization."
-                "RegexPatterns" -> "Define how amounts, names and transaction details are extracted."
-                "EditRegexPattern" -> null
-                else -> null
-            }
+                val subtitle = when (currentRoute) {
+                    "Home" -> "Overview of your finances"
+                    "Transactions" -> "All transactions, at a glance"
+                    "Settings" -> "Configure your app"
+                    "SupportedApps" -> "Choose which apps can be monitored"
+                    "IgnoreRules" -> "Keywords, senders or patterns to ignore"
+                    "DeveloperOptions" -> "Advanced tools for debugging and customization."
+                    "RegexPatterns" -> "Define how amounts, names and transaction details are extracted."
+                    "EditRegexPattern" -> null
+                    else -> null
+                }
 
-            val onBackClick: (() -> Unit)? = when (currentRoute) {
-                "Database", "ClearAllData", "SmsImport", "BackupRestore", "SupportedApps", "IgnoreRules", "DeveloperOptions" -> { { currentRoute = "Settings" } }
-                "RegexPatterns" -> { { currentRoute = "DeveloperOptions" } }
-                "EditRegexPattern" -> { { currentRoute = "RegexPatterns" } }
-                "Pending" -> { { currentRoute = "Home" } }
-                else -> null
-            }
+                val onBackClick: (() -> Unit)? = if (backStack.size > 1 && currentRoute != "Transactions") {
+                    { navigateBack() }
+                } else {
+                    null
+                }
 
-            com.example.arctracker.ui.ArcTrackerHeader(
-                title = title,
-                subtitle = subtitle,
-                onBackClick = onBackClick,
-                actions = {
+                com.example.arctracker.ui.ArcTrackerHeader(
+                    title = title,
+                    subtitle = subtitle,
+                    onBackClick = onBackClick,
+                    actions = {
                     if (currentRoute == "Home") {
                         IconButton(onClick = { refreshTrigger++ }) {
                             Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
@@ -332,7 +354,7 @@ fun ExpenseScreen() {
                                 contentDescription = if (isSearching) "Close Search" else "Search"
                             )
                         }
-                        IconButton(onClick = { currentRoute = "Pending" }) {
+                        IconButton(onClick = { navigateTo("Pending") }) {
                             BadgedBox(
                                 badge = {
                                     val pendingCount = expenses.count { it.isPending }
@@ -363,7 +385,7 @@ fun ExpenseScreen() {
                             val context = LocalContext.current
                             TextButton(onClick = {
                                 RegexPatternsManager.resetSystemRule(context, editingRegexRuleId!!)
-                                currentRoute = "RegexPatterns"
+                                navigateBack()
                             }) {
                                 Icon(Icons.Filled.Refresh, contentDescription = "Reset", tint = Color(0xFF3F51B5), modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -373,6 +395,7 @@ fun ExpenseScreen() {
                     }
                 }
             )
+            }
         },
 
         bottomBar = {
@@ -388,7 +411,7 @@ fun ExpenseScreen() {
                 com.example.arctracker.ui.FloatingNavigationBar(
                     currentRoute = currentRoute,
                     onNavigate = {
-                        currentRoute = it.title
+                        navigateTo(it.title)
                     }
                 )
             }
@@ -493,7 +516,7 @@ fun ExpenseScreen() {
 
                 com.example.arctracker.ui.SettingsScreen(
                     onNavigate = {
-                        currentRoute = it
+                        navigateTo(it)
                     }
                 )
 
@@ -501,15 +524,17 @@ fun ExpenseScreen() {
 
                 com.example.arctracker.ui.ClearAllDataScreen(
                     onNavigate = {
-                        currentRoute = it
+                        navigateTo(it)
                     },
                     onClearData = {
                         expenses = emptyList()
+                        hasDismissedInitialSmsImportDialog = false
                         scope.launch(Dispatchers.IO) {
                             try {
                                 expenseDao.clearAll()
                             } catch (_: Exception) {}
                         }
+                        navigateBack()
                     }
                 )
 
@@ -517,7 +542,7 @@ fun ExpenseScreen() {
 
                 com.example.arctracker.ui.SmsImportScreen(
                     onNavigateBack = {
-                        currentRoute = "Settings"
+                        navigateBack()
                     }
                 )
 
@@ -525,7 +550,7 @@ fun ExpenseScreen() {
 
                 com.example.arctracker.ui.BackupRestoreScreen(
                     onNavigate = {
-                        currentRoute = it
+                        navigateTo(it)
                     }
                 )
 
@@ -533,7 +558,7 @@ fun ExpenseScreen() {
 
                 com.example.arctracker.ui.SupportedAppsScreen(
                     onNavigateBack = {
-                        currentRoute = "Settings"
+                        navigateBack()
                     }
                 )
 
@@ -547,26 +572,26 @@ fun ExpenseScreen() {
 
             } else if (currentRoute == "DeveloperOptions") {
                 com.example.arctracker.ui.DeveloperOptionsScreen(
-                    onNavigate = { currentRoute = it }
+                    onNavigate = { navigateTo(it) }
                 )
             } else if (currentRoute == "RegexPatterns") {
                 com.example.arctracker.ui.RegexPatternsScreen(
                     onAddPattern = { category ->
                         editingRegexRuleId = null
                         editingRegexRuleCategory = category
-                        currentRoute = "EditRegexPattern"
+                        navigateTo("EditRegexPattern")
                     },
                     onEditPattern = { rule ->
                         editingRegexRuleId = rule.id
                         editingRegexRuleCategory = rule.category
-                        currentRoute = "EditRegexPattern"
+                        navigateTo("EditRegexPattern")
                     }
                 )
             } else if (currentRoute == "EditRegexPattern") {
                 com.example.arctracker.ui.EditRegexPatternScreen(
                     ruleId = editingRegexRuleId,
                     defaultCategory = editingRegexRuleCategory,
-                    onBack = { currentRoute = "RegexPatterns" }
+                    onBack = { navigateBack() }
                 )
             } else if (currentRoute == "Pending") {
 

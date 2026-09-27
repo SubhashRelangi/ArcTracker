@@ -106,6 +106,7 @@ fun ClearAllDataScreen(onNavigate: (String) -> Unit, onClearData: () -> Unit = {
                                 onClick = {
                                     val sharedPrefs = context.getSharedPreferences("ArcTrackerPrefs", Context.MODE_PRIVATE)
                                     sharedPrefs.edit().clear().apply()
+                                    com.example.arctracker.settings.MonitoringSettingsRepository.getInstance(context).resetToDefaults()
                                     onClearData()
                                     showDialog = false
                                 },

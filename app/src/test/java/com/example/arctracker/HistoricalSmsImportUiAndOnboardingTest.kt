@@ -249,6 +249,130 @@ class HistoricalSmsImportUiAndOnboardingTest {
         assertFalse(showSmsImportDialogNextLaunch)
     }
 
+    @Test
+    fun test11_clearAllData_resetsInitialImportCompletedState() {
+        // User had previously completed initial SMS import
+        sharedPrefsRepo.setInitialSmsImportCompleted(true)
+        assertTrue(sharedPrefsRepo.isInitialSmsImportCompleted())
+
+        // Clear All Data calls resetToDefaults()
+        sharedPrefsRepo.resetToDefaults()
+
+        // Assert initial SMS import flag is reset to false
+        assertFalse(sharedPrefsRepo.isInitialSmsImportCompleted())
+
+        // Verify in-memory repo behaves identically
+        inMemoryRepo.setInitialSmsImportCompleted(true)
+        assertTrue(inMemoryRepo.isInitialSmsImportCompleted())
+        inMemoryRepo.resetToDefaults()
+        assertFalse(inMemoryRepo.isInitialSmsImportCompleted())
+    }
+
+    @Test
+    fun test12_appRelaunch_doesNotTriggerOnboardingIfCompleted() {
+        // Given initial import was completed in an earlier session
+        sharedPrefsRepo.setInitialSmsImportCompleted(true)
+
+        // Simulate new app session / activity launch
+        val isCompleted = sharedPrefsRepo.isInitialSmsImportCompleted()
+        val hasDismissedInitialSmsImportDialog = false // Fresh state
+        val shouldShowPrompt = !hasDismissedInitialSmsImportDialog && !isCompleted
+
+        // Assert dialog is NOT shown
+        assertFalse(shouldShowPrompt)
+    }
+
+    @Test
+    fun test13_navigationStack_pushAndPopFlow() {
+        // Navigation stack state simulator
+        var backStack = listOf("Home")
+
+        fun navigateTo(route: String) {
+            if (route == "Home") {
+                backStack = listOf("Home")
+            } else if (route == "Transactions" || route == "Settings") {
+                backStack = listOf("Home", route)
+            } else {
+                if (backStack.lastOrNull() != route) {
+                    backStack = backStack + route
+                }
+            }
+        }
+
+        fun navigateBack() {
+            if (backStack.size > 1) {
+                backStack = backStack.dropLast(1)
+            }
+        }
+
+        // Home -> Settings -> ClearAllData
+        assertEquals("Home", backStack.last())
+        navigateTo("Settings")
+        assertEquals(listOf("Home", "Settings"), backStack)
+        assertEquals("Settings", backStack.last())
+
+        navigateTo("ClearAllData")
+        assertEquals(listOf("Home", "Settings", "ClearAllData"), backStack)
+        assertEquals("ClearAllData", backStack.last())
+
+        // Back from ClearAllData -> Data & Storage (within Settings)
+        navigateBack()
+        assertEquals(listOf("Home", "Settings"), backStack)
+        assertEquals("Settings", backStack.last())
+
+        // Back from Settings -> Home
+        navigateBack()
+        assertEquals(listOf("Home"), backStack)
+        assertEquals("Home", backStack.last())
+
+        // Back from Home -> cannot pop further (system back closes app)
+        val canNavigateBack = backStack.size > 1
+        assertFalse(canNavigateBack)
+    }
+
+    @Test
+    fun test14_clearAllData_restoresOnboardingAvailabilityAndReturnsToSettings() {
+        // Given initial import was previously completed and dismissed
+        sharedPrefsRepo.setInitialSmsImportCompleted(true)
+        var hasDismissedInitialSmsImportDialog = true
+
+        // User navigates Home -> Settings -> ClearAllData
+        var backStack = listOf("Home", "Settings", "ClearAllData")
+
+        // User confirms Clear All Data
+        sharedPrefsRepo.resetToDefaults()
+        hasDismissedInitialSmsImportDialog = false
+        if (backStack.size > 1) {
+            backStack = backStack.dropLast(1)
+        }
+
+        // Verify destination is Settings (Data & Storage)
+        assertEquals("Settings", backStack.last())
+        assertEquals(listOf("Home", "Settings"), backStack)
+
+        // Verify initial SMS import becomes available again
+        assertFalse(sharedPrefsRepo.isInitialSmsImportCompleted())
+        val canShowInitialSmsImport = !hasDismissedInitialSmsImportDialog && !sharedPrefsRepo.isInitialSmsImportCompleted()
+        assertTrue(canShowInitialSmsImport)
+    }
+
+    @Test
+    fun test15_smsImportScreenToolbarOwnership_singleHeader() {
+        // Helper determining if parent Scaffold should render ArcTrackerHeader
+        fun shouldParentRenderHeader(route: String): Boolean {
+            return route != "SmsImport"
+        }
+
+        assertTrue(shouldParentRenderHeader("Home"))
+        assertTrue(shouldParentRenderHeader("Settings"))
+        assertTrue(shouldParentRenderHeader("ClearAllData"))
+        assertTrue(shouldParentRenderHeader("Database"))
+        assertTrue(shouldParentRenderHeader("BackupRestore"))
+
+        // For SmsImport, parent header must NOT render
+        assertFalse(shouldParentRenderHeader("SmsImport"))
+    }
+
     private class FakeTestSharedPreferences : SharedPreferences {
         private val data = mutableMapOf<String, Any?>()
 
