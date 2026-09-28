@@ -180,6 +180,28 @@ object TransactionValidator {
         }
 
         // ----------------------------------------------------
+        // 2.5 Actual Transaction Event Gate (Step 4.5)
+        // ----------------------------------------------------
+        val eventAssessment = candidate.eventAssessment
+            ?: ActualTransactionEventGate.assessCandidate(candidate, classification)
+
+        when (eventAssessment.actualEvent) {
+            ActualEventStatus.TRUE -> {
+                supportingSignals.add("ACTUAL_TRANSACTION_EVENT")
+                validationReasons.add("Verified actual transaction event (${eventAssessment.eventType})")
+            }
+            ActualEventStatus.FALSE -> {
+                val reason = eventAssessment.diagnosticReasons.joinToString("; ").ifBlank { "No actual transaction event" }
+                rejectionReasons.add("No actual transaction event: $reason")
+                contradictingSignals.add("NO_ACTUAL_TRANSACTION_EVENT")
+            }
+            ActualEventStatus.UNCERTAIN -> {
+                warnings.add("Actual transaction event status is UNCERTAIN: lacks confirmed transaction action")
+                contradictingSignals.add("UNCERTAIN_TRANSACTION_EVENT")
+            }
+        }
+
+        // ----------------------------------------------------
         // 3. Amount vs Evidence & Secondary Amounts
         // ----------------------------------------------------
         if (amount != null) {
@@ -354,19 +376,23 @@ object TransactionValidator {
         // ----------------------------------------------------
         // 7. Decision State (ACCEPTABLE / NEEDS_REVIEW / REJECTED)
         // ----------------------------------------------------
+        val hasActualEvent = eventAssessment.actualEvent == ActualEventStatus.TRUE
+
         val validationState = when {
             // REJECTED:
             !isStructurallyValid ||
                     isNoiseOrNonFinancial ||
                     rejectionReasons.isNotEmpty() ||
+                    eventAssessment.actualEvent == ActualEventStatus.FALSE ||
                     evidenceLevel == EvidenceLevel.NONE -> {
                 ValidationState.REJECTED
             }
 
             // ACCEPTABLE:
-            // Must have FINANCIAL classification, valid positive amount, known direction, strong/very-strong evidence,
-            // no non-success terminal statuses (failed/pending/reversed require review).
+            // Must have FINANCIAL classification, verified actual transaction event, valid positive amount,
+            // known direction, strong/very-strong evidence, no non-success terminal statuses.
             hasFinancialClassification &&
+                    hasActualEvent &&
                     hasValidPositiveAmount &&
                     hasKnownDirection &&
                     hasSuccessfulStatus &&
@@ -392,7 +418,8 @@ object TransactionValidator {
             supportingSignals = supportingSignals,
             contradictingSignals = contradictingSignals,
             fieldQualities = fieldQualities,
-            heuristicScore = clampedScore
+            heuristicScore = clampedScore,
+            eventAssessment = eventAssessment
         )
     }
 

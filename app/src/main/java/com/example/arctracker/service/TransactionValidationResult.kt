@@ -89,7 +89,8 @@ data class ValidatedTransactionCandidate(
     val supportingSignals: List<String> = emptyList(),
     val contradictingSignals: List<String> = emptyList(),
     val fieldQualities: Map<String, FieldEvidenceQuality> = emptyMap(),
-    val heuristicScore: Int = 0
+    val heuristicScore: Int = 0,
+    val eventAssessment: TransactionEventAssessment? = null
 ) {
     /**
      * Returns true if the candidate has passed validation as ACCEPTABLE.

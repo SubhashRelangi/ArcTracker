@@ -38,7 +38,13 @@ object NoiseDetector {
         Regex("""\b(?:subscribe now|subscribe today|join now|try now|get premium)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:get|enjoy|subscribe to)\s+(?:[A-Za-z]+\s+)?(?:premium|membership|vip|subscription|plan|pack)\s+(?:for|at|@)?\s*(?:rs\.?|inr|₹)?\s*\d+\b""", RegexOption.IGNORE_CASE),
         Regex("""\bfor\s+\d+\s+(?:months?|days?|years?)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:offer price|plan price|introductory price)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(?:offer price|plan price|introductory price)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\bis\s+one\s+bill\s+away\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:chance\s+to\s+win|win\s+cashback|win\s+rewards?|win\s+scratch\s+cards?|eligible\s+to\s+win)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:get\s+a\s+chance\s+to\s+win)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:use\s+[a-z0-9_]{4,15})\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:no\s+extra\s+fees|no\s+fees|zero\s+fees)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\bdebit\s+card\s+offers?\b""", RegexOption.IGNORE_CASE)
     )
 
     // 3. Loan / Credit marketing patterns
@@ -59,7 +65,7 @@ object NoiseDetector {
 
     // Completed transaction action pattern (to differentiate a transaction notification that mentions remaining balance)
     private val COMPLETED_TRANSACTION_ACTION_PATTERN = Regex(
-        """\b(debited|debit|credited|credit|paid|spent|sent|transferred|withdrawn|deposited|refunded|transaction|txn)\b""",
+        """\b(debited|debit(?!\s*(?:card|limit|offer|option))|credited|credit(?!\s*(?:card|limit|score|bill|line|facility|offer|option))|paid|spent|sent|transferred|withdrawn|deposited|refunded|transaction|txn)\b""",
         RegexOption.IGNORE_CASE
     )
 
@@ -71,7 +77,9 @@ object NoiseDetector {
 
     // 6. Informational statement patterns
     private val INFORMATIONAL_PATTERNS = listOf(
-        Regex("""\b(statement generated|statement available|monthly statement|e-statement|account summary|transaction history available|bill reminder|payment reminder|reminder\s*[:\-]|due date is|due date|bill is generated|bill due|amount due|payment due|due on|pay by|pay before|upcoming payment)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(statement generated|statement available|monthly statement|e-statement|account summary|transaction history available|bill reminder|payment reminder|reminder\s*[:\-]|due date is|due date|bill is generated|bill due|amount due|payment due|due on|pay by|pay before|upcoming payment)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:credit\s+card\s+payment\s+options|payment\s+options?\s+available|options?\s+available)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:credit\s+limit|debit\s+limit|transaction\s+limit|daily\s+limit)\b""", RegexOption.IGNORE_CASE)
     )
 
     // 7. Hypothetical / Conditional / Offer terms patterns
@@ -80,7 +88,9 @@ object NoiseDetector {
         Regex("""\bpay\s+(?:rs\.?|inr|₹)?\s*\d+.*(?:and get|to get|and receive)\b""", RegexOption.IGNORE_CASE),
         Regex("""\bget\s+(?:rs\.?|inr|₹)?\s*\d+.*(?:cashback|off|discount)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(transaction limit is|daily limit is|transfer limit is)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(win up to|earn up to|get up to)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(win up to|earn up to|get up to)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\bpay\s+your\b.*?\b(?:with\s+no\s+extra\s+fees|and\s+get|to\s+get|to\s+win|and\s+win)\b""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)),
+        Regex("""\b(?:get|win|earn)\s+(?:a\s+chance\s+to\s+win\s+)?(?:rs\.?|inr|₹)?\s*[\d,]+.*?\b(?:cashback|reward|bonus|discount|off)\b""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
     )
 
     /**
@@ -210,7 +220,7 @@ object NoiseDetector {
 
         // 6. Check Hypothetical / Conditional Offer Terms
         for (pattern in HYPOTHETICAL_PATTERNS) {
-            if (pattern.containsMatchIn(text)) {
+            if (pattern.containsMatchIn(text) && !hasConfirmedTransaction) {
                 matchedSignals.add("HYPOTHETICAL_OR_OFFER_TERMS")
                 reasons.add("Contains hypothetical or conditional offer terms")
                 if (primaryCategory == NoiseCategory.NONE) {
