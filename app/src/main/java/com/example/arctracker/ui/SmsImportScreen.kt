@@ -77,6 +77,9 @@ fun SmsImportScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isCancelled by remember { mutableStateOf(false) }
 
+    var selectedGroupIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var expandedGroupIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+
     var hasSmsPermission by remember {
         mutableStateOf(SmsPermissionHelper.isSmsPermissionGranted(context))
     }
@@ -116,6 +119,12 @@ fun SmsImportScreen(
                 currentPhase = SmsImportUiPhase.SELECT_RANGE
             } else if (res is SmsScanResult.Success) {
                 scanResult = res
+                selectedGroupIds = res.accountGroups
+                    .filter { it.groupId != "unidentified_account" }
+                    .map { it.groupId }
+                    .toSet()
+                    .ifEmpty { res.accountGroups.map { it.groupId }.toSet() }
+                expandedGroupIds = emptySet()
                 currentPhase = SmsImportUiPhase.SCAN_PREVIEW
             } else if (res is SmsScanResult.Failure) {
                 errorMessage = res.message
@@ -476,13 +485,19 @@ fun SmsImportScreen(
                 SmsImportUiPhase.SCAN_PREVIEW -> {
                     val result = scanResult
                     if (result != null) {
+                        val groups = result.accountGroups
+                        val selectedGroups = groups.filter { selectedGroupIds.contains(it.groupId) }
+                        val selectedTxnCount = selectedGroups.sumOf { it.transactionCount }
+                        val selectedDebitTotal = selectedGroups.sumOf { it.totalDebit }
+                        val selectedCreditTotal = selectedGroups.sumOf { it.totalCredit }
+
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = Color.White)
                         ) {
                             Column(
                                 modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
                                     "Scan Complete",
@@ -490,11 +505,11 @@ fun SmsImportScreen(
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF1E1E1E)
                                 )
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(2.dp))
                                 ResultRow(Icons.Outlined.Info, "${result.messagesScanned} messages scanned")
                                 ResultRow(Icons.Outlined.AccountBalance, "${result.financialMessages} financial messages found", Color(0xFF673AB7))
                                 ResultRow(Icons.Filled.CheckCircle, "${result.transactionCandidatesCount} transaction candidates", Color(0xFF4CAF50))
-                                ResultRow(Icons.Filled.Add, "${result.newTransactionsCount} new transactions to import", Color(0xFF2E7D32))
+                                ResultRow(Icons.Filled.Add, "${result.newTransactionsCount} new transactions available", Color(0xFF2E7D32))
                                 if (result.duplicatesCount > 0) {
                                     ResultRow(Icons.Filled.ContentCopy, "${result.duplicatesCount} duplicates already in database", Color(0xFF757575))
                                 }
@@ -509,43 +524,293 @@ fun SmsImportScreen(
                                 if (ignoredCount > 0) {
                                     ResultRow(Icons.Filled.RemoveCircleOutline, "$ignoredCount non-financial or OTP messages ignored", Color(0xFF9E9E9E))
                                 }
+                            }
+                        }
 
-                                Spacer(modifier = Modifier.height(8.dp))
-                                HorizontalDivider(color = Color(0xFFEEEEEE))
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                if (result.totalDebitAmount > 0) {
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("Total spending detected", fontSize = 14.sp)
+                        // Discovered Account Groups Selection
+                        if (groups.isNotEmpty()) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = Color.White)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Text(
-                                            "₹${"%.2f".format(result.totalDebitAmount)}",
-                                            fontSize = 15.sp,
+                                            "Select accounts to import",
+                                            style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFFD32F2F)
+                                            color = Color(0xFF1E1E1E)
                                         )
+                                        Row {
+                                            TextButton(
+                                                onClick = {
+                                                    selectedGroupIds = groups.map { it.groupId }.toSet()
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 8.dp)
+                                            ) {
+                                                Text("Select All", fontSize = 13.sp, color = Color(0xFF673AB7))
+                                            }
+                                            TextButton(
+                                                onClick = {
+                                                    selectedGroupIds = emptySet()
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 8.dp)
+                                            ) {
+                                                Text("Clear All", fontSize = 13.sp, color = Color(0xFF757575))
+                                            }
+                                        }
                                     }
-                                }
-                                if (result.totalCreditAmount > 0) {
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("Total income detected", fontSize = 14.sp)
-                                        Text(
-                                            "₹${"%.2f".format(result.totalCreditAmount)}",
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF4CAF50)
-                                        )
+
+                                    Text(
+                                        "${selectedGroups.size} of ${groups.size} accounts selected • $selectedTxnCount transactions",
+                                        fontSize = 13.sp,
+                                        color = if (selectedGroupIds.isEmpty()) Color(0xFFD32F2F) else Color(0xFF616161),
+                                        fontWeight = FontWeight.Medium
+                                    )
+
+                                    HorizontalDivider(color = Color(0xFFEEEEEE))
+
+                                    groups.forEach { group ->
+                                        val isSelected = selectedGroupIds.contains(group.groupId)
+                                        val isExpanded = expandedGroupIds.contains(group.groupId)
+                                        val isUnidentified = group.groupId == "unidentified_account"
+
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = if (isSelected) Color(0xFFF3E5F5) else Color(0xFFFAFAFA)
+                                            ),
+                                            shape = RoundedCornerShape(10.dp)
+                                        ) {
+                                            Column(modifier = Modifier.padding(12.dp)) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Checkbox(
+                                                        checked = isSelected,
+                                                        onCheckedChange = { checked ->
+                                                            selectedGroupIds = if (checked) {
+                                                                selectedGroupIds + group.groupId
+                                                            } else {
+                                                                selectedGroupIds - group.groupId
+                                                            }
+                                                        },
+                                                        colors = CheckboxDefaults.colors(
+                                                            checkedColor = Color(0xFF673AB7)
+                                                        )
+                                                    )
+
+                                                    Spacer(modifier = Modifier.width(4.dp))
+
+                                                    Column(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .clickable {
+                                                                selectedGroupIds = if (isSelected) {
+                                                                    selectedGroupIds - group.groupId
+                                                                } else {
+                                                                    selectedGroupIds + group.groupId
+                                                                }
+                                                            }
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            val groupIcon = when (group.identity.instrumentType) {
+                                                                InstrumentType.CARD -> Icons.Filled.Payment
+                                                                InstrumentType.BANK_ACCOUNT -> Icons.Filled.AccountBalance
+                                                                InstrumentType.UNKNOWN -> Icons.Filled.Info
+                                                            }
+                                                            Icon(
+                                                                groupIcon,
+                                                                contentDescription = null,
+                                                                tint = if (isUnidentified) Color(0xFFF57C00) else Color(0xFF673AB7),
+                                                                modifier = Modifier.size(18.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                            Text(
+                                                                group.identity.getDisplayName(),
+                                                                fontWeight = FontWeight.SemiBold,
+                                                                fontSize = 14.sp,
+                                                                color = Color(0xFF1E1E1E)
+                                                            )
+                                                            if (isUnidentified) {
+                                                                Spacer(modifier = Modifier.width(6.dp))
+                                                                Surface(
+                                                                    color = Color(0xFFFFF3E0),
+                                                                    shape = RoundedCornerShape(4.dp)
+                                                                ) {
+                                                                    Text(
+                                                                        "Review",
+                                                                        color = Color(0xFFE65100),
+                                                                        fontSize = 10.sp,
+                                                                        fontWeight = FontWeight.Bold,
+                                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
+
+                                                        Spacer(modifier = Modifier.height(2.dp))
+
+                                                        Text(
+                                                            "${group.transactionCount} transactions",
+                                                            fontSize = 12.sp,
+                                                            color = Color(0xFF616161)
+                                                        )
+
+                                                        Row(
+                                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                                        ) {
+                                                            if (group.totalDebit > 0) {
+                                                                Text(
+                                                                    "Debit: ₹${"%.2f".format(group.totalDebit)}",
+                                                                    fontSize = 12.sp,
+                                                                    color = Color(0xFFD32F2F),
+                                                                    fontWeight = FontWeight.Medium
+                                                                )
+                                                            }
+                                                            if (group.totalCredit > 0) {
+                                                                Text(
+                                                                    "Credit: ₹${"%.2f".format(group.totalCredit)}",
+                                                                    fontSize = 12.sp,
+                                                                    color = Color(0xFF2E7D32),
+                                                                    fontWeight = FontWeight.Medium
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+
+                                                    IconButton(
+                                                        onClick = {
+                                                            expandedGroupIds = if (isExpanded) {
+                                                                expandedGroupIds - group.groupId
+                                                            } else {
+                                                                expandedGroupIds + group.groupId
+                                                            }
+                                                        }
+                                                    ) {
+                                                        Icon(
+                                                            if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                                                            contentDescription = if (isExpanded) "Collapse" else "Expand",
+                                                            tint = Color(0xFF757575)
+                                                        )
+                                                    }
+                                                }
+
+                                                // Expandable Transaction Preview
+                                                if (isExpanded && group.transactions.isNotEmpty()) {
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    HorizontalDivider(color = Color(0xFFE0E0E0))
+                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                    Text(
+                                                        "Transactions in this group:",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF757575)
+                                                    )
+                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    group.transactions.forEach { txnItem ->
+                                                        val cand = txnItem.candidate.candidate
+                                                        val isCredit = cand.direction == TransactionDirection.CREDIT
+                                                        val party = cand.merchant?.takeIf { it.isNotBlank() }
+                                                            ?: cand.counterparty?.takeIf { it.isNotBlank() }
+                                                            ?: "Transaction"
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(vertical = 3.dp),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Column(modifier = Modifier.weight(1f)) {
+                                                                Text(
+                                                                    party,
+                                                                    fontSize = 12.sp,
+                                                                    fontWeight = FontWeight.Medium,
+                                                                    color = Color(0xFF212121),
+                                                                    maxLines = 1
+                                                                )
+                                                                cand.transactionDateString?.let {
+                                                                    Text(it, fontSize = 10.sp, color = Color(0xFF9E9E9E))
+                                                                }
+                                                            }
+                                                            Text(
+                                                                (if (isCredit) "+₹" else "-₹") + "%.2f".format(cand.amount ?: 0.0),
+                                                                fontSize = 12.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = if (isCredit) Color(0xFF2E7D32) else Color(0xFFD32F2F)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
 
-                        // Action Buttons: Import or Change Range
+                        // Selected Summary & Import Action
+                        if (selectedTxnCount > 0) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        "Selected Import Summary",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF424242)
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("Accounts: ${selectedGroups.size} | Transactions: $selectedTxnCount", fontSize = 12.sp, color = Color(0xFF616161))
+                                    }
+                                    if (selectedDebitTotal > 0) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text("Selected spending", fontSize = 12.sp, color = Color(0xFF616161))
+                                            Text("₹${"%.2f".format(selectedDebitTotal)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
+                                        }
+                                    }
+                                    if (selectedCreditTotal > 0) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text("Selected income", fontSize = 12.sp, color = Color(0xFF616161))
+                                            Text("₹${"%.2f".format(selectedCreditTotal)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Action Buttons: Import Selected or Change Range
                         Button(
                             onClick = {
                                 currentPhase = SmsImportUiPhase.IMPORTING
                                 isCancelled = false
                                 scope.launch {
-                                    val impRes = importManager.importTransactions(result) { prog ->
+                                    val impRes = importManager.importTransactions(
+                                        scanResult = result,
+                                        selectedGroupIds = selectedGroupIds
+                                    ) { prog ->
                                         importProgress = prog
                                         !isCancelled
                                     }
@@ -561,13 +826,21 @@ fun SmsImportScreen(
                                     }
                                 }
                             },
+                            enabled = selectedGroupIds.isNotEmpty(),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF673AB7),
+                                disabledContainerColor = Color(0xFFBDBDBD)
+                            )
                         ) {
-                            Text("Import Transactions", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                            Text(
+                                if (selectedTxnCount > 0) "Import Selected ($selectedTxnCount)" else "Import Selected",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp
+                            )
                         }
 
                         OutlinedButton(

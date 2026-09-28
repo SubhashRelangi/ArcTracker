@@ -60,8 +60,10 @@ import com.example.arctracker.service.SmsPermissionHelper
 import com.example.arctracker.ui.InitialSmsImportDialog
 import com.example.arctracker.ui.NotificationPermissionDialog
 import com.example.arctracker.utils.RegexPatternsManager
+import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -163,6 +165,10 @@ fun ExpenseScreen() {
 
     var showApproveDialog by remember {
         mutableStateOf<Expense?>(null)
+    }
+
+    var showCompleteAllDialog by remember {
+        mutableStateOf(false)
     }
 
     var actionSheetExpense by remember {
@@ -371,6 +377,13 @@ fun ExpenseScreen() {
                                 }
                             ) {
                                 Icon(Icons.Rounded.PendingActions, contentDescription = "Pending Expenses")
+                            }
+                        }
+                    } else if (currentRoute == "Pending") {
+                        val pendingCount = expenses.count { it.isPending }
+                        if (pendingCount > 0) {
+                            TextButton(onClick = { showCompleteAllDialog = true }) {
+                                Text("Complete All", fontWeight = FontWeight.SemiBold)
                             }
                         }
                     } else if (currentRoute == "Transactions") {
@@ -658,6 +671,27 @@ fun ExpenseScreen() {
                         }
 
                     } else {
+
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${pendingExpenses.size} Pending Review",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Button(
+                                    onClick = { showCompleteAllDialog = true }
+                                ) {
+                                    Text("Complete All")
+                                }
+                            }
+                        }
 
                         items(
                             pendingExpenses
@@ -1001,6 +1035,66 @@ fun ExpenseScreen() {
             )
         }
 
+        if (showCompleteAllDialog) {
+            val pendingExpenses = expenses.filter { it.isPending }
+            AlertDialog(
+                onDismissRequest = { showCompleteAllDialog = false },
+                title = {
+                    Text("Complete all pending transactions?")
+                },
+                text = {
+                    Text("This will approve all pending transactions currently waiting for review.")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showCompleteAllDialog = false
+                            val toComplete = expenses.filter { it.isPending }
+                            scope.launch {
+                                var successCount = 0
+                                var failCount = 0
+                                val updatedList = expenses.toMutableList()
+                                for (item in toComplete) {
+                                    try {
+                                        val updated = item.copy(isPending = false)
+                                        val count = withContext(Dispatchers.IO) {
+                                            expenseDao.update(updated)
+                                        }
+                                        if (count > 0) {
+                                            val idx = updatedList.indexOfFirst { it.id == item.id }
+                                            if (idx != -1) {
+                                                updatedList[idx] = updated
+                                            }
+                                            successCount++
+                                        } else {
+                                            failCount++
+                                        }
+                                    } catch (e: Exception) {
+                                        failCount++
+                                    }
+                                }
+                                expenses = updatedList
+                                refreshTrigger++
+                                val msg = if (failCount == 0) {
+                                    "Completed all $successCount pending transactions"
+                                } else {
+                                    "Completed $successCount transactions ($failCount failed)"
+                                }
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    ) {
+                        Text("Complete All")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCompleteAllDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
         actionSheetExpense?.let { sheetExpense ->
 
             com.example.arctracker.ui.TransactionActionSheet(
@@ -1162,10 +1256,12 @@ fun ExpenseScreen() {
             InitialSmsImportDialog(
                 onDismiss = {
                     hasDismissedInitialSmsImportDialog = true
+                    SmsPermissionHelper.setInitialImportCompleted(context, true)
                 },
-                onComplete = {
+                onNavigateToImport = {
                     hasDismissedInitialSmsImportDialog = true
                     SmsPermissionHelper.setInitialImportCompleted(context, true)
+                    navigateTo("SmsImport")
                 }
             )
         }

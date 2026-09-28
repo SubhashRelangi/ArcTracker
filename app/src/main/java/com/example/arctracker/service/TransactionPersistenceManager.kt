@@ -506,9 +506,29 @@ object TransactionPersistenceManager {
         val isPending = result.candidate.needsReview ||
             candidate.status == TransactionStatus.PENDING
 
-        val expense = mapToExpense(candidate, isPending = isPending)
+        val expense = mapToExpense(
+            candidate = candidate,
+            isPending = isPending,
+            relationshipType = result.relationshipType,
+            relationshipId = result.relationshipId
+        )
         val newId = dao.insert(expense)
         val saved = expense.copy(id = newId.toInt())
+
+        // If this is a self-transfer, also update the existing matched counterpart in Room
+        if (result.relationshipType != null && result.matchedRecordId != null) {
+            val existing = dao.getExpenseByNotificationKey(result.matchedRecordId)
+                ?: result.matchedRecordId.toIntOrNull()?.let { dao.getExpenseById(it) }
+            if (existing != null && (existing.relationshipType == null || existing.relationshipId == null)) {
+                val updatedExisting = existing.copy(
+                    relationshipType = result.relationshipType,
+                    relationshipId = result.relationshipId
+                )
+                dao.update(updatedExisting)
+                Log.d(TAG, "Updated existing counterpart transaction id=${existing.id} with relationship ${result.relationshipType}")
+            }
+        }
+
         Log.d(TAG, "Inserted new transaction id=${saved.id}, isPending=$isPending, amount=${saved.amount}")
         return ExpensePersistenceResult.Inserted(saved, isPending, result.reason)
     }
@@ -519,7 +539,9 @@ object TransactionPersistenceManager {
     fun mapToExpense(
         candidate: StructuredTransactionCandidate,
         isPending: Boolean,
-        extraNote: String? = null
+        extraNote: String? = null,
+        relationshipType: String? = null,
+        relationshipId: String? = null
     ): Expense {
         val amount = candidate.amount
             ?: throw IllegalArgumentException("Candidate amount cannot be null when mapping to Expense")
@@ -554,7 +576,9 @@ object TransactionPersistenceManager {
             rawText = candidate.rawContent,
             tag = tag,
             note = note,
-            source = source
+            source = source,
+            relationshipType = relationshipType,
+            relationshipId = relationshipId
         )
     }
 

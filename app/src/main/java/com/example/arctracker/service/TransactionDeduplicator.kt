@@ -117,7 +117,8 @@ object TransactionDeduplicator {
                     val effectiveTimeDiff = minOf(timeDiff, arrivalDiff)
 
                     // Conflict Check 1: Incompatible Amounts
-                    if (candStruct.amount != null && existing.amount != null && candStruct.amount != existing.amount) {
+                    val amountsDiffer = candStruct.amount != null && existing.amount != null && abs(candStruct.amount - existing.amount) >= 0.01
+                    if (amountsDiffer) {
                         return TransactionDeduplicationResult(
                             candidate = candidate,
                             decision = DedupDecision.NEEDS_REVIEW,
@@ -131,21 +132,52 @@ object TransactionDeduplicator {
                         )
                     }
 
-                    // Conflict Check 2: Incompatible Directions
-                    if (candStruct.direction != TransactionDirection.UNKNOWN &&
-                        existing.direction != TransactionDirection.UNKNOWN &&
-                        candStruct.direction != existing.direction) {
-                        return TransactionDeduplicationResult(
-                            candidate = candidate,
-                            decision = DedupDecision.NEEDS_REVIEW,
-                            strategy = MatchStrategy.IDENTITY_CONFLICT,
-                            matchedRecordId = existing.id,
-                            matchedRecord = existing,
-                            matchingSignals = listOf("REFERENCE_ID_MATCH: $matchedRef"),
-                            conflictingSignals = listOf("DIRECTION_MISMATCH: candidate=${candStruct.direction}, existing=${existing.direction}"),
-                            timeDifferenceMillis = effectiveTimeDiff,
-                            reason = "Matching reference ID ($matchedRef) but conflicting directions: ${candStruct.direction} vs ${existing.direction}"
-                        )
+                    // Check Direction Relationship: Opposite directions could be a self-transfer across different accounts!
+                    val isOppositeDirections = (candStruct.direction == TransactionDirection.DEBIT && existing.direction == TransactionDirection.CREDIT) ||
+                            (candStruct.direction == TransactionDirection.CREDIT && existing.direction == TransactionDirection.DEBIT)
+
+                    if (isOppositeDirections) {
+                        val candAccount = candStruct.accountSuffix
+                        val candBank = candStruct.bank ?: AccountIdentityExtractor.extractBankFromText(candStruct.rawContent)
+                        val existingAccount = existing.accountSuffix
+                        val existingBank = existing.bank ?: AccountIdentityExtractor.extractBankFromText(existing.rawText)
+
+                        val isDifferentAccount = (candAccount != null && existingAccount != null && candAccount != existingAccount) ||
+                                (candBank != null && existingBank != null && !candBank.equals(existingBank, ignoreCase = true))
+
+                        if (isDifferentAccount && effectiveTimeDiff <= REFERENCE_ID_CORRELATION_WINDOW_MS) {
+                            val relId = "SELF_TRANSFER_$matchedRef"
+                            return TransactionDeduplicationResult(
+                                candidate = candidate,
+                                decision = DedupDecision.NEW_TRANSACTION,
+                                strategy = MatchStrategy.SELF_TRANSFER,
+                                matchedRecordId = existing.id,
+                                matchedRecord = existing,
+                                matchingSignals = listOf(
+                                    "REFERENCE_ID_MATCH: $matchedRef",
+                                    "AMOUNT_MATCH: ${candStruct.amount}",
+                                    "SELF_TRANSFER_CORRELATED: ${candStruct.direction} vs ${existing.direction}"
+                                ),
+                                conflictingSignals = emptyList(),
+                                timeDifferenceMillis = effectiveTimeDiff,
+                                reason = "Self-transfer identified across accounts (${candBank ?: "A/c $candAccount"} <-> ${existingBank ?: "A/c $existingAccount"}) with reference $matchedRef",
+                                relationshipType = "SELF_TRANSFER",
+                                relationshipId = relId
+                            )
+                        } else {
+                            // Opposite directions on same account or without account differentiation -> Conflict / Needs Review
+                            return TransactionDeduplicationResult(
+                                candidate = candidate,
+                                decision = DedupDecision.NEEDS_REVIEW,
+                                strategy = MatchStrategy.IDENTITY_CONFLICT,
+                                matchedRecordId = existing.id,
+                                matchedRecord = existing,
+                                matchingSignals = listOf("REFERENCE_ID_MATCH: $matchedRef"),
+                                conflictingSignals = listOf("DIRECTION_MISMATCH: candidate=${candStruct.direction}, existing=${existing.direction}"),
+                                timeDifferenceMillis = effectiveTimeDiff,
+                                reason = "Matching reference ID ($matchedRef) but conflicting directions: ${candStruct.direction} vs ${existing.direction}"
+                            )
+                        }
                     }
 
                     // Time window validation for reference matching

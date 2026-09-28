@@ -897,8 +897,8 @@ object StructuredTransactionExtractor {
             return gateAssessment.directionHint
         }
 
-        val hasDebitExplicit = Regex("""(?i)\b(paid to|sent to|transferred to|debited from|spent at|purchase at|paid at|debited by|debited for|paid using|debited|debit(?!\s*(?:card|limit|offer|option)))\b""").containsMatchIn(text)
-        val hasCreditExplicit = Regex("""(?i)\b(received from|credited to|credited with|deposited|refund of .* received|cashback received|cashback credited|credited|credit(?!\s*(?:card|limit|score|bill|line|facility|offer|option)))\b""").containsMatchIn(text)
+        val hasDebitExplicit = Regex("""(?i)\b(paid to|sent to|transferred to|debited from|spent at|purchase at|paid at|debited by|debited for|paid using|is debited|was debited|has been debited|debited|debit(?!\s*(?:card|limit|offer|option)))\b""").containsMatchIn(text)
+        val hasCreditExplicit = Regex("""(?i)\b(received from|credited to|credited in|credited into|credited with|deposited|refund of .* received|cashback received|cashback credited|is credited|was credited|has been credited|credited|credit(?!\s*(?:card|limit|score|bill|line|facility|offer|option)))\b""").containsMatchIn(text)
 
         if (hasDebitExplicit) {
             evidenceMap["direction"] = FieldEvidence(

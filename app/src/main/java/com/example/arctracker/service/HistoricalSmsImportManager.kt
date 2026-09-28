@@ -45,7 +45,8 @@ data class ScannedTransactionItem(
     val plannedDecision: DedupDecision,
     val matchStrategy: MatchStrategy,
     val matchedRecordId: String? = null,
-    val reason: String
+    val reason: String,
+    val accountIdentity: FinancialAccountIdentity = FinancialAccountIdentity()
 )
 
 /**
@@ -67,7 +68,8 @@ sealed class SmsScanResult {
         val rejectedCount: Int,
         val totalDebitAmount: Double,
         val totalCreditAmount: Double,
-        val scannedItems: List<ScannedTransactionItem>
+        val scannedItems: List<ScannedTransactionItem>,
+        val accountGroups: List<FinancialAccountGroup> = emptyList()
     ) : SmsScanResult()
 
     data object Cancelled : SmsScanResult()
@@ -90,7 +92,8 @@ sealed class SmsImportResult {
         val errorCount: Int,
         val totalAmountImported: Double,
         val totalIncomeImported: Double,
-        val persistenceResults: List<ExpensePersistenceResult>
+        val persistenceResults: List<ExpensePersistenceResult>,
+        val selectedGroupIds: Set<String>? = null
     ) : SmsImportResult()
 
     data object Cancelled : SmsImportResult()
@@ -216,9 +219,6 @@ class HistoricalSmsImportManager(
                 return@readSms cont
             }
 
-            // Financially relevant message detected
-            financialMessages++
-
             // 4. Structured Multi-Candidate Extraction
             val candidates = StructuredTransactionExtractor.extractAll(classification)
             if (candidates.isEmpty()) {
@@ -227,6 +227,9 @@ class HistoricalSmsImportManager(
                 if (!cont) isCancelled = true
                 return@readSms cont
             }
+
+            // Financially relevant message detected with valid candidates
+            financialMessages++
 
             // 5. Validation and Non-Destructive Deduplication Evaluation for Each Candidate
             for (candidate in candidates) {
@@ -281,6 +284,13 @@ class HistoricalSmsImportManager(
                     }
                 }
 
+                // Step 3: Account Identity Extraction (strictly after validation and deduplication)
+                val accountIdentity = AccountIdentityExtractor.extractIdentity(
+                    candidate = validated,
+                    rawBody = smsRecord.body,
+                    sender = smsRecord.address
+                )
+
                 scannedItems.add(
                     ScannedTransactionItem(
                         candidate = validated,
@@ -288,7 +298,8 @@ class HistoricalSmsImportManager(
                         plannedDecision = dedupResult.decision,
                         matchStrategy = dedupResult.strategy,
                         matchedRecordId = dedupResult.matchedRecordId,
-                        reason = dedupResult.reason
+                        reason = dedupResult.reason,
+                        accountIdentity = accountIdentity
                     )
                 )
             }
@@ -318,6 +329,9 @@ class HistoricalSmsImportManager(
                     _state.value = HistoricalSmsImportState.ScanCancelled
                     SmsScanResult.Cancelled
                 } else {
+                    // Step 4: Stable In-Memory Account Grouping (strictly ZERO Room writes)
+                    val accountGroups = FinancialAccountGrouper.groupTransactions(scannedItems)
+
                     val result = SmsScanResult.Success(
                         startTimeMillis = startTimeMillis,
                         endTimeMillis = endTimeMillis,
@@ -333,7 +347,8 @@ class HistoricalSmsImportManager(
                         rejectedCount = rejectedCount,
                         totalDebitAmount = totalDebitAmount,
                         totalCreditAmount = totalCreditAmount,
-                        scannedItems = scannedItems
+                        scannedItems = scannedItems,
+                        accountGroups = accountGroups
                     )
                     Log.i(TAG, "Scan completed successfully: $messagesScanned scanned, $financialMessages financial, $transactionCandidatesCount candidates")
                     _state.value = HistoricalSmsImportState.ScanComplete(result)
@@ -350,13 +365,25 @@ class HistoricalSmsImportManager(
      * to Room via [ExpenseDao].
      *
      * @param scanResult The successful scan result containing analyzed candidates.
+     * @param selectedGroupIds Optional set of stable group IDs to import. If null, imports all candidates.
      * @param progressCallback Optional callback returning false to cancel the import.
      */
     suspend fun importTransactions(
         scanResult: SmsScanResult.Success,
+        selectedGroupIds: Set<String>? = null,
         progressCallback: ((SmsImportProgress) -> Boolean)? = null
     ): SmsImportResult = executionMutex.withLock {
-        Log.i(TAG, "Starting persistence reconciliation for ${scanResult.scannedItems.size} scanned candidates")
+        // Step 6: Filter items to only include those belonging to selected group IDs
+        val items = if (selectedGroupIds != null) {
+            scanResult.scannedItems.filter { item ->
+                val groupId = AccountIdentityExtractor.generateGroupId(item.accountIdentity)
+                selectedGroupIds.contains(groupId)
+            }
+        } else {
+            scanResult.scannedItems
+        }
+
+        Log.i(TAG, "Starting persistence reconciliation for ${items.size} candidates (selectedGroupIds: ${selectedGroupIds?.size ?: "ALL"})")
 
         var insertedCount = 0
         var updatedCount = 0
@@ -370,7 +397,6 @@ class HistoricalSmsImportManager(
 
         val persistenceResults = mutableListOf<ExpensePersistenceResult>()
         val claimedRecordIds = mutableSetOf<String>()
-        val items = scanResult.scannedItems
         var isCancelled = false
 
         for ((index, item) in items.withIndex()) {
@@ -391,8 +417,20 @@ class HistoricalSmsImportManager(
                 }
             }
 
+            // Ensure bank / account metadata is attached to candidate before persistence
+            val candidateToProcess = if (item.accountIdentity.isPartiallyIdentified) {
+                val updatedCand = item.candidate.candidate.copy(
+                    bank = item.accountIdentity.institutionName ?: item.candidate.candidate.bank,
+                    accountSuffix = item.accountIdentity.accountSuffix ?: item.candidate.candidate.accountSuffix,
+                    cardSuffix = item.accountIdentity.cardSuffix ?: item.candidate.candidate.cardSuffix
+                )
+                item.candidate.copy(candidate = updatedCand)
+            } else {
+                item.candidate
+            }
+
             val result = persistenceManager.processValidatedCandidate(
-                validated = item.candidate,
+                validated = candidateToProcess,
                 dao = dao,
                 claimedRecordIds = claimedRecordIds
             )
@@ -406,6 +444,18 @@ class HistoricalSmsImportManager(
                         totalIncomeImported += amt
                     } else {
                         totalAmountImported += amt
+                    }
+
+                    // Preserve bank institution in Expense.note if not already present
+                    val instName = item.accountIdentity.institutionName
+                    if (!instName.isNullOrBlank()) {
+                        val currentNote = result.expense.note
+                        val bankToken = "Bank: $instName"
+                        if (currentNote == null || !currentNote.contains(bankToken)) {
+                            val enrichedNote = if (currentNote.isNullOrBlank()) bankToken else "$bankToken | $currentNote"
+                            val enriched = result.expense.copy(note = enrichedNote)
+                            dao.update(enriched)
+                        }
                     }
                 }
 
@@ -428,6 +478,18 @@ class HistoricalSmsImportManager(
                         totalIncomeImported += amt
                     } else {
                         totalAmountImported += amt
+                    }
+
+                    // Preserve bank institution in Expense.note if not already present
+                    val instName = item.accountIdentity.institutionName
+                    if (!instName.isNullOrBlank()) {
+                        val currentNote = result.expense.note
+                        val bankToken = "Bank: $instName"
+                        if (currentNote == null || !currentNote.contains(bankToken)) {
+                            val enrichedNote = if (currentNote.isNullOrBlank()) bankToken else "$bankToken | $currentNote"
+                            val enriched = result.expense.copy(note = enrichedNote)
+                            dao.update(enriched)
+                        }
                     }
                 }
 
@@ -462,13 +524,22 @@ class HistoricalSmsImportManager(
             errorCount = errorCount,
             totalAmountImported = totalAmountImported,
             totalIncomeImported = totalIncomeImported,
-            persistenceResults = persistenceResults
+            persistenceResults = persistenceResults,
+            selectedGroupIds = selectedGroupIds
         )
 
         Log.i(TAG, "Import complete: $insertedCount inserted, $enrichedCount enriched, $duplicatesSkippedCount duplicates skipped, $reviewPendingCount review pending")
         _state.value = HistoricalSmsImportState.ImportComplete(importResult)
         return importResult
     }
+
+    /**
+     * Backward-compatible overload for callers providing progressCallback without selectedGroupIds.
+     */
+    suspend fun importTransactions(
+        scanResult: SmsScanResult.Success,
+        progressCallback: ((SmsImportProgress) -> Boolean)?
+    ): SmsImportResult = importTransactions(scanResult, null, progressCallback)
 
     /**
      * Convenience method combining non-destructive SCAN followed immediately by IMPORT.
