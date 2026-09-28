@@ -1162,10 +1162,12 @@ fun ExpenseScreen() {
             InitialSmsImportDialog(
                 onDismiss = {
                     hasDismissedInitialSmsImportDialog = true
+                    SmsPermissionHelper.setInitialImportCompleted(context, true)
                 },
-                onComplete = {
+                onNavigateToImport = {
                     hasDismissedInitialSmsImportDialog = true
                     SmsPermissionHelper.setInitialImportCompleted(context, true)
+                    navigateTo("SmsImport")
                 }
             )
         }
