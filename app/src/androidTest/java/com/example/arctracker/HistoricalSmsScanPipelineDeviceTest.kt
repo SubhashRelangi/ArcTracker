@@ -218,4 +218,79 @@ class HistoricalSmsScanPipelineDeviceTest {
         assertEquals(0, dao.getCount())
         assertTrue(dao.getAllExpensesList().isEmpty())
     }
+
+    @Test
+    fun test05_device_selectedAccountImport_filtersAndPersistsOnlyChosenGroups() = runBlocking {
+        val dao = testDb.expenseDao()
+        assertEquals(0, dao.getCount())
+
+        reader.records = listOf(
+            SmsRecord(
+                id = 4001L,
+                address = "AD-HDFCBK",
+                body = "A/c XX4381 debited by HDFC Bank Rs. 450.00 on 28-Sep-26 to Swiggy Ref 1111",
+                dateMillis = 1774000000000L
+            ),
+            SmsRecord(
+                id = 4002L,
+                address = "AD-HDFCBK",
+                body = "A/c XX4381 debited by HDFC Bank Rs. 150.00 on 28-Sep-26 to Uber Ref 2222",
+                dateMillis = 1774000050000L
+            ),
+            SmsRecord(
+                id = 4003L,
+                address = "AD-SBIINB",
+                body = "SBI A/c XX7724 credited INR 2,500.00 on 28-Sep-26 by transfer Ref 3333",
+                dateMillis = 1774000100000L
+            ),
+            SmsRecord(
+                id = 4004L,
+                address = "+919876543210",
+                body = "Debited Rs. 300.00 on 28-Sep-26 to Cafe Ref 4444",
+                dateMillis = 1774000150000L
+            )
+        )
+
+        // 1. Scan phase: 4 items, 3 groups, strictly 0 DB writes
+        val scanResult = manager.scan(0L, Long.MAX_VALUE) as SmsScanResult.Success
+        assertEquals(3, scanResult.accountGroups.size)
+        assertEquals(0, dao.getCount())
+
+        // 2. Import phase: Select ONLY HDFC
+        val hdfcGroupId = "hdfc_bank_account_4381"
+        val importResult1 = manager.importTransactions(
+            scanResult,
+            selectedGroupIds = setOf(hdfcGroupId)
+        ) as SmsImportResult.Success
+
+        assertEquals(2, importResult1.insertedCount)
+        assertEquals(2, dao.getCount())
+
+        // Verify only HDFC items exist in Room
+        val persisted1 = dao.getAllExpensesList()
+        assertEquals(2, persisted1.size)
+        assertTrue(persisted1.all { it.note?.contains("HDFC Bank") == true || it.note?.contains("4381") == true })
+        assertFalse(persisted1.any { it.note?.contains("7724") == true || it.note?.contains("SBI") == true })
+
+        // 3. Idempotency test: Re-importing HDFC inserts 0 new rows
+        val reimportResult = manager.importTransactions(
+            scanResult,
+            selectedGroupIds = setOf(hdfcGroupId)
+        ) as SmsImportResult.Success
+
+        assertEquals(0, reimportResult.insertedCount)
+        assertEquals(2, reimportResult.duplicatesSkippedCount)
+        assertEquals(2, dao.getCount())
+
+        // 4. Partial subsequent import: Now import SBI
+        val sbiGroupId = "sbi_bank_account_7724"
+        val importResult2 = manager.importTransactions(
+            scanResult,
+            selectedGroupIds = setOf(sbiGroupId)
+        ) as SmsImportResult.Success
+
+        assertEquals(1, importResult2.insertedCount)
+        assertEquals(3, dao.getCount()) // 2 HDFC + 1 SBI
+        assertEquals(2500.0, importResult2.totalIncomeImported, 0.001)
+    }
 }

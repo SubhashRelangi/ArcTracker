@@ -92,7 +92,8 @@ sealed class SmsImportResult {
         val errorCount: Int,
         val totalAmountImported: Double,
         val totalIncomeImported: Double,
-        val persistenceResults: List<ExpensePersistenceResult>
+        val persistenceResults: List<ExpensePersistenceResult>,
+        val selectedGroupIds: Set<String>? = null
     ) : SmsImportResult()
 
     data object Cancelled : SmsImportResult()
@@ -364,13 +365,25 @@ class HistoricalSmsImportManager(
      * to Room via [ExpenseDao].
      *
      * @param scanResult The successful scan result containing analyzed candidates.
+     * @param selectedGroupIds Optional set of stable group IDs to import. If null, imports all candidates.
      * @param progressCallback Optional callback returning false to cancel the import.
      */
     suspend fun importTransactions(
         scanResult: SmsScanResult.Success,
+        selectedGroupIds: Set<String>? = null,
         progressCallback: ((SmsImportProgress) -> Boolean)? = null
     ): SmsImportResult = executionMutex.withLock {
-        Log.i(TAG, "Starting persistence reconciliation for ${scanResult.scannedItems.size} scanned candidates")
+        // Step 6: Filter items to only include those belonging to selected group IDs
+        val items = if (selectedGroupIds != null) {
+            scanResult.scannedItems.filter { item ->
+                val groupId = AccountIdentityExtractor.generateGroupId(item.accountIdentity)
+                selectedGroupIds.contains(groupId)
+            }
+        } else {
+            scanResult.scannedItems
+        }
+
+        Log.i(TAG, "Starting persistence reconciliation for ${items.size} candidates (selectedGroupIds: ${selectedGroupIds?.size ?: "ALL"})")
 
         var insertedCount = 0
         var updatedCount = 0
@@ -384,7 +397,6 @@ class HistoricalSmsImportManager(
 
         val persistenceResults = mutableListOf<ExpensePersistenceResult>()
         val claimedRecordIds = mutableSetOf<String>()
-        val items = scanResult.scannedItems
         var isCancelled = false
 
         for ((index, item) in items.withIndex()) {
@@ -405,8 +417,20 @@ class HistoricalSmsImportManager(
                 }
             }
 
+            // Ensure bank / account metadata is attached to candidate before persistence
+            val candidateToProcess = if (item.accountIdentity.isPartiallyIdentified) {
+                val updatedCand = item.candidate.candidate.copy(
+                    bank = item.accountIdentity.institutionName ?: item.candidate.candidate.bank,
+                    accountSuffix = item.accountIdentity.accountSuffix ?: item.candidate.candidate.accountSuffix,
+                    cardSuffix = item.accountIdentity.cardSuffix ?: item.candidate.candidate.cardSuffix
+                )
+                item.candidate.copy(candidate = updatedCand)
+            } else {
+                item.candidate
+            }
+
             val result = persistenceManager.processValidatedCandidate(
-                validated = item.candidate,
+                validated = candidateToProcess,
                 dao = dao,
                 claimedRecordIds = claimedRecordIds
             )
@@ -420,6 +444,18 @@ class HistoricalSmsImportManager(
                         totalIncomeImported += amt
                     } else {
                         totalAmountImported += amt
+                    }
+
+                    // Preserve bank institution in Expense.note if not already present
+                    val instName = item.accountIdentity.institutionName
+                    if (!instName.isNullOrBlank()) {
+                        val currentNote = result.expense.note
+                        val bankToken = "Bank: $instName"
+                        if (currentNote == null || !currentNote.contains(bankToken)) {
+                            val enrichedNote = if (currentNote.isNullOrBlank()) bankToken else "$bankToken | $currentNote"
+                            val enriched = result.expense.copy(note = enrichedNote)
+                            dao.update(enriched)
+                        }
                     }
                 }
 
@@ -442,6 +478,18 @@ class HistoricalSmsImportManager(
                         totalIncomeImported += amt
                     } else {
                         totalAmountImported += amt
+                    }
+
+                    // Preserve bank institution in Expense.note if not already present
+                    val instName = item.accountIdentity.institutionName
+                    if (!instName.isNullOrBlank()) {
+                        val currentNote = result.expense.note
+                        val bankToken = "Bank: $instName"
+                        if (currentNote == null || !currentNote.contains(bankToken)) {
+                            val enrichedNote = if (currentNote.isNullOrBlank()) bankToken else "$bankToken | $currentNote"
+                            val enriched = result.expense.copy(note = enrichedNote)
+                            dao.update(enriched)
+                        }
                     }
                 }
 
@@ -476,13 +524,22 @@ class HistoricalSmsImportManager(
             errorCount = errorCount,
             totalAmountImported = totalAmountImported,
             totalIncomeImported = totalIncomeImported,
-            persistenceResults = persistenceResults
+            persistenceResults = persistenceResults,
+            selectedGroupIds = selectedGroupIds
         )
 
         Log.i(TAG, "Import complete: $insertedCount inserted, $enrichedCount enriched, $duplicatesSkippedCount duplicates skipped, $reviewPendingCount review pending")
         _state.value = HistoricalSmsImportState.ImportComplete(importResult)
         return importResult
     }
+
+    /**
+     * Backward-compatible overload for callers providing progressCallback without selectedGroupIds.
+     */
+    suspend fun importTransactions(
+        scanResult: SmsScanResult.Success,
+        progressCallback: ((SmsImportProgress) -> Boolean)?
+    ): SmsImportResult = importTransactions(scanResult, null, progressCallback)
 
     /**
      * Convenience method combining non-destructive SCAN followed immediately by IMPORT.
