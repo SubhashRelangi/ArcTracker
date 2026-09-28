@@ -45,7 +45,8 @@ data class ScannedTransactionItem(
     val plannedDecision: DedupDecision,
     val matchStrategy: MatchStrategy,
     val matchedRecordId: String? = null,
-    val reason: String
+    val reason: String,
+    val accountIdentity: FinancialAccountIdentity = FinancialAccountIdentity()
 )
 
 /**
@@ -67,7 +68,8 @@ sealed class SmsScanResult {
         val rejectedCount: Int,
         val totalDebitAmount: Double,
         val totalCreditAmount: Double,
-        val scannedItems: List<ScannedTransactionItem>
+        val scannedItems: List<ScannedTransactionItem>,
+        val accountGroups: List<FinancialAccountGroup> = emptyList()
     ) : SmsScanResult()
 
     data object Cancelled : SmsScanResult()
@@ -281,6 +283,13 @@ class HistoricalSmsImportManager(
                     }
                 }
 
+                // Step 3: Account Identity Extraction (strictly after validation and deduplication)
+                val accountIdentity = AccountIdentityExtractor.extractIdentity(
+                    candidate = validated,
+                    rawBody = smsRecord.body,
+                    sender = smsRecord.address
+                )
+
                 scannedItems.add(
                     ScannedTransactionItem(
                         candidate = validated,
@@ -288,7 +297,8 @@ class HistoricalSmsImportManager(
                         plannedDecision = dedupResult.decision,
                         matchStrategy = dedupResult.strategy,
                         matchedRecordId = dedupResult.matchedRecordId,
-                        reason = dedupResult.reason
+                        reason = dedupResult.reason,
+                        accountIdentity = accountIdentity
                     )
                 )
             }
@@ -318,6 +328,9 @@ class HistoricalSmsImportManager(
                     _state.value = HistoricalSmsImportState.ScanCancelled
                     SmsScanResult.Cancelled
                 } else {
+                    // Step 4: Stable In-Memory Account Grouping (strictly ZERO Room writes)
+                    val accountGroups = FinancialAccountGrouper.groupTransactions(scannedItems)
+
                     val result = SmsScanResult.Success(
                         startTimeMillis = startTimeMillis,
                         endTimeMillis = endTimeMillis,
@@ -333,7 +346,8 @@ class HistoricalSmsImportManager(
                         rejectedCount = rejectedCount,
                         totalDebitAmount = totalDebitAmount,
                         totalCreditAmount = totalCreditAmount,
-                        scannedItems = scannedItems
+                        scannedItems = scannedItems,
+                        accountGroups = accountGroups
                     )
                     Log.i(TAG, "Scan completed successfully: $messagesScanned scanned, $financialMessages financial, $transactionCandidatesCount candidates")
                     _state.value = HistoricalSmsImportState.ScanComplete(result)

@@ -161,4 +161,61 @@ class HistoricalSmsScanPipelineDeviceTest {
         assertEquals("sms_2001", saved.notificationKey)
         assertEquals("SMS_HISTORY", saved.source)
     }
+
+    @Test
+    fun test04_device_accountIdentityAndStableGrouping_withZeroDatabaseWrites() = runBlocking {
+        val dao = testDb.expenseDao()
+        assertEquals(0, dao.getCount())
+
+        reader.records = listOf(
+            SmsRecord(
+                id = 3001L,
+                address = "AD-HDFCBK",
+                body = "A/c XX4381 debited by HDFC Bank Rs. 450.00 on 28-Sep-26 to Store1",
+                dateMillis = 1774000000000L
+            ),
+            SmsRecord(
+                id = 3002L,
+                address = "AD-HDFCBK",
+                body = "A/c XX4381 credited by HDFC Bank INR 1,200.00 on 28-Sep-26 by transfer",
+                dateMillis = 1774000050000L
+            ),
+            SmsRecord(
+                id = 3003L,
+                address = "AD-SBIINB",
+                body = "SBI A/c XX7724 credited INR 2,500.00 on 28-Sep-26 by transfer Ref 998811",
+                dateMillis = 1774000100000L
+            ),
+            SmsRecord(
+                id = 3004L,
+                address = "+919876543210",
+                body = "Debited Rs. 300.00 on 28-Sep-26 to Cafe Ref 554433",
+                dateMillis = 1774000150000L
+            )
+        )
+
+        val result = manager.scan(0L, Long.MAX_VALUE) as SmsScanResult.Success
+
+        // Verify account groups
+        assertEquals(3, result.accountGroups.size)
+
+        val hdfcGroup = result.accountGroups.first { it.groupId == "hdfc_bank_account_4381" }
+        assertEquals(2, hdfcGroup.transactionCount)
+        assertEquals(450.0, hdfcGroup.totalDebit, 0.001)
+        assertEquals(1200.0, hdfcGroup.totalCredit, 0.001)
+        assertEquals("HDFC Bank ••••4381", hdfcGroup.identity.getDisplayName())
+
+        val sbiGroup = result.accountGroups.first { it.groupId == "sbi_bank_account_7724" }
+        assertEquals(1, sbiGroup.transactionCount)
+        assertEquals(0.0, sbiGroup.totalDebit, 0.001)
+        assertEquals(2500.0, sbiGroup.totalCredit, 0.001)
+
+        val unidentifiedGroup = result.accountGroups.first { it.groupId == "unidentified_account" }
+        assertEquals(1, unidentifiedGroup.transactionCount)
+        assertEquals(300.0, unidentifiedGroup.totalDebit, 0.001)
+
+        // Strict invariant: ZERO Room database writes during scan & grouping
+        assertEquals(0, dao.getCount())
+        assertTrue(dao.getAllExpensesList().isEmpty())
+    }
 }
