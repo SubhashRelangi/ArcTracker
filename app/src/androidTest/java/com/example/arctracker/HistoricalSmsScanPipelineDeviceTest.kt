@@ -1,0 +1,164 @@
+package com.example.arctracker
+
+import android.content.Context
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.example.arctracker.data.AppDatabase
+import com.example.arctracker.data.Expense
+import com.example.arctracker.service.*
+import kotlinx.coroutines.runBlocking
+import org.junit.After
+import org.junit.Assert.*
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+
+/**
+ * Historical SMS Scan Pipeline on-device verification running on connected physical device.
+ *
+ * Verifies on real Android runtime:
+ * 1. Scan produces candidate transactions with strictly ZERO database writes.
+ * 2. Scan identifies duplicates against existing Room records without mutating Room.
+ * 3. Only the explicit importTransactions call persists transactions into Room.
+ */
+@RunWith(AndroidJUnit4::class)
+class HistoricalSmsScanPipelineDeviceTest {
+
+    private lateinit var context: Context
+    private lateinit var testDb: AppDatabase
+    private lateinit var reader: InMemorySmsReader
+    private lateinit var manager: HistoricalSmsImportManager
+
+    @Before
+    fun setUp() {
+        context = InstrumentationRegistry.getInstrumentation().targetContext
+        testDb = AppDatabase.createInMemoryDatabase(context)
+        reader = InMemorySmsReader(hasPermission = true, records = emptyList())
+        manager = HistoricalSmsImportManager(
+            smsReader = reader,
+            dao = testDb.expenseDao(),
+            persistenceManager = TransactionPersistenceManager
+        )
+    }
+
+    @After
+    fun tearDown() {
+        testDb.close()
+    }
+
+    @Test
+    fun test01_device_scanProducesCandidates_withStrictlyZeroDatabaseWrites() = runBlocking {
+        val dao = testDb.expenseDao()
+        assertEquals(0, dao.getCount())
+
+        reader.records = listOf(
+            SmsRecord(
+                id = 1001L,
+                address = "AD-HDFCBK",
+                body = "Rs 450.00 debited from A/C **1234 on 28-Sep-26 to Swiggy. UPI: 123456789012",
+                dateMillis = 1774000000000L
+            ),
+            SmsRecord(
+                id = 1002L,
+                address = "AD-SBIINB",
+                body = "Your a/c no. XXXXXX1234 is credited by Rs. 2,500.00 on 28-Sep-26 by transfer from John. Ref 987654321098",
+                dateMillis = 1774000050000L
+            ),
+            SmsRecord(
+                id = 1003L,
+                address = "+919876543210",
+                body = "Hey, are we having lunch today at 1pm?",
+                dateMillis = 1774000100000L
+            )
+        )
+
+        val result = manager.scan(0L, Long.MAX_VALUE)
+        assertTrue("Scan must succeed", result is SmsScanResult.Success)
+
+        val success = result as SmsScanResult.Success
+        assertEquals(3, success.messagesScanned)
+        assertEquals(2, success.financialMessages)
+        assertEquals(1, success.nonFinancialMessages)
+        assertEquals(2, success.transactionCandidatesCount)
+
+        // STRICT INVARIANT: ZERO database writes during scan
+        assertEquals(0, dao.getCount())
+        assertTrue(dao.getAllExpensesList().isEmpty())
+        assertTrue(dao.getPendingExpensesList().isEmpty())
+    }
+
+    @Test
+    fun test02_device_preExistingRecordsRemainUnmodifiedDuringScan() = runBlocking {
+        val dao = testDb.expenseDao()
+        dao.insert(
+            Expense(
+                amount = 999.0,
+                merchant = "Pre-existing Expense",
+                dateMillis = 1773000000000L,
+                notificationKey = "sms_999",
+                source = "SMS_HISTORY"
+            )
+        )
+        assertEquals(1, dao.getCount())
+
+        reader.records = listOf(
+            SmsRecord(
+                id = 999L, // Duplicate of existing DB record
+                address = "AD-HDFCBK",
+                body = "Rs 999.00 debited from A/C **1234 on 27-Sep-26 to Store. Ref 111222333444",
+                dateMillis = 1773000000000L
+            ),
+            SmsRecord(
+                id = 1000L, // New transaction
+                address = "AD-HDFCBK",
+                body = "Rs 150.00 debited from A/C **1234 on 28-Sep-26 to Cafe. Ref 555666777888",
+                dateMillis = 1774000000000L
+            )
+        )
+
+        val result = manager.scan(0L, Long.MAX_VALUE) as SmsScanResult.Success
+        assertEquals(2, result.messagesScanned)
+        assertEquals(1, result.newTransactionsCount)
+        assertEquals(1, result.duplicatesCount)
+
+        // Database remains strictly untouched
+        assertEquals(1, dao.getCount())
+        val record = dao.getAllExpensesList().first()
+        assertEquals("Pre-existing Expense", record.merchant)
+        assertEquals(999.0, record.amount, 0.001)
+    }
+
+    @Test
+    fun test03_device_onlyExplicitImportPersistsToRoomDatabase() = runBlocking {
+        val dao = testDb.expenseDao()
+        assertEquals(0, dao.getCount())
+
+        reader.records = listOf(
+            SmsRecord(
+                id = 2001L,
+                address = "AD-IPPB",
+                body = "A/C X2959 Debit Rs.350.00 for UPI to Grocery Mart on 28-09-26 Ref 624571799987. Avl Bal Rs.500.00. -IPPB",
+                dateMillis = 1774000000000L
+            )
+        )
+
+        // Phase 1: Scan (produces candidates, 0 writes)
+        val scanResult = manager.scan(0L, Long.MAX_VALUE) as SmsScanResult.Success
+        assertEquals(0, dao.getCount())
+
+        // Phase 2: Import (persists candidates)
+        val importResult = manager.importTransactions(scanResult)
+        assertTrue(importResult is SmsImportResult.Success)
+
+        val successImport = importResult as SmsImportResult.Success
+        assertEquals(1, successImport.insertedCount)
+
+        // Phase 3: Verify Room persistence
+        assertEquals(1, dao.getCount())
+        val saved = dao.getAllExpensesList().first()
+        assertEquals(350.0, saved.amount, 0.001)
+        assertEquals("Grocery Mart", saved.merchant)
+        assertEquals("sms_2001", saved.notificationKey)
+        assertEquals("SMS_HISTORY", saved.source)
+    }
+}

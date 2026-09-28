@@ -216,9 +216,6 @@ class HistoricalSmsImportManager(
                 return@readSms cont
             }
 
-            // Financially relevant message detected
-            financialMessages++
-
             // 4. Structured Multi-Candidate Extraction
             val candidates = StructuredTransactionExtractor.extractAll(classification)
             if (candidates.isEmpty()) {
@@ -227,6 +224,9 @@ class HistoricalSmsImportManager(
                 if (!cont) isCancelled = true
                 return@readSms cont
             }
+
+            // Financially relevant message detected with valid candidates
+            financialMessages++
 
             // 5. Validation and Non-Destructive Deduplication Evaluation for Each Candidate
             for (candidate in candidates) {
