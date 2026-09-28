@@ -66,11 +66,11 @@ object StructuredTransactionExtractor {
     )
 
     private val TRANSACTION_ACTION_CONTEXT_PATTERN = Regex(
-        """(?i)\b(paid|debited|debit|spent|sent|transferred|credited|credit|received|withdrawn|deposited|refunded|deducted|payment of|txn of|transfer of|purchase|order payment|payment successful|transaction successful|recharge(?:d)?\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed)|recharge of)\b"""
+        """(?i)\b(paid|debited|debit(?!\s*(?:card|limit|offer|option))|spent|sent|transferred|credited|credit(?!\s*(?:card|limit|score|bill|line|facility|offer|option))|received|withdrawn|deposited|refunded|deducted|payment of|txn of|transfer of|purchase|order payment|payment successful|transaction successful|recharge(?:d)?\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed)|recharge of)\b"""
     )
 
     private val PLAN_OR_OFFER_CONTEXT_PATTERN = Regex(
-        """(?i)\b(?:plan\s+(?:of|at|for|@)?|pack\s+(?:of|at|for|@)?|starting\s+at|starts\s+at|special\s+offer|offer\s+price|plan\s+price|recharge\s+with\s+(?:rs\.?|inr|₹)?\s*\d+|recharge\s+plan|subscribe\s+now|get\s+[A-Za-z0-9]+\s+premium|premium\s+for\s+(?:rs\.?|inr|₹)?\s*\d+|for\s+\d+\s+(?:months?|days?|years?))\b"""
+        """(?i)\b(?:plan\s+(?:of|at|for|@)?|pack\s+(?:of|at|for|@)?|starting\s+at|starts\s+at|special\s+offer|offer\s+price|plan\s+price|recharge\s+with\s+(?:rs\.?|inr|₹)?\s*\d+|recharge\s+plan|subscribe\s+now|get\s+[A-Za-z0-9]+\s+premium|premium\s+for\s+(?:rs\.?|inr|₹)?\s*\d+|for\s+\d+\s+(?:months?|days?|years?)|is\s+one\s+bill\s+away|chance\s+to\s+win|use\s+[a-z0-9_]{4,15}|no\s+extra\s+fees|no\s+fees)\b"""
     )
 
     // Status patterns
@@ -207,12 +207,22 @@ object StructuredTransactionExtractor {
         }
 
         val notification = classification.normalized
-        val segments = segmentNotification(notification)
 
+        // Step 4.5: Actual Transaction Event Gate (Notification-level check)
+        val notifAssessment = ActualTransactionEventGate.assessNotification(notification, classification)
+        if (notifAssessment.actualEvent == ActualEventStatus.FALSE) {
+            return emptyList()
+        }
+
+        val segments = segmentNotification(notification)
         val candidates = mutableListOf<StructuredTransactionCandidate>()
 
         if (segments.size > 1) {
             for ((index, segment) in segments.withIndex()) {
+                val segAssessment = ActualTransactionEventGate.assessClause(segment)
+                if (segAssessment.actualEvent == ActualEventStatus.FALSE) {
+                    continue
+                }
                 val candidate = extractFromSegment(
                     segmentText = segment,
                     wholeNotification = notification,
@@ -221,14 +231,18 @@ object StructuredTransactionExtractor {
                     totalSegments = segments.size
                 )
                 if (candidate != null) {
-                    candidates.add(candidate)
+                    candidates.add(candidate.copy(eventAssessment = segAssessment))
                 }
             }
         }
 
         // If segmentation did not produce candidates, evaluate as a single global notification
         if (candidates.isEmpty()) {
-            candidates.add(extractInternal(notification, classification))
+            val singleCandidate = extractInternal(notification, classification)
+            val candAssessment = ActualTransactionEventGate.assessCandidate(singleCandidate, classification)
+            if (candAssessment.actualEvent != ActualEventStatus.FALSE) {
+                candidates.add(singleCandidate.copy(eventAssessment = candAssessment))
+            }
         }
 
         return candidates
@@ -477,7 +491,8 @@ object StructuredTransactionExtractor {
             paymentRail = paymentRail,
             transactionDateString = temporal.dateString,
             transactionTimeString = temporal.timeString,
-            temporalEvidence = temporal.temporalEvidence
+            temporalEvidence = temporal.temporalEvidence,
+            eventAssessment = ActualTransactionEventGate.assessClause(segmentText, extractedAmount)
         )
     }
 
@@ -563,7 +578,8 @@ object StructuredTransactionExtractor {
             paymentRail = paymentRail,
             transactionDateString = temporal.dateString,
             transactionTimeString = temporal.timeString,
-            temporalEvidence = temporal.temporalEvidence
+            temporalEvidence = temporal.temporalEvidence,
+            eventAssessment = ActualTransactionEventGate.assess(text, notification.packageName, extractedAmount)
         )
     }
 
@@ -855,10 +871,6 @@ object StructuredTransactionExtractor {
             return TransactionDirection.CREDIT
         }
 
-        val hasDebitExplicit = Regex("""(?i)\b(paid to|sent to|transferred to|debited from|spent at|purchase at|paid at|debited by|debited for|paid using|debited|debit)\b""").containsMatchIn(text)
-        val hasCreditExplicit = Regex("""(?i)\b(received from|credited to|credited with|deposited|refund of .* received|cashback received|credited|credit)\b""").containsMatchIn(text)
-
-        // General debit and credit terms (including "credit card" vs "debited")
         val hasDebitWord = Regex("""(?i)\b(debited|debit|paid|spent|withdrawn)\b""").containsMatchIn(text)
         val hasCreditWord = Regex("""(?i)\b(credited|credit|deposited|received|refunded)\b""").containsMatchIn(text)
 
@@ -872,6 +884,21 @@ object StructuredTransactionExtractor {
             )
             return TransactionDirection.UNKNOWN
         }
+
+        // Direction from Actual Transaction Event Gate
+        val gateAssessment = ActualTransactionEventGate.assessClause(text)
+        if (gateAssessment.actualEvent == ActualEventStatus.TRUE && gateAssessment.directionHint != TransactionDirection.UNKNOWN) {
+            evidenceMap["direction"] = FieldEvidence(
+                fieldName = "direction",
+                extractedValue = gateAssessment.directionHint.name,
+                sourceSnippet = "Actual Transaction Event Gate: ${gateAssessment.directionHint.name}",
+                ruleOrPattern = "ACTUAL_EVENT_GATE_${gateAssessment.directionHint.name}"
+            )
+            return gateAssessment.directionHint
+        }
+
+        val hasDebitExplicit = Regex("""(?i)\b(paid to|sent to|transferred to|debited from|spent at|purchase at|paid at|debited by|debited for|paid using|debited|debit(?!\s*(?:card|limit|offer|option)))\b""").containsMatchIn(text)
+        val hasCreditExplicit = Regex("""(?i)\b(received from|credited to|credited with|deposited|refund of .* received|cashback received|cashback credited|credited|credit(?!\s*(?:card|limit|score|bill|line|facility|offer|option)))\b""").containsMatchIn(text)
 
         if (hasDebitExplicit) {
             evidenceMap["direction"] = FieldEvidence(

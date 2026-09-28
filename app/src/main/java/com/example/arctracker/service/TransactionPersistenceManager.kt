@@ -97,6 +97,16 @@ object TransactionPersistenceManager {
                 return listOf(res)
             }
 
+            // Step 4.5: ACTUAL TRANSACTION EVENT GATE
+            val eventAssessment = ActualTransactionEventGate.assessNotification(normalized, classification)
+            if (eventAssessment.actualEvent == ActualEventStatus.FALSE) {
+                val reason = eventAssessment.diagnosticReasons.joinToString("; ").ifBlank { eventAssessment.eventType.name }
+                Log.d(TAG, "Notification ${captured.notificationKey} ignored: Actual Transaction Event Gate rejected ($reason)")
+                val res = ExpensePersistenceResult.IgnoredNonFinancial("No actual transaction event: $reason")
+                persistenceListener?.invoke(res)
+                return listOf(res)
+            }
+
             // Step 5: Structured Transaction Extraction (Support multi-candidate)
             val candidates = StructuredTransactionExtractor.extractAll(classification)
             if (candidates.isEmpty()) {
@@ -304,6 +314,12 @@ object TransactionPersistenceManager {
         val candidateMap = LinkedHashMap<Int, Expense>()
         for (expense in windowExpenses) {
             candidateMap[expense.id] = expense
+        }
+        val postTime = validated.candidate.postTime
+        if (postTime > 0 && Math.abs(postTime - candTime) > windowMs) {
+            for (expense in dao.getExpensesBetween(postTime - windowMs, postTime + windowMs)) {
+                candidateMap[expense.id] = expense
+            }
         }
         for (expense in pendingExpenses) {
             candidateMap[expense.id] = expense

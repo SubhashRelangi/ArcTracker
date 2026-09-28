@@ -103,7 +103,8 @@ data class StructuredTransactionCandidate(
     val paymentRail: String? = null,
     val transactionDateString: String? = null,
     val transactionTimeString: String? = null,
-    val temporalEvidence: TemporalTransactionEvidence? = null
+    val temporalEvidence: TemporalTransactionEvidence? = null,
+    val eventAssessment: TransactionEventAssessment? = null
 ) {
     /**
      * Retrieves the evidence object for a specific field if present.
