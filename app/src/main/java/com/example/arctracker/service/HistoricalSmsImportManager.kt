@@ -143,7 +143,8 @@ sealed class HistoricalSmsImportState {
 class HistoricalSmsImportManager(
     private val smsReader: SmsReader,
     private val dao: ExpenseDao,
-    private val persistenceManager: TransactionPersistenceManager = TransactionPersistenceManager
+    private val persistenceManager: TransactionPersistenceManager = TransactionPersistenceManager,
+    private val synchronizer: HistoricalSmsAccountRegistrySynchronizer? = null
 ) {
 
     private val _state = MutableStateFlow<HistoricalSmsImportState>(HistoricalSmsImportState.Idle)
@@ -528,6 +529,12 @@ class HistoricalSmsImportManager(
             selectedGroupIds = selectedGroupIds
         )
 
+        // Milestone 3: Synchronize selected account identities into KnownFinancialAccount registry
+        if (synchronizer != null && items.isNotEmpty()) {
+            val selectedIdentities = items.map { it.accountIdentity }.distinct()
+            synchronizer.synchronizeAll(selectedIdentities)
+        }
+
         Log.i(TAG, "Import complete: $insertedCount inserted, $enrichedCount enriched, $duplicatesSkippedCount duplicates skipped, $reviewPendingCount review pending")
         _state.value = HistoricalSmsImportState.ImportComplete(importResult)
         return importResult
@@ -594,10 +601,13 @@ class HistoricalSmsImportManager(
             smsReader: SmsReader = SmsReader.create(context),
             database: AppDatabase = AppDatabase.getDatabase(context)
         ): HistoricalSmsImportManager {
+            val accountRepo = com.example.arctracker.data.KnownFinancialAccountRepository(database.knownFinancialAccountDao())
+            val synchronizer = HistoricalSmsAccountRegistrySynchronizer(accountRepo)
             return HistoricalSmsImportManager(
                 smsReader = smsReader,
                 dao = database.expenseDao(),
-                persistenceManager = TransactionPersistenceManager
+                persistenceManager = TransactionPersistenceManager,
+                synchronizer = synchronizer
             )
         }
     }
