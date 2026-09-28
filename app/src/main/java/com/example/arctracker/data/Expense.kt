@@ -9,7 +9,8 @@ import androidx.room.PrimaryKey
     indices = [
         Index(value = ["notificationKey"]),
         Index(value = ["dateMillis"]),
-        Index(value = ["isPending"])
+        Index(value = ["isPending"]),
+        Index(value = ["relationshipId"])
     ]
 )
 data class Expense(
@@ -24,5 +25,12 @@ data class Expense(
     var rawText: String? = null,
     var tag: String? = null,
     var note: String? = null,
-    var source: String = "MANUAL"
+    var source: String = "MANUAL",
+    var relationshipType: String? = null,
+    var relationshipId: String? = null
 )
+
+object TransactionRelationshipType {
+    const val NONE = "NONE"
+    const val SELF_TRANSFER = "SELF_TRANSFER"
+}

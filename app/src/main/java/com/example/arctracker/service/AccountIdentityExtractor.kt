@@ -366,6 +366,20 @@ object AccountIdentityExtractor {
     }
 
     /**
+     * Deterministically extracts canonical bank name from free-form text snippets (e.g. note or rawText).
+     */
+    fun extractBankFromText(vararg texts: String?): String? {
+        val combined = texts.filterNotNull().joinToString(" ")
+        if (combined.isBlank()) return null
+        for (bank in BANK_DEFINITIONS) {
+            if (bank.bodyPatterns.any { it.containsMatchIn(combined) }) {
+                return bank.canonicalName
+            }
+        }
+        return null
+    }
+
+    /**
      * Generates a stable, deterministic group identifier from an account identity (Step 4).
      */
     fun generateGroupId(identity: FinancialAccountIdentity): String {

@@ -94,6 +94,10 @@ open class FakeExpenseDao : ExpenseDao {
         expenses.filter { it.dateMillis in startMillis..endMillis }.sortedByDescending { it.dateMillis }
     }
 
+    override suspend fun getExpensesByRelationshipId(relationshipId: String): List<Expense> = synchronized(lock) {
+        if (relationshipId.isBlank()) emptyList() else expenses.filter { it.relationshipId == relationshipId }
+    }
+
     override suspend fun getCount(): Int = synchronized(lock) {
         expenses.size
     }

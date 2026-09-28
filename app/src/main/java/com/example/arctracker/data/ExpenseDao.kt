@@ -50,6 +50,9 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE dateMillis BETWEEN :startMillis AND :endMillis ORDER BY dateMillis DESC")
     suspend fun getExpensesBetween(startMillis: Long, endMillis: Long): List<Expense>
 
+    @Query("SELECT * FROM expenses WHERE relationshipId = :relationshipId")
+    suspend fun getExpensesByRelationshipId(relationshipId: String): List<Expense>
+
     @Query("SELECT COUNT(*) FROM expenses")
     suspend fun getCount(): Int
 

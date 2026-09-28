@@ -14,28 +14,30 @@ object ActualTransactionEventGate {
         Regex("""\b(?:debited\s+(?:from|by|for)|spent\s+at|purchase\s+(?:at|on|of)|withdrawn\s+from)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(paid|debited|deducted|spent|withdrawn|charged)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:payment|transaction|txn)\s+(?:at|to|for)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\bpayment\s+of\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?\s+(?:made|to|debited|sent)\b""", RegexOption.IGNORE_CASE),
-        Regex("""(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?\s+(?:was\s+|is\s+|has been\s+)?(?:debited|paid|deducted|spent|sent|transferred|charged)\b""", RegexOption.IGNORE_CASE),
-        Regex("""(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?\s+(?:transaction|txn)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\bpayment\s+of\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?(?:/-)?\s+(?:made|to|debited|sent)\b""", RegexOption.IGNORE_CASE),
+        Regex("""(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?(?:/-)?\s+(?:was\s+|is\s+|has been\s+)?(?:debited|paid|deducted|spent|sent|transferred|charged)\b""", RegexOption.IGNORE_CASE),
+        Regex("""(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?(?:/-)?\s+(?:transaction|txn)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:paid|debited|spent|sent|transferred)\s+(?:rs\.?|inr|₹)\s*[\d,]+""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:recharge\s+of|payment\s+of|transfer\s+of|txn\s+of)\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed|processed)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:recharge\s+of|payment\s+of|transfer\s+of|txn\s+of)\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?(?:/-)?\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed|processed)\b""", RegexOption.IGNORE_CASE),
         Regex("""\border\s+payment\s+successful\b""", RegexOption.IGNORE_CASE),
-        Regex("""\bpayment\s+to\s+[A-Za-z0-9 &._-]+\s+(?:was\s+|is\s+)?(?:successful|completed)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\bpayment\s+to\s+[A-Za-z0-9 &._-]+\s+(?:was\s+|is\s+)?(?:successful|completed)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:is\s+|was\s+|has been\s+)?debited\s+(?:from|in|by)\s+(?:your\s+)?(?:a/c|acct|acc|account)\b""", RegexOption.IGNORE_CASE)
     )
 
     // 2. Positive Evidence: Completed Credit Actions
     private val COMPLETED_CREDIT_PATTERNS = listOf(
-        Regex("""\b(?:credited\s+(?:to|with)|deposited\s+(?:in|into|to)|received\s+from)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:credited\s+(?:to|with|in|into)|deposited\s+(?:in|into|to)|received\s+from)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(credited|deposited)\b""", RegexOption.IGNORE_CASE),
         Regex("""\bcredit\b(?!\s*(?:card|score|limit|bill|line|facility|offer|option))""", RegexOption.IGNORE_CASE),
         Regex("""\bUPI/CREDIT/\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:received\s+(?:a\s+)?payment\s+(?:of\s+)?(?:rs\.?|inr|₹)?\s*[\d,]+|payment\s+(?:of\s+)?(?:rs\.?|inr|₹)?\s*[\d,]+.*?\breceived)\b""", RegexOption.IGNORE_CASE),
-        Regex("""(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?\s+(?:was\s+|is\s+|has been\s+)?(?:credited|deposited|refunded)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:credited|deposited|refunded)\s+(?:with\s+)?(?:rs\.?|inr|₹)\s*[\d,]+""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:refund\s+of|cashback\s+of)\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?\s+(?:credited|received|processed)\b""", RegexOption.IGNORE_CASE),
+        Regex("""(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?(?:/-)?\s+(?:was\s+|is\s+|has been\s+)?(?:credited|deposited|refunded)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:credited|deposited|refunded)\s+(?:with\s+|in\s+|into\s+|to\s+)?(?:rs\.?|inr|₹)\s*[\d,]+""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:refund\s+of|cashback\s+of)\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?(?:/-)?\s+(?:credited|received|processed)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:cashback\s+credited|money\s+received|refund\s+received|refund\s+processed|added\s+to\s+wallet)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:received\s+(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?\s+from)\b""", RegexOption.IGNORE_CASE),
-        Regex("""(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?\s+received\s+from\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(?:received\s+(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?(?:/-)?\s+from)\b""", RegexOption.IGNORE_CASE),
+        Regex("""(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?(?:/-)?\s+received\s+from\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:is\s+|was\s+|has been\s+)?credited\s+(?:in|into|to|with)\s+(?:your\s+)?(?:a/c|acct|acc|account)\b""", RegexOption.IGNORE_CASE)
     )
 
     // 3. Positive Evidence: Status Confirmations
