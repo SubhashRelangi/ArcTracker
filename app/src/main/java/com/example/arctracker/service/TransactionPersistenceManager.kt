@@ -12,11 +12,14 @@ import kotlinx.coroutines.sync.withLock
  * Result of attempting to persist or correlate a transaction candidate in the Room database (Step 8).
  */
 sealed class ExpensePersistenceResult {
-    data class Inserted(val expense: Expense, val isPending: Boolean, val reason: String) : ExpensePersistenceResult()
-    data class Updated(val updatedExpense: Expense, val previousExpense: Expense, val changeDescription: String) : ExpensePersistenceResult()
-    data class SkippedDuplicate(val existingExpense: Expense, val reason: String) : ExpensePersistenceResult()
-    data class Enriched(val enrichedExpense: Expense, val correlationInfo: String) : ExpensePersistenceResult()
-    data class ReviewPending(val expense: Expense, val reason: String) : ExpensePersistenceResult()
+    open val matchResult: KnownFinancialAccountMatchResult? get() = null
+    open val accountEnrichment: AccountEnrichment? get() = matchResult?.accountEnrichment
+
+    data class Inserted(val expense: Expense, val isPending: Boolean, val reason: String, override val matchResult: KnownFinancialAccountMatchResult? = null) : ExpensePersistenceResult()
+    data class Updated(val updatedExpense: Expense, val previousExpense: Expense, val changeDescription: String, override val matchResult: KnownFinancialAccountMatchResult? = null) : ExpensePersistenceResult()
+    data class SkippedDuplicate(val existingExpense: Expense, val reason: String, override val matchResult: KnownFinancialAccountMatchResult? = null) : ExpensePersistenceResult()
+    data class Enriched(val enrichedExpense: Expense, val correlationInfo: String, override val matchResult: KnownFinancialAccountMatchResult? = null) : ExpensePersistenceResult()
+    data class ReviewPending(val expense: Expense, val reason: String, override val matchResult: KnownFinancialAccountMatchResult? = null) : ExpensePersistenceResult()
     data class IgnoredNonFinancial(val reason: String) : ExpensePersistenceResult()
     data class Rejected(val reason: String) : ExpensePersistenceResult()
     data class Error(val throwable: Throwable, val message: String) : ExpensePersistenceResult()
@@ -46,18 +49,19 @@ object TransactionPersistenceManager {
     // Optional listener for debugging and testing verification
     var persistenceListener: ((ExpensePersistenceResult) -> Unit)? = null
 
-    /**
-     * Complete pipeline entry point for a captured notification using ExpenseDao.
-     */
+    // Milestone 4: Optional account matcher for live notification account enrichment
+    var matcher: KnownFinancialAccountMatcher? = null
+
     /**
      * Complete pipeline entry point for a captured notification using ExpenseDao.
      * Supports one notification containing 0, 1, or N independent transaction candidates.
      */
     suspend fun processCapturedNotification(
         captured: CapturedNotificationInfo,
-        dao: ExpenseDao
+        dao: ExpenseDao,
+        accountMatcher: KnownFinancialAccountMatcher? = matcher
     ): ExpensePersistenceResult {
-        val results = processCapturedNotificationAll(captured, dao)
+        val results = processCapturedNotificationAll(captured, dao, accountMatcher)
         return results.firstOrNull { it is ExpensePersistenceResult.Inserted || it is ExpensePersistenceResult.ReviewPending || it is ExpensePersistenceResult.Updated || it is ExpensePersistenceResult.Enriched }
             ?: results.firstOrNull()
             ?: ExpensePersistenceResult.IgnoredNonFinancial("No transactions processed")
@@ -68,7 +72,8 @@ object TransactionPersistenceManager {
      */
     suspend fun processCapturedNotificationAll(
         captured: CapturedNotificationInfo,
-        dao: ExpenseDao
+        dao: ExpenseDao,
+        accountMatcher: KnownFinancialAccountMatcher? = matcher
     ): List<ExpensePersistenceResult> {
         return try {
             // Step 3: Normalization
@@ -139,7 +144,22 @@ object TransactionPersistenceManager {
                     continue
                 }
 
-                val res = processValidatedCandidate(validated, dao, claimedRecordIds)
+                // Step 6.5: Known Financial Account Matching & Enrichment (Milestone 4)
+                val effectiveMatcher = accountMatcher ?: matcher
+                val matchResult = effectiveMatcher?.match(candidate) ?: KnownFinancialAccountMatchResult.NoAccountData
+                val enrichedCandidate = if (matchResult is KnownFinancialAccountMatchResult.Matched) {
+                    candidate.copy(
+                        accountEnrichment = matchResult.enrichment,
+                        accountMatchResult = matchResult
+                    )
+                } else {
+                    candidate.copy(
+                        accountMatchResult = matchResult
+                    )
+                }
+                val enrichedValidated = validated.copy(candidate = enrichedCandidate)
+
+                val res = processValidatedCandidate(enrichedValidated, dao, claimedRecordIds)
                 results.add(res)
             }
 
@@ -160,7 +180,11 @@ object TransactionPersistenceManager {
         captured: CapturedNotificationInfo,
         database: AppDatabase = AppDatabase.getDatabase(context)
     ): ExpensePersistenceResult {
-        return processCapturedNotification(captured, database.expenseDao())
+        if (matcher == null) {
+            val accountRepo = com.example.arctracker.data.KnownFinancialAccountRepository(database.knownFinancialAccountDao())
+            matcher = KnownFinancialAccountMatcher(accountRepo)
+        }
+        return processCapturedNotification(captured, database.expenseDao(), matcher)
     }
 
     suspend fun processCapturedNotificationAll(
@@ -168,7 +192,11 @@ object TransactionPersistenceManager {
         captured: CapturedNotificationInfo,
         database: AppDatabase = AppDatabase.getDatabase(context)
     ): List<ExpensePersistenceResult> {
-        return processCapturedNotificationAll(captured, database.expenseDao())
+        if (matcher == null) {
+            val accountRepo = com.example.arctracker.data.KnownFinancialAccountRepository(database.knownFinancialAccountDao())
+            matcher = KnownFinancialAccountMatcher(accountRepo)
+        }
+        return processCapturedNotificationAll(captured, database.expenseDao(), matcher)
     }
 
     /**
@@ -374,7 +402,7 @@ object TransactionPersistenceManager {
                         ?: mapToExpense(candidate, false)
 
                     Log.d(TAG, "Candidate duplicate skipped for key=$key, reason=${result.reason}")
-                    ExpensePersistenceResult.SkippedDuplicate(existing, result.reason)
+                    ExpensePersistenceResult.SkippedDuplicate(existing, result.reason, matchResult = candidate.accountMatchResult)
                 }
 
                 DedupDecision.UPDATE_EXISTING -> {
@@ -393,7 +421,7 @@ object TransactionPersistenceManager {
                     } else if (existing.source == "MANUAL") {
                         // Protect user's manual expense: never overwrite manual expense
                         Log.i(TAG, "Protecting manual expense id=${existing.id}; skipping overwrite by notification")
-                        ExpensePersistenceResult.SkippedDuplicate(existing, "Protected manual expense cannot be overwritten")
+                        ExpensePersistenceResult.SkippedDuplicate(existing, "Protected manual expense cannot be overwritten", matchResult = candidate.accountMatchResult)
                     } else {
                         val isNowSuccess = candidate.status == TransactionStatus.SUCCESS
                         val newAmount = if (existing.amount <= 0.0 && (candidate.amount ?: 0.0) > 0.0) {
@@ -417,7 +445,7 @@ object TransactionPersistenceManager {
                         )
                         dao.update(updated)
                         Log.d(TAG, "Updated existing transaction id=${updated.id} to isPending=${updated.isPending}")
-                        ExpensePersistenceResult.Updated(updated, existing, result.reason)
+                        ExpensePersistenceResult.Updated(updated, existing, result.reason, matchResult = candidate.accountMatchResult)
                     }
                 }
 
@@ -437,7 +465,7 @@ object TransactionPersistenceManager {
                     } else if (existing.source == "MANUAL") {
                         // Protect user's manual expense: never overwrite or modify manual expense fields
                         Log.i(TAG, "Protecting manual expense id=${existing.id}; preserving all user manual fields")
-                        ExpensePersistenceResult.SkippedDuplicate(existing, "Protected manual expense preserved without modification")
+                        ExpensePersistenceResult.SkippedDuplicate(existing, "Protected manual expense preserved without modification", matchResult = candidate.accountMatchResult)
                     } else {
                         val isNowSuccess = candidate.status == TransactionStatus.SUCCESS
                         val correlationDesc = "Correlated (${result.strategy}): ${result.correlationEvidence ?: result.reason}"
@@ -452,7 +480,7 @@ object TransactionPersistenceManager {
                         )
                         dao.update(enriched)
                         Log.d(TAG, "Correlated transaction id=${enriched.id}, enriched note. Row count preserved.")
-                        ExpensePersistenceResult.Enriched(enriched, correlationDesc)
+                        ExpensePersistenceResult.Enriched(enriched, correlationDesc, matchResult = candidate.accountMatchResult)
                     }
                 }
 
@@ -463,7 +491,7 @@ object TransactionPersistenceManager {
                         return@withLock ExpensePersistenceResult.Rejected("Cannot insert review transaction with invalid amount: $amount")
                     }
                     if (existingByKey != null) {
-                        return@withLock ExpensePersistenceResult.SkippedDuplicate(existingByKey, "Already recorded")
+                        return@withLock ExpensePersistenceResult.SkippedDuplicate(existingByKey, "Already recorded", matchResult = candidate.accountMatchResult)
                     }
 
                     val reviewExpense = mapToExpense(
@@ -474,14 +502,14 @@ object TransactionPersistenceManager {
                     val newId = dao.insert(reviewExpense)
                     val saved = reviewExpense.copy(id = newId.toInt())
                     Log.d(TAG, "Inserted pending review expense id=${saved.id}, reason=${result.reason}")
-                    ExpensePersistenceResult.ReviewPending(saved, result.reason)
+                    ExpensePersistenceResult.ReviewPending(saved, result.reason, matchResult = candidate.accountMatchResult)
                 }
 
                 DedupDecision.NEW_TRANSACTION -> {
                     // Idempotency check: if key already exists, do not duplicate
                     if (existingByKey != null) {
                         Log.d(TAG, "Candidate with key=$key already exists in DB. Skipping duplicate insert.")
-                        return@withLock ExpensePersistenceResult.SkippedDuplicate(existingByKey, "Already recorded with key $key")
+                        return@withLock ExpensePersistenceResult.SkippedDuplicate(existingByKey, "Already recorded with key $key", matchResult = candidate.accountMatchResult)
                     }
 
                     insertNewCandidate(candidate, result, dao)
@@ -530,7 +558,7 @@ object TransactionPersistenceManager {
         }
 
         Log.d(TAG, "Inserted new transaction id=${saved.id}, isPending=$isPending, amount=${saved.amount}")
-        return ExpensePersistenceResult.Inserted(saved, isPending, result.reason)
+        return ExpensePersistenceResult.Inserted(saved, isPending, result.reason, matchResult = candidate.accountMatchResult)
     }
 
     /**
