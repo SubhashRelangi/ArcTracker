@@ -142,12 +142,27 @@ object StructuredTransactionExtractor {
     )
 
     // Account / Card suffix patterns
-    private val ACCOUNT_SUFFIX_PATTERN = Regex(
-        """(?i)\b(?:a/c|account|acct)\s*(?:no\.?)?\s*(?:ending\s*(?:with|in)?)?\s*(?:[xX*]*(\d{3,6}))\b"""
+    private val EXPLICIT_ACCOUNT_PATTERN = Regex(
+        """(?i)\b(?:a/c|account|acct)\b\s*(?:no\.?|num(?:ber)?\.?)?\s*[:\-#]?\s*(?:ending\s*(?:with|in)?\s*[:\-#]?)?\s*[xX*\u2022\u25CF]*\s*(\d{3,6})\b"""
+    )
+
+    // Masked standalone account pattern e.g. "XXXXX9020", "****9020", "••••9020", "XX1065", "XXXXX 9020"
+    private val MASKED_ACCOUNT_PATTERN = Regex(
+        """(?i)(?<![a-zA-Z0-9])([xX*\u2022\u25CF]{2,})\s*(\d{3,6})\b"""
+    )
+
+    // Context prefix immediately preceding a masked candidate that indicates it is a card rather than an account
+    private val CARD_PREFIX_PATTERN = Regex(
+        """(?i)\b(?:card)\b\s*(?:no\.?|num(?:ber)?\.?)?\s*[:\-#]?\s*(?:ending\s*(?:with|in)?\s*[:\-#]?)?\s*$"""
+    )
+
+    // Context prefix immediately preceding a masked candidate that indicates non-account metadata (reference, OTP, PIN)
+    private val NON_ACCOUNT_PREFIX_PATTERN = Regex(
+        """(?i)\b(?:ref\s*(?:no\.?|num(?:ber)?\.?)?|refno\.?|reference\s*(?:no\.?|num(?:ber)?\.?)?|txn\s*(?:id)?|transaction\s*(?:id)?|utr|rrn|otp|pin|code)\s*[:\-#]?\s*$"""
     )
 
     private val CARD_SUFFIX_PATTERN = Regex(
-        """(?i)\b(?:card)\s*(?:no\.?)?\s*(?:ending\s*(?:with|in)?)?\s*(?:[xX*]*(\d{3,6}))\b"""
+        """(?i)\b(?:card)\b\s*(?:no\.?|num(?:ber)?\.?)?\s*[:\-#]?\s*(?:ending\s*(?:with|in)?\s*[:\-#]?)?\s*[xX*\u2022\u25CF]*\s*(\d{3,6})\b"""
     )
 
     private val MONTH_MAP = mapOf(
@@ -187,7 +202,7 @@ object StructuredTransactionExtractor {
 
     // Boundary words that terminate a merchant phrase
     private val MERCHANT_BOUNDARY_PATTERN = Regex(
-        """(?i)\b(on|using|via|thru|through|ref|refno|txn|avl|balance|bal|a/c|account|card|upi ref|utr|rrn|info|if not|call|sms|successful|completed|failed|pending)\b"""
+        """(?i)\b(from|on|using|via|thru|through|ref|refno|txn|avl|balance|bal|a/c|account|card|upi ref|utr|rrn|info|if not|call|sms|successful|completed|failed|pending)\b"""
     )
 
     // Phrases that look like merchants but are accounts / methods
@@ -1176,19 +1191,66 @@ object StructuredTransactionExtractor {
         )
     }
 
+    private fun cleanAccountSuffix(raw: String): String? {
+        val digits = raw.filter { it.isDigit() }
+        return when {
+            digits.length >= 4 -> digits.takeLast(4)
+            digits.length == 3 -> digits
+            else -> null
+        }
+    }
+
     private fun extractAccountSuffix(
         text: String,
         evidenceMap: MutableMap<String, FieldEvidence>
     ): String? {
-        val match = ACCOUNT_SUFFIX_PATTERN.find(text) ?: return null
-        val suffix = match.groups[1]?.value ?: return null
-        evidenceMap["accountSuffix"] = FieldEvidence(
-            fieldName = "accountSuffix",
-            extractedValue = suffix,
-            sourceSnippet = match.value,
-            ruleOrPattern = "ACCOUNT_SUFFIX_PATTERN"
-        )
-        return suffix
+        // Priority 1: Explicit account context ("A/c", "account", "acct", "account ending", etc.)
+        val explicitMatch = EXPLICIT_ACCOUNT_PATTERN.find(text)
+        if (explicitMatch != null) {
+            val rawDigits = explicitMatch.groups[1]?.value
+            if (rawDigits != null) {
+                val clean = cleanAccountSuffix(rawDigits)
+                if (clean != null) {
+                    evidenceMap["accountSuffix"] = FieldEvidence(
+                        fieldName = "accountSuffix",
+                        extractedValue = clean,
+                        sourceSnippet = explicitMatch.value,
+                        ruleOrPattern = "EXPLICIT_ACCOUNT_PATTERN"
+                    )
+                    return clean
+                }
+            }
+        }
+
+        // Priority 2: Masked account pattern with clear masking characters ("XXXXX9020", "****9020", etc.)
+        // Deterministic scan: inspect candidates left-to-right, selecting the first valid account candidate.
+        val maskedMatches = MASKED_ACCOUNT_PATTERN.findAll(text)
+        for (match in maskedMatches) {
+            val prefix = text.substring(0, match.range.first).trimEnd()
+
+            // Disqualify if preceded by card context (handled by extractCardSuffix)
+            if (CARD_PREFIX_PATTERN.containsMatchIn(prefix)) {
+                continue
+            }
+
+            // Disqualify if preceded by reference / OTP / PIN context
+            if (NON_ACCOUNT_PREFIX_PATTERN.containsMatchIn(prefix)) {
+                continue
+            }
+
+            val rawDigits = match.groups[2]?.value ?: continue
+            val clean = cleanAccountSuffix(rawDigits) ?: continue
+
+            evidenceMap["accountSuffix"] = FieldEvidence(
+                fieldName = "accountSuffix",
+                extractedValue = clean,
+                sourceSnippet = match.value,
+                ruleOrPattern = "MASKED_ACCOUNT_PATTERN"
+            )
+            return clean
+        }
+
+        return null
     }
 
     private fun extractCardSuffix(
@@ -1196,7 +1258,8 @@ object StructuredTransactionExtractor {
         evidenceMap: MutableMap<String, FieldEvidence>
     ): String? {
         val match = CARD_SUFFIX_PATTERN.find(text) ?: return null
-        val suffix = match.groups[1]?.value ?: return null
+        val rawDigits = match.groups[1]?.value ?: return null
+        val suffix = cleanAccountSuffix(rawDigits) ?: return null
         evidenceMap["cardSuffix"] = FieldEvidence(
             fieldName = "cardSuffix",
             extractedValue = suffix,

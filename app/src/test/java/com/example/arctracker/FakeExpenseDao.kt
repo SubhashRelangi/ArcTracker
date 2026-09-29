@@ -98,6 +98,183 @@ open class FakeExpenseDao : ExpenseDao {
         if (relationshipId.isBlank()) emptyList() else expenses.filter { it.relationshipId == relationshipId }
     }
 
+    override suspend fun updateAccountId(id: Int, accountId: String?): Int = synchronized(lock) {
+        val idx = expenses.indexOfFirst { it.id == id }
+        if (idx >= 0) {
+            expenses[idx] = expenses[idx].copy(accountId = accountId)
+            notifyFlow()
+            1
+        } else {
+            0
+        }
+    }
+
+    override suspend fun updateAccountMetadata(id: Int, accountId: String?, accountSuffix: String?): Int = synchronized(lock) {
+        val idx = expenses.indexOfFirst { it.id == id }
+        if (idx >= 0) {
+            expenses[idx] = expenses[idx].copy(accountId = accountId, accountSuffix = accountSuffix)
+            notifyFlow()
+            1
+        } else {
+            0
+        }
+    }
+
+    override suspend fun reassignAccountId(oldAccountId: String, newAccountId: String): Int = synchronized(lock) {
+        var count = 0
+        for (i in 0 until expenses.size) {
+            if (expenses[i].accountId == oldAccountId) {
+                expenses[i] = expenses[i].copy(accountId = newAccountId)
+                count++
+            }
+        }
+        if (count > 0) notifyFlow()
+        count
+    }
+
+    override suspend fun clearAccountIdForAccount(accountId: String): Int = synchronized(lock) {
+        var count = 0
+        for (i in 0 until expenses.size) {
+            if (expenses[i].accountId == accountId) {
+                expenses[i] = expenses[i].copy(accountId = null)
+                count++
+            }
+        }
+        if (count > 0) notifyFlow()
+        count
+    }
+
+    override suspend fun bulkUpdateAccountId(expenseIds: List<Int>, accountId: String?): Int = synchronized(lock) {
+        var count = 0
+        val idSet = expenseIds.toSet()
+        for (i in 0 until expenses.size) {
+            if (expenses[i].id in idSet) {
+                expenses[i] = expenses[i].copy(accountId = accountId)
+                count++
+            }
+        }
+        if (count > 0) notifyFlow()
+        count
+    }
+
+    override suspend fun countByAccountId(accountId: String): Int = synchronized(lock) {
+        expenses.count { it.accountId == accountId }
+    }
+
+    override suspend fun getExpensesWithoutAccount(): List<Expense> = synchronized(lock) {
+        expenses.filter { it.accountId == null }.sortedByDescending { it.dateMillis }
+    }
+
+    override fun getExpensesWithoutAccountFlow(): Flow<List<Expense>> {
+        return expensesFlow.map { list -> list.filter { it.accountId == null }.sortedByDescending { it.dateMillis } }
+    }
+
+    override suspend fun getExpensesByAccountId(accountId: String): List<Expense> = synchronized(lock) {
+        expenses.filter { it.accountId == accountId }.sortedByDescending { it.dateMillis }
+    }
+
+    override fun getExpensesByAccountIdFlow(accountId: String): Flow<List<Expense>> {
+        return expensesFlow.map { list -> list.filter { it.accountId == accountId }.sortedByDescending { it.dateMillis } }
+    }
+
+    override suspend fun getExpensesByAccountSuffix(suffix: String): List<Expense> = synchronized(lock) {
+        expenses.filter { it.accountSuffix == suffix }.sortedByDescending { it.dateMillis }
+    }
+
+    override suspend fun getExpensesByCategory(category: String): List<Expense> = synchronized(lock) {
+        expenses.filter { it.tag == category }.sortedByDescending { it.dateMillis }
+    }
+
+    override fun getExpensesByCategoryFlow(category: String): Flow<List<Expense>> {
+        return expensesFlow.map { list -> list.filter { it.tag == category }.sortedByDescending { it.dateMillis } }
+    }
+
+    override suspend fun searchExpensesList(query: String): List<Expense> = synchronized(lock) {
+        if (query.isBlank()) return@synchronized expenses.sortedByDescending { it.dateMillis }.toList()
+        val q = query.trim().lowercase()
+        expenses.filter {
+            it.merchant.lowercase().contains(q) || (it.note?.lowercase()?.contains(q) == true)
+        }.sortedByDescending { it.dateMillis }
+    }
+
+    override fun searchExpensesFlow(query: String): Flow<List<Expense>> {
+        if (query.isBlank()) return getAllExpenses()
+        val q = query.trim().lowercase()
+        return expensesFlow.map { list ->
+            list.filter {
+                it.merchant.lowercase().contains(q) || (it.note?.lowercase()?.contains(q) == true)
+            }.sortedByDescending { it.dateMillis }
+        }
+    }
+
+    override suspend fun updateCategoryMetadata(id: Int, categoryId: String?, categoryName: String?): Int = synchronized(lock) {
+        val idx = expenses.indexOfFirst { it.id == id }
+        if (idx >= 0) {
+            expenses[idx] = expenses[idx].copy(categoryId = categoryId, tag = categoryName)
+            notifyFlow()
+            1
+        } else {
+            0
+        }
+    }
+
+    override suspend fun reassignCategoryId(oldCategoryId: String, newCategoryId: String, newCategoryName: String): Int = synchronized(lock) {
+        var count = 0
+        for (i in 0 until expenses.size) {
+            if (expenses[i].categoryId == oldCategoryId) {
+                expenses[i] = expenses[i].copy(categoryId = newCategoryId, tag = newCategoryName)
+                count++
+            }
+        }
+        if (count > 0) notifyFlow()
+        count
+    }
+
+    override suspend fun clearCategoryId(categoryId: String): Int = synchronized(lock) {
+        var count = 0
+        for (i in 0 until expenses.size) {
+            if (expenses[i].categoryId == categoryId) {
+                expenses[i] = expenses[i].copy(categoryId = null, tag = null)
+                count++
+            }
+        }
+        if (count > 0) notifyFlow()
+        count
+    }
+
+    override suspend fun bulkUpdateCategoryId(expenseIds: List<Int>, categoryId: String?, categoryName: String?): Int = synchronized(lock) {
+        val idSet = expenseIds.toSet()
+        var count = 0
+        for (i in 0 until expenses.size) {
+            if (expenses[i].id in idSet) {
+                expenses[i] = expenses[i].copy(categoryId = categoryId, tag = categoryName)
+                count++
+            }
+        }
+        if (count > 0) notifyFlow()
+        count
+    }
+
+    override suspend fun countByCategoryId(categoryId: String): Int = synchronized(lock) {
+        expenses.count { it.categoryId == categoryId }
+    }
+
+    override suspend fun getExpensesByCategoryId(categoryId: String): List<Expense> = synchronized(lock) {
+        expenses.filter { it.categoryId == categoryId }.sortedByDescending { it.dateMillis }
+    }
+
+    override fun getExpensesByCategoryIdFlow(categoryId: String): Flow<List<Expense>> {
+        return expensesFlow.map { list -> list.filter { it.categoryId == categoryId }.sortedByDescending { it.dateMillis } }
+    }
+
+    override suspend fun getUncategorizedExpenses(): List<Expense> = synchronized(lock) {
+        expenses.filter { it.categoryId.isNullOrBlank() }.sortedByDescending { it.dateMillis }
+    }
+
+    override fun getUncategorizedExpensesFlow(): Flow<List<Expense>> {
+        return expensesFlow.map { list -> list.filter { it.categoryId.isNullOrBlank() }.sortedByDescending { it.dateMillis } }
+    }
+
     override suspend fun getCount(): Int = synchronized(lock) {
         expenses.size
     }

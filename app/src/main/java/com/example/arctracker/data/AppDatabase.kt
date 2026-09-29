@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
@@ -11,13 +12,20 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * Main Room Database for ArcTracker.
  */
 @Database(
-    entities = [Expense::class],
-    version = 2,
+    entities = [
+        Expense::class,
+        KnownFinancialAccount::class,
+        TransactionCategory::class
+    ],
+    version = 5,
     exportSchema = false
 )
+@TypeConverters(KnownFinancialAccountConverters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun expenseDao(): ExpenseDao
+    abstract fun knownFinancialAccountDao(): KnownFinancialAccountDao
+    abstract fun transactionCategoryDao(): TransactionCategoryDao
 
     companion object {
         @Volatile
@@ -31,6 +39,94 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `known_financial_accounts` (
+                        `id` TEXT NOT NULL,
+                        `institutionId` TEXT,
+                        `institutionName` TEXT,
+                        `accountSuffix` TEXT NOT NULL,
+                        `instrumentType` TEXT NOT NULL,
+                        `confidence` TEXT NOT NULL,
+                        `source` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_known_financial_accounts_accountSuffix` ON `known_financial_accounts` (`accountSuffix`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_known_financial_accounts_institutionId` ON `known_financial_accounts` (`institutionId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_known_financial_accounts_instrumentType` ON `known_financial_accounts` (`instrumentType`)")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE expenses ADD COLUMN accountId TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE expenses ADD COLUMN accountSuffix TEXT DEFAULT NULL")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_expenses_accountId ON expenses (accountId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_expenses_accountSuffix ON expenses (accountSuffix)")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Create transaction_categories table
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `transaction_categories` (
+                        `id` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `iconKey` TEXT NOT NULL,
+                        `colorKey` TEXT NOT NULL,
+                        `isSystem` INTEGER NOT NULL,
+                        `isArchived` INTEGER NOT NULL,
+                        `sortOrder` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transaction_categories_isArchived` ON `transaction_categories` (`isArchived`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transaction_categories_sortOrder` ON `transaction_categories` (`sortOrder`)")
+
+                // 2. Add categoryId column to expenses
+                db.execSQL("ALTER TABLE expenses ADD COLUMN categoryId TEXT DEFAULT NULL")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_expenses_categoryId ON expenses (categoryId)")
+
+                // 3. Seed built-in system categories
+                val now = System.currentTimeMillis()
+                for (cat in BuiltInCategories.ALL) {
+                    val isSys = if (cat.isSystem) 1 else 0
+                    val isArch = if (cat.isArchived) 1 else 0
+                    db.execSQL(
+                        """
+                        INSERT OR IGNORE INTO transaction_categories (id, name, iconKey, colorKey, isSystem, isArchived, sortOrder, createdAt, updatedAt)
+                        VALUES ('${cat.id}', '${cat.name}', '${cat.iconKey}', '${cat.colorKey}', $isSys, $isArch, ${cat.sortOrder}, $now, $now)
+                        """.trimIndent()
+                    )
+                }
+
+                // 4. Migrate existing Expense.tag data to Expense.categoryId
+                db.execSQL("UPDATE expenses SET categoryId = 'food_dining' WHERE tag = 'Food & Dining' OR tag = 'Food'")
+                db.execSQL("UPDATE expenses SET categoryId = 'shopping' WHERE tag = 'Shopping'")
+                db.execSQL("UPDATE expenses SET categoryId = 'transport' WHERE tag = 'Transport'")
+                db.execSQL("UPDATE expenses SET categoryId = 'bills_utilities' WHERE tag = 'Bills & Utilities' OR tag = 'Bills'")
+                db.execSQL("UPDATE expenses SET categoryId = 'entertainment' WHERE tag = 'Entertainment'")
+                db.execSQL("UPDATE expenses SET categoryId = 'healthcare' WHERE tag = 'Healthcare'")
+                db.execSQL("UPDATE expenses SET categoryId = 'travel' WHERE tag = 'Travel'")
+                db.execSQL("UPDATE expenses SET categoryId = 'education' WHERE tag = 'Education'")
+                db.execSQL("UPDATE expenses SET categoryId = 'transfer' WHERE tag = 'Transfer'")
+                db.execSQL("UPDATE expenses SET categoryId = 'cash_withdrawal' WHERE tag = 'Cash Withdrawal'")
+                db.execSQL("UPDATE expenses SET categoryId = 'income' WHERE tag = 'Income' OR tag = 'Salary' OR tag = 'Allowance' OR tag = 'Refund' OR tag = 'Gift'")
+                db.execSQL("UPDATE expenses SET categoryId = 'other' WHERE tag = 'Other'")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -38,7 +134,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "arctracker_database"
                 )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
                 INSTANCE = instance
                 instance
