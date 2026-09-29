@@ -41,11 +41,14 @@ fun FinancialAccountsScreen(
     manager: AccountReconciliationManager? = null
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
     val reconciliationManager = remember {
         manager ?: run {
             val db = AppDatabase.getDatabase(context)
             val repo = KnownFinancialAccountRepository(db.knownFinancialAccountDao())
-            AccountReconciliationManager(db.expenseDao(), repo)
+            AccountReconciliationManager(db.expenseDao(), repo, db)
         }
     }
 
@@ -53,8 +56,11 @@ fun FinancialAccountsScreen(
     val unresolvedExpenses by reconciliationManager.getUnresolvedTransactionsFlow().collectAsState(initial = emptyList())
 
     var selectedAccountForDetail by remember { mutableStateOf<KnownFinancialAccount?>(null) }
+    var accountToDelete by remember { mutableStateOf<KnownFinancialAccount?>(null) }
+    var accountToMerge by remember { mutableStateOf<KnownFinancialAccount?>(null) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -252,8 +258,280 @@ fun FinancialAccountsScreen(
             onViewTransactions = { accountId ->
                 selectedAccountForDetail = null
                 onViewAccountTransactions(accountId)
+            },
+            onMergeClick = {
+                accountToMerge = account
+                selectedAccountForDetail = null
+            },
+            onDeleteClick = {
+                accountToDelete = account
+                selectedAccountForDetail = null
             }
         )
+    }
+
+    // Delete Account Confirmation Dialog (Parts 3, 4, 28)
+    accountToDelete?.let { account ->
+        var linkedTxnCount by remember { mutableIntStateOf(0) }
+        LaunchedEffect(account.id) {
+            linkedTxnCount = reconciliationManager.getLinkedTransactionCount(account.id)
+        }
+
+        AlertDialog(
+            onDismissRequest = { accountToDelete = null },
+            title = {
+                Text(
+                    text = "Delete ${account.institutionName ?: "Account"} ••••${account.accountSuffix}?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (linkedTxnCount > 0) {
+                        Text(
+                            text = "$linkedTxnCount transaction(s) are currently linked to this account.",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            color = textColor
+                        )
+                        Text(
+                            text = "Deleting the account will unlink these transactions and return them to the Unresolved list. Their transaction data and account suffix will be preserved.",
+                            fontSize = 12.sp,
+                            color = subtitleColor
+                        )
+                    } else {
+                        Text(
+                            text = "No transactions are currently linked to this account.",
+                            fontSize = 13.sp,
+                            color = textColor
+                        )
+                        Text(
+                            text = "Are you sure you want to delete this account from the registry?",
+                            fontSize = 12.sp,
+                            color = subtitleColor
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val targetAccount = account
+                        scope.launch {
+                            val result = reconciliationManager.deleteAccount(targetAccount.id)
+                            if (result.isSuccess) {
+                                snackbarHostState.showSnackbar("Deleted ${targetAccount.institutionName ?: "account"} (unlinked ${result.getOrDefault(0)} transactions)")
+                            } else {
+                                snackbarHostState.showSnackbar("Failed to delete account: ${result.exceptionOrNull()?.message}")
+                            }
+                            accountToDelete = null
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                ) {
+                    Text("Delete Account")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { accountToDelete = null }) {
+                    Text("Cancel", color = textColor)
+                }
+            }
+        )
+    }
+
+    // Merge Account Dialog (Parts 5, 6, 7, 8, 29)
+    accountToMerge?.let { sourceAccount ->
+        var targetSelected by remember { mutableStateOf<KnownFinancialAccount?>(null) }
+        var showMergePreview by remember { mutableStateOf(false) }
+        var linkedCount by remember { mutableIntStateOf(0) }
+
+        val candidates = remember(sourceAccount) {
+            reconciliationManager.getMergeCandidates(sourceAccount)
+        }
+
+        LaunchedEffect(sourceAccount.id) {
+            linkedCount = reconciliationManager.getLinkedTransactionCount(sourceAccount.id)
+        }
+
+        if (!showMergePreview) {
+            AlertDialog(
+                onDismissRequest = { accountToMerge = null },
+                title = {
+                    Text(
+                        text = "Merge Account",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Move all transactions from ${sourceAccount.institutionName ?: "Source"} ••••${sourceAccount.accountSuffix} into a target account.",
+                            fontSize = 13.sp,
+                            color = subtitleColor
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Select Target Account:",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = textColor
+                        )
+
+                        if (candidates.isEmpty()) {
+                            Text(
+                                text = "No compatible target accounts found (target must share suffix ••••${sourceAccount.accountSuffix} and instrument type).",
+                                fontSize = 12.sp,
+                                color = Color(0xFFC62828)
+                            )
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 240.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                items(candidates, key = { it.id }) { candidate ->
+                                    val isSelected = targetSelected?.id == candidate.id
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { targetSelected = candidate },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSelected) lightPurpleColor else Color(0xFFF9F9FB),
+                                        border = BorderStroke(
+                                            1.dp,
+                                            if (isSelected) purpleColor else borderColor
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            RadioButton(
+                                                selected = isSelected,
+                                                onClick = { targetSelected = candidate },
+                                                colors = RadioButtonDefaults.colors(selectedColor = purpleColor)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Column {
+                                                Text(
+                                                    text = candidate.institutionName ?: "Unknown Bank",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 13.sp,
+                                                    color = textColor
+                                                )
+                                                Text(
+                                                    text = AccountReconciliationManager.formatAccountType(
+                                                        candidate.instrumentType,
+                                                        candidate.accountSuffix
+                                                    ),
+                                                    fontSize = 11.sp,
+                                                    color = subtitleColor
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (targetSelected != null) {
+                                showMergePreview = true
+                            }
+                        },
+                        enabled = targetSelected != null,
+                        colors = ButtonDefaults.buttonColors(containerColor = purpleColor)
+                    ) {
+                        Text("Continue")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { accountToMerge = null }) {
+                        Text("Cancel", color = textColor)
+                    }
+                }
+            )
+        } else {
+            // Merge Preview & Confirmation Dialog (Part 8)
+            val target = targetSelected
+            if (target != null) {
+                AlertDialog(
+                    onDismissRequest = { showMergePreview = false },
+                    title = {
+                        Text(
+                            text = "Confirm Account Merge",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            DetailRow(
+                                label = "From",
+                                value = "${sourceAccount.institutionName ?: "Account"} (••••${sourceAccount.accountSuffix})"
+                            )
+                            DetailRow(
+                                label = "Into",
+                                value = "${target.institutionName ?: "Account"} (••••${target.accountSuffix})",
+                                isHighlight = true
+                            )
+                            DetailRow(
+                                label = "Transactions affected",
+                                value = "$linkedCount"
+                            )
+                            HorizontalDivider(color = borderColor, thickness = 1.dp)
+                            Text(
+                                text = "After merging, these $linkedCount transactions will be linked to the target account. The source account will be removed.",
+                                fontSize = 12.sp,
+                                color = subtitleColor
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                val sId = sourceAccount.id
+                                val tId = target.id
+                                scope.launch {
+                                    val result = reconciliationManager.mergeAccounts(sId, tId)
+                                    if (result.isSuccess) {
+                                        snackbarHostState.showSnackbar("Successfully merged accounts (${result.getOrDefault(0)} transactions moved)")
+                                    } else {
+                                        snackbarHostState.showSnackbar("Merge failed: ${result.exceptionOrNull()?.message}")
+                                    }
+                                    accountToMerge = null
+                                    targetSelected = null
+                                    showMergePreview = false
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = purpleColor)
+                        ) {
+                            Text("Merge Accounts")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showMergePreview = false }) {
+                            Text("Back", color = textColor)
+                        }
+                    }
+                )
+            }
+        }
     }
 }
 
@@ -350,10 +628,11 @@ fun AccountDetailDialog(
     account: KnownFinancialAccount,
     manager: AccountReconciliationManager,
     onDismiss: () -> Unit,
-    onViewTransactions: (String) -> Unit
+    onViewTransactions: (String) -> Unit,
+    onMergeClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     var linkedCount by remember { mutableIntStateOf(0) }
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(account.id) {
         linkedCount = manager.getLinkedTransactionCount(account.id)
@@ -415,16 +694,42 @@ fun AccountDetailDialog(
                     value = "$linkedCount transaction(s)",
                     isHighlight = true
                 )
+
+                HorizontalDivider(color = borderColor, thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
+
+                // Actions: View Transactions, Merge, Delete
+                Button(
+                    onClick = { onViewTransactions(account.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = purpleColor)
+                ) {
+                    Icon(imageVector = Icons.Filled.ReceiptLong, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("View Transactions")
+                }
+
+                OutlinedButton(
+                    onClick = onMergeClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, purpleColor)
+                ) {
+                    Icon(imageVector = Icons.Filled.Merge, contentDescription = null, tint = purpleColor, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Merge Account", color = purpleColor)
+                }
+
+                OutlinedButton(
+                    onClick = onDeleteClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, Color(0xFFC62828))
+                ) {
+                    Icon(imageVector = Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFC62828), modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Delete Account", color = Color(0xFFC62828))
+                }
             }
         },
-        confirmButton = {
-            Button(
-                onClick = { onViewTransactions(account.id) },
-                colors = ButtonDefaults.buttonColors(containerColor = purpleColor)
-            ) {
-                Text("View Transactions")
-            }
-        },
+        confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Close", color = textColor)

@@ -132,6 +132,35 @@ open class FakeExpenseDao : ExpenseDao {
         count
     }
 
+    override suspend fun clearAccountIdForAccount(accountId: String): Int = synchronized(lock) {
+        var count = 0
+        for (i in 0 until expenses.size) {
+            if (expenses[i].accountId == accountId) {
+                expenses[i] = expenses[i].copy(accountId = null)
+                count++
+            }
+        }
+        if (count > 0) notifyFlow()
+        count
+    }
+
+    override suspend fun bulkUpdateAccountId(expenseIds: List<Int>, accountId: String?): Int = synchronized(lock) {
+        var count = 0
+        val idSet = expenseIds.toSet()
+        for (i in 0 until expenses.size) {
+            if (expenses[i].id in idSet) {
+                expenses[i] = expenses[i].copy(accountId = accountId)
+                count++
+            }
+        }
+        if (count > 0) notifyFlow()
+        count
+    }
+
+    override suspend fun countByAccountId(accountId: String): Int = synchronized(lock) {
+        expenses.count { it.accountId == accountId }
+    }
+
     override suspend fun getExpensesWithoutAccount(): List<Expense> = synchronized(lock) {
         expenses.filter { it.accountId == null }.sortedByDescending { it.dateMillis }
     }
