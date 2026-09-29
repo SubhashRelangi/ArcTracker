@@ -76,22 +76,22 @@ class TransactionManager(
             existing.merchant
         }
 
-        val (resolvedCategoryId, resolvedCategoryName) = if (category != null) {
+        val (resolvedCategoryId, resolvedCategoryName, resolvedCategorySource) = if (category != null) {
             val trimmed = category.trim()
             if (trimmed.isEmpty() || trimmed.equals("uncategorized", ignoreCase = true)) {
-                Pair(null, null)
+                Triple(null, null, CategorySource.NONE)
             } else {
                 val cat = categoryDao?.getById(trimmed)
                     ?: categoryDao?.findByName(trimmed)
                     ?: BuiltInCategories.findLegacyMapping(trimmed)
                 if (cat != null) {
-                    Pair(cat.id, cat.name)
+                    Triple(cat.id, cat.name, CategorySource.USER_ASSIGNED)
                 } else {
-                    Pair(trimmed, trimmed)
+                    Triple(trimmed, trimmed, CategorySource.USER_ASSIGNED)
                 }
             }
         } else {
-            Pair(existing.categoryId, existing.tag)
+            Triple(existing.categoryId, existing.tag, existing.categorySource)
         }
 
         val newNote = if (note != null) {
@@ -104,6 +104,7 @@ class TransactionManager(
             merchant = newMerchant,
             categoryId = resolvedCategoryId,
             tag = resolvedCategoryName,
+            categorySource = resolvedCategorySource,
             note = newNote
         )
 

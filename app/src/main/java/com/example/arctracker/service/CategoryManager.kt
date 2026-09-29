@@ -266,16 +266,16 @@ class CategoryManager(
             ?: return@runTransaction Result.failure(IllegalArgumentException("Expense with id $expenseId not found"))
 
         if (categoryId.isNullOrBlank()) {
-            expenseDao.updateCategoryMetadata(expenseId, null, null)
-            return@runTransaction Result.success(expense.copy(categoryId = null, tag = null))
+            expenseDao.updateCategoryMetadata(expenseId, null, null, CategorySource.NONE)
+            return@runTransaction Result.success(expense.copy(categoryId = null, tag = null, categorySource = CategorySource.NONE))
         }
 
         val category = categoryDao.getById(categoryId)
             ?: BuiltInCategories.findLegacyMapping(categoryId)
             ?: return@runTransaction Result.failure(IllegalArgumentException("Category $categoryId not found"))
 
-        expenseDao.updateCategoryMetadata(expenseId, category.id, category.name)
-        Result.success(expense.copy(categoryId = category.id, tag = category.name))
+        expenseDao.updateCategoryMetadata(expenseId, category.id, category.name, CategorySource.USER_ASSIGNED)
+        Result.success(expense.copy(categoryId = category.id, tag = category.name, categorySource = CategorySource.USER_ASSIGNED))
     }
 
     /**
@@ -285,7 +285,7 @@ class CategoryManager(
         if (expenseIds.isEmpty()) return@runTransaction Result.success(0)
 
         if (categoryId.isNullOrBlank()) {
-            val count = expenseDao.bulkUpdateCategoryId(expenseIds, null, null)
+            val count = expenseDao.bulkUpdateCategoryId(expenseIds, null, null, CategorySource.NONE)
             return@runTransaction Result.success(count)
         }
 
@@ -293,7 +293,7 @@ class CategoryManager(
             ?: BuiltInCategories.findLegacyMapping(categoryId)
             ?: return@runTransaction Result.failure(IllegalArgumentException("Category $categoryId not found"))
 
-        val count = expenseDao.bulkUpdateCategoryId(expenseIds, category.id, category.name)
+        val count = expenseDao.bulkUpdateCategoryId(expenseIds, category.id, category.name, CategorySource.USER_ASSIGNED)
         Result.success(count)
     }
 

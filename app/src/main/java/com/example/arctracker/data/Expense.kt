@@ -33,7 +33,8 @@ data class Expense(
     var relationshipId: String? = null,
     var accountId: String? = null,
     var accountSuffix: String? = null,
-    var categoryId: String? = null
+    var categoryId: String? = null,
+    var categorySource: String = "NONE"
 ) {
     /**
      * Backward-compatible property accessing the category identifier/name.

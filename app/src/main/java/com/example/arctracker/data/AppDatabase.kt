@@ -17,7 +17,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         KnownFinancialAccount::class,
         TransactionCategory::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(KnownFinancialAccountConverters::class)
@@ -127,6 +127,16 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Add categorySource column to expenses
+                db.execSQL("ALTER TABLE expenses ADD COLUMN categorySource TEXT NOT NULL DEFAULT 'NONE'")
+
+                // 2. Mark existing categorized transactions as USER_ASSIGNED so inference won't overwrite them
+                db.execSQL("UPDATE expenses SET categorySource = 'USER_ASSIGNED' WHERE categoryId IS NOT NULL")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -134,7 +144,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "arctracker_database"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
                 INSTANCE = instance
                 instance

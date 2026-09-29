@@ -616,7 +616,27 @@ object TransactionPersistenceManager {
             System.currentTimeMillis()
         }
         val type = if (candidate.direction == TransactionDirection.CREDIT) "Credit" else "Debit"
-        val tag = inferTag(candidate)
+
+        // Milestone 10: Automatic Category Inference
+        val inferenceResult = try {
+            CategoryInferenceEngine().inferCategory(
+                CategoryInferenceInput(
+                    merchant = merchant,
+                    counterparty = candidate.counterparty,
+                    rawText = candidate.rawContent,
+                    transactionType = type,
+                    amount = amount
+                )
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Category inference failure safely handled", e)
+            CategoryInferenceResult.noMatch("Inference failure safely handled: ${e.message}")
+        }
+
+        val categoryId = if (inferenceResult.isAutoAssignable) inferenceResult.suggestedCategoryId else null
+        val tag = if (inferenceResult.isAutoAssignable) inferenceResult.suggestedCategoryName else inferTag(candidate)
+        val categorySource = if (inferenceResult.isAutoAssignable) CategorySource.INFERRED else CategorySource.NONE
+
         val note = buildNote(candidate, extraNote)
         val source = if (candidate.sourceNotificationKey.startsWith("sms_")) "SMS_HISTORY" else "NOTIFICATION"
 
@@ -641,7 +661,9 @@ object TransactionPersistenceManager {
             relationshipType = relationshipType,
             relationshipId = relationshipId,
             accountId = accountId,
-            accountSuffix = accountSuffix
+            accountSuffix = accountSuffix,
+            categoryId = categoryId,
+            categorySource = categorySource
         )
     }
 
