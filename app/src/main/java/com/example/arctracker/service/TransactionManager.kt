@@ -1,9 +1,6 @@
 package com.example.arctracker.service
 
-import com.example.arctracker.data.Expense
-import com.example.arctracker.data.ExpenseDao
-import com.example.arctracker.data.KnownFinancialAccount
-import com.example.arctracker.data.TransactionCategories
+import com.example.arctracker.data.*
 import java.util.Calendar
 
 enum class TransactionTypeFilter { ALL, DEBIT, CREDIT }
@@ -36,13 +33,14 @@ data class TransactionFilter(
 }
 
 /**
- * Transaction management and editing layer for Milestone 8.
+ * Transaction management and editing layer for Milestones 8 & 9.
  *
  * Provides safe manual editing, deterministic validation, search, filtering, and sorting.
  * Enforces strict boundaries preserving transaction identity fields.
  */
 class TransactionManager(
-    private val expenseDao: ExpenseDao
+    private val expenseDao: ExpenseDao,
+    private val categoryDao: TransactionCategoryDao? = null
 ) {
 
     suspend fun getTransaction(id: Int): Expense? = expenseDao.getExpenseById(id)
@@ -50,10 +48,10 @@ class TransactionManager(
     /**
      * Safely updates user-editable fields of an existing [Expense].
      *
-     * Invariants (Parts 4, 5, 6, 7, 8, 10, 12, 23, 24, 25):
+     * Invariants:
      * - Only user-editable fields (merchant, category/tag, note) are updated.
      * - Merchant is trimmed; cannot be blank.
-     * - Category is validated against standard categories (or unassigned/null).
+     * - Category resolves to stable categoryId and canonical category name.
      * - Note can be empty string or null.
      * - System-generated fields (amount, type, dateMillis, notificationKey, rawText,
      *   source, isPending, relationshipType, relationshipId, accountId, accountSuffix)
@@ -78,10 +76,22 @@ class TransactionManager(
             existing.merchant
         }
 
-        val newCategory = if (category != null) {
-            TransactionCategories.canonicalize(category)
+        val (resolvedCategoryId, resolvedCategoryName) = if (category != null) {
+            val trimmed = category.trim()
+            if (trimmed.isEmpty() || trimmed.equals("uncategorized", ignoreCase = true)) {
+                Pair(null, null)
+            } else {
+                val cat = categoryDao?.getById(trimmed)
+                    ?: categoryDao?.findByName(trimmed)
+                    ?: BuiltInCategories.findLegacyMapping(trimmed)
+                if (cat != null) {
+                    Pair(cat.id, cat.name)
+                } else {
+                    Pair(trimmed, trimmed)
+                }
+            }
         } else {
-            existing.tag
+            Pair(existing.categoryId, existing.tag)
         }
 
         val newNote = if (note != null) {
@@ -92,7 +102,8 @@ class TransactionManager(
 
         val updated = existing.copy(
             merchant = newMerchant,
-            tag = newCategory,
+            categoryId = resolvedCategoryId,
+            tag = resolvedCategoryName,
             note = newNote
         )
 
@@ -105,7 +116,7 @@ class TransactionManager(
     }
 
     /**
-     * Deletes a single transaction upon explicit user confirmation (Part 21).
+     * Deletes a single transaction upon explicit user confirmation.
      *
      * Invariants:
      * - Removes only the [Expense] record from the database.
@@ -131,11 +142,12 @@ class TransactionManager(
         expenses: List<Expense>,
         filter: TransactionFilter,
         accounts: Map<String, KnownFinancialAccount> = emptyMap(),
+        categories: Map<String, TransactionCategory> = emptyMap(),
         referenceTimeMillis: Long = System.currentTimeMillis()
     ): List<Expense> {
         var result = expenses
 
-        // 1. Search Query (Merchant, Note, Account Suffix/Name, Notification Key/Reference)
+        // 1. Search Query (Merchant, Note, Account Suffix/Name, Category Name, Reference)
         if (filter.searchQuery.isNotBlank()) {
             val q = filter.searchQuery.trim().lowercase()
             result = result.filter { expense ->
@@ -143,13 +155,15 @@ class TransactionManager(
                 val noteMatch = expense.note?.lowercase()?.contains(q) == true
                 val suffixMatch = expense.accountSuffix?.lowercase()?.contains(q) == true
                 val refMatch = expense.notificationKey.lowercase().contains(q)
+                val catMatch = expense.tag?.lowercase()?.contains(q) == true ||
+                        (expense.categoryId?.let { categories[it]?.name?.lowercase()?.contains(q) } == true)
                 val accountMatch = expense.accountId?.let { accId ->
                     val acc = accounts[accId]
                     acc?.institutionName?.lowercase()?.contains(q) == true ||
                             acc?.accountSuffix?.contains(q) == true
                 } ?: false
 
-                merchantMatch || noteMatch || suffixMatch || refMatch || accountMatch
+                merchantMatch || noteMatch || suffixMatch || refMatch || catMatch || accountMatch
             }
         }
 
@@ -178,9 +192,17 @@ class TransactionManager(
         // 4. Category Filter
         if (!filter.category.isNullOrBlank()) {
             val cat = filter.category.trim()
-            result = result.filter { expense ->
-                val expenseCat = expense.tag?.trim() ?: expense.category?.trim()
-                expenseCat?.equals(cat, ignoreCase = true) == true
+            if (cat.equals("uncategorized", ignoreCase = true) || cat.equals("None", ignoreCase = true)) {
+                result = result.filter { it.categoryId.isNullOrBlank() && it.tag.isNullOrBlank() }
+            } else {
+                result = result.filter { expense ->
+                    val idMatch = expense.categoryId?.equals(cat, ignoreCase = true) == true
+                    val tagMatch = expense.tag?.equals(cat, ignoreCase = true) == true
+                    val nameMatch = expense.categoryId?.let { cid ->
+                        categories[cid]?.name?.equals(cat, ignoreCase = true)
+                    } == true
+                    idMatch || tagMatch || nameMatch
+                }
             }
         }
 
@@ -190,7 +212,6 @@ class TransactionManager(
         }
 
         // 6. Date Range Filter
-        val cal = Calendar.getInstance().apply { timeInMillis = referenceTimeMillis }
         when (filter.dateRange) {
             DateRangeFilter.TODAY -> {
                 val startOfDay = Calendar.getInstance().apply {

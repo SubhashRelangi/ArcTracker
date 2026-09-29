@@ -366,6 +366,14 @@ fun AccountsSection(onNavigate: (String) -> Unit = {}) {
             isLast = false,
             onClick = { onNavigate("UnresolvedTransactions") }
         )
+
+        SettingsRow(
+            icon = Icons.Filled.Category,
+            title = "Categories",
+            subtitle = "Manage system & custom categories",
+            isLast = false,
+            onClick = { onNavigate("CategoryManagement") }
+        )
         
         SettingsRow(
             icon = Icons.Filled.Lock,

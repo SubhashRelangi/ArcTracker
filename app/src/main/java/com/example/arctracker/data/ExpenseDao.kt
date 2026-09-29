@@ -98,6 +98,33 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE merchant LIKE '%' || :query || '%' OR note LIKE '%' || :query || '%' ORDER BY dateMillis DESC")
     fun searchExpensesFlow(query: String): Flow<List<Expense>>
 
+    @Query("UPDATE expenses SET categoryId = :categoryId, tag = :categoryName WHERE id = :id")
+    suspend fun updateCategoryMetadata(id: Int, categoryId: String?, categoryName: String?): Int
+
+    @Query("UPDATE expenses SET categoryId = :newCategoryId, tag = :newCategoryName WHERE categoryId = :oldCategoryId")
+    suspend fun reassignCategoryId(oldCategoryId: String, newCategoryId: String, newCategoryName: String): Int
+
+    @Query("UPDATE expenses SET categoryId = NULL, tag = NULL WHERE categoryId = :categoryId")
+    suspend fun clearCategoryId(categoryId: String): Int
+
+    @Query("UPDATE expenses SET categoryId = :categoryId, tag = :categoryName WHERE id IN (:expenseIds)")
+    suspend fun bulkUpdateCategoryId(expenseIds: List<Int>, categoryId: String?, categoryName: String?): Int
+
+    @Query("SELECT COUNT(*) FROM expenses WHERE categoryId = :categoryId")
+    suspend fun countByCategoryId(categoryId: String): Int
+
+    @Query("SELECT * FROM expenses WHERE categoryId = :categoryId ORDER BY dateMillis DESC")
+    suspend fun getExpensesByCategoryId(categoryId: String): List<Expense>
+
+    @Query("SELECT * FROM expenses WHERE categoryId = :categoryId ORDER BY dateMillis DESC")
+    fun getExpensesByCategoryIdFlow(categoryId: String): Flow<List<Expense>>
+
+    @Query("SELECT * FROM expenses WHERE categoryId IS NULL OR categoryId = '' ORDER BY dateMillis DESC")
+    suspend fun getUncategorizedExpenses(): List<Expense>
+
+    @Query("SELECT * FROM expenses WHERE categoryId IS NULL OR categoryId = '' ORDER BY dateMillis DESC")
+    fun getUncategorizedExpensesFlow(): Flow<List<Expense>>
+
     @Query("SELECT COUNT(*) FROM expenses")
     suspend fun getCount(): Int
 

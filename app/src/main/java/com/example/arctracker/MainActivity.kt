@@ -322,7 +322,8 @@ fun ExpenseScreen() {
             if (currentRoute != "SmsImport" &&
                 currentRoute != "FinancialAccounts" &&
                 currentRoute != "UnresolvedTransactions" &&
-                currentRoute != "AccountTransactions"
+                currentRoute != "AccountTransactions" &&
+                currentRoute != "CategoryManagement"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
@@ -433,7 +434,11 @@ fun ExpenseScreen() {
                 currentRoute != "Pending" &&
                 currentRoute != "SmsImport" &&
                 currentRoute != "BackupRestore" &&
-                currentRoute != "SupportedApps"
+                currentRoute != "SupportedApps" &&
+                currentRoute != "CategoryManagement" &&
+                currentRoute != "FinancialAccounts" &&
+                currentRoute != "UnresolvedTransactions" &&
+                currentRoute != "AccountTransactions"
             ) {
 
                 com.example.arctracker.ui.FloatingNavigationBar(
@@ -661,6 +666,10 @@ fun ExpenseScreen() {
             } else if (currentRoute == "AccountTransactions") {
                 com.example.arctracker.ui.AccountTransactionsScreen(
                     accountId = viewingAccountId ?: "",
+                    onNavigateBack = { navigateBack() }
+                )
+            } else if (currentRoute == "CategoryManagement") {
+                com.example.arctracker.ui.CategoryManagementScreen(
                     onNavigateBack = { navigateBack() }
                 )
             } else if (currentRoute == "Pending") {

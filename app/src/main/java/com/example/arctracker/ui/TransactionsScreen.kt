@@ -50,8 +50,10 @@ fun TransactionsScreen(
     val accountRepo = remember { KnownFinancialAccountRepository(db.knownFinancialAccountDao()) }
     val reconciliationManager = remember { AccountReconciliationManager(db.expenseDao(), accountRepo, db) }
     val transactionManager = remember { TransactionManager(db.expenseDao()) }
+    val categoryManager = remember { CategoryManager(db.transactionCategoryDao(), db.expenseDao(), db) }
 
     val knownAccounts by accountRepo.getAllFlow().collectAsState(initial = emptyList())
+    val allCategories by categoryManager.getAllCategoriesFlow().collectAsState(initial = emptyList())
     val accountsMap = remember(knownAccounts) { knownAccounts.associateBy { it.id } }
 
     // Search and Filter States
@@ -268,11 +270,27 @@ fun TransactionsScreen(
                                 showCategoryMenu = false
                             }
                         )
-                        TransactionCategories.ALL.forEach { cat ->
+                        DropdownMenuItem(
+                            text = { Text("Uncategorized") },
+                            onClick = {
+                                selectedCategory = "Uncategorized"
+                                showCategoryMenu = false
+                            }
+                        )
+                        val activeCategories = allCategories.filter { !it.isArchived }
+                        activeCategories.forEach { cat ->
                             DropdownMenuItem(
-                                text = { Text(cat) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = com.example.arctracker.data.CategoryVisuals.getIcon(cat.iconKey),
+                                        contentDescription = null,
+                                        tint = com.example.arctracker.data.CategoryVisuals.getColor(cat.colorKey),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                text = { Text(cat.name) },
                                 onClick = {
-                                    selectedCategory = cat
+                                    selectedCategory = cat.name
                                     showCategoryMenu = false
                                 }
                             )
@@ -669,6 +687,7 @@ fun TransactionsScreen(
         TransactionDetailDialog(
             expense = detailExpense,
             knownAccounts = knownAccounts,
+            allCategories = allCategories,
             onDismiss = { selectedExpenseForDetailId = null },
             onSaveEdit = { expenseId, merchant, category, note ->
                 scope.launch(Dispatchers.IO) {

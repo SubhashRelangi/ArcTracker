@@ -17,11 +17,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.window.Dialog
-import com.example.arctracker.data.Expense
-import com.example.arctracker.data.KnownFinancialAccount
-import com.example.arctracker.data.TransactionCategories
-import com.example.arctracker.data.TransactionRelationshipType
+import com.example.arctracker.data.*
 import com.example.arctracker.service.AccountReconciliationManager
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -33,6 +31,7 @@ import java.util.Locale
 fun TransactionDetailDialog(
     expense: Expense,
     knownAccounts: List<KnownFinancialAccount> = emptyList(),
+    allCategories: List<TransactionCategory> = emptyList(),
     onDismiss: () -> Unit,
     onSaveEdit: (expenseId: Int, merchant: String, category: String?, note: String?) -> Unit,
     onAssignAccount: ((expenseId: Int, targetAccountId: String) -> Unit)? = null,
@@ -45,6 +44,7 @@ fun TransactionDetailDialog(
     // Editable state
     var editedMerchant by remember(expense) { mutableStateOf(expense.merchant) }
     var editedCategory by remember(expense) { mutableStateOf(expense.tag ?: expense.category ?: "") }
+    var editedCategoryId by remember(expense) { mutableStateOf(expense.categoryId) }
     var editedNote by remember(expense) { mutableStateOf(expense.note ?: "") }
     var merchantError by remember { mutableStateOf<String?>(null) }
     var showCategoryDropdown by remember { mutableStateOf(false) }
@@ -215,12 +215,46 @@ fun TransactionDetailDialog(
                     color = Color(0xFF757575)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
+                val resolvedCategory = remember(expense, allCategories) {
+                    allCategories.find { it.id == expense.categoryId || it.name.equals(expense.tag, ignoreCase = true) }
+                        ?: BuiltInCategories.findLegacyMapping(expense.tag)
+                }
+
                 if (isEditMode) {
+                    val selectableCategories = remember(allCategories, resolvedCategory) {
+                        val active = allCategories.filter { !it.isArchived }
+                        if (resolvedCategory != null && resolvedCategory.isArchived && !active.any { it.id == resolvedCategory.id }) {
+                            listOf(resolvedCategory) + active
+                        } else {
+                            active
+                        }
+                    }
+
                     Box(modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(
                             value = editedCategory.ifBlank { "Uncategorized" },
                             onValueChange = {},
                             readOnly = true,
+                            leadingIcon = {
+                                val currentSelection = selectableCategories.find { it.id == editedCategoryId || it.name.equals(editedCategory, ignoreCase = true) }
+                                if (currentSelection != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .background(CategoryVisuals.getContainerColor(currentSelection.colorKey), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = CategoryVisuals.getIcon(currentSelection.iconKey),
+                                            contentDescription = null,
+                                            tint = CategoryVisuals.getColor(currentSelection.colorKey),
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                } else {
+                                    Icon(Icons.Default.Category, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.Gray)
+                                }
+                            },
                             trailingIcon = {
                                 IconButton(onClick = { showCategoryDropdown = true }) {
                                     Icon(Icons.Default.ArrowDropDown, contentDescription = "Select Category")
@@ -237,16 +271,44 @@ fun TransactionDetailDialog(
                         ) {
                             DropdownMenuItem(
                                 text = { Text("None (Uncategorized)") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Block, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+                                },
                                 onClick = {
+                                    editedCategoryId = null
                                     editedCategory = ""
                                     showCategoryDropdown = false
                                 }
                             )
-                            TransactionCategories.ALL.forEach { categoryName ->
+                            selectableCategories.forEach { cat ->
                                 DropdownMenuItem(
-                                    text = { Text(categoryName) },
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(cat.name)
+                                            if (cat.isArchived) {
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("(Archived)", fontSize = 10.sp, color = Color.Gray)
+                                            }
+                                        }
+                                    },
+                                    leadingIcon = {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(22.dp)
+                                                .background(CategoryVisuals.getContainerColor(cat.colorKey), CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = CategoryVisuals.getIcon(cat.iconKey),
+                                                contentDescription = null,
+                                                tint = CategoryVisuals.getColor(cat.colorKey),
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                        }
+                                    },
                                     onClick = {
-                                        editedCategory = categoryName
+                                        editedCategoryId = cat.id
+                                        editedCategory = cat.name
                                         showCategoryDropdown = false
                                     }
                                 )
@@ -254,19 +316,41 @@ fun TransactionDetailDialog(
                         }
                     }
                 } else {
-                    val catText = (expense.tag ?: expense.category)?.takeIf { it.isNotBlank() } ?: "Uncategorized"
+                    val catName = resolvedCategory?.name ?: (expense.tag ?: expense.category)?.takeIf { it.isNotBlank() } ?: "Uncategorized"
+                    val iconKey = resolvedCategory?.iconKey ?: "category"
+                    val colorKey = resolvedCategory?.colorKey ?: "default"
+
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFEDE7F6),
-                        border = BorderStroke(1.dp, Color(0xFFD1C4E9))
+                        color = CategoryVisuals.getContainerColor(colorKey),
+                        border = BorderStroke(1.dp, CategoryVisuals.getColor(colorKey).copy(alpha = 0.3f))
                     ) {
-                        Text(
-                            text = catText,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF512DA8),
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = CategoryVisuals.getIcon(iconKey),
+                                contentDescription = null,
+                                tint = CategoryVisuals.getColor(colorKey),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = catName,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = CategoryVisuals.getColor(colorKey)
+                            )
+                            if (resolvedCategory?.isArchived == true) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "(Archived)",
+                                    fontSize = 10.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        }
                     }
                 }
 
