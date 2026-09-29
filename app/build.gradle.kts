@@ -22,8 +22,21 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            System.getenv("ARCTRACKER_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }?.let { path ->
+                val keystoreFile = file(path)
+                storeFile = if (keystoreFile.exists()) keystoreFile else rootProject.file(path)
+            }
+            storePassword = System.getenv("ARCTRACKER_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("ARCTRACKER_KEY_ALIAS")
+            keyPassword = System.getenv("ARCTRACKER_KEY_PASSWORD")
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -43,6 +56,22 @@ android {
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
+    }
+}
+
+val releaseSigningTasks = setOf("validateSigningRelease", "signReleaseBundle")
+tasks.matching { it.name in releaseSigningTasks }.configureEach {
+    doFirst {
+        val requiredVariables = listOf(
+            "ARCTRACKER_KEYSTORE_PATH",
+            "ARCTRACKER_KEYSTORE_PASSWORD",
+            "ARCTRACKER_KEY_ALIAS",
+            "ARCTRACKER_KEY_PASSWORD"
+        )
+        val missingVariables = requiredVariables.filter { System.getenv(it).isNullOrBlank() }
+        check(missingVariables.isEmpty()) {
+            "Release signing requires environment variables: ${missingVariables.joinToString()}"
+        }
     }
 }
 
