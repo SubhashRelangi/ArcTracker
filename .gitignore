@@ -12,4 +12,8 @@ local.properties
 # Custom ignores
 referenceImages/
 .vscode/
-# /*.png
+/*.png
+# Android release signing
+*.jks
+*.keystore
+keystore.properties
