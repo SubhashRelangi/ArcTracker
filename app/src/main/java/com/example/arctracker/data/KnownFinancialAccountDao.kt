@@ -45,6 +45,9 @@ interface KnownFinancialAccountDao {
     @Query("SELECT * FROM known_financial_accounts ORDER BY updatedAt DESC")
     fun getAll(): List<KnownFinancialAccount>
 
+    @Query("SELECT * FROM known_financial_accounts ORDER BY updatedAt DESC")
+    fun getAllFlow(): kotlinx.coroutines.flow.Flow<List<KnownFinancialAccount>>
+
     @Query("SELECT COUNT(*) FROM known_financial_accounts")
     fun getCount(): Int
 

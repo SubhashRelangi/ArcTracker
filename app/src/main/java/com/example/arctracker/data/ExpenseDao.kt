@@ -65,8 +65,14 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE accountId IS NULL ORDER BY dateMillis DESC")
     suspend fun getExpensesWithoutAccount(): List<Expense>
 
+    @Query("SELECT * FROM expenses WHERE accountId IS NULL ORDER BY dateMillis DESC")
+    fun getExpensesWithoutAccountFlow(): Flow<List<Expense>>
+
     @Query("SELECT * FROM expenses WHERE accountId = :accountId ORDER BY dateMillis DESC")
     suspend fun getExpensesByAccountId(accountId: String): List<Expense>
+
+    @Query("SELECT * FROM expenses WHERE accountId = :accountId ORDER BY dateMillis DESC")
+    fun getExpensesByAccountIdFlow(accountId: String): Flow<List<Expense>>
 
     @Query("SELECT * FROM expenses WHERE accountSuffix = :suffix ORDER BY dateMillis DESC")
     suspend fun getExpensesByAccountSuffix(suffix: String): List<Expense>

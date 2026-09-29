@@ -112,7 +112,7 @@ fun SettingsScreen(
             .padding(horizontal = 16.dp)
             .padding(top = 16.dp, bottom = 100.dp)
     ) {
-        AccountsSection()
+        AccountsSection(onNavigate = onNavigate)
         Spacer(modifier = Modifier.height(16.dp))
         TrackerStatusSection(
             autoTracking = effectiveAutoTracking,
@@ -298,7 +298,7 @@ fun SettingsSwitchRow(
 }
 
 @Composable
-fun AccountsSection() {
+fun AccountsSection(onNavigate: (String) -> Unit = {}) {
     SettingsCard {
         // Profile Row
         Row(
@@ -350,6 +350,22 @@ fun AccountsSection() {
         }
         
         HorizontalDivider(color = borderColor, thickness = 1.dp)
+
+        SettingsRow(
+            icon = Icons.Filled.AccountBalance,
+            title = "Financial Accounts",
+            subtitle = "View discovered bank accounts & cards",
+            isLast = false,
+            onClick = { onNavigate("FinancialAccounts") }
+        )
+
+        SettingsRow(
+            icon = Icons.Filled.PendingActions,
+            title = "Unresolved Transactions",
+            subtitle = "Transactions pending account linking",
+            isLast = false,
+            onClick = { onNavigate("UnresolvedTransactions") }
+        )
         
         SettingsRow(
             icon = Icons.Filled.Lock,

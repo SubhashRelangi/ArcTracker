@@ -4,9 +4,18 @@ import com.example.arctracker.data.KnownFinancialAccount
 import com.example.arctracker.data.KnownFinancialAccountDao
 import com.example.arctracker.service.InstrumentType
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
 class FakeKnownFinancialAccountDao : KnownFinancialAccountDao {
 
     private val accounts = mutableMapOf<String, KnownFinancialAccount>()
+    private val accountsFlow = MutableStateFlow<List<KnownFinancialAccount>>(emptyList())
+
+    private fun notifyFlow() {
+        accountsFlow.value = accounts.values.sortedByDescending { it.updatedAt }
+    }
 
     override fun getById(id: String): KnownFinancialAccount? = accounts[id]
 
@@ -39,6 +48,8 @@ class FakeKnownFinancialAccountDao : KnownFinancialAccountDao {
 
     override fun getAll(): List<KnownFinancialAccount> = accounts.values.sortedByDescending { it.updatedAt }
 
+    override fun getAllFlow(): Flow<List<KnownFinancialAccount>> = accountsFlow.asStateFlow()
+
     override fun getCount(): Int = accounts.size
 
     override fun insert(account: KnownFinancialAccount): Long {
@@ -46,12 +57,14 @@ class FakeKnownFinancialAccountDao : KnownFinancialAccountDao {
             throw IllegalStateException("UNIQUE constraint failed: known_financial_accounts.id ${account.id} already exists.")
         }
         accounts[account.id] = account
+        notifyFlow()
         return 1L
     }
 
     override fun update(account: KnownFinancialAccount): Int {
         return if (accounts.containsKey(account.id)) {
             accounts[account.id] = account
+            notifyFlow()
             1
         } else {
             0
@@ -59,16 +72,21 @@ class FakeKnownFinancialAccountDao : KnownFinancialAccountDao {
     }
 
     override fun delete(account: KnownFinancialAccount): Int {
-        return if (accounts.remove(account.id) != null) 1 else 0
+        val removed = accounts.remove(account.id) != null
+        if (removed) notifyFlow()
+        return if (removed) 1 else 0
     }
 
     override fun deleteById(id: String): Int {
-        return if (accounts.remove(id) != null) 1 else 0
+        val removed = accounts.remove(id) != null
+        if (removed) notifyFlow()
+        return if (removed) 1 else 0
     }
 
     override fun deleteAll(): Int {
         val size = accounts.size
         accounts.clear()
+        notifyFlow()
         return size
     }
 }

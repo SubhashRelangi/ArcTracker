@@ -292,6 +292,10 @@ fun ExpenseScreen() {
         mutableStateOf("Amount")
     }
 
+    var viewingAccountId by rememberSaveable {
+        mutableStateOf<String?>(null)
+    }
+
     var isSearching by remember {
         mutableStateOf(false)
     }
@@ -315,7 +319,11 @@ fun ExpenseScreen() {
     Scaffold(
 
         topBar = {
-            if (currentRoute != "SmsImport") {
+            if (currentRoute != "SmsImport" &&
+                currentRoute != "FinancialAccounts" &&
+                currentRoute != "UnresolvedTransactions" &&
+                currentRoute != "AccountTransactions"
+            ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
                     "ClearAllData" -> "Clear All Data"
@@ -636,6 +644,24 @@ fun ExpenseScreen() {
                     ruleId = editingRegexRuleId,
                     defaultCategory = editingRegexRuleCategory,
                     onBack = { navigateBack() }
+                )
+            } else if (currentRoute == "FinancialAccounts") {
+                com.example.arctracker.ui.FinancialAccountsScreen(
+                    onNavigateBack = { navigateBack() },
+                    onNavigateToUnresolved = { navigateTo("UnresolvedTransactions") },
+                    onViewAccountTransactions = { accId ->
+                        viewingAccountId = accId
+                        navigateTo("AccountTransactions")
+                    }
+                )
+            } else if (currentRoute == "UnresolvedTransactions") {
+                com.example.arctracker.ui.UnresolvedTransactionsScreen(
+                    onNavigateBack = { navigateBack() }
+                )
+            } else if (currentRoute == "AccountTransactions") {
+                com.example.arctracker.ui.AccountTransactionsScreen(
+                    accountId = viewingAccountId ?: "",
+                    onNavigateBack = { navigateBack() }
                 )
             } else if (currentRoute == "Pending") {
 

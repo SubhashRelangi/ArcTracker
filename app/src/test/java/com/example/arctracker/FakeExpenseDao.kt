@@ -136,8 +136,16 @@ open class FakeExpenseDao : ExpenseDao {
         expenses.filter { it.accountId == null }.sortedByDescending { it.dateMillis }
     }
 
+    override fun getExpensesWithoutAccountFlow(): Flow<List<Expense>> {
+        return expensesFlow.map { list -> list.filter { it.accountId == null }.sortedByDescending { it.dateMillis } }
+    }
+
     override suspend fun getExpensesByAccountId(accountId: String): List<Expense> = synchronized(lock) {
         expenses.filter { it.accountId == accountId }.sortedByDescending { it.dateMillis }
+    }
+
+    override fun getExpensesByAccountIdFlow(accountId: String): Flow<List<Expense>> {
+        return expensesFlow.map { list -> list.filter { it.accountId == accountId }.sortedByDescending { it.dateMillis } }
     }
 
     override suspend fun getExpensesByAccountSuffix(suffix: String): List<Expense> = synchronized(lock) {

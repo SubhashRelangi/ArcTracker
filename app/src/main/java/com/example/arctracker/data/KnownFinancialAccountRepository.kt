@@ -102,6 +102,8 @@ class KnownFinancialAccountRepository(
 
     fun getAll(): List<KnownFinancialAccount> = dao.getAll()
 
+    fun getAllFlow(): kotlinx.coroutines.flow.Flow<List<KnownFinancialAccount>> = dao.getAllFlow()
+
     fun getCount(): Int = dao.getCount()
 
     fun delete(account: KnownFinancialAccount): Boolean = dao.delete(account) > 0
