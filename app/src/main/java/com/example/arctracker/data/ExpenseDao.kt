@@ -101,6 +101,9 @@ interface ExpenseDao {
     @Query("UPDATE expenses SET categoryId = :categoryId, tag = :categoryName, categorySource = :categorySource WHERE id = :id")
     suspend fun updateCategoryMetadata(id: Int, categoryId: String?, categoryName: String?, categorySource: String = "USER_ASSIGNED"): Int
 
+    @Query("UPDATE expenses SET categoryId = :categoryId, tag = :categoryName, categorySource = :categorySource WHERE id = :id AND categorySource != 'USER_ASSIGNED'")
+    suspend fun updateCategoryMetadataIfNotUserAssigned(id: Int, categoryId: String?, categoryName: String?, categorySource: String = "INFERRED"): Int
+
     @Query("UPDATE expenses SET categoryId = :newCategoryId, tag = :newCategoryName, categorySource = :categorySource WHERE categoryId = :oldCategoryId")
     suspend fun reassignCategoryId(oldCategoryId: String, newCategoryId: String, newCategoryName: String, categorySource: String = "USER_ASSIGNED"): Int
 

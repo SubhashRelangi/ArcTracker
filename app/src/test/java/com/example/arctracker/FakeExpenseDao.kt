@@ -218,6 +218,17 @@ open class FakeExpenseDao : ExpenseDao {
         }
     }
 
+    override suspend fun updateCategoryMetadataIfNotUserAssigned(id: Int, categoryId: String?, categoryName: String?, categorySource: String): Int = synchronized(lock) {
+        val idx = expenses.indexOfFirst { it.id == id }
+        if (idx >= 0 && expenses[idx].categorySource != com.example.arctracker.service.CategorySource.USER_ASSIGNED) {
+            expenses[idx] = expenses[idx].copy(categoryId = categoryId, tag = categoryName, categorySource = categorySource)
+            notifyFlow()
+            1
+        } else {
+            0
+        }
+    }
+
     override suspend fun reassignCategoryId(oldCategoryId: String, newCategoryId: String, newCategoryName: String, categorySource: String): Int = synchronized(lock) {
         var count = 0
         for (i in 0 until expenses.size) {

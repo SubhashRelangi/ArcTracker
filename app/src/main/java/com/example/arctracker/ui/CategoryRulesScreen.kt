@@ -33,6 +33,7 @@ private val textSubColor = Color(0xFF757575)
 @Composable
 fun CategoryRulesScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToApplyRules: (String?) -> Unit = {},
     ruleManager: CategoryRuleManager? = null,
     categoryManager: CategoryManager? = null
 ) {
@@ -86,6 +87,15 @@ fun CategoryRulesScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { onNavigateToApplyRules(null) }) {
+                        Icon(
+                            imageVector = Icons.Filled.AutoFixHigh,
+                            contentDescription = "Apply Rules to Existing Transactions",
+                            tint = primaryColor
+                        )
                     }
                 }
             )
@@ -256,7 +266,8 @@ fun CategoryRulesScreen(
                                 }
                             },
                             onEdit = { ruleToEdit = rule },
-                            onDelete = { ruleToDelete = rule }
+                            onDelete = { ruleToDelete = rule },
+                            onApplyToTransactions = { onNavigateToApplyRules(rule.id) }
                         )
                     }
                 }
@@ -352,7 +363,8 @@ fun RuleCard(
     invalidReason: String?,
     onToggle: (Boolean) -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onApplyToTransactions: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -443,6 +455,10 @@ fun RuleCard(
             }
 
             // Actions
+            IconButton(onClick = onApplyToTransactions) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = "Apply to transactions", tint = primaryColor, modifier = Modifier.size(20.dp))
+            }
+
             Switch(
                 checked = rule.isEnabled && !isInvalid,
                 onCheckedChange = onToggle,

@@ -38,6 +38,7 @@ fun CategoryManagementScreen(
     onNavigateBack: () -> Unit,
     onNavigateToRules: () -> Unit = {},
     onNavigateToAliases: () -> Unit = {},
+    onNavigateToApplyRules: () -> Unit = {},
     manager: CategoryManager? = null,
     expenseDao: ExpenseDao? = null
 ) {
@@ -115,6 +116,13 @@ fun CategoryManagementScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToApplyRules) {
+                        Icon(
+                            imageVector = Icons.Filled.AutoFixHigh,
+                            contentDescription = "Apply Rules",
+                            tint = purpleColor
+                        )
+                    }
                     IconButton(onClick = onNavigateToRules) {
                         Icon(
                             imageVector = Icons.Filled.Rule,
