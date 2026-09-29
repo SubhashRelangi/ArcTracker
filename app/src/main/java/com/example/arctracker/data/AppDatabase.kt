@@ -16,7 +16,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         Expense::class,
         KnownFinancialAccount::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(KnownFinancialAccountConverters::class)
@@ -61,6 +61,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE expenses ADD COLUMN accountId TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE expenses ADD COLUMN accountSuffix TEXT DEFAULT NULL")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_expenses_accountId ON expenses (accountId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_expenses_accountSuffix ON expenses (accountSuffix)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -68,7 +77,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "arctracker_database"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
                 INSTANCE = instance
                 instance

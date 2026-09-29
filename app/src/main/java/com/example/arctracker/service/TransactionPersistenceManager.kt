@@ -388,10 +388,15 @@ object TransactionPersistenceManager {
             }
 
             val candidate = result.candidate.candidate
+            val candidateAccountId = candidate.accountEnrichment?.accountId
+                ?: (candidate.accountMatchResult as? KnownFinancialAccountMatchResult.Matched)?.account?.id
+            val rawSuffix = candidate.accountSuffix ?: candidate.cardSuffix
+            val candidateAccountSuffix = rawSuffix?.let { AccountIdentityExtractor.safeSuffix(it) }
+                ?: (candidate.accountMatchResult as? KnownFinancialAccountMatchResult.Matched)?.account?.accountSuffix
 
             when (result.decision) {
                 DedupDecision.DUPLICATE -> {
-                    // Exact duplicate detected! Zero database writes.
+                    // Exact duplicate detected!
                     val existing = existingByKey
                         ?: (result.matchedRecordId?.let { id ->
                             existingExpenses?.find { it.id.toString() == id || it.notificationKey == id }
@@ -401,8 +406,20 @@ object TransactionPersistenceManager {
                         })
                         ?: mapToExpense(candidate, false)
 
+                    val resolvedExisting = if (existing.id > 0 && existing.accountId == null && candidateAccountId != null) {
+                        val newSuffix = existing.accountSuffix ?: candidateAccountSuffix
+                        val enriched = existing.copy(
+                            accountId = candidateAccountId,
+                            accountSuffix = newSuffix
+                        )
+                        dao.updateAccountMetadata(existing.id, candidateAccountId, newSuffix)
+                        enriched
+                    } else {
+                        existing
+                    }
+
                     Log.d(TAG, "Candidate duplicate skipped for key=$key, reason=${result.reason}")
-                    ExpensePersistenceResult.SkippedDuplicate(existing, result.reason, matchResult = candidate.accountMatchResult)
+                    ExpensePersistenceResult.SkippedDuplicate(resolvedExisting, result.reason, matchResult = candidate.accountMatchResult)
                 }
 
                 DedupDecision.UPDATE_EXISTING -> {
@@ -436,12 +453,17 @@ object TransactionPersistenceManager {
                         }
                         val newNote = enrichNote(existing.note, candidate, "Status: ${candidate.status ?: "SUCCESS"}")
 
+                        val newAccountId = existing.accountId ?: candidateAccountId
+                        val newAccountSuffix = existing.accountSuffix ?: candidateAccountSuffix
+
                         val updated = existing.copy(
                             amount = newAmount,
                             merchant = newMerchant,
                             isPending = if (isNowSuccess) false else existing.isPending,
                             note = newNote,
-                            rawText = candidate.rawContent ?: existing.rawText
+                            rawText = candidate.rawContent ?: existing.rawText,
+                            accountId = newAccountId,
+                            accountSuffix = newAccountSuffix
                         )
                         dao.update(updated)
                         Log.d(TAG, "Updated existing transaction id=${updated.id} to isPending=${updated.isPending}")
@@ -474,9 +496,14 @@ object TransactionPersistenceManager {
                         // If correlated record confirms a pending transaction, mark it successful
                         val newIsPending = if (isNowSuccess && existing.isPending) false else existing.isPending
 
+                        val newAccountId = existing.accountId ?: candidateAccountId
+                        val newAccountSuffix = existing.accountSuffix ?: candidateAccountSuffix
+
                         val enriched = existing.copy(
                             isPending = newIsPending,
-                            note = newNote
+                            note = newNote,
+                            accountId = newAccountId,
+                            accountSuffix = newAccountSuffix
                         )
                         dao.update(enriched)
                         Log.d(TAG, "Correlated transaction id=${enriched.id}, enriched note. Row count preserved.")
@@ -593,6 +620,12 @@ object TransactionPersistenceManager {
         val note = buildNote(candidate, extraNote)
         val source = if (candidate.sourceNotificationKey.startsWith("sms_")) "SMS_HISTORY" else "NOTIFICATION"
 
+        val accountId = candidate.accountEnrichment?.accountId
+            ?: (candidate.accountMatchResult as? KnownFinancialAccountMatchResult.Matched)?.account?.id
+        val rawSuffix = candidate.accountSuffix ?: candidate.cardSuffix
+        val accountSuffix = rawSuffix?.let { AccountIdentityExtractor.safeSuffix(it) }
+            ?: (candidate.accountMatchResult as? KnownFinancialAccountMatchResult.Matched)?.account?.accountSuffix
+
         return Expense(
             id = 0,
             amount = amount,
@@ -606,7 +639,9 @@ object TransactionPersistenceManager {
             note = note,
             source = source,
             relationshipType = relationshipType,
-            relationshipId = relationshipId
+            relationshipId = relationshipId,
+            accountId = accountId,
+            accountSuffix = accountSuffix
         )
     }
 

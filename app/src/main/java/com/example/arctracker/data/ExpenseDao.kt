@@ -53,6 +53,24 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE relationshipId = :relationshipId")
     suspend fun getExpensesByRelationshipId(relationshipId: String): List<Expense>
 
+    @Query("UPDATE expenses SET accountId = :accountId WHERE id = :id")
+    suspend fun updateAccountId(id: Int, accountId: String?): Int
+
+    @Query("UPDATE expenses SET accountId = :accountId, accountSuffix = :accountSuffix WHERE id = :id")
+    suspend fun updateAccountMetadata(id: Int, accountId: String?, accountSuffix: String?): Int
+
+    @Query("UPDATE expenses SET accountId = :newAccountId WHERE accountId = :oldAccountId")
+    suspend fun reassignAccountId(oldAccountId: String, newAccountId: String): Int
+
+    @Query("SELECT * FROM expenses WHERE accountId IS NULL ORDER BY dateMillis DESC")
+    suspend fun getExpensesWithoutAccount(): List<Expense>
+
+    @Query("SELECT * FROM expenses WHERE accountId = :accountId ORDER BY dateMillis DESC")
+    suspend fun getExpensesByAccountId(accountId: String): List<Expense>
+
+    @Query("SELECT * FROM expenses WHERE accountSuffix = :suffix ORDER BY dateMillis DESC")
+    suspend fun getExpensesByAccountSuffix(suffix: String): List<Expense>
+
     @Query("SELECT COUNT(*) FROM expenses")
     suspend fun getCount(): Int
 

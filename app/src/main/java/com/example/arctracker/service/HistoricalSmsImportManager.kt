@@ -399,6 +399,11 @@ class HistoricalSmsImportManager(
         val persistenceResults = mutableListOf<ExpensePersistenceResult>()
         val claimedRecordIds = mutableSetOf<String>()
         var isCancelled = false
+        // Milestone 3/5: Synchronize selected account identities into KnownFinancialAccount registry
+        if (synchronizer != null && items.isNotEmpty()) {
+            val selectedIdentities = items.map { it.accountIdentity }.distinct()
+            synchronizer.synchronizeAll(selectedIdentities)
+        }
 
         for ((index, item) in items.withIndex()) {
             if (progressCallback != null) {
@@ -420,10 +425,35 @@ class HistoricalSmsImportManager(
 
             // Ensure bank / account metadata is attached to candidate before persistence
             val candidateToProcess = if (item.accountIdentity.isPartiallyIdentified) {
+                val rawSuffix = item.accountIdentity.accountSuffix ?: item.accountIdentity.cardSuffix
+                val safeSuffix = rawSuffix?.let { AccountIdentityExtractor.safeSuffix(it) }
+                val instrumentType = when {
+                    item.accountIdentity.instrumentType != InstrumentType.UNKNOWN -> item.accountIdentity.instrumentType
+                    !item.accountIdentity.cardSuffix.isNullOrBlank() -> InstrumentType.CARD
+                    else -> InstrumentType.BANK_ACCOUNT
+                }
+                val accountId = if (safeSuffix != null) {
+                    com.example.arctracker.data.KnownFinancialAccount.generateId(
+                        item.accountIdentity.institutionId,
+                        instrumentType,
+                        safeSuffix
+                    )
+                } else null
+
+                val enrichment = if (accountId != null && safeSuffix != null) {
+                    AccountEnrichment(
+                        accountId = accountId,
+                        institutionId = item.accountIdentity.institutionId,
+                        institutionName = item.accountIdentity.institutionName,
+                        instrumentType = instrumentType
+                    )
+                } else null
+
                 val updatedCand = item.candidate.candidate.copy(
                     bank = item.accountIdentity.institutionName ?: item.candidate.candidate.bank,
                     accountSuffix = item.accountIdentity.accountSuffix ?: item.candidate.candidate.accountSuffix,
-                    cardSuffix = item.accountIdentity.cardSuffix ?: item.candidate.candidate.cardSuffix
+                    cardSuffix = item.accountIdentity.cardSuffix ?: item.candidate.candidate.cardSuffix,
+                    accountEnrichment = enrichment
                 )
                 item.candidate.copy(candidate = updatedCand)
             } else {
@@ -602,7 +632,7 @@ class HistoricalSmsImportManager(
             database: AppDatabase = AppDatabase.getDatabase(context)
         ): HistoricalSmsImportManager {
             val accountRepo = com.example.arctracker.data.KnownFinancialAccountRepository(database.knownFinancialAccountDao())
-            val synchronizer = HistoricalSmsAccountRegistrySynchronizer(accountRepo)
+            val synchronizer = HistoricalSmsAccountRegistrySynchronizer(accountRepo, database.expenseDao())
             return HistoricalSmsImportManager(
                 smsReader = smsReader,
                 dao = database.expenseDao(),

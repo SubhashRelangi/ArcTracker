@@ -98,6 +98,52 @@ open class FakeExpenseDao : ExpenseDao {
         if (relationshipId.isBlank()) emptyList() else expenses.filter { it.relationshipId == relationshipId }
     }
 
+    override suspend fun updateAccountId(id: Int, accountId: String?): Int = synchronized(lock) {
+        val idx = expenses.indexOfFirst { it.id == id }
+        if (idx >= 0) {
+            expenses[idx] = expenses[idx].copy(accountId = accountId)
+            notifyFlow()
+            1
+        } else {
+            0
+        }
+    }
+
+    override suspend fun updateAccountMetadata(id: Int, accountId: String?, accountSuffix: String?): Int = synchronized(lock) {
+        val idx = expenses.indexOfFirst { it.id == id }
+        if (idx >= 0) {
+            expenses[idx] = expenses[idx].copy(accountId = accountId, accountSuffix = accountSuffix)
+            notifyFlow()
+            1
+        } else {
+            0
+        }
+    }
+
+    override suspend fun reassignAccountId(oldAccountId: String, newAccountId: String): Int = synchronized(lock) {
+        var count = 0
+        for (i in 0 until expenses.size) {
+            if (expenses[i].accountId == oldAccountId) {
+                expenses[i] = expenses[i].copy(accountId = newAccountId)
+                count++
+            }
+        }
+        if (count > 0) notifyFlow()
+        count
+    }
+
+    override suspend fun getExpensesWithoutAccount(): List<Expense> = synchronized(lock) {
+        expenses.filter { it.accountId == null }.sortedByDescending { it.dateMillis }
+    }
+
+    override suspend fun getExpensesByAccountId(accountId: String): List<Expense> = synchronized(lock) {
+        expenses.filter { it.accountId == accountId }.sortedByDescending { it.dateMillis }
+    }
+
+    override suspend fun getExpensesByAccountSuffix(suffix: String): List<Expense> = synchronized(lock) {
+        expenses.filter { it.accountSuffix == suffix }.sortedByDescending { it.dateMillis }
+    }
+
     override suspend fun getCount(): Int = synchronized(lock) {
         expenses.size
     }

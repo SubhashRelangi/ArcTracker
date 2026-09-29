@@ -1,6 +1,7 @@
 package com.example.arctracker.service
 
 import com.example.arctracker.data.AccountSource
+import com.example.arctracker.data.ExpenseDao
 import com.example.arctracker.data.KnownFinancialAccount
 import com.example.arctracker.data.KnownFinancialAccountRepository
 
@@ -20,7 +21,8 @@ import com.example.arctracker.data.KnownFinancialAccountRepository
  * 7. Bank accounts vs cards with the same suffix remain separate.
  */
 class HistoricalSmsAccountRegistrySynchronizer(
-    private val repository: KnownFinancialAccountRepository?
+    private val repository: KnownFinancialAccountRepository?,
+    private val expenseDao: ExpenseDao? = null
 ) {
 
     /**
@@ -107,7 +109,7 @@ class HistoricalSmsAccountRegistrySynchronizer(
      * sharing this account suffix. If multiple known institutions exist with this suffix (e.g. both HDFC and APGB),
      * merging the unknown record would be ambiguous and is intentionally NOT performed.
      */
-    private fun reconcileUnknownIfApplicable(
+    private suspend fun reconcileUnknownIfApplicable(
         repo: KnownFinancialAccountRepository,
         incoming: KnownFinancialAccount,
         suppressedSuffixes: Set<String> = emptySet()
@@ -131,6 +133,9 @@ class HistoricalSmsAccountRegistrySynchronizer(
             // Do NOT delete the unknown record.
             return
         }
+
+        // Before deleting the provisional unknown record, reassign all Expense references to the incoming definitive account ID!
+        expenseDao?.reassignAccountId(unknownId, incoming.id)
 
         // Unambiguous: Remove the provisional unknown record so the definitive institution record survives.
         repo.deleteById(unknownId)

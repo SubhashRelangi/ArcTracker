@@ -10,7 +10,9 @@ import androidx.room.PrimaryKey
         Index(value = ["notificationKey"]),
         Index(value = ["dateMillis"]),
         Index(value = ["isPending"]),
-        Index(value = ["relationshipId"])
+        Index(value = ["relationshipId"]),
+        Index(value = ["accountId"]),
+        Index(value = ["accountSuffix"])
     ]
 )
 data class Expense(
@@ -27,7 +29,9 @@ data class Expense(
     var note: String? = null,
     var source: String = "MANUAL",
     var relationshipType: String? = null,
-    var relationshipId: String? = null
+    var relationshipId: String? = null,
+    var accountId: String? = null,
+    var accountSuffix: String? = null
 )
 
 object TransactionRelationshipType {
