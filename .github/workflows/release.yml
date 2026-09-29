@@ -13,12 +13,6 @@ jobs:
     name: Build & Release
     runs-on: ubuntu-latest
 
-    env:
-      ARCTRACKER_KEYSTORE_PATH: ${{ runner.temp }}/arctracker-upload.jks
-      ARCTRACKER_KEYSTORE_PASSWORD: ${{ secrets.ARCTRACKER_KEYSTORE_PASSWORD }}
-      ARCTRACKER_KEY_ALIAS: ${{ secrets.ARCTRACKER_KEY_ALIAS }}
-      ARCTRACKER_KEY_PASSWORD: ${{ secrets.ARCTRACKER_KEY_PASSWORD }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,9 +33,14 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.ARCTRACKER_KEYSTORE_BASE64 }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > "${{ runner.temp }}/arctracker-upload.jks"
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/arctracker-upload.jks"
 
       - name: Build and Test Release Artifacts
+        env:
+          ARCTRACKER_KEYSTORE_PATH: ${{ runner.temp }}/arctracker-upload.jks
+          ARCTRACKER_KEYSTORE_PASSWORD: ${{ secrets.ARCTRACKER_KEYSTORE_PASSWORD }}
+          ARCTRACKER_KEY_ALIAS: ${{ secrets.ARCTRACKER_KEY_ALIAS }}
+          ARCTRACKER_KEY_PASSWORD: ${{ secrets.ARCTRACKER_KEY_PASSWORD }}
         run: ./gradlew testDebugUnitTest assembleRelease bundleRelease
 
       - name: Verify Build Artifacts
@@ -76,4 +75,4 @@ jobs:
       - name: Clean up Keystore
         if: always()
         run: |
-          rm -f "${{ runner.temp }}/arctracker-upload.jks"
+          rm -f "$RUNNER_TEMP/arctracker-upload.jks"
