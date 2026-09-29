@@ -181,6 +181,32 @@ open class FakeExpenseDao : ExpenseDao {
         expenses.filter { it.accountSuffix == suffix }.sortedByDescending { it.dateMillis }
     }
 
+    override suspend fun getExpensesByCategory(category: String): List<Expense> = synchronized(lock) {
+        expenses.filter { it.tag == category }.sortedByDescending { it.dateMillis }
+    }
+
+    override fun getExpensesByCategoryFlow(category: String): Flow<List<Expense>> {
+        return expensesFlow.map { list -> list.filter { it.tag == category }.sortedByDescending { it.dateMillis } }
+    }
+
+    override suspend fun searchExpensesList(query: String): List<Expense> = synchronized(lock) {
+        if (query.isBlank()) return@synchronized expenses.sortedByDescending { it.dateMillis }.toList()
+        val q = query.trim().lowercase()
+        expenses.filter {
+            it.merchant.lowercase().contains(q) || (it.note?.lowercase()?.contains(q) == true)
+        }.sortedByDescending { it.dateMillis }
+    }
+
+    override fun searchExpensesFlow(query: String): Flow<List<Expense>> {
+        if (query.isBlank()) return getAllExpenses()
+        val q = query.trim().lowercase()
+        return expensesFlow.map { list ->
+            list.filter {
+                it.merchant.lowercase().contains(q) || (it.note?.lowercase()?.contains(q) == true)
+            }.sortedByDescending { it.dateMillis }
+        }
+    }
+
     override suspend fun getCount(): Int = synchronized(lock) {
         expenses.size
     }

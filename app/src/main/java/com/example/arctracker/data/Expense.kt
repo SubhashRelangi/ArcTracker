@@ -32,9 +32,15 @@ data class Expense(
     var relationshipId: String? = null,
     var accountId: String? = null,
     var accountSuffix: String? = null
-)
+) {
+    var category: String?
+        @androidx.room.Ignore get() = tag
+        set(value) { tag = value }
+}
+
 
 object TransactionRelationshipType {
     const val NONE = "NONE"
     const val SELF_TRANSFER = "SELF_TRANSFER"
 }
+

@@ -86,6 +86,18 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE accountSuffix = :suffix ORDER BY dateMillis DESC")
     suspend fun getExpensesByAccountSuffix(suffix: String): List<Expense>
 
+    @Query("SELECT * FROM expenses WHERE tag = :category ORDER BY dateMillis DESC")
+    suspend fun getExpensesByCategory(category: String): List<Expense>
+
+    @Query("SELECT * FROM expenses WHERE tag = :category ORDER BY dateMillis DESC")
+    fun getExpensesByCategoryFlow(category: String): Flow<List<Expense>>
+
+    @Query("SELECT * FROM expenses WHERE merchant LIKE '%' || :query || '%' OR note LIKE '%' || :query || '%' ORDER BY dateMillis DESC")
+    suspend fun searchExpensesList(query: String): List<Expense>
+
+    @Query("SELECT * FROM expenses WHERE merchant LIKE '%' || :query || '%' OR note LIKE '%' || :query || '%' ORDER BY dateMillis DESC")
+    fun searchExpensesFlow(query: String): Flow<List<Expense>>
+
     @Query("SELECT COUNT(*) FROM expenses")
     suspend fun getCount(): Int
 
