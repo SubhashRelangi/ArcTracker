@@ -15,9 +15,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     entities = [
         Expense::class,
         KnownFinancialAccount::class,
-        TransactionCategory::class
+        TransactionCategory::class,
+        UserCategoryRule::class,
+        MerchantAlias::class
     ],
-    version = 5,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(KnownFinancialAccountConverters::class)
@@ -26,6 +28,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun expenseDao(): ExpenseDao
     abstract fun knownFinancialAccountDao(): KnownFinancialAccountDao
     abstract fun transactionCategoryDao(): TransactionCategoryDao
+    abstract fun userCategoryRuleDao(): UserCategoryRuleDao
+    abstract fun merchantAliasDao(): MerchantAliasDao
 
     companion object {
         @Volatile
@@ -127,6 +131,60 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Add categorySource column to expenses
+                db.execSQL("ALTER TABLE expenses ADD COLUMN categorySource TEXT NOT NULL DEFAULT 'NONE'")
+
+                // 2. Mark existing categorized transactions as USER_ASSIGNED so inference won't overwrite them
+                db.execSQL("UPDATE expenses SET categorySource = 'USER_ASSIGNED' WHERE categoryId IS NOT NULL")
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Create user_category_rules table and indices
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `user_category_rules` (
+                        `id` TEXT NOT NULL,
+                        `name` TEXT,
+                        `matchType` TEXT NOT NULL,
+                        `pattern` TEXT NOT NULL,
+                        `normalizedPattern` TEXT NOT NULL,
+                        `categoryId` TEXT NOT NULL,
+                        `priority` INTEGER NOT NULL,
+                        `isEnabled` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_user_category_rules_normalizedPattern` ON `user_category_rules` (`normalizedPattern`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_user_category_rules_categoryId` ON `user_category_rules` (`categoryId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_user_category_rules_isEnabled` ON `user_category_rules` (`isEnabled`)")
+
+                // 2. Create merchant_aliases table and indices
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `merchant_aliases` (
+                        `id` TEXT NOT NULL,
+                        `alias` TEXT NOT NULL,
+                        `canonicalMerchant` TEXT NOT NULL,
+                        `normalizedAlias` TEXT NOT NULL,
+                        `isEnabled` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_merchant_aliases_normalizedAlias` ON `merchant_aliases` (`normalizedAlias`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_merchant_aliases_isEnabled` ON `merchant_aliases` (`isEnabled`)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -134,7 +192,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "arctracker_database"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .build()
                 INSTANCE = instance
                 instance

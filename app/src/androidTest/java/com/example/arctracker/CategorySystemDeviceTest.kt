@@ -83,8 +83,8 @@ class CategorySystemDeviceTest {
      */
     @Test
     fun test01_roomV5Opens_builtInCategoriesSeeded_andSurvivesRestart() = runBlocking {
-        // 1. Room v5 opens
-        assertEquals(5, database.openHelper.readableDatabase.version)
+        // 1. Room opens (version >= 5)
+        assertTrue(database.openHelper.readableDatabase.version >= 5)
 
         // 2. Built-in categories seeded
         categoryManager.ensureBuiltInCategoriesSeeded()

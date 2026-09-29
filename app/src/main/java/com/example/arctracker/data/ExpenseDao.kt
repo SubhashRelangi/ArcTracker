@@ -98,17 +98,20 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE merchant LIKE '%' || :query || '%' OR note LIKE '%' || :query || '%' ORDER BY dateMillis DESC")
     fun searchExpensesFlow(query: String): Flow<List<Expense>>
 
-    @Query("UPDATE expenses SET categoryId = :categoryId, tag = :categoryName WHERE id = :id")
-    suspend fun updateCategoryMetadata(id: Int, categoryId: String?, categoryName: String?): Int
+    @Query("UPDATE expenses SET categoryId = :categoryId, tag = :categoryName, categorySource = :categorySource WHERE id = :id")
+    suspend fun updateCategoryMetadata(id: Int, categoryId: String?, categoryName: String?, categorySource: String = "USER_ASSIGNED"): Int
 
-    @Query("UPDATE expenses SET categoryId = :newCategoryId, tag = :newCategoryName WHERE categoryId = :oldCategoryId")
-    suspend fun reassignCategoryId(oldCategoryId: String, newCategoryId: String, newCategoryName: String): Int
+    @Query("UPDATE expenses SET categoryId = :categoryId, tag = :categoryName, categorySource = :categorySource WHERE id = :id AND categorySource != 'USER_ASSIGNED'")
+    suspend fun updateCategoryMetadataIfNotUserAssigned(id: Int, categoryId: String?, categoryName: String?, categorySource: String = "INFERRED"): Int
 
-    @Query("UPDATE expenses SET categoryId = NULL, tag = NULL WHERE categoryId = :categoryId")
+    @Query("UPDATE expenses SET categoryId = :newCategoryId, tag = :newCategoryName, categorySource = :categorySource WHERE categoryId = :oldCategoryId")
+    suspend fun reassignCategoryId(oldCategoryId: String, newCategoryId: String, newCategoryName: String, categorySource: String = "USER_ASSIGNED"): Int
+
+    @Query("UPDATE expenses SET categoryId = NULL, tag = NULL, categorySource = 'NONE' WHERE categoryId = :categoryId")
     suspend fun clearCategoryId(categoryId: String): Int
 
-    @Query("UPDATE expenses SET categoryId = :categoryId, tag = :categoryName WHERE id IN (:expenseIds)")
-    suspend fun bulkUpdateCategoryId(expenseIds: List<Int>, categoryId: String?, categoryName: String?): Int
+    @Query("UPDATE expenses SET categoryId = :categoryId, tag = :categoryName, categorySource = :categorySource WHERE id IN (:expenseIds)")
+    suspend fun bulkUpdateCategoryId(expenseIds: List<Int>, categoryId: String?, categoryName: String?, categorySource: String = "USER_ASSIGNED"): Int
 
     @Query("SELECT COUNT(*) FROM expenses WHERE categoryId = :categoryId")
     suspend fun countByCategoryId(categoryId: String): Int

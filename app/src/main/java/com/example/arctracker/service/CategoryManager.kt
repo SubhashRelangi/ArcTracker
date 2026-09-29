@@ -18,7 +18,8 @@ import java.util.UUID
 class CategoryManager(
     private val categoryDao: TransactionCategoryDao,
     private val expenseDao: ExpenseDao,
-    private val database: AppDatabase? = null
+    private val database: AppDatabase? = null,
+    var ruleDao: UserCategoryRuleDao? = null
 ) {
 
     private suspend inline fun <T> runTransaction(crossinline block: suspend () -> T): T {
@@ -162,6 +163,7 @@ class CategoryManager(
             updatedAt = System.currentTimeMillis()
         )
         categoryDao.update(updated)
+        ruleDao?.disableRulesForCategory(id)
         return Result.success(updated)
     }
 
@@ -187,6 +189,7 @@ class CategoryManager(
      * Invariants:
      * - Disallows dangling category IDs: referencing transactions are either
      *   reassigned to [reassignToCategoryId] or unlinked to Uncategorized.
+     * - Disallows dangling rules: referencing rules are either reassigned or disabled.
      * - Fully transactional execution.
      */
     suspend fun deleteCategory(
@@ -213,8 +216,12 @@ class CategoryManager(
                 newCategoryId = targetCategory.id,
                 newCategoryName = targetCategory.name
             )
+            ruleDao?.getRulesForCategory(id)?.forEach { rule ->
+                ruleDao?.update(rule.copy(categoryId = targetCategory.id, updatedAt = System.currentTimeMillis()))
+            }
         } else {
             unlinkedOrReassignedCount = expenseDao.clearCategoryId(id)
+            ruleDao?.disableRulesForCategory(id)
         }
 
         categoryDao.deleteById(id)
@@ -226,6 +233,7 @@ class CategoryManager(
      *
      * Invariants:
      * - Reassigns all transactions referencing source -> target.
+     * - Reassigns all user rules referencing source -> target.
      * - If source is custom: deletes source category.
      * - If source is system: archives source category (system categories are never deleted).
      * - Fully transactional execution.
@@ -244,6 +252,10 @@ class CategoryManager(
             newCategoryId = target.id,
             newCategoryName = target.name
         )
+
+        ruleDao?.getRulesForCategory(source.id)?.forEach { rule ->
+            ruleDao?.update(rule.copy(categoryId = target.id, updatedAt = System.currentTimeMillis()))
+        }
 
         if (source.isSystem) {
             categoryDao.update(source.copy(isArchived = true, updatedAt = System.currentTimeMillis()))
@@ -266,16 +278,16 @@ class CategoryManager(
             ?: return@runTransaction Result.failure(IllegalArgumentException("Expense with id $expenseId not found"))
 
         if (categoryId.isNullOrBlank()) {
-            expenseDao.updateCategoryMetadata(expenseId, null, null)
-            return@runTransaction Result.success(expense.copy(categoryId = null, tag = null))
+            expenseDao.updateCategoryMetadata(expenseId, null, null, CategorySource.NONE)
+            return@runTransaction Result.success(expense.copy(categoryId = null, tag = null, categorySource = CategorySource.NONE))
         }
 
         val category = categoryDao.getById(categoryId)
             ?: BuiltInCategories.findLegacyMapping(categoryId)
             ?: return@runTransaction Result.failure(IllegalArgumentException("Category $categoryId not found"))
 
-        expenseDao.updateCategoryMetadata(expenseId, category.id, category.name)
-        Result.success(expense.copy(categoryId = category.id, tag = category.name))
+        expenseDao.updateCategoryMetadata(expenseId, category.id, category.name, CategorySource.USER_ASSIGNED)
+        Result.success(expense.copy(categoryId = category.id, tag = category.name, categorySource = CategorySource.USER_ASSIGNED))
     }
 
     /**
@@ -285,7 +297,7 @@ class CategoryManager(
         if (expenseIds.isEmpty()) return@runTransaction Result.success(0)
 
         if (categoryId.isNullOrBlank()) {
-            val count = expenseDao.bulkUpdateCategoryId(expenseIds, null, null)
+            val count = expenseDao.bulkUpdateCategoryId(expenseIds, null, null, CategorySource.NONE)
             return@runTransaction Result.success(count)
         }
 
@@ -293,7 +305,7 @@ class CategoryManager(
             ?: BuiltInCategories.findLegacyMapping(categoryId)
             ?: return@runTransaction Result.failure(IllegalArgumentException("Category $categoryId not found"))
 
-        val count = expenseDao.bulkUpdateCategoryId(expenseIds, category.id, category.name)
+        val count = expenseDao.bulkUpdateCategoryId(expenseIds, category.id, category.name, CategorySource.USER_ASSIGNED)
         Result.success(count)
     }
 

@@ -207,10 +207,10 @@ open class FakeExpenseDao : ExpenseDao {
         }
     }
 
-    override suspend fun updateCategoryMetadata(id: Int, categoryId: String?, categoryName: String?): Int = synchronized(lock) {
+    override suspend fun updateCategoryMetadata(id: Int, categoryId: String?, categoryName: String?, categorySource: String): Int = synchronized(lock) {
         val idx = expenses.indexOfFirst { it.id == id }
         if (idx >= 0) {
-            expenses[idx] = expenses[idx].copy(categoryId = categoryId, tag = categoryName)
+            expenses[idx] = expenses[idx].copy(categoryId = categoryId, tag = categoryName, categorySource = categorySource)
             notifyFlow()
             1
         } else {
@@ -218,11 +218,22 @@ open class FakeExpenseDao : ExpenseDao {
         }
     }
 
-    override suspend fun reassignCategoryId(oldCategoryId: String, newCategoryId: String, newCategoryName: String): Int = synchronized(lock) {
+    override suspend fun updateCategoryMetadataIfNotUserAssigned(id: Int, categoryId: String?, categoryName: String?, categorySource: String): Int = synchronized(lock) {
+        val idx = expenses.indexOfFirst { it.id == id }
+        if (idx >= 0 && expenses[idx].categorySource != com.example.arctracker.service.CategorySource.USER_ASSIGNED) {
+            expenses[idx] = expenses[idx].copy(categoryId = categoryId, tag = categoryName, categorySource = categorySource)
+            notifyFlow()
+            1
+        } else {
+            0
+        }
+    }
+
+    override suspend fun reassignCategoryId(oldCategoryId: String, newCategoryId: String, newCategoryName: String, categorySource: String): Int = synchronized(lock) {
         var count = 0
         for (i in 0 until expenses.size) {
             if (expenses[i].categoryId == oldCategoryId) {
-                expenses[i] = expenses[i].copy(categoryId = newCategoryId, tag = newCategoryName)
+                expenses[i] = expenses[i].copy(categoryId = newCategoryId, tag = newCategoryName, categorySource = categorySource)
                 count++
             }
         }
@@ -234,7 +245,7 @@ open class FakeExpenseDao : ExpenseDao {
         var count = 0
         for (i in 0 until expenses.size) {
             if (expenses[i].categoryId == categoryId) {
-                expenses[i] = expenses[i].copy(categoryId = null, tag = null)
+                expenses[i] = expenses[i].copy(categoryId = null, tag = null, categorySource = "NONE")
                 count++
             }
         }
@@ -242,12 +253,12 @@ open class FakeExpenseDao : ExpenseDao {
         count
     }
 
-    override suspend fun bulkUpdateCategoryId(expenseIds: List<Int>, categoryId: String?, categoryName: String?): Int = synchronized(lock) {
+    override suspend fun bulkUpdateCategoryId(expenseIds: List<Int>, categoryId: String?, categoryName: String?, categorySource: String): Int = synchronized(lock) {
         val idSet = expenseIds.toSet()
         var count = 0
         for (i in 0 until expenses.size) {
             if (expenses[i].id in idSet) {
-                expenses[i] = expenses[i].copy(categoryId = categoryId, tag = categoryName)
+                expenses[i] = expenses[i].copy(categoryId = categoryId, tag = categoryName, categorySource = categorySource)
                 count++
             }
         }

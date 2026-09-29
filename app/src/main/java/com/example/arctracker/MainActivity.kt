@@ -296,6 +296,10 @@ fun ExpenseScreen() {
         mutableStateOf<String?>(null)
     }
 
+    var applyingRuleId by rememberSaveable {
+        mutableStateOf<String?>(null)
+    }
+
     var isSearching by remember {
         mutableStateOf(false)
     }
@@ -670,6 +674,29 @@ fun ExpenseScreen() {
                 )
             } else if (currentRoute == "CategoryManagement") {
                 com.example.arctracker.ui.CategoryManagementScreen(
+                    onNavigateBack = { navigateBack() },
+                    onNavigateToRules = { navigateTo("CategoryRules") },
+                    onNavigateToAliases = { navigateTo("MerchantAliases") },
+                    onNavigateToApplyRules = {
+                        applyingRuleId = null
+                        navigateTo("ApplyCategoryRules")
+                    }
+                )
+            } else if (currentRoute == "CategoryRules") {
+                com.example.arctracker.ui.CategoryRulesScreen(
+                    onNavigateBack = { navigateBack() },
+                    onNavigateToApplyRules = { ruleId ->
+                        applyingRuleId = ruleId
+                        navigateTo("ApplyCategoryRules")
+                    }
+                )
+            } else if (currentRoute == "MerchantAliases") {
+                com.example.arctracker.ui.MerchantAliasesScreen(
+                    onNavigateBack = { navigateBack() }
+                )
+            } else if (currentRoute == "ApplyCategoryRules") {
+                com.example.arctracker.ui.HistoricalRuleApplicationScreen(
+                    initialRuleId = applyingRuleId,
                     onNavigateBack = { navigateBack() }
                 )
             } else if (currentRoute == "Pending") {
