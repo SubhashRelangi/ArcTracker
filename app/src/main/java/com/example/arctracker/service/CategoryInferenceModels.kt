@@ -44,7 +44,10 @@ enum class EvidenceType {
     KEYWORD_CONTAINED,
     NEGATIVE_KEYWORD_EXCLUSION,
     CONFLICT_DETECTED,
-    USER_OVERRIDE_PROTECTION
+    USER_OVERRIDE_PROTECTION,
+    USER_RULE,
+    MERCHANT_ALIAS,
+    BUILT_IN_RULE
 }
 
 /**
@@ -68,7 +71,9 @@ data class CategoryInferenceInput(
     val amount: Double? = null,
     val existingCategoryId: String? = null,
     val existingCategorySource: String? = null,
-    val availableCategoryIds: Set<String>? = null // Valid active category IDs from DB
+    val availableCategoryIds: Set<String>? = null, // Valid active category IDs from DB
+    val userRules: List<com.example.arctracker.data.UserCategoryRule>? = null,
+    val merchantAliases: List<com.example.arctracker.data.MerchantAlias>? = null
 )
 
 /**
@@ -82,7 +87,10 @@ data class CategoryInferenceResult(
     val confidenceScore: Double,
     val evidence: List<CategoryInferenceEvidence> = emptyList(),
     val matchedRules: List<String> = emptyList(),
-    val reason: String
+    val reason: String,
+    val resolvedMerchant: String? = null,
+    val matchedUserRuleId: String? = null,
+    val aliasEvidence: String? = null
 ) {
     val isAutoAssignable: Boolean
         get() = status == CategoryInferenceStatus.HIGH_CONFIDENCE && !suggestedCategoryId.isNullOrBlank()

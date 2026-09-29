@@ -12,6 +12,10 @@ enum class CategoryMatchingType {
 }
 
 object RulePriority {
+    const val USER_EXACT = 1200
+    const val USER_TOKEN = 1150
+    const val USER_CONTAINS = 1100
+    const val USER_TEXT_CONTAINS = 1050
     const val EXPLICIT_TRANSACTION_TYPE = 1000
     const val EXPLICIT_SEMANTIC_KEYWORD = 900
     const val EXACT_MERCHANT = 800

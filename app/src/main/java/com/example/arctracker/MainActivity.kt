@@ -670,6 +670,16 @@ fun ExpenseScreen() {
                 )
             } else if (currentRoute == "CategoryManagement") {
                 com.example.arctracker.ui.CategoryManagementScreen(
+                    onNavigateBack = { navigateBack() },
+                    onNavigateToRules = { navigateTo("CategoryRules") },
+                    onNavigateToAliases = { navigateTo("MerchantAliases") }
+                )
+            } else if (currentRoute == "CategoryRules") {
+                com.example.arctracker.ui.CategoryRulesScreen(
+                    onNavigateBack = { navigateBack() }
+                )
+            } else if (currentRoute == "MerchantAliases") {
+                com.example.arctracker.ui.MerchantAliasesScreen(
                     onNavigateBack = { navigateBack() }
                 )
             } else if (currentRoute == "Pending") {

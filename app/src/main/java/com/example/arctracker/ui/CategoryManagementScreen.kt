@@ -36,6 +36,8 @@ import kotlinx.coroutines.withContext
 @Composable
 fun CategoryManagementScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToRules: () -> Unit = {},
+    onNavigateToAliases: () -> Unit = {},
     manager: CategoryManager? = null,
     expenseDao: ExpenseDao? = null
 ) {
@@ -113,6 +115,20 @@ fun CategoryManagementScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToRules) {
+                        Icon(
+                            imageVector = Icons.Filled.Rule,
+                            contentDescription = "Category Rules",
+                            tint = purpleColor
+                        )
+                    }
+                    IconButton(onClick = onNavigateToAliases) {
+                        Icon(
+                            imageVector = Icons.Filled.Storefront,
+                            contentDescription = "Merchant Aliases",
+                            tint = purpleColor
+                        )
+                    }
                     IconButton(onClick = { showAddDialog = true }) {
                         Icon(
                             imageVector = Icons.Filled.Add,

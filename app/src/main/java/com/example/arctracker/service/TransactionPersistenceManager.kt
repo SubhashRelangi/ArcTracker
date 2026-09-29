@@ -52,6 +52,10 @@ object TransactionPersistenceManager {
     // Milestone 4: Optional account matcher for live notification account enrichment
     var matcher: KnownFinancialAccountMatcher? = null
 
+    // Milestone 11: Optional rule and alias managers for user-defined categorization
+    var ruleManager: CategoryRuleManager? = null
+    var aliasManager: MerchantAliasManager? = null
+
     /**
      * Complete pipeline entry point for a captured notification using ExpenseDao.
      * Supports one notification containing 0, 1, or N independent transaction candidates.
@@ -596,7 +600,9 @@ object TransactionPersistenceManager {
         isPending: Boolean,
         extraNote: String? = null,
         relationshipType: String? = null,
-        relationshipId: String? = null
+        relationshipId: String? = null,
+        userRules: List<com.example.arctracker.data.UserCategoryRule>? = null,
+        merchantAliases: List<com.example.arctracker.data.MerchantAlias>? = null
     ): Expense {
         val amount = candidate.amount
             ?: throw IllegalArgumentException("Candidate amount cannot be null when mapping to Expense")
@@ -617,7 +623,14 @@ object TransactionPersistenceManager {
         }
         val type = if (candidate.direction == TransactionDirection.CREDIT) "Credit" else "Debit"
 
-        // Milestone 10: Automatic Category Inference
+        // Milestone 10 & 11: Category Inference with User Rules & Aliases
+        val effectiveRules = userRules ?: kotlinx.coroutines.runBlocking {
+            try { ruleManager?.getActiveRules() } catch (e: Exception) { null }
+        }
+        val effectiveAliases = merchantAliases ?: kotlinx.coroutines.runBlocking {
+            try { aliasManager?.getActiveAliases() } catch (e: Exception) { null }
+        }
+
         val inferenceResult = try {
             CategoryInferenceEngine().inferCategory(
                 CategoryInferenceInput(
@@ -625,7 +638,9 @@ object TransactionPersistenceManager {
                     counterparty = candidate.counterparty,
                     rawText = candidate.rawContent,
                     transactionType = type,
-                    amount = amount
+                    amount = amount,
+                    userRules = effectiveRules,
+                    merchantAliases = effectiveAliases
                 )
             )
         } catch (e: Exception) {

@@ -18,7 +18,8 @@ import java.util.UUID
 class CategoryManager(
     private val categoryDao: TransactionCategoryDao,
     private val expenseDao: ExpenseDao,
-    private val database: AppDatabase? = null
+    private val database: AppDatabase? = null,
+    var ruleDao: UserCategoryRuleDao? = null
 ) {
 
     private suspend inline fun <T> runTransaction(crossinline block: suspend () -> T): T {
@@ -162,6 +163,7 @@ class CategoryManager(
             updatedAt = System.currentTimeMillis()
         )
         categoryDao.update(updated)
+        ruleDao?.disableRulesForCategory(id)
         return Result.success(updated)
     }
 
@@ -187,6 +189,7 @@ class CategoryManager(
      * Invariants:
      * - Disallows dangling category IDs: referencing transactions are either
      *   reassigned to [reassignToCategoryId] or unlinked to Uncategorized.
+     * - Disallows dangling rules: referencing rules are either reassigned or disabled.
      * - Fully transactional execution.
      */
     suspend fun deleteCategory(
@@ -213,8 +216,12 @@ class CategoryManager(
                 newCategoryId = targetCategory.id,
                 newCategoryName = targetCategory.name
             )
+            ruleDao?.getRulesForCategory(id)?.forEach { rule ->
+                ruleDao?.update(rule.copy(categoryId = targetCategory.id, updatedAt = System.currentTimeMillis()))
+            }
         } else {
             unlinkedOrReassignedCount = expenseDao.clearCategoryId(id)
+            ruleDao?.disableRulesForCategory(id)
         }
 
         categoryDao.deleteById(id)
@@ -226,6 +233,7 @@ class CategoryManager(
      *
      * Invariants:
      * - Reassigns all transactions referencing source -> target.
+     * - Reassigns all user rules referencing source -> target.
      * - If source is custom: deletes source category.
      * - If source is system: archives source category (system categories are never deleted).
      * - Fully transactional execution.
@@ -244,6 +252,10 @@ class CategoryManager(
             newCategoryId = target.id,
             newCategoryName = target.name
         )
+
+        ruleDao?.getRulesForCategory(source.id)?.forEach { rule ->
+            ruleDao?.update(rule.copy(categoryId = target.id, updatedAt = System.currentTimeMillis()))
+        }
 
         if (source.isSystem) {
             categoryDao.update(source.copy(isArchived = true, updatedAt = System.currentTimeMillis()))
