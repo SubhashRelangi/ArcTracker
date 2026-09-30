@@ -57,15 +57,59 @@ object TransactionPersistenceManager {
     var aliasManager: MerchantAliasManager? = null
 
     /**
+     * Initializes managers safely from [AppDatabase] if not already set.
+     */
+    fun ensureInitialized(database: AppDatabase) {
+        if (matcher == null) {
+            val accountRepo = com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository(database.knownFinancialAccountDao())
+            matcher = KnownFinancialAccountMatcher(accountRepo)
+        }
+        if (ruleManager == null) {
+            ruleManager = CategoryRuleManager(database.userCategoryRuleDao(), database.transactionCategoryDao())
+        }
+        if (aliasManager == null) {
+            aliasManager = MerchantAliasManager(database.merchantAliasDao())
+        }
+    }
+
+    /**
+     * Resolves active user category rules safely without blocking.
+     */
+    suspend fun resolveActiveRules(userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null): List<com.subhashrelangi.arctracker.data.UserCategoryRule>? {
+        if (userRules != null) return userRules
+        return try {
+            ruleManager?.getActiveRules()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to resolve active category rules", e)
+            null
+        }
+    }
+
+    /**
+     * Resolves active merchant aliases safely without blocking.
+     */
+    suspend fun resolveActiveAliases(merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null): List<com.subhashrelangi.arctracker.data.MerchantAlias>? {
+        if (merchantAliases != null) return merchantAliases
+        return try {
+            aliasManager?.getActiveAliases()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to resolve active merchant aliases", e)
+            null
+        }
+    }
+
+    /**
      * Complete pipeline entry point for a captured notification using ExpenseDao.
      * Supports one notification containing 0, 1, or N independent transaction candidates.
      */
     suspend fun processCapturedNotification(
         captured: CapturedNotificationInfo,
         dao: ExpenseDao,
-        accountMatcher: KnownFinancialAccountMatcher? = matcher
+        accountMatcher: KnownFinancialAccountMatcher? = matcher,
+        userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null,
+        merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null
     ): ExpensePersistenceResult {
-        val results = processCapturedNotificationAll(captured, dao, accountMatcher)
+        val results = processCapturedNotificationAll(captured, dao, accountMatcher, userRules, merchantAliases)
         return results.firstOrNull { it is ExpensePersistenceResult.Inserted || it is ExpensePersistenceResult.ReviewPending || it is ExpensePersistenceResult.Updated || it is ExpensePersistenceResult.Enriched }
             ?: results.firstOrNull()
             ?: ExpensePersistenceResult.IgnoredNonFinancial("No transactions processed")
@@ -77,7 +121,9 @@ object TransactionPersistenceManager {
     suspend fun processCapturedNotificationAll(
         captured: CapturedNotificationInfo,
         dao: ExpenseDao,
-        accountMatcher: KnownFinancialAccountMatcher? = matcher
+        accountMatcher: KnownFinancialAccountMatcher? = matcher,
+        userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null,
+        merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null
     ): List<ExpensePersistenceResult> {
         return try {
             // Step 3: Normalization
@@ -125,6 +171,10 @@ object TransactionPersistenceManager {
                 return listOf(res)
             }
 
+            val effectiveMatcher = accountMatcher ?: matcher
+            val activeRules = resolveActiveRules(userRules)
+            val activeAliases = resolveActiveAliases(merchantAliases)
+
             val results = mutableListOf<ExpensePersistenceResult>()
             val claimedRecordIds = mutableSetOf<String>()
             for (candidate in candidates) {
@@ -149,7 +199,6 @@ object TransactionPersistenceManager {
                 }
 
                 // Step 6.5: Known Financial Account Matching & Enrichment (Milestone 4)
-                val effectiveMatcher = accountMatcher ?: matcher
                 val matchResult = effectiveMatcher?.match(candidate) ?: KnownFinancialAccountMatchResult.NoAccountData
                 val enrichedCandidate = if (matchResult is KnownFinancialAccountMatchResult.Matched) {
                     candidate.copy(
@@ -163,7 +212,13 @@ object TransactionPersistenceManager {
                 }
                 val enrichedValidated = validated.copy(candidate = enrichedCandidate)
 
-                val res = processValidatedCandidate(enrichedValidated, dao, claimedRecordIds)
+                val res = processValidatedCandidate(
+                    validated = enrichedValidated,
+                    dao = dao,
+                    claimedRecordIds = claimedRecordIds,
+                    userRules = activeRules,
+                    merchantAliases = activeAliases
+                )
                 results.add(res)
             }
 
@@ -184,10 +239,7 @@ object TransactionPersistenceManager {
         captured: CapturedNotificationInfo,
         database: AppDatabase = AppDatabase.getDatabase(context)
     ): ExpensePersistenceResult {
-        if (matcher == null) {
-            val accountRepo = com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository(database.knownFinancialAccountDao())
-            matcher = KnownFinancialAccountMatcher(accountRepo)
-        }
+        ensureInitialized(database)
         return processCapturedNotification(captured, database.expenseDao(), matcher)
     }
 
@@ -196,10 +248,7 @@ object TransactionPersistenceManager {
         captured: CapturedNotificationInfo,
         database: AppDatabase = AppDatabase.getDatabase(context)
     ): List<ExpensePersistenceResult> {
-        if (matcher == null) {
-            val accountRepo = com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository(database.knownFinancialAccountDao())
-            matcher = KnownFinancialAccountMatcher(accountRepo)
-        }
+        ensureInitialized(database)
         return processCapturedNotificationAll(captured, database.expenseDao(), matcher)
     }
 
@@ -220,6 +269,7 @@ object TransactionPersistenceManager {
         event: TransactionSourceEvent,
         database: AppDatabase = AppDatabase.getDatabase(context)
     ): List<ExpensePersistenceResult> {
+        ensureInitialized(database)
         return processSourceEvent(event, database.expenseDao())
     }
 
@@ -259,6 +309,7 @@ object TransactionPersistenceManager {
         timestamp: Long,
         database: AppDatabase = AppDatabase.getDatabase(context)
     ): ExpensePersistenceResult {
+        ensureInitialized(database)
         return processSms(smsId, sender, body, timestamp, database.expenseDao())
     }
 
@@ -268,7 +319,9 @@ object TransactionPersistenceManager {
     suspend fun processValidatedCandidate(
         validated: ValidatedTransactionCandidate,
         dao: ExpenseDao,
-        claimedRecordIds: MutableSet<String>? = null
+        claimedRecordIds: MutableSet<String>? = null,
+        userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null,
+        merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null
     ): ExpensePersistenceResult {
         if (validated.isRejected) {
             val reason = validated.rejectionReasons.joinToString("; ").ifBlank { "Validation rejected" }
@@ -298,8 +351,11 @@ object TransactionPersistenceManager {
                 claimedRecordIds?.add(dedupResult.matchedRecordId)
             }
 
+            val effectiveRules = resolveActiveRules(userRules)
+            val effectiveAliases = resolveActiveAliases(merchantAliases)
+
             // Step 8: Room Database Persistence based on deduplication decision
-            val result = processDedupResult(dedupResult, dao, targetedExpenses)
+            val result = processDedupResult(dedupResult, dao, targetedExpenses, effectiveRules, effectiveAliases)
             persistenceListener?.invoke(result)
             result
         } catch (e: Exception) {
@@ -369,9 +425,12 @@ object TransactionPersistenceManager {
     suspend fun processDedupResult(
         result: TransactionDeduplicationResult,
         database: AppDatabase,
-        existingExpenses: List<Expense>? = null
+        existingExpenses: List<Expense>? = null,
+        userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null,
+        merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null
     ): ExpensePersistenceResult {
-        return processDedupResult(result, database.expenseDao(), existingExpenses)
+        ensureInitialized(database)
+        return processDedupResult(result, database.expenseDao(), existingExpenses, userRules, merchantAliases)
     }
 
     /**
@@ -381,7 +440,9 @@ object TransactionPersistenceManager {
     suspend fun processDedupResult(
         result: TransactionDeduplicationResult,
         dao: ExpenseDao,
-        existingExpenses: List<Expense>? = null
+        existingExpenses: List<Expense>? = null,
+        userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null,
+        merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null
     ): ExpensePersistenceResult = pipelineMutex.withLock {
         try {
             val key = result.candidate.candidate.sourceNotificationKey
@@ -408,7 +469,7 @@ object TransactionPersistenceManager {
                         ?: (result.matchedRecord?.let { rec ->
                             existingExpenses?.find { it.id.toString() == rec.id || it.notificationKey == rec.id }
                         })
-                        ?: mapToExpense(candidate, false)
+                        ?: mapToExpense(candidate, false, userRules = userRules, merchantAliases = merchantAliases)
 
                     val resolvedExisting = if (existing.id > 0 && existing.accountId == null && candidateAccountId != null) {
                         val newSuffix = existing.accountSuffix ?: candidateAccountSuffix
@@ -438,7 +499,7 @@ object TransactionPersistenceManager {
 
                     if (existing == null) {
                         // Fallback: insert as new if previous record not located
-                        insertNewCandidate(candidate, result, dao)
+                        insertNewCandidate(candidate, result, dao, userRules, merchantAliases)
                     } else if (existing.source == "MANUAL") {
                         // Protect user's manual expense: never overwrite manual expense
                         Log.i(TAG, "Protecting manual expense id=${existing.id}; skipping overwrite by notification")
@@ -487,7 +548,7 @@ object TransactionPersistenceManager {
                         })
 
                     if (existing == null) {
-                        insertNewCandidate(candidate, result, dao)
+                        insertNewCandidate(candidate, result, dao, userRules, merchantAliases)
                     } else if (existing.source == "MANUAL") {
                         // Protect user's manual expense: never overwrite or modify manual expense fields
                         Log.i(TAG, "Protecting manual expense id=${existing.id}; preserving all user manual fields")
@@ -528,7 +589,11 @@ object TransactionPersistenceManager {
                     val reviewExpense = mapToExpense(
                         candidate = candidate,
                         isPending = true,
-                        extraNote = "Needs Review: ${result.reason}"
+                        extraNote = "Needs Review: ${result.reason}",
+                        relationshipType = result.relationshipType,
+                        relationshipId = result.relationshipId,
+                        userRules = userRules,
+                        merchantAliases = merchantAliases
                     )
                     val newId = dao.insert(reviewExpense)
                     val saved = reviewExpense.copy(id = newId.toInt())
@@ -543,7 +608,7 @@ object TransactionPersistenceManager {
                         return@withLock ExpensePersistenceResult.SkippedDuplicate(existingByKey, "Already recorded with key $key", matchResult = candidate.accountMatchResult)
                     }
 
-                    insertNewCandidate(candidate, result, dao)
+                    insertNewCandidate(candidate, result, dao, userRules, merchantAliases)
                 }
             }
         } catch (e: Exception) {
@@ -555,7 +620,9 @@ object TransactionPersistenceManager {
     private suspend fun insertNewCandidate(
         candidate: StructuredTransactionCandidate,
         result: TransactionDeduplicationResult,
-        dao: ExpenseDao
+        dao: ExpenseDao,
+        userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null,
+        merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null
     ): ExpensePersistenceResult {
         val amount = candidate.amount
         if (amount == null || amount <= 0.0 || amount.isNaN() || amount.isInfinite()) {
@@ -569,7 +636,9 @@ object TransactionPersistenceManager {
             candidate = candidate,
             isPending = isPending,
             relationshipType = result.relationshipType,
-            relationshipId = result.relationshipId
+            relationshipId = result.relationshipId,
+            userRules = userRules,
+            merchantAliases = merchantAliases
         )
         val newId = dao.insert(expense)
         val saved = expense.copy(id = newId.toInt())
@@ -623,13 +692,9 @@ object TransactionPersistenceManager {
         }
         val type = if (candidate.direction == TransactionDirection.CREDIT) "Credit" else "Debit"
 
-        // Milestone 10 & 11: Category Inference with User Rules & Aliases
-        val effectiveRules = userRules ?: kotlinx.coroutines.runBlocking {
-            try { ruleManager?.getActiveRules() } catch (e: Exception) { null }
-        }
-        val effectiveAliases = merchantAliases ?: kotlinx.coroutines.runBlocking {
-            try { aliasManager?.getActiveAliases() } catch (e: Exception) { null }
-        }
+        // Milestone 10 & 11: Category Inference with User Rules & Aliases (pure operation, no runBlocking)
+        val effectiveRules = userRules
+        val effectiveAliases = merchantAliases
 
         val inferenceResult = try {
             CategoryInferenceEngine().inferCategory(
@@ -647,6 +712,7 @@ object TransactionPersistenceManager {
             Log.e(TAG, "Category inference failure safely handled", e)
             CategoryInferenceResult.noMatch("Inference failure safely handled: ${e.message}")
         }
+
 
         val categoryId = if (inferenceResult.isAutoAssignable) inferenceResult.suggestedCategoryId else null
         val tag = if (inferenceResult.isAutoAssignable) inferenceResult.suggestedCategoryName else inferTag(candidate)

@@ -19,7 +19,8 @@ class CategoryManager(
     private val categoryDao: TransactionCategoryDao,
     private val expenseDao: ExpenseDao,
     private val database: AppDatabase? = null,
-    var ruleDao: UserCategoryRuleDao? = null
+    var ruleDao: UserCategoryRuleDao? = null,
+    var budgetDao: BudgetDao? = null
 ) {
 
     private suspend inline fun <T> runTransaction(crossinline block: suspend () -> T): T {
@@ -164,6 +165,8 @@ class CategoryManager(
         )
         categoryDao.update(updated)
         ruleDao?.disableRulesForCategory(id)
+        val effectiveBudgetDao = budgetDao ?: database?.budgetDao()
+        effectiveBudgetDao?.disableBudgetsForCategory(id)
         return Result.success(updated)
     }
 
@@ -225,6 +228,8 @@ class CategoryManager(
         }
 
         categoryDao.deleteById(id)
+        val effectiveBudgetDao = budgetDao ?: database?.budgetDao()
+        effectiveBudgetDao?.disableBudgetsForCategory(id)
         Result.success(unlinkedOrReassignedCount)
     }
 
@@ -262,6 +267,9 @@ class CategoryManager(
         } else {
             categoryDao.deleteById(source.id)
         }
+
+        val effectiveBudgetDao = budgetDao ?: database?.budgetDao()
+        effectiveBudgetDao?.disableBudgetsForCategory(source.id)
 
         Result.success(reassignedCount)
     }

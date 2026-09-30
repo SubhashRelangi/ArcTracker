@@ -94,6 +94,21 @@ open class FakeExpenseDao : ExpenseDao {
         expenses.filter { it.dateMillis in startMillis..endMillis }.sortedByDescending { it.dateMillis }
     }
 
+    override fun getExpensesBetweenFlow(startMillis: Long, endMillis: Long): Flow<List<Expense>> {
+        return expensesFlow.map { list ->
+            list.filter { it.dateMillis in startMillis..endMillis }.sortedByDescending { it.dateMillis }
+        }
+    }
+
+    override suspend fun getTotalAmountBetween(startMillis: Long, endMillis: Long, type: String): Double = synchronized(lock) {
+        expenses.filter {
+            it.dateMillis in startMillis..endMillis &&
+                it.type.equals(type, ignoreCase = true) &&
+                !it.isPending &&
+                (it.relationshipType == null || it.relationshipType != com.subhashrelangi.arctracker.data.TransactionRelationshipType.SELF_TRANSFER)
+        }.sumOf { it.amount }
+    }
+
     override suspend fun getExpensesByRelationshipId(relationshipId: String): List<Expense> = synchronized(lock) {
         if (relationshipId.isBlank()) emptyList() else expenses.filter { it.relationshipId == relationshipId }
     }

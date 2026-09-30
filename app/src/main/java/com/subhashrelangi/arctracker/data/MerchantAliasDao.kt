@@ -38,4 +38,10 @@ interface MerchantAliasDao {
 
     @Query("SELECT COUNT(*) FROM merchant_aliases")
     suspend fun count(): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(aliases: List<MerchantAlias>): List<Long>
+
+    @Query("DELETE FROM merchant_aliases")
+    suspend fun deleteAll(): Int
 }

@@ -54,6 +54,9 @@ interface KnownFinancialAccountDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     fun insert(account: KnownFinancialAccount): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertAll(accounts: List<KnownFinancialAccount>): List<Long>
+
     @Update
     fun update(account: KnownFinancialAccount): Int
 

@@ -17,9 +17,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         KnownFinancialAccount::class,
         TransactionCategory::class,
         UserCategoryRule::class,
-        MerchantAlias::class
+        MerchantAlias::class,
+        Budget::class,
+        BudgetAlertState::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(KnownFinancialAccountConverters::class)
@@ -30,6 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionCategoryDao(): TransactionCategoryDao
     abstract fun userCategoryRuleDao(): UserCategoryRuleDao
     abstract fun merchantAliasDao(): MerchantAliasDao
+    abstract fun budgetDao(): BudgetDao
 
     companion object {
         @Volatile
@@ -185,6 +188,49 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Create budgets table and indices
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `budgets` (
+                        `id` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `amountLimit` REAL NOT NULL,
+                        `categoryId` TEXT DEFAULT NULL,
+                        `periodType` TEXT NOT NULL,
+                        `periodAnchor` INTEGER NOT NULL DEFAULT 1,
+                        `warningThreshold` REAL NOT NULL DEFAULT 80.0,
+                        `exceededThreshold` REAL NOT NULL DEFAULT 100.0,
+                        `isEnabled` INTEGER NOT NULL DEFAULT 1,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_budgets_categoryId` ON `budgets` (`categoryId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_budgets_isEnabled` ON `budgets` (`isEnabled`)")
+
+                // 2. Create budget_alert_states table and indices
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `budget_alert_states` (
+                        `id` TEXT NOT NULL,
+                        `budgetId` TEXT NOT NULL,
+                        `periodStart` INTEGER NOT NULL,
+                        `warningSent` INTEGER NOT NULL DEFAULT 0,
+                        `exceededSent` INTEGER NOT NULL DEFAULT 0,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_budget_alert_states_budgetId` ON `budget_alert_states` (`budgetId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_budget_alert_states_periodStart` ON `budget_alert_states` (`periodStart`)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -192,7 +238,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "arctracker_database"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .build()
                 INSTANCE = instance
                 instance

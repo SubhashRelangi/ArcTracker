@@ -41,4 +41,10 @@ interface UserCategoryRuleDao {
 
     @Query("SELECT COUNT(*) FROM user_category_rules")
     suspend fun count(): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(rules: List<UserCategoryRule>): List<Long>
+
+    @Query("DELETE FROM user_category_rules")
+    suspend fun deleteAll(): Int
 }

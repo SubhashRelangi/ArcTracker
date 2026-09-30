@@ -452,4 +452,82 @@ class CategoryRuleAndAliasDeviceTest {
         assertEquals(BuiltInCategories.HEALTHCARE.id, reloaded?.categoryId)
         assertEquals(CategorySource.USER_ASSIGNED, reloaded?.categorySource)
     }
+
+    // ==================================================
+    // 9. Live Notification Persistence Applies User Rule
+    // ==================================================
+
+    @Test
+    fun testLiveNotificationPersistenceAppliesUserRule() = runBlocking {
+        // User creates rule: "Starbucks" -> "Food & Dining"
+        val ruleResult = ruleManager.createRule(
+            pattern = "Starbucks",
+            categoryId = BuiltInCategories.FOOD_AND_DINING.id,
+            matchType = UserRuleMatchType.MERCHANT_CONTAINS,
+            name = "Starbucks Rule"
+        )
+        assertTrue(ruleResult.isSuccess)
+
+        val captured = CapturedNotificationInfo(
+            packageName = "com.google.android.apps.nbu.paisa.user",
+            notificationKey = "device_live_rule_${System.currentTimeMillis()}",
+            postTime = System.currentTimeMillis(),
+            title = "Google Pay",
+            text = "Paid ₹350 to Starbucks Coffee"
+        )
+
+        val results = TransactionPersistenceManager.processCapturedNotificationAll(captured, expenseDao)
+        assertEquals(1, results.size)
+        assertTrue(results[0] is ExpensePersistenceResult.Inserted)
+
+        val expense = expenseDao.getExpenseByNotificationKey(captured.notificationKey)
+        assertNotNull(expense)
+        // 1. Raw merchant name is preserved (not rewritten)
+        assertEquals("Starbucks Coffee", expense?.merchant)
+        // 2. User rule category is applied
+        assertEquals(BuiltInCategories.FOOD_AND_DINING.id, expense?.categoryId)
+        // 3. Category source is INFERRED
+        assertEquals(CategorySource.INFERRED, expense?.categorySource)
+    }
+
+    // ==================================================
+    // 10. Live Notification Persistence Resolves Merchant Alias to User Rule
+    // ==================================================
+
+    @Test
+    fun testLiveNotificationPersistenceResolvesMerchantAliasToUserRule() = runBlocking {
+        // 1. Alias: "AMZN" -> "Amazon"
+        val aliasResult = aliasManager.createAlias(alias = "AMZN", canonicalMerchant = "Amazon")
+        assertTrue(aliasResult.isSuccess)
+
+        // 2. User rule: "Amazon" -> Shopping
+        val ruleResult = ruleManager.createRule(
+            pattern = "Amazon",
+            categoryId = BuiltInCategories.SHOPPING.id,
+            matchType = UserRuleMatchType.MERCHANT_EXACT,
+            name = "Amazon Rule"
+        )
+        assertTrue(ruleResult.isSuccess)
+
+        val captured = CapturedNotificationInfo(
+            packageName = "com.google.android.apps.nbu.paisa.user",
+            notificationKey = "device_live_alias_${System.currentTimeMillis()}",
+            postTime = System.currentTimeMillis(),
+            title = "Google Pay",
+            text = "Paid ₹1499 to AMZN"
+        )
+
+        val results = TransactionPersistenceManager.processCapturedNotificationAll(captured, expenseDao)
+        assertEquals(1, results.size)
+        assertTrue(results[0] is ExpensePersistenceResult.Inserted)
+
+        val expense = expenseDao.getExpenseByNotificationKey(captured.notificationKey)
+        assertNotNull(expense)
+        // 1. Raw merchant is preserved on the expense
+        assertEquals("AMZN", expense?.merchant)
+        // 2. Category resolved via alias -> rule -> Shopping
+        assertEquals(BuiltInCategories.SHOPPING.id, expense?.categoryId)
+        assertEquals(CategorySource.INFERRED, expense?.categorySource)
+    }
 }
+
