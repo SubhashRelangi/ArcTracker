@@ -61,6 +61,16 @@ class FakeKnownFinancialAccountDao : KnownFinancialAccountDao {
         return 1L
     }
 
+    override fun insertAll(accounts: List<KnownFinancialAccount>): List<Long> {
+        val result = mutableListOf<Long>()
+        for (acc in accounts) {
+            this.accounts[acc.id] = acc
+            result.add(1L)
+        }
+        notifyFlow()
+        return result
+    }
+
     override fun update(account: KnownFinancialAccount): Int {
         return if (accounts.containsKey(account.id)) {
             accounts[account.id] = account

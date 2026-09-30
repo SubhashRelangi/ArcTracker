@@ -53,4 +53,10 @@ interface TransactionCategoryDao {
 
     @Query("SELECT MAX(sortOrder) FROM transaction_categories")
     suspend fun getMaxSortOrder(): Int?
+
+    @Query("DELETE FROM transaction_categories WHERE isSystem = 0")
+    suspend fun deleteCustomCategories(): Int
+
+    @Query("DELETE FROM transaction_categories")
+    suspend fun deleteAll(): Int
 }

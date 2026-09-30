@@ -390,6 +390,14 @@ fun AccountsSection(onNavigate: (String) -> Unit = {}) {
             isLast = false,
             onClick = { onNavigate("Budgets") }
         )
+
+        SettingsRow(
+            icon = Icons.Filled.Backup,
+            title = "Export & Backup",
+            subtitle = "Export transactions, full backup & restore",
+            isLast = false,
+            onClick = { onNavigate("Backup") }
+        )
         
         SettingsRow(
             icon = Icons.Filled.Lock,

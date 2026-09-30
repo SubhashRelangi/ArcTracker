@@ -646,6 +646,16 @@ class FakeUserCategoryRuleDao : UserCategoryRuleDao {
     }
 
     override suspend fun count(): Int = rules.size
+
+    override suspend fun insertAll(rules: List<UserCategoryRule>): List<Long> {
+        return rules.map { insert(it) }
+    }
+
+    override suspend fun deleteAll(): Int {
+        val count = rules.size
+        rules.clear()
+        return count
+    }
 }
 
 class FakeMerchantAliasDao : MerchantAliasDao {
@@ -684,4 +694,14 @@ class FakeMerchantAliasDao : MerchantAliasDao {
         aliases.find { it.normalizedAlias == normalizedAlias }
 
     override suspend fun count(): Int = aliases.size
+
+    override suspend fun insertAll(aliases: List<MerchantAlias>): List<Long> {
+        return aliases.map { insert(it) }
+    }
+
+    override suspend fun deleteAll(): Int {
+        val count = aliases.size
+        aliases.clear()
+        return count
+    }
 }

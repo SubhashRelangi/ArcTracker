@@ -108,4 +108,19 @@ class FakeTransactionCategoryDao : TransactionCategoryDao {
     override suspend fun getMaxSortOrder(): Int? = synchronized(lock) {
         categories.maxOfOrNull { it.sortOrder }
     }
+
+    override suspend fun deleteCustomCategories(): Int = synchronized(lock) {
+        val initialSize = categories.size
+        categories.removeAll { !it.isSystem }
+        val removed = initialSize - categories.size
+        if (removed > 0) notifyFlow()
+        removed
+    }
+
+    override suspend fun deleteAll(): Int = synchronized(lock) {
+        val size = categories.size
+        categories.clear()
+        notifyFlow()
+        size
+    }
 }
