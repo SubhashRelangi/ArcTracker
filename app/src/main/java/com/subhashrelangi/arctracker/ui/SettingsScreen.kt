@@ -382,6 +382,14 @@ fun AccountsSection(onNavigate: (String) -> Unit = {}) {
             isLast = false,
             onClick = { onNavigate("Analytics") }
         )
+
+        SettingsRow(
+            icon = Icons.Filled.AccountBalanceWallet,
+            title = "Budgets & Limits",
+            subtitle = "Recurring spending limits & alert thresholds",
+            isLast = false,
+            onClick = { onNavigate("Budgets") }
+        )
         
         SettingsRow(
             icon = Icons.Filled.Lock,

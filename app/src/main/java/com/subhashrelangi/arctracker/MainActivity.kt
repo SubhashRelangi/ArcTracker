@@ -332,7 +332,8 @@ fun ExpenseScreen() {
                 currentRoute != "MerchantAliases" &&
                 currentRoute != "ApplyCategoryRules" &&
                 currentRoute != "Analytics" &&
-                currentRoute != "Insights"
+                currentRoute != "Insights" &&
+                currentRoute != "Budgets"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
@@ -451,7 +452,8 @@ fun ExpenseScreen() {
                 currentRoute != "CategoryRules" &&
                 currentRoute != "MerchantAliases" &&
                 currentRoute != "ApplyCategoryRules" &&
-                currentRoute != "Analytics"
+                currentRoute != "Analytics" &&
+                currentRoute != "Budgets"
             ) {
 
                 com.subhashrelangi.arctracker.ui.FloatingNavigationBar(
@@ -710,6 +712,10 @@ fun ExpenseScreen() {
                 )
             } else if (currentRoute == "Analytics" || currentRoute == "Insights") {
                 com.subhashrelangi.arctracker.ui.AnalyticsScreen(
+                    onNavigateBack = { navigateBack() }
+                )
+            } else if (currentRoute == "Budgets") {
+                com.subhashrelangi.arctracker.ui.BudgetsScreen(
                     onNavigateBack = { navigateBack() }
                 )
             } else if (currentRoute == "Pending") {
