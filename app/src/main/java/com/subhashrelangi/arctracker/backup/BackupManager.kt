@@ -125,6 +125,54 @@ class BackupManager(
     }
 
     /**
+     * Exports the complete application dataset protected by AES-256-GCM encryption with a user passphrase.
+     */
+    suspend fun exportEncryptedFullBackup(
+        outputStream: OutputStream,
+        passphrase: CharArray
+    ): Result<BackupMetadata> = withContext(Dispatchers.IO) {
+        try {
+            val buffer = ByteArrayOutputStream()
+            val exportResult = exportFullBackup(buffer)
+            if (exportResult.isFailure) return@withContext exportResult
+            val metadata = exportResult.getOrThrow()
+
+            val plaintextJson = buffer.toString("UTF-8")
+            val encryptedEnvelope = com.subhashrelangi.arctracker.security.BackupEncryptionManager.encrypt(plaintextJson, passphrase)
+
+            outputStream.write(encryptedEnvelope.toByteArray(java.nio.charset.StandardCharsets.UTF_8))
+            outputStream.flush()
+
+            Result.success(metadata)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Parses an input stream (which may be encrypted or unencrypted) into an [ArcTrackerBackupPayload].
+     */
+    suspend fun parsePayload(
+        rawContent: String,
+        passphrase: CharArray? = null
+    ): Result<ArcTrackerBackupPayload> = withContext(Dispatchers.IO) {
+        try {
+            val json = if (com.subhashrelangi.arctracker.security.BackupEncryptionManager.isEncryptedBackup(rawContent)) {
+                if (passphrase == null || passphrase.isEmpty()) {
+                    return@withContext Result.failure(IllegalArgumentException("Backup is encrypted. Passphrase is required."))
+                }
+                com.subhashrelangi.arctracker.security.BackupEncryptionManager.decrypt(rawContent, passphrase)
+            } else {
+                rawContent
+            }
+            val payload = BackupSerializer.fromJsonString(json)
+            Result.success(payload)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Parses an input stream and generates an [ImportPreview] without making any database changes.
      */
     suspend fun generateImportPreview(

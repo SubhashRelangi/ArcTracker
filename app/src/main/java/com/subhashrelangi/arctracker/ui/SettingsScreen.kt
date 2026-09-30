@@ -50,6 +50,9 @@ fun SettingsScreen(
     val settingsRepo = remember {
         repository ?: MonitoringSettingsRepository.getInstance(context)
     }
+    val privacyManager = remember {
+        com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(context)
+    }
 
     var hasNotifAccess by remember {
         mutableStateOf(NotificationPermissionHelper.isNotificationAccessGranted(context))
@@ -160,6 +163,8 @@ fun SettingsScreen(
             },
             onNavigate = onNavigate
         )
+        Spacer(modifier = Modifier.height(16.dp))
+        SecurityPrivacySection(privacyManager = privacyManager)
         Spacer(modifier = Modifier.height(16.dp))
         DeveloperOptionsSection(onNavigate = onNavigate)
         Spacer(modifier = Modifier.height(16.dp))
@@ -569,6 +574,54 @@ fun AboutSection() {
             subtitle = "If you love the app, please rate it",
             isLast = true,
             onClick = {}
+        )
+    }
+}
+
+@Composable
+fun SecurityPrivacySection(
+    privacyManager: com.subhashrelangi.arctracker.security.PrivacySettingsManager
+) {
+    val screenSecurity by privacyManager.screenSecurityFlow.collectAsState()
+    val accountMasking by privacyManager.accountMaskingFlow.collectAsState()
+
+    SettingsCard(title = "Security & Privacy") {
+        SettingsSwitchRow(
+            icon = Icons.Filled.Security,
+            title = "Screen Security",
+            subtitle = "Block screenshots & hide preview in recent apps",
+            checked = screenSecurity,
+            onCheckedChange = { enabled ->
+                privacyManager.setScreenSecurityEnabled(enabled)
+            },
+            isLast = false
+        )
+
+        SettingsSwitchRow(
+            icon = Icons.Filled.VisibilityOff,
+            title = "Mask Account Numbers",
+            subtitle = "Hide full account details and display safe suffixes",
+            checked = accountMasking,
+            onCheckedChange = { enabled ->
+                privacyManager.setAccountMaskingEnabled(enabled)
+            },
+            isLast = false
+        )
+
+        SettingsRow(
+            icon = Icons.Filled.Lock,
+            title = "100% Offline & Private",
+            subtitle = "Zero network access • Zero trackers • Local database only",
+            isLast = true,
+            onClick = null,
+            rightContent = {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = "Verified Local",
+                    tint = purpleColor,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         )
     }
 }

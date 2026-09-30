@@ -1,7 +1,8 @@
 package com.subhashrelangi.arctracker.ui
 
+import android.app.Activity
 import android.net.Uri
-import android.widget.Toast
+import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -10,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -22,13 +24,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.backup.*
 import com.subhashrelangi.arctracker.data.AppDatabase
+import com.subhashrelangi.arctracker.security.BackupEncryptionManager
+import com.subhashrelangi.arctracker.security.PrivacySettingsManager
+import com.subhashrelangi.arctracker.security.SensitiveDataSanitizer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayInputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -41,6 +49,7 @@ fun BackupScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val database = remember { AppDatabase.getDatabase(context) }
+    val privacyManager = remember { PrivacySettingsManager.getInstance(context) }
     val backupManager = remember {
         BackupManager(
             database = database,
@@ -53,6 +62,20 @@ fun BackupScreen(
         )
     }
 
+    // Apply FLAG_SECURE on sensitive screen
+    val activity = context as? Activity
+    DisposableEffect(Unit) {
+        activity?.window?.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
+        onDispose {
+            if (!privacyManager.isScreenSecurityEnabled()) {
+                activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
+    }
+
     var isLoading by remember { mutableStateOf(false) }
     var loadingMessage by remember { mutableStateOf("") }
     var selectedImportMode by remember { mutableStateOf(ImportMode.MERGE) }
@@ -60,6 +83,13 @@ fun BackupScreen(
     var pendingImportPreview by remember { mutableStateOf<ImportPreview?>(null) }
     var errorDialogMessage by remember { mutableStateOf<String?>(null) }
     var successDialogMessage by remember { mutableStateOf<String?>(null) }
+
+    // Encryption States
+    var showExportOptionsDialog by remember { mutableStateOf(false) }
+    var exportPassphrase by remember { mutableStateOf("") }
+    var pendingEncryptedContent by remember { mutableStateOf<String?>(null) }
+    var showImportPassphraseDialog by remember { mutableStateOf(false) }
+    var importPassphrase by remember { mutableStateOf("") }
 
     // SAF Launchers
     val csvExportLauncher = rememberLauncherForActivityResult(
@@ -83,7 +113,7 @@ fun BackupScreen(
                     val count = result.getOrNull() ?: 0
                     successDialogMessage = "Successfully exported $count transactions to CSV."
                 } else {
-                    errorDialogMessage = "Export failed: ${result.exceptionOrNull()?.message}"
+                    errorDialogMessage = SensitiveDataSanitizer.sanitizeErrorMessage(result.exceptionOrNull())
                 }
             }
         }
@@ -96,22 +126,29 @@ fun BackupScreen(
             scope.launch {
                 isLoading = true
                 loadingMessage = "Creating full application backup..."
+                val currentPassphrase = exportPassphrase.trim()
                 val result = withContext(Dispatchers.IO) {
                     try {
                         context.contentResolver.openOutputStream(uri)?.use { stream ->
-                            backupManager.exportFullBackup(stream)
+                            if (currentPassphrase.isNotBlank()) {
+                                backupManager.exportEncryptedFullBackup(stream, currentPassphrase.toCharArray())
+                            } else {
+                                backupManager.exportFullBackup(stream)
+                            }
                         } ?: Result.failure(IllegalStateException("Could not open destination file"))
                     } catch (e: Exception) {
                         Result.failure(e)
                     }
                 }
+                exportPassphrase = ""
                 isLoading = false
                 if (result.isSuccess) {
                     val metadata = result.getOrNull()
                     val count = metadata?.entityCounts?.transactions ?: 0
-                    successDialogMessage = "Full backup completed successfully.\nIncludes $count transactions, categories, accounts, rules, and budgets."
+                    val encNote = if (currentPassphrase.isNotBlank()) " (Encrypted with AES-256-GCM)" else ""
+                    successDialogMessage = "Full backup completed successfully$encNote.\nIncludes $count transactions, categories, accounts, rules, and budgets."
                 } else {
-                    errorDialogMessage = "Backup creation failed: ${result.exceptionOrNull()?.message}"
+                    errorDialogMessage = SensitiveDataSanitizer.sanitizeErrorMessage(result.exceptionOrNull())
                 }
             }
         }
@@ -123,28 +160,50 @@ fun BackupScreen(
         if (uri != null) {
             scope.launch {
                 isLoading = true
-                loadingMessage = "Reading and validating backup file..."
-                val parseResult = withContext(Dispatchers.IO) {
+                loadingMessage = "Reading backup file..."
+                val readResult = withContext(Dispatchers.IO) {
                     try {
                         context.contentResolver.openInputStream(uri)?.use { stream ->
-                            val payload = BackupSerializer.readPayload(stream)
-                            backupManager.generateImportPreview(
-                                ByteArrayInputStream(BackupSerializer.toJsonString(payload).toByteArray()),
-                                selectedImportMode
-                            ).map { preview -> Pair(payload, preview) }
-                        } ?: Result.failure(IllegalStateException("Could not open selected file"))
+                            stream.bufferedReader().use { it.readText() }
+                        } ?: ""
                     } catch (e: Exception) {
-                        Result.failure(e)
+                        ""
                     }
                 }
                 isLoading = false
 
-                if (parseResult.isSuccess) {
-                    val (payload, preview) = parseResult.getOrThrow()
-                    pendingImportPayload = payload
-                    pendingImportPreview = preview
+                if (readResult.isBlank()) {
+                    errorDialogMessage = "Unable to read selected file or file is empty."
+                    return@launch
+                }
+
+                if (BackupEncryptionManager.isEncryptedBackup(readResult)) {
+                    pendingEncryptedContent = readResult
+                    importPassphrase = ""
+                    showImportPassphraseDialog = true
                 } else {
-                    errorDialogMessage = parseResult.exceptionOrNull()?.message ?: "Unable to read backup file."
+                    // Unencrypted M15 backup
+                    isLoading = true
+                    loadingMessage = "Validating backup..."
+                    val previewResult = withContext(Dispatchers.IO) {
+                        try {
+                            val payload = BackupSerializer.fromJsonString(readResult)
+                            backupManager.generateImportPreview(
+                                ByteArrayInputStream(readResult.toByteArray()),
+                                selectedImportMode
+                            ).map { preview -> Pair(payload, preview) }
+                        } catch (e: Exception) {
+                            Result.failure(e)
+                        }
+                    }
+                    isLoading = false
+                    if (previewResult.isSuccess) {
+                        val (payload, preview) = previewResult.getOrThrow()
+                        pendingImportPayload = payload
+                        pendingImportPreview = preview
+                    } else {
+                        errorDialogMessage = SensitiveDataSanitizer.sanitizeErrorMessage(previewResult.exceptionOrNull())
+                    }
                 }
             }
         }
@@ -199,11 +258,11 @@ fun BackupScreen(
                 ExportActionCard(
                     icon = Icons.Filled.Backup,
                     title = "Full Application Backup",
-                    description = "Complete snapshot of all your transactions, custom categories, accounts, rules, and budgets for safekeeping and restoration.",
+                    description = "Complete snapshot of all your transactions, custom categories, accounts, rules, and budgets. Supports optional AES-256-GCM encryption.",
                     buttonText = "Create Backup",
                     onClick = {
-                        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-                        backupExportLauncher.launch("ArcTracker_Backup_$timestamp.json")
+                        exportPassphrase = ""
+                        showExportOptionsDialog = true
                     }
                 )
 
@@ -251,7 +310,7 @@ fun BackupScreen(
                                     fontSize = 13.sp
                                 )
                                 Text(
-                                    text = "Adds new records and preserves existing user edits and manual categories.",
+                                    text = "Adds new records and strictly protects existing user-assigned categories and manual notes.",
                                     fontSize = 11.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -302,7 +361,7 @@ fun BackupScreen(
                     }
                 }
 
-                // BACKUP INFO SECTION
+                // PRIVACY & SECURITY SECTION
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -318,14 +377,14 @@ fun BackupScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Privacy & Integrity Guarantee",
+                                text = "Security & Privacy Hardening",
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 13.sp
                             )
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Backups strictly exclude raw SMS texts, passwords, OTPs, and unmasked account numbers. All exports are self-validating and imports are fully atomic with automatic rollback on error.",
+                            text = "Backups strictly exclude raw SMS texts, passwords, OTPs, and unmasked account numbers. Screen contents are protected from background capture, and imports are fully atomic with rollback on error.",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 16.sp
@@ -359,6 +418,129 @@ fun BackupScreen(
         }
     }
 
+    // Export Options / Passphrase Dialog
+    if (showExportOptionsDialog) {
+        AlertDialog(
+            onDismissRequest = { showExportOptionsDialog = false },
+            title = { Text("Backup Protection", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Optionally enter a passphrase to encrypt your backup with AES-256-GCM. Leave blank for standard unencrypted backup.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = exportPassphrase,
+                        onValueChange = { exportPassphrase = it },
+                        label = { Text("Passphrase (Optional)") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showExportOptionsDialog = false
+                        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                        backupExportLauncher.launch("ArcTracker_Backup_$timestamp.json")
+                    }
+                ) {
+                    Text("Proceed")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExportOptionsDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Import Passphrase Dialog for Encrypted Backup
+    if (showImportPassphraseDialog) {
+        val encryptedContent = pendingEncryptedContent
+        AlertDialog(
+            onDismissRequest = {
+                showImportPassphraseDialog = false
+                pendingEncryptedContent = null
+            },
+            title = { Text("Encrypted Backup Detected", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "This backup is protected with AES-256-GCM encryption. Please enter the passphrase to decrypt and preview its contents.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = importPassphrase,
+                        onValueChange = { importPassphrase = it },
+                        label = { Text("Passphrase") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (encryptedContent != null && importPassphrase.isNotBlank()) {
+                            showImportPassphraseDialog = false
+                            scope.launch {
+                                isLoading = true
+                                loadingMessage = "Decrypting and validating backup..."
+                                val decryptResult = withContext(Dispatchers.IO) {
+                                    try {
+                                        val decryptedJson = BackupEncryptionManager.decrypt(
+                                            encryptedContent,
+                                            importPassphrase.toCharArray()
+                                        )
+                                        val payload = BackupSerializer.fromJsonString(decryptedJson)
+                                        backupManager.generateImportPreview(
+                                            ByteArrayInputStream(decryptedJson.toByteArray()),
+                                            selectedImportMode
+                                        ).map { preview -> Pair(payload, preview) }
+                                    } catch (e: Exception) {
+                                        Result.failure(e)
+                                    }
+                                }
+                                importPassphrase = ""
+                                pendingEncryptedContent = null
+                                isLoading = false
+
+                                if (decryptResult.isSuccess) {
+                                    val (payload, preview) = decryptResult.getOrThrow()
+                                    pendingImportPayload = payload
+                                    pendingImportPreview = preview
+                                } else {
+                                    errorDialogMessage = SensitiveDataSanitizer.sanitizeErrorMessage(decryptResult.exceptionOrNull())
+                                }
+                            }
+                        }
+                    },
+                    enabled = importPassphrase.isNotBlank()
+                ) {
+                    Text("Decrypt")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showImportPassphraseDialog = false
+                        pendingEncryptedContent = null
+                        importPassphrase = ""
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     // Import Preview Dialog
     val preview = pendingImportPreview
     val payload = pendingImportPayload
@@ -382,7 +564,7 @@ fun BackupScreen(
                             "Merge completed successfully!\nImported ${summary.importedTransactions} new transactions (${summary.preservedTransactions} existing protected)."
                         }
                     } else {
-                        errorDialogMessage = "Import failed: ${result.exceptionOrNull()?.message}"
+                        errorDialogMessage = SensitiveDataSanitizer.sanitizeErrorMessage(result.exceptionOrNull())
                     }
                 }
             },
@@ -566,5 +748,3 @@ private fun PreviewRow(label: String, value: String) {
         Text(value, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
-
-private class ByteArrayInputStream(buf: ByteArray) : java.io.ByteArrayInputStream(buf)

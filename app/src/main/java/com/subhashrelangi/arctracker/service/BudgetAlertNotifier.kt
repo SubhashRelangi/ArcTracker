@@ -95,6 +95,7 @@ class AndroidBudgetAlertNotifier(
                 .setContentText(text)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setAutoCancel(true)
                 .build()
 
@@ -121,6 +122,7 @@ class AndroidBudgetAlertNotifier(
                 .setContentText(text)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setAutoCancel(true)
                 .build()
 

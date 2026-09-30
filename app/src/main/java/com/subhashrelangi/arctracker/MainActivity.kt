@@ -54,6 +54,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.SmsPermissionHelper
@@ -73,6 +75,19 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                privacyManager.screenSecurityFlow.collect { enabled ->
+                    if (enabled) {
+                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                    } else {
+                        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                    }
+                }
+            }
+        }
 
         setContent {
             MaterialTheme {
