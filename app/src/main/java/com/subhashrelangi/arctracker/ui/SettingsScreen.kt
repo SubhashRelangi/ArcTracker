@@ -374,6 +374,14 @@ fun AccountsSection(onNavigate: (String) -> Unit = {}) {
             isLast = false,
             onClick = { onNavigate("CategoryManagement") }
         )
+
+        SettingsRow(
+            icon = Icons.Filled.QueryStats,
+            title = "Analytics & Insights",
+            subtitle = "Financial statistics, trends & breakdown",
+            isLast = false,
+            onClick = { onNavigate("Analytics") }
+        )
         
         SettingsRow(
             icon = Icons.Filled.Lock,

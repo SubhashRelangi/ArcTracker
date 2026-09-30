@@ -50,6 +50,12 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE dateMillis BETWEEN :startMillis AND :endMillis ORDER BY dateMillis DESC")
     suspend fun getExpensesBetween(startMillis: Long, endMillis: Long): List<Expense>
 
+    @Query("SELECT * FROM expenses WHERE dateMillis BETWEEN :startMillis AND :endMillis ORDER BY dateMillis DESC")
+    fun getExpensesBetweenFlow(startMillis: Long, endMillis: Long): Flow<List<Expense>>
+
+    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM expenses WHERE dateMillis BETWEEN :startMillis AND :endMillis AND type = :type AND isPending = 0 AND (relationshipType IS NULL OR relationshipType != 'SELF_TRANSFER')")
+    suspend fun getTotalAmountBetween(startMillis: Long, endMillis: Long, type: String): Double
+
     @Query("SELECT * FROM expenses WHERE relationshipId = :relationshipId")
     suspend fun getExpensesByRelationshipId(relationshipId: String): List<Expense>
 

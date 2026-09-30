@@ -265,7 +265,7 @@ fun ExpenseScreen() {
     fun navigateTo(route: String) {
         if (route == "Home") {
             backStack = listOf("Home")
-        } else if (route == "Transactions" || route == "Settings") {
+        } else if (route == "Transactions" || route == "Settings" || route == "Insights" || route == "Analytics") {
             backStack = listOf("Home", route)
         } else {
             if (backStack.lastOrNull() != route) {
@@ -327,7 +327,12 @@ fun ExpenseScreen() {
                 currentRoute != "FinancialAccounts" &&
                 currentRoute != "UnresolvedTransactions" &&
                 currentRoute != "AccountTransactions" &&
-                currentRoute != "CategoryManagement"
+                currentRoute != "CategoryManagement" &&
+                currentRoute != "CategoryRules" &&
+                currentRoute != "MerchantAliases" &&
+                currentRoute != "ApplyCategoryRules" &&
+                currentRoute != "Analytics" &&
+                currentRoute != "Insights"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
@@ -442,7 +447,11 @@ fun ExpenseScreen() {
                 currentRoute != "CategoryManagement" &&
                 currentRoute != "FinancialAccounts" &&
                 currentRoute != "UnresolvedTransactions" &&
-                currentRoute != "AccountTransactions"
+                currentRoute != "AccountTransactions" &&
+                currentRoute != "CategoryRules" &&
+                currentRoute != "MerchantAliases" &&
+                currentRoute != "ApplyCategoryRules" &&
+                currentRoute != "Analytics"
             ) {
 
                 com.subhashrelangi.arctracker.ui.FloatingNavigationBar(
@@ -697,6 +706,10 @@ fun ExpenseScreen() {
             } else if (currentRoute == "ApplyCategoryRules") {
                 com.subhashrelangi.arctracker.ui.HistoricalRuleApplicationScreen(
                     initialRuleId = applyingRuleId,
+                    onNavigateBack = { navigateBack() }
+                )
+            } else if (currentRoute == "Analytics" || currentRoute == "Insights") {
+                com.subhashrelangi.arctracker.ui.AnalyticsScreen(
                     onNavigateBack = { navigateBack() }
                 )
             } else if (currentRoute == "Pending") {
