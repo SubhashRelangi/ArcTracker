@@ -148,6 +148,26 @@ interface MonitoringSettingsRepository {
      */
     fun setInitialOnboardingCompleted(completed: Boolean) {}
 
+    /**
+     * Returns whether the user is currently in the middle of the Local-first Setup flow.
+     */
+    fun isSetupInProgress(): Boolean = false
+
+    /**
+     * Sets whether the user is currently in the middle of the Local-first Setup flow.
+     */
+    fun setSetupInProgress(inProgress: Boolean) {}
+
+    /**
+     * Returns whether auto-scanning historical SMS archive (last 90 days) is enabled during setup.
+     */
+    fun isAutoSmsScanArchiveEnabled(): Boolean = true
+
+    /**
+     * Sets whether auto-scanning historical SMS archive (last 90 days) is enabled during setup.
+     */
+    fun setAutoSmsScanArchiveEnabled(enabled: Boolean) {}
+
     companion object {
         const val PREFS_NAME = "ArcTrackerPrefs"
         const val KEY_GLOBAL_ENABLED = "monitoring_global_enabled"
@@ -158,6 +178,8 @@ interface MonitoringSettingsRepository {
         const val KEY_SMS_TRACKING_ENABLED = "isSmsTrackingEnabled"
         const val KEY_INITIAL_SMS_IMPORT_COMPLETED = "initial_sms_import_completed"
         const val KEY_INITIAL_ONBOARDING_COMPLETED = "initial_onboarding_completed"
+        const val KEY_SETUP_IN_PROGRESS = "setup_in_progress"
+        const val KEY_AUTO_SMS_SCAN_ARCHIVE = "auto_sms_scan_archive"
 
         @Volatile
         private var INSTANCE: MonitoringSettingsRepository? = null
@@ -467,6 +489,26 @@ class SharedPreferencesMonitoringSettingsRepository(
             .commit()
     }
 
+    override fun isSetupInProgress(): Boolean = synchronized(lock) {
+        prefs.getBoolean(MonitoringSettingsRepository.KEY_SETUP_IN_PROGRESS, false)
+    }
+
+    override fun setSetupInProgress(inProgress: Boolean): Unit = synchronized(lock) {
+        prefs.edit()
+            .putBoolean(MonitoringSettingsRepository.KEY_SETUP_IN_PROGRESS, inProgress)
+            .commit()
+    }
+
+    override fun isAutoSmsScanArchiveEnabled(): Boolean = synchronized(lock) {
+        prefs.getBoolean(MonitoringSettingsRepository.KEY_AUTO_SMS_SCAN_ARCHIVE, true)
+    }
+
+    override fun setAutoSmsScanArchiveEnabled(enabled: Boolean): Unit = synchronized(lock) {
+        prefs.edit()
+            .putBoolean(MonitoringSettingsRepository.KEY_AUTO_SMS_SCAN_ARCHIVE, enabled)
+            .commit()
+    }
+
     override fun resetToDefaults(): Unit = synchronized(lock) {
         val wasInitialCompleted = prefs.getBoolean(MonitoringSettingsRepository.KEY_INITIAL_SMS_IMPORT_COMPLETED, false)
         prefs.edit()
@@ -603,6 +645,8 @@ class InMemoryMonitoringSettingsRepository(
 
     private var initialSmsImportCompleted: Boolean = false
     private var initialOnboardingCompleted: Boolean = false
+    private var setupInProgress: Boolean = false
+    private var autoSmsScanArchiveEnabled: Boolean = true
 
     override fun isInitialSmsImportCompleted(): Boolean = synchronized(lock) {
         initialSmsImportCompleted
@@ -618,6 +662,22 @@ class InMemoryMonitoringSettingsRepository(
 
     override fun setInitialOnboardingCompleted(completed: Boolean): Unit = synchronized(lock) {
         initialOnboardingCompleted = completed
+    }
+
+    override fun isSetupInProgress(): Boolean = synchronized(lock) {
+        setupInProgress
+    }
+
+    override fun setSetupInProgress(inProgress: Boolean): Unit = synchronized(lock) {
+        setupInProgress = inProgress
+    }
+
+    override fun isAutoSmsScanArchiveEnabled(): Boolean = synchronized(lock) {
+        autoSmsScanArchiveEnabled
+    }
+
+    override fun setAutoSmsScanArchiveEnabled(enabled: Boolean): Unit = synchronized(lock) {
+        autoSmsScanArchiveEnabled = enabled
     }
 
     override fun resetToDefaults(): Unit = synchronized(lock) {

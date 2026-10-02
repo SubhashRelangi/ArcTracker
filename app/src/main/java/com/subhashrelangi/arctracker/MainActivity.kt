@@ -276,17 +276,34 @@ fun ExpenseScreen() {
     val isOnboardingCompleted = remember {
         settingsRepo.isInitialOnboardingCompleted()
     }
+    val isSetupInProgress = remember {
+        settingsRepo.isSetupInProgress()
+    }
 
     var backStack by rememberSaveable {
-        mutableStateOf(if (isOnboardingCompleted) listOf("Home") else listOf("InitialOnboarding"))
+        mutableStateOf(
+            if (isOnboardingCompleted) {
+                listOf("Home")
+            } else if (isSetupInProgress) {
+                listOf("InitialOnboarding", "LocalFirstSetup")
+            } else {
+                listOf("InitialOnboarding")
+            }
+        )
     }
     val currentRoute = backStack.lastOrNull() ?: "Home"
 
     // If onboarding was not permanently completed (e.g. user was in demo mode),
-    // any app restart / relaunch MUST return to the Initial Welcome Screen.
+    // any app restart / relaunch MUST return to the Initial Welcome Screen or recover setup in progress.
     LaunchedEffect(Unit) {
-        if (!settingsRepo.isInitialOnboardingCompleted() && backStack != listOf("InitialOnboarding")) {
-            backStack = listOf("InitialOnboarding")
+        if (!settingsRepo.isInitialOnboardingCompleted()) {
+            if (settingsRepo.isSetupInProgress()) {
+                if (backStack.lastOrNull() != "LocalFirstSetup") {
+                    backStack = listOf("InitialOnboarding", "LocalFirstSetup")
+                }
+            } else if (backStack != listOf("InitialOnboarding")) {
+                backStack = listOf("InitialOnboarding")
+            }
         }
     }
 
@@ -311,6 +328,8 @@ fun ExpenseScreen() {
             backStack = listOf("Home")
         } else if (route == "InitialOnboarding") {
             backStack = listOf("InitialOnboarding")
+        } else if (route == "LocalFirstSetup") {
+            backStack = listOf("InitialOnboarding", "LocalFirstSetup")
         } else if (route == "Transactions" || route == "Settings" || route == "Insights" || route == "Analytics" || route == "Pending" || route == "Review") {
             backStack = listOf("Home", route)
         } else {
@@ -321,6 +340,9 @@ fun ExpenseScreen() {
     }
 
     fun navigateBack() {
+        if (backStack.lastOrNull() == "LocalFirstSetup") {
+            settingsRepo.setSetupInProgress(false)
+        }
         if (backStack.size > 1) {
             backStack = backStack.dropLast(1)
         }
@@ -372,7 +394,7 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
-        containerColor = if (currentRoute in listOf("Home", "InitialOnboarding", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
+        containerColor = if (currentRoute in listOf("Home", "InitialOnboarding", "LocalFirstSetup", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
 
         topBar = {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
@@ -400,6 +422,7 @@ fun ExpenseScreen() {
             } else if (
                 currentRoute != "SmsImport" &&
                 currentRoute != "InitialOnboarding" &&
+                currentRoute != "LocalFirstSetup" &&
                 currentRoute != "FinancialAccounts" &&
                 currentRoute != "UnresolvedTransactions" &&
                 currentRoute != "AccountTransactions" &&
@@ -474,9 +497,10 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
+            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup")) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
-                    .padding(top = padding.calculateTopPadding())
+                    .padding(top = contentTopPadding)
                     .fillMaxSize()
             ) {
 
@@ -714,10 +738,8 @@ fun ExpenseScreen() {
                         scope.launch(Dispatchers.IO) {
                             com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
                         }
-                        settingsRepo.setInitialOnboardingCompleted(true)
-                        hasDismissedNotificationPermissionDialog = false
-                        hasDismissedInitialSmsImportDialog = false
-                        navigateTo("Home")
+                        settingsRepo.setSetupInProgress(true)
+                        navigateTo("LocalFirstSetup")
                     },
                     onSkipToDashboardClick = {
                         // Demo mode: give access to all features with dummy data across all screens.
@@ -726,6 +748,33 @@ fun ExpenseScreen() {
                         scope.launch(Dispatchers.IO) {
                             com.subhashrelangi.arctracker.data.MockData.seedCompleteDemoData(database)
                         }
+                        settingsRepo.setSetupInProgress(false)
+                        hasDismissedNotificationPermissionDialog = true
+                        hasDismissedInitialSmsImportDialog = true
+                        navigateTo("Home")
+                        Toast.makeText(context, "Demo mode active with sample data", Toast.LENGTH_SHORT).show()
+                    }
+                )
+
+            } else if (currentRoute == "LocalFirstSetup") {
+
+                com.subhashrelangi.arctracker.ui.LocalFirstSetupScreen(
+                    onSetupCompleted = { autoScanSms ->
+                        settingsRepo.setSetupInProgress(false)
+                        settingsRepo.setInitialOnboardingCompleted(true)
+                        hasDismissedNotificationPermissionDialog = true
+                        hasDismissedInitialSmsImportDialog = true
+                        if (autoScanSms && SmsPermissionHelper.isSmsPermissionGranted(context)) {
+                            backStack = listOf("Home", "SmsImport")
+                        } else {
+                            navigateTo("Home")
+                        }
+                    },
+                    onSkipToDemoClick = {
+                        scope.launch(Dispatchers.IO) {
+                            com.subhashrelangi.arctracker.data.MockData.seedCompleteDemoData(database)
+                        }
+                        settingsRepo.setSetupInProgress(false)
                         hasDismissedNotificationPermissionDialog = true
                         hasDismissedInitialSmsImportDialog = true
                         navigateTo("Home")
@@ -797,6 +846,7 @@ fun ExpenseScreen() {
 
         val showBottomNav = currentRoute !in listOf(
             "InitialOnboarding",
+            "LocalFirstSetup",
             "ClearAllData",
             "SmsImport",
             "BackupRestore",
@@ -1161,7 +1211,7 @@ fun ExpenseScreen() {
             )
         }
 
-        if (currentRoute != "InitialOnboarding") {
+        if (currentRoute != "InitialOnboarding" && currentRoute != "LocalFirstSetup") {
             if (!isNotificationAccessGranted && !hasDismissedNotificationPermissionDialog) {
                 NotificationPermissionDialog(
                     onGrantClick = {
