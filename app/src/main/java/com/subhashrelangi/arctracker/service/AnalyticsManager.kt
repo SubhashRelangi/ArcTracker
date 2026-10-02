@@ -1,7 +1,9 @@
 package com.subhashrelangi.arctracker.service
 
 import com.subhashrelangi.arctracker.data.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -92,7 +94,7 @@ class AnalyticsManager(
                 startMillis = startMillis,
                 endMillis = endMillis
             )
-        }
+        }.flowOn(Dispatchers.IO)
     }
 
     /**

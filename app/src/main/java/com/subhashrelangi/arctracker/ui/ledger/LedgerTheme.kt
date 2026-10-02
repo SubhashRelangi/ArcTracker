@@ -1,77 +1,77 @@
 package com.subhashrelangi.arctracker.ui.ledger
 
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
+import com.subhashrelangi.arctracker.ui.theme.ArcShapes
+import com.subhashrelangi.arctracker.ui.theme.ArcSpacing
 
 /**
- * Design tokens and centralized color palette for ArcTracker LedgerPage
- * derived from Ui-Designs/Ledgerpage.png and ArcTracker brand direction.
+ * Design tokens and centralized color palette for ArcTracker LedgerPage.
+ * Unified with the universal ArcTracker theme tokens.
  */
 object LedgerColors {
     // Backgrounds
-    val Background = Color(0xFF090C10)
-    val Surface = Color(0xFF121620)
-    val SurfaceElevated = Color(0xFF161A24)
-    val SurfaceHighlight = Color(0xFF1F2432)
-    val CardBackground = Color(0xFF131721)
+    val Background = ArcColors.Background
+    val Surface = ArcColors.Surface
+    val SurfaceElevated = ArcColors.SurfaceElevated
+    val SurfaceHighlight = ArcColors.SurfaceHighlight
+    val CardBackground = ArcColors.CardBackground
 
     // Borders
-    val Border = Color(0xFF1E2432)
-    val BorderSubtle = Color(0xFF262C36)
-    val BorderLight = Color(0xFF30363D)
+    val Border = ArcColors.Border
+    val BorderSubtle = ArcColors.BorderSubtle
+    val BorderLight = ArcColors.BorderLight
 
     // Typography
-    val TextPrimary = Color(0xFFFFFFFF)
-    val TextSecondary = Color(0xFF94A3B8)
-    val TextMuted = Color(0xFF64748B)
-    val TextMutedLight = Color(0xFF8B949E)
+    val TextPrimary = ArcColors.TextPrimary
+    val TextSecondary = ArcColors.TextSecondary
+    val TextMuted = ArcColors.TextMuted
+    val TextMutedLight = ArcColors.TextMutedLight
 
     // Financial indicators
-    val Debit = Color(0xFFF43F5E) // Bright red / rose
-    val DebitBg = Color(0xFF2C1317)
-    val DebitBorder = Color(0xFF4A1E24)
+    val Debit = ArcColors.Debit
+    val DebitBg = ArcColors.DebitBg
+    val DebitBorder = ArcColors.DebitBorder
 
-    val Credit = Color(0xFF00E676) // Bright emerald green
-    val CreditMuted = Color(0xFF10B981)
-    val CreditBg = Color(0xFF0C2419)
-    val CreditBorder = Color(0xFF134C34)
+    val Credit = ArcColors.Credit
+    val CreditMuted = ArcColors.CreditMuted
+    val CreditBg = ArcColors.CreditBg
+    val CreditBorder = ArcColors.CreditBorder
 
     // Review / Warning
-    val WarningAmber = Color(0xFFFBBF24)
-    val WarningAmberDot = Color(0xFFF59E0B)
-    val WarningAmberBg = Color(0xFF2B1F09)
-    val WarningAmberBorder = Color(0xFF4A3612)
+    val WarningAmber = ArcColors.WarningAmber
+    val WarningAmberDot = ArcColors.WarningAmberDot
+    val WarningAmberBg = ArcColors.WarningAmberBg
+    val WarningAmberBorder = ArcColors.WarningAmberBorder
 
     // Unresolved
-    val Unresolved = Color(0xFFF87171)
-    val UnresolvedBg = Color(0xFF2C1317)
-    val UnresolvedBorder = Color(0xFF4A1E24)
+    val Unresolved = ArcColors.Unresolved
+    val UnresolvedBg = ArcColors.UnresolvedBg
+    val UnresolvedBorder = ArcColors.UnresolvedBorder
 
     // Badges / Tags
-    val UpiBadgeBg = Color(0xFF21262D)
-    val UpiBadgeText = Color(0xFFC9D1D9)
+    val UpiBadgeBg = ArcColors.UpiBadgeBg
+    val UpiBadgeText = ArcColors.UpiBadgeText
 
-    val FilterChipBg = Color(0xFF161A24)
-    val FilterChipSelectedBg = Color(0xFFFFFFFF)
-    val FilterChipSelectedText = Color(0xFF0F141C)
+    val FilterChipBg = ArcColors.FilterChipBg
+    val FilterChipSelectedBg = ArcColors.FilterChipSelectedBg
+    val FilterChipSelectedText = ArcColors.FilterChipSelectedText
 }
 
 object LedgerShapes {
-    val Card = RoundedCornerShape(18.dp)
-    val Pill = RoundedCornerShape(20.dp)
-    val SmallPill = RoundedCornerShape(6.dp)
-    val SearchBar = RoundedCornerShape(16.dp)
-    val FloatingSummary = RoundedCornerShape(32.dp)
-    val BottomNav = RoundedCornerShape(32.dp)
+    val Card = ArcShapes.Card
+    val Pill = ArcShapes.Pill
+    val SmallPill = ArcShapes.SmallPill
+    val SearchBar = ArcShapes.SearchBar
+    val FloatingSummary = ArcShapes.FloatingSummary
+    val BottomNav = ArcShapes.BottomNav
 }
 
 object LedgerSpacing {
-    val xxs = 2.dp
-    val xs = 4.dp
-    val sm = 8.dp
-    val md = 12.dp
-    val lg = 16.dp
-    val xl = 20.dp
-    val xxl = 24.dp
+    val xxs = ArcSpacing.xxs
+    val xs = ArcSpacing.xs
+    val sm = ArcSpacing.sm
+    val md = ArcSpacing.md
+    val lg = ArcSpacing.lg
+    val xl = ArcSpacing.xl
+    val xxl = ArcSpacing.xxl
 }

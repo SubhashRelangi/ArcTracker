@@ -342,10 +342,28 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
-        containerColor = if (currentRoute == "Home" || currentRoute == "InitialOnboarding" || currentRoute == "Transactions" || currentRoute == "Pending" || currentRoute == "Review") Color(0xFF090C10) else MaterialTheme.colorScheme.background,
+        containerColor = if (currentRoute in listOf("Home", "InitialOnboarding", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
 
         topBar = {
-            if (currentRoute != "SmsImport" &&
+            if (currentRoute == "Settings") {
+                com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
+                    modifier = Modifier.statusBarsPadding(),
+                    title = "Settings",
+                    showBadge = false,
+                    statusText = "Configure your preferences",
+                    showSearch = false,
+                    showAdd = false
+                )
+            } else if (currentRoute == "Analytics" || currentRoute == "Insights") {
+                com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
+                    modifier = Modifier.statusBarsPadding(),
+                    title = "Insights",
+                    showBadge = false,
+                    statusText = "Financial analytics & trends",
+                    showSearch = false,
+                    showAdd = false
+                )
+            } else if (currentRoute != "SmsImport" &&
                 currentRoute != "InitialOnboarding" &&
                 currentRoute != "Home" &&
                 currentRoute != "Transactions" &&
@@ -361,7 +379,8 @@ fun ExpenseScreen() {
                 currentRoute != "Analytics" &&
                 currentRoute != "Insights" &&
                 currentRoute != "Budgets" &&
-                currentRoute != "Backup"
+                currentRoute != "Backup" &&
+                currentRoute != "Settings"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
@@ -486,11 +505,12 @@ fun ExpenseScreen() {
             ) {
 
                 val pendingCount = expenses.count { it.isPending }
-                com.subhashrelangi.arctracker.ui.FloatingNavigationBar(
-                    currentRoute = currentRoute,
-                    pendingReviewCount = pendingCount,
-                    onNavigate = {
-                        navigateTo(it.route)
+                val destination = com.subhashrelangi.arctracker.ui.core.ArcDestination.fromRoute(currentRoute)
+                com.subhashrelangi.arctracker.ui.core.ArcTrackerBottomNavigation(
+                    currentDestination = destination,
+                    reviewBadgeCount = pendingCount,
+                    onNavigate = { dest ->
+                        navigateTo(dest.route)
                     }
                 )
             }
@@ -736,7 +756,8 @@ fun ExpenseScreen() {
                 )
             } else if (currentRoute == "Analytics" || currentRoute == "Insights") {
                 com.subhashrelangi.arctracker.ui.AnalyticsScreen(
-                    onNavigateBack = { navigateBack() }
+                    onNavigateBack = { navigateBack() },
+                    showInternalHeader = (currentRoute == "Analytics")
                 )
             } else if (currentRoute == "Budgets") {
                 com.subhashrelangi.arctracker.ui.BudgetsScreen(

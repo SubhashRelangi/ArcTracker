@@ -25,37 +25,17 @@ import androidx.compose.ui.unit.sp
 import java.text.NumberFormat
 import java.util.Locale
 
+import com.subhashrelangi.arctracker.ui.core.ArcTrackerSecurityFooter
+
 /**
  * Encrypted Local-First SQLite Database footer indicator matching Ui-Designs/Ledgerpage.png.
+ * Delegates to the universal ArcTrackerSecurityFooter component.
  */
 @Composable
 fun LedgerDatabaseFooter(
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 16.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Outlined.Shield,
-            contentDescription = null,
-            tint = LedgerColors.TextMuted,
-            modifier = Modifier.size(13.dp)
-        )
-
-        Spacer(modifier = Modifier.width(6.dp))
-
-        Text(
-            text = "Encrypted Local-First SQLite Database",
-            color = LedgerColors.TextMuted,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace,
-            letterSpacing = 0.4.sp
-        )
-    }
+    ArcTrackerSecurityFooter(modifier = modifier)
 }
 
 /**

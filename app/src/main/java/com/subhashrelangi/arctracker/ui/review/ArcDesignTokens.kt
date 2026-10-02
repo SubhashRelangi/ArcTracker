@@ -1,66 +1,66 @@
 package com.subhashrelangi.arctracker.ui.review
 
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import com.subhashrelangi.arctracker.ui.theme.ArcColors as ThemeArcColors
+import com.subhashrelangi.arctracker.ui.theme.ArcShapes as ThemeArcShapes
+import com.subhashrelangi.arctracker.ui.theme.ArcSpacing as ThemeArcSpacing
 
 /**
  * Global ArcTracker Fintech Dark Design Tokens.
- * Consistent across ReviewPage and the entire application.
+ * Unified with universal theme tokens in com.subhashrelangi.arctracker.ui.theme.
  */
 object ArcColors {
-    val Background = Color(0xFF090C10)
-    val Surface = Color(0xFF13161F)
-    val SurfaceElevated = Color(0xFF181C26)
-    val SurfaceMuted = Color(0xFF1F2432)
-    val SurfaceCard = Color(0xFF13161F)
-    val SurfaceCardBorder = Color(0xFF1E2330)
+    val Background = ThemeArcColors.Background
+    val Surface = ThemeArcColors.Surface
+    val SurfaceElevated = ThemeArcColors.SurfaceElevated
+    val SurfaceMuted = ThemeArcColors.SurfaceMuted
+    val SurfaceCard = ThemeArcColors.SurfaceCard
+    val SurfaceCardBorder = ThemeArcColors.SurfaceCardBorder
 
-    val TextPrimary = Color(0xFFFFFFFF)
-    val TextSecondary = Color(0xFF94A3B8)
-    val TextMuted = Color(0xFF64748B)
+    val TextPrimary = ThemeArcColors.TextPrimary
+    val TextSecondary = ThemeArcColors.TextSecondary
+    val TextMuted = ThemeArcColors.TextMuted
 
-    val Debit = Color(0xFFEF4444)
-    val Credit = Color(0xFF10B981)
-    val Warning = Color(0xFFF59E0B)
-    val WarningLight = Color(0xFFFBBF24)
-    val WarningContainer = Color(0xFF281D0B)
-    val WarningBorder = Color(0xFF45300F)
+    val Debit = ThemeArcColors.Debit
+    val Credit = ThemeArcColors.Credit
+    val Warning = ThemeArcColors.Warning
+    val WarningLight = ThemeArcColors.WarningLight
+    val WarningContainer = ThemeArcColors.WarningContainer
+    val WarningBorder = ThemeArcColors.WarningBorder
 
-    val Success = Color(0xFF10B981)
-    val SuccessContainer = Color(0xFF0D2218)
-    val SuccessBorder = Color(0xFF1B4D35)
+    val Success = ThemeArcColors.Success
+    val SuccessContainer = ThemeArcColors.SuccessContainer
+    val SuccessBorder = ThemeArcColors.SuccessBorder
 
-    val Danger = Color(0xFFEF4444)
-    val DangerContainer = Color(0xFF2C1418)
-    val DangerBorder = Color(0xFF4C1D24)
+    val Danger = ThemeArcColors.Danger
+    val DangerContainer = ThemeArcColors.DangerContainer
+    val DangerBorder = ThemeArcColors.DangerBorder
 
-    val Border = Color(0xFF1F2432)
-    val BorderSubtle = Color(0xFF181C26)
+    val Border = ThemeArcColors.Border
+    val BorderSubtle = ThemeArcColors.BorderSubtle
 
-    val ChipBackground = Color(0xFF181C26)
-    val ChipBorder = Color(0xFF252B3A)
+    val ChipBackground = ThemeArcColors.ChipBackground
+    val ChipBorder = ThemeArcColors.ChipBorder
 
-    val TelemetryBackground = Color(0xFF0C0E14)
-    val TelemetryBorder = Color(0xFF1B202D)
+    val TelemetryBackground = ThemeArcColors.TelemetryBackground
+    val TelemetryBorder = ThemeArcColors.TelemetryBorder
 }
 
 object ArcShapes {
-    val Card = RoundedCornerShape(16.dp)
-    val CardElevated = RoundedCornerShape(18.dp)
-    val Pill = RoundedCornerShape(24.dp)
-    val Button = RoundedCornerShape(24.dp)
-    val ButtonSecondary = RoundedCornerShape(14.dp)
-    val Chip = RoundedCornerShape(8.dp)
-    val MicroChip = RoundedCornerShape(6.dp)
-    val InnerBox = RoundedCornerShape(10.dp)
+    val Card = ThemeArcShapes.CardMedium
+    val CardElevated = ThemeArcShapes.CardElevated
+    val Pill = ThemeArcShapes.LargePill
+    val Button = ThemeArcShapes.Button
+    val ButtonSecondary = ThemeArcShapes.ButtonSecondary
+    val Chip = ThemeArcShapes.Chip
+    val MicroChip = ThemeArcShapes.MicroChip
+    val InnerBox = ThemeArcShapes.InnerBox
 }
 
 object ArcSpacing {
-    val xs = 4.dp
-    val sm = 8.dp
-    val md = 12.dp
-    val lg = 16.dp
-    val xl = 20.dp
-    val xxl = 24.dp
+    val xs = ThemeArcSpacing.xs
+    val sm = ThemeArcSpacing.sm
+    val md = ThemeArcSpacing.md
+    val lg = ThemeArcSpacing.lg
+    val xl = ThemeArcSpacing.xl
+    val xxl = ThemeArcSpacing.xxl
 }

@@ -37,7 +37,8 @@ import java.util.Locale
 @Composable
 fun AnalyticsScreen(
     onNavigateBack: () -> Unit = {},
-    analyticsManager: AnalyticsManager? = null
+    analyticsManager: AnalyticsManager? = null,
+    showInternalHeader: Boolean = true
 ) {
     val context = LocalContext.current
     val manager = remember {
@@ -101,26 +102,28 @@ fun AnalyticsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Analytics & Insights",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+            if (showInternalHeader) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "Analytics & Insights",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
                         )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
                 )
-            )
+            }
         }
     ) { innerPadding ->
         LazyColumn(
