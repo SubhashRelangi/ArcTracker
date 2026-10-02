@@ -457,47 +457,20 @@ fun ExpenseScreen() {
             }
         },
 
-        bottomBar = {
-
-            if (
-                currentRoute != "InitialOnboarding" &&
-                currentRoute != "ClearAllData" &&
-                currentRoute != "SmsImport" &&
-                currentRoute != "BackupRestore" &&
-                currentRoute != "SupportedApps" &&
-                currentRoute != "CategoryManagement" &&
-                currentRoute != "FinancialAccounts" &&
-                currentRoute != "UnresolvedTransactions" &&
-                currentRoute != "AccountTransactions" &&
-                currentRoute != "CategoryRules" &&
-                currentRoute != "MerchantAliases" &&
-                currentRoute != "ApplyCategoryRules" &&
-                currentRoute != "Analytics" &&
-                currentRoute != "Budgets" &&
-                currentRoute != "Backup"
-            ) {
-
-                val pendingCount = expenses.count { it.isPending }
-                val destination = com.subhashrelangi.arctracker.ui.core.ArcDestination.fromRoute(currentRoute)
-                com.subhashrelangi.arctracker.ui.core.ArcTrackerBottomNavigation(
-                    currentDestination = destination,
-                    reviewBadgeCount = pendingCount,
-                    onNavigate = { dest ->
-                        navigateTo(dest.route)
-                    }
-                )
-            }
-        },
+        bottomBar = {},
 
         floatingActionButton = {}
 
     ) { padding ->
 
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
+            Column(
+                modifier = Modifier
+                    .padding(top = padding.calculateTopPadding())
+                    .fillMaxSize()
+            ) {
 
             AnimatedVisibility(
                 visible = isSearching && (currentRoute == "Home" || currentRoute == "Insights" || currentRoute == "Analytics")
@@ -801,6 +774,38 @@ fun ExpenseScreen() {
                 )
             }
         }
+
+        val showBottomNav = currentRoute !in listOf(
+            "InitialOnboarding",
+            "ClearAllData",
+            "SmsImport",
+            "BackupRestore",
+            "SupportedApps",
+            "CategoryManagement",
+            "FinancialAccounts",
+            "UnresolvedTransactions",
+            "AccountTransactions",
+            "CategoryRules",
+            "MerchantAliases",
+            "ApplyCategoryRules",
+            "Analytics",
+            "Budgets",
+            "Backup"
+        )
+
+        if (showBottomNav) {
+            val pendingCount = expenses.count { it.isPending }
+            val destination = com.subhashrelangi.arctracker.ui.core.ArcDestination.fromRoute(currentRoute)
+            com.subhashrelangi.arctracker.ui.core.ArcTrackerBottomNavigationBar(
+                modifier = Modifier.align(Alignment.BottomCenter),
+                currentDestination = destination,
+                reviewBadgeCount = pendingCount,
+                onNavigate = { dest ->
+                    navigateTo(dest.route)
+                }
+            )
+        }
+    }
 
         if (showAddDialog) {
 

@@ -276,7 +276,7 @@ fun LedgerPage(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
-                    contentPadding = PaddingValues(bottom = 76.dp)
+                    contentPadding = PaddingValues(bottom = 150.dp)
                 ) {
                     groupedByDate.forEach { (dateMillis, dayExpenses) ->
                         // Date header item
@@ -318,11 +318,11 @@ fun LedgerPage(
             }
         }
 
-        // 6. Floating Ledger Summary Action Bar (Pinned above bottom nav)
+        // 6. Floating Ledger Summary Action Bar (Pinned above floating bottom nav)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 8.dp)
+                .padding(bottom = 88.dp)
         ) {
             LedgerSummaryActionBar(
                 totalDebits = totalDebits,

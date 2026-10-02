@@ -80,8 +80,8 @@ object ArcColors {
     // Navigation Bar Tokens
     val BottomNavBackground = Color(0xFF13161F)
     val BottomNavBorder = Color(0xFF1F2432)
-    val BottomNavPillSelected = Color(0xFF222734)
+    val BottomNavPillSelected = Color(0xFF262C38)
     val BottomNavTextActive = Color.White
     val BottomNavTextInactive = Color(0xFF94A3B8)
-    val BottomNavBadgeAmber = Color(0xFFFBBF24)
+    val BottomNavBadgeAmber = Color(0xFFF59E0B)
 }
