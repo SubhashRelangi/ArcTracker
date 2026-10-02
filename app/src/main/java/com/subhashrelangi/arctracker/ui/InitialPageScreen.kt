@@ -385,63 +385,11 @@ private fun InitialBrandLogo(
                 .background(Color.White),
             contentAlignment = Alignment.Center
         ) {
-            // Pure black circle (no border) matching reference mockup
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(Color.Black),
-                contentAlignment = Alignment.Center
-            ) {
-                // Exact stylized ArcTracker 'A' lettermark
-                androidx.compose.foundation.Canvas(modifier = Modifier.size(24.dp)) {
-                    val w = size.width
-                    val h = size.height
-                    val strokeW = 2.4.dp.toPx()
-
-                    // Left curved stem: starts at bottom left, curves gently to apex
-                    val leftStem = androidx.compose.ui.graphics.Path().apply {
-                        moveTo(w * 0.28f, h * 0.82f)
-                        quadraticBezierTo(w * 0.32f, h * 0.42f, w * 0.52f, h * 0.18f)
-                    }
-                    drawPath(
-                        path = leftStem,
-                        color = Color.White,
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(
-                            width = strokeW,
-                            cap = androidx.compose.ui.graphics.StrokeCap.Round
-                        )
-                    )
-
-                    // Right stem
-                    val rightStem = androidx.compose.ui.graphics.Path().apply {
-                        moveTo(w * 0.52f, h * 0.18f)
-                        lineTo(w * 0.66f, h * 0.82f)
-                    }
-                    drawPath(
-                        path = rightStem,
-                        color = Color.White,
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(
-                            width = strokeW,
-                            cap = androidx.compose.ui.graphics.StrokeCap.Round
-                        )
-                    )
-
-                    // Arched crossbar extending past both stems
-                    val arcCrossbar = androidx.compose.ui.graphics.Path().apply {
-                        moveTo(w * 0.10f, h * 0.52f)
-                        quadraticBezierTo(w * 0.48f, h * 0.42f, w * 0.90f, h * 0.56f)
-                    }
-                    drawPath(
-                        path = arcCrossbar,
-                        color = Color.White,
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(
-                            width = strokeW,
-                            cap = androidx.compose.ui.graphics.StrokeCap.Round
-                        )
-                    )
-                }
-            }
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = com.subhashrelangi.arctracker.R.drawable.ic_launcher_foreground),
+                contentDescription = "ArcTracker App Icon",
+                modifier = Modifier.size(46.dp)
+            )
         }
     }
 }

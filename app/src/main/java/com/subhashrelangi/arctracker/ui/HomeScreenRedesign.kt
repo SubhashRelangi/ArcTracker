@@ -82,9 +82,9 @@ fun HomeScreenRedesign(
 ) {
     val scrollState = rememberScrollState()
 
-    // Aggregate real expenses or use reference figures when list is empty
+    // Aggregate real expenses
     val pendingExpenses = expenses.filter { it.isPending }
-    val reviewCount = if (pendingExpenses.isNotEmpty()) pendingExpenses.size else 3
+    val reviewCount = pendingExpenses.size
 
     val totalSpent = expenses.filter { !it.type.equals("Credit", ignoreCase = true) && !it.isPending }.sumOf { it.amount }
     val totalIncome = expenses.filter { it.type.equals("Credit", ignoreCase = true) && !it.isPending }.sumOf { it.amount }
@@ -125,15 +125,17 @@ fun HomeScreenRedesign(
             }
 
             // ----------------------------------------------------
-            // 2. Review Alert Banner: "3 Transactions Require Review"
+            // 2. Review Alert Banner (only shown if there are transactions requiring review)
             // ----------------------------------------------------
-            ReviewAlertBanner(
-                reviewCount = reviewCount,
-                firstPending = pendingExpenses.firstOrNull(),
-                onReviewAllClick = onReviewClick
-            )
+            if (reviewCount > 0) {
+                ReviewAlertBanner(
+                    reviewCount = reviewCount,
+                    firstPending = pendingExpenses.firstOrNull(),
+                    onReviewAllClick = onReviewClick
+                )
 
-            Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+            }
 
             // ----------------------------------------------------
             // 3. "TOTAL LIQUID POSITION" Card
@@ -272,7 +274,7 @@ private fun ReviewAlertBanner(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "$reviewCount Transactions Require Review",
+                        text = if (reviewCount == 1) "1 Transaction Requires Review" else "$reviewCount Transactions Require Review",
                         color = AmberBright,
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.Bold
@@ -295,8 +297,8 @@ private fun ReviewAlertBanner(
             Spacer(modifier = Modifier.height(10.dp))
 
             // Ticket Row for first pending item
-            val merchantName = firstPending?.merchant ?: "Swiggy"
-            val amountText = if (firstPending != null) "₹${"%,.2f".format(firstPending.amount)}" else "₹480.00"
+            val merchantName = firstPending?.merchant?.takeIf { it.isNotBlank() } ?: "Pending Transaction"
+            val amountText = if (firstPending != null) "₹${"%,.2f".format(firstPending.amount)}" else "₹0.00"
 
             Surface(
                 modifier = Modifier
@@ -697,13 +699,16 @@ private fun QuickActionsGrid(
         // Tile 2: Review (Yellow document with checkmark, inside dark amber circle, with amber dot)
         QuickActionTile(
             iconComposable = {
-                ReviewDocumentIcon(modifier = Modifier.size(20.dp), tint = AmberBright)
+                ReviewDocumentIcon(
+                    modifier = Modifier.size(20.dp),
+                    tint = if (reviewCount > 0) AmberBright else Color(0xFFCBD5E1)
+                )
             },
-            iconCircleBg = Color(0xFF291F0B),
-            hasTopRightAmberDot = true,
+            iconCircleBg = if (reviewCount > 0) Color(0xFF291F0B) else Color(0xFF191D28),
+            hasTopRightAmberDot = reviewCount > 0,
             title = "Review",
-            subtitle = "$reviewCount items",
-            subtitleColor = AmberBright,
+            subtitle = if (reviewCount > 0) "$reviewCount items" else "Clean",
+            subtitleColor = if (reviewCount > 0) AmberBright else TextTertiary,
             onClick = onReviewClick,
             modifier = Modifier.weight(1f)
         )

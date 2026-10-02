@@ -1048,54 +1048,11 @@ private fun SetupBrandLogo(
                 .background(Color.White),
             contentAlignment = Alignment.Center
         ) {
-            // Inner pure black circle
-            Box(
-                modifier = Modifier
-                    .size(22.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black),
-                contentAlignment = Alignment.Center
-            ) {
-                // ArcTracker stylized 'A' lettermark
-                Canvas(modifier = Modifier.size(14.dp)) {
-                    val w = size.width
-                    val h = size.height
-                    val strokeW = 1.6.dp.toPx()
-
-                    // Left curved stem
-                    val leftStem = Path().apply {
-                        moveTo(w * 0.28f, h * 0.82f)
-                        quadraticBezierTo(w * 0.32f, h * 0.42f, w * 0.52f, h * 0.18f)
-                    }
-                    drawPath(
-                        path = leftStem,
-                        color = Color.White,
-                        style = Stroke(width = strokeW, cap = StrokeCap.Round)
-                    )
-
-                    // Right stem
-                    val rightStem = Path().apply {
-                        moveTo(w * 0.52f, h * 0.18f)
-                        lineTo(w * 0.66f, h * 0.82f)
-                    }
-                    drawPath(
-                        path = rightStem,
-                        color = Color.White,
-                        style = Stroke(width = strokeW, cap = StrokeCap.Round)
-                    )
-
-                    // Arched crossbar extending past stems
-                    val arcCrossbar = Path().apply {
-                        moveTo(w * 0.10f, h * 0.52f)
-                        quadraticBezierTo(w * 0.48f, h * 0.42f, w * 0.90f, h * 0.56f)
-                    }
-                    drawPath(
-                        path = arcCrossbar,
-                        color = Color.White,
-                        style = Stroke(width = strokeW, cap = StrokeCap.Round)
-                    )
-                }
-            }
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = com.subhashrelangi.arctracker.R.drawable.ic_launcher_foreground),
+                contentDescription = "ArcTracker App Icon",
+                modifier = Modifier.size(26.dp)
+            )
         }
     }
 }
