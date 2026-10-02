@@ -124,6 +124,7 @@ fun SmsImportScreen(
 
     var selectedGroupIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var expandedGroupIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var scanDurationSeconds by remember { mutableStateOf("0.38s") }
 
     var hasSmsPermission by remember {
         mutableStateOf(SmsPermissionHelper.isSmsPermissionGranted(context))
@@ -224,6 +225,7 @@ fun SmsImportScreen(
         errorMessage = null
         currentPhase = SmsImportUiPhase.SCANNING
         isCancelled = false
+        val scanStartTime = System.currentTimeMillis()
         scope.launch {
             val res = withContext(Dispatchers.IO) {
                 importManager.scan(startDateMillis, endDateMillis) { prog ->
@@ -231,6 +233,8 @@ fun SmsImportScreen(
                     !isCancelled
                 }
             }
+            val elapsed = maxOf(0.12, (System.currentTimeMillis() - scanStartTime) / 1000.0)
+            scanDurationSeconds = "%.2fs".format(Locale.ENGLISH, elapsed)
             if (isCancelled || res is SmsScanResult.Cancelled) {
                 currentPhase = SmsImportUiPhase.SELECT_RANGE
             } else if (res is SmsScanResult.Success) {
@@ -289,7 +293,13 @@ fun SmsImportScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = onNavigateBack,
+                    onClick = {
+                        if (currentPhase == SmsImportUiPhase.SCAN_PREVIEW) {
+                            currentPhase = SmsImportUiPhase.SELECT_RANGE
+                        } else {
+                            onNavigateBack()
+                        }
+                    },
                     modifier = Modifier.size(38.dp)
                 ) {
                     Icon(
@@ -884,6 +894,822 @@ fun SmsImportScreen(
                     }
                 }
             }
+            SmsImportUiPhase.SCAN_PREVIEW -> {
+                val result = scanResult
+                if (result != null) {
+                    val groups = result.accountGroups
+                    val selectedGroups = groups.filter { selectedGroupIds.contains(it.groupId) }
+                    val selectedTxnCount = selectedGroups.sumOf { it.transactionCount }
+                    val selectedDebitTotal = selectedGroups.sumOf { it.totalDebit }
+                    val selectedCreditTotal = selectedGroups.sumOf { it.totalCredit }
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // 1. Step 2 of 2 Badge
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFF111722),
+                                border = BorderStroke(1.dp, Color(0xFF1E2838))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(EmeraldAccent)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Step 2 of 2: Ingestion Audit & Ac...",
+                                            color = Color(0xFFE2E8F0),
+                                            fontSize = 11.5.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Stage Ready",
+                                        color = EmeraldAccent,
+                                        fontSize = 11.5.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            // 2. Deterministic Scan Diagnostics Card
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                color = CardSurface,
+                                border = BorderStroke(1.dp, CardBorder)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    // Diagnostics Header
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.CheckCircle,
+                                                contentDescription = null,
+                                                tint = EmeraldAccent,
+                                                modifier = Modifier.size(17.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(7.dp))
+                                            Text(
+                                                text = "Deterministic Scan Diagnostics",
+                                                color = TextWhite,
+                                                fontSize = 13.5.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Complete",
+                                            color = Color(0xFF94A3B8),
+                                            fontSize = 11.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(1.dp))
+
+                                    // 5 Diagnostic Rows matching ScanResult.png
+                                    DiagnosticRow(
+                                        icon = Icons.Outlined.Info,
+                                        iconTint = Color(0xFF64748B),
+                                        label = "${result.messagesScanned} messages scanned",
+                                        tag = "Total window"
+                                    )
+
+                                    DiagnosticRow(
+                                        icon = Icons.Outlined.AccountBalance,
+                                        iconTint = Color(0xFF3B82F6),
+                                        label = "${result.financialMessages} financial messages found",
+                                        tag = "Pattern matched"
+                                    )
+
+                                    DiagnosticRow(
+                                        icon = Icons.Outlined.CheckCircle,
+                                        iconTint = EmeraldAccent,
+                                        label = "${result.transactionCandidatesCount} transaction candidates",
+                                        tag = "Schema valid"
+                                    )
+
+                                    DiagnosticRow(
+                                        icon = Icons.Outlined.AddCircleOutline,
+                                        iconTint = EmeraldAccent,
+                                        label = "${result.newTransactionsCount} new transactions available",
+                                        labelColor = EmeraldAccent,
+                                        tag = if (result.duplicatesCount == 0) "Zero dups" else "${result.duplicatesCount} dups",
+                                        tagColor = EmeraldAccent,
+                                        tagBold = true
+                                    )
+
+                                    val noiseOrOtp = result.noiseMessages + result.nonFinancialMessages
+                                    DiagnosticRow(
+                                        icon = Icons.Outlined.RemoveCircleOutline,
+                                        iconTint = Color(0xFF64748B),
+                                        label = "$noiseOrOtp non-financial / OTP ignored",
+                                        labelColor = Color(0xFF94A3B8),
+                                        tag = "Suppressed"
+                                    )
+
+                                    Spacer(modifier = Modifier.height(2.dp))
+
+                                    // Diagnostic Footer
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Memory,
+                                                contentDescription = null,
+                                                tint = Color(0xFF64748B),
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(5.dp))
+                                            Text(
+                                                text = "Local in-memory evaluation • $scanDurationSeconds execution",
+                                                color = Color(0xFF64748B),
+                                                fontSize = 9.5.sp,
+                                                fontFamily = FontFamily.Monospace,
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "SHA-256",
+                                            color = Color(0xFF64748B),
+                                            fontSize = 9.5.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+
+                            // 3. Select Accounts to Import Header
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Select accounts to",
+                                        color = TextWhite,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "import",
+                                        color = TextWhite,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color(0xFF1E2430),
+                                        border = BorderStroke(1.dp, Color(0xFF2E3A4E)),
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .clickable {
+                                                selectedGroupIds = groups.map { it.groupId }.toSet()
+                                            }
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text("Select", color = TextWhite, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                            Text("All", color = TextWhite, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color(0xFF1E2430),
+                                        border = BorderStroke(1.dp, Color(0xFF2E3A4E)),
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .clickable {
+                                                selectedGroupIds = emptySet()
+                                            }
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text("Clear", color = Color(0xFF64748B), fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                            Text("All", color = Color(0xFF64748B), fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Subtitle Row with Amber Dot
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(vertical = 2.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(5.dp)
+                                        .clip(CircleShape)
+                                        .background(AmberAccent)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "${selectedGroups.size} of ${groups.size} accounts selected • $selectedTxnCount transactions",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+
+                            // 4. Discovered Account Cards
+                            if (groups.isEmpty()) {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0xFF10151E),
+                                    border = BorderStroke(1.dp, Color(0xFF1E2838))
+                                ) {
+                                    Box(modifier = Modifier.padding(16.dp), contentAlignment = Alignment.Center) {
+                                        Text("No accounts found in this period", color = TextSecondary, fontSize = 12.sp)
+                                    }
+                                }
+                            } else {
+                                groups.forEach { group ->
+                                    val isSelected = selectedGroupIds.contains(group.groupId)
+                                    val isExpanded = expandedGroupIds.contains(group.groupId)
+                                    val isUnidentified = group.groupId == "unidentified_account"
+
+                                    if (isUnidentified) {
+                                        // Unidentified Account Card (Amber Warning)
+                                        Surface(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = Color(0xFF221706),
+                                            border = BorderStroke(1.dp, Color(0xFF684712))
+                                        ) {
+                                            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    // Square checkbox
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(20.dp)
+                                                            .clip(RoundedCornerShape(4.dp))
+                                                            .background(if (isSelected) Color(0xFF3B2607) else Color(0xFF191104))
+                                                            .border(BorderStroke(1.dp, if (isSelected) AmberAccent else Color(0xFF5E3C0B)), RoundedCornerShape(4.dp))
+                                                            .clickable {
+                                                                selectedGroupIds = if (isSelected) selectedGroupIds - group.groupId else selectedGroupIds + group.groupId
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        if (isSelected) {
+                                                            Icon(Icons.Filled.Check, contentDescription = null, tint = AmberAccent, modifier = Modifier.size(14.dp))
+                                                        }
+                                                    }
+
+                                                    Spacer(modifier = Modifier.width(10.dp))
+
+                                                    Column(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .clickable {
+                                                                selectedGroupIds = if (isSelected) selectedGroupIds - group.groupId else selectedGroupIds + group.groupId
+                                                            }
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Icon(Icons.Filled.Warning, contentDescription = null, tint = AmberAccent, modifier = Modifier.size(15.dp))
+                                                            Spacer(modifier = Modifier.width(5.dp))
+                                                            Text(
+                                                                text = "Unidentified Account",
+                                                                color = AmberAccent,
+                                                                fontSize = 14.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        }
+                                                        Spacer(modifier = Modifier.height(2.dp))
+                                                        Text(
+                                                            text = "REVIEW REQUIRED • Ambiguous Suffix",
+                                                            color = Color(0xFFD97706),
+                                                            fontSize = 10.sp,
+                                                            fontFamily = FontFamily.Monospace,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier.clickable {
+                                                            expandedGroupIds = if (isExpanded) expandedGroupIds - group.groupId else expandedGroupIds + group.groupId
+                                                        }
+                                                    ) {
+                                                        Surface(
+                                                            color = Color(0xFF130E05),
+                                                            shape = RoundedCornerShape(4.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = "${group.transactionCount} txn",
+                                                                color = AmberAccent,
+                                                                fontSize = 11.sp,
+                                                                fontFamily = FontFamily.Monospace,
+                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            )
+                                                        }
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Icon(
+                                                            imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.ChevronRight,
+                                                            contentDescription = null,
+                                                            tint = Color(0xFFD97706),
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                }
+
+                                                // Amber explanatory inner box
+                                                Surface(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(top = 8.dp),
+                                                    color = Color(0xFF140D04),
+                                                    border = BorderStroke(1.dp, Color(0xFF38250A)),
+                                                    shape = RoundedCornerShape(6.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Could not confidently link bank suffix. Tap to inspect raw evidence before importing.",
+                                                        color = Color(0xFFCBD5E1),
+                                                        fontSize = 11.sp,
+                                                        lineHeight = 15.sp,
+                                                        modifier = Modifier.padding(8.dp)
+                                                    )
+                                                }
+
+                                                if (group.totalDebit > 0 || group.totalCredit > 0) {
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(top = 8.dp),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Text("Debit ", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                                            Text("-₹${formatCurrency(group.totalDebit)}", color = Color(0xFFEF4444), fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                                        }
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Text("Credit ", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                                            val creditText = if (group.totalCredit > 0) "+₹${formatCurrency(group.totalCredit)}" else "₹0.00"
+                                                            val creditColor = if (group.totalCredit > 0) EmeraldAccent else Color(0xFF64748B)
+                                                            Text(creditText, color = creditColor, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                                        }
+                                                    }
+                                                }
+
+                                                if (isExpanded && group.transactions.isNotEmpty()) {
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    HorizontalDivider(color = Color(0xFF38250A))
+                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                    group.transactions.forEach { txnItem ->
+                                                        val cand = txnItem.candidate.candidate
+                                                        val isCredit = cand.direction == TransactionDirection.CREDIT
+                                                        val party = cand.merchant?.takeIf { it.isNotBlank() }
+                                                            ?: cand.counterparty?.takeIf { it.isNotBlank() }
+                                                            ?: "Transaction"
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(vertical = 3.dp),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Column(modifier = Modifier.weight(1f)) {
+                                                                Text(party, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = TextWhite, maxLines = 1)
+                                                                cand.transactionDateString?.let {
+                                                                    Text(it, fontSize = 10.sp, color = TextMuted)
+                                                                }
+                                                            }
+                                                            Text(
+                                                                (if (isCredit) "+₹" else "-₹") + formatCurrency(cand.amount ?: 0.0),
+                                                                fontSize = 12.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = if (isCredit) EmeraldAccent else Color(0xFFF87171)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        // Standard Identified Account Card
+                                        Surface(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = Color(0xFF10151E),
+                                            border = BorderStroke(1.dp, Color(0xFF1E2838))
+                                        ) {
+                                            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    // Square checkbox
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(20.dp)
+                                                            .clip(RoundedCornerShape(4.dp))
+                                                            .background(if (isSelected) Color(0xFF0F261E) else Color(0xFF151B26))
+                                                            .border(BorderStroke(1.dp, if (isSelected) EmeraldAccent else Color(0xFF2D3B4F)), RoundedCornerShape(4.dp))
+                                                            .clickable {
+                                                                selectedGroupIds = if (isSelected) selectedGroupIds - group.groupId else selectedGroupIds + group.groupId
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        if (isSelected) {
+                                                            Icon(Icons.Filled.Check, contentDescription = null, tint = EmeraldAccent, modifier = Modifier.size(14.dp))
+                                                        }
+                                                    }
+
+                                                    Spacer(modifier = Modifier.width(10.dp))
+
+                                                    Column(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .clickable {
+                                                                selectedGroupIds = if (isSelected) selectedGroupIds - group.groupId else selectedGroupIds + group.groupId
+                                                            }
+                                                    ) {
+                                                        Text(
+                                                            text = group.identity.getDisplayName(),
+                                                            color = TextWhite,
+                                                            fontSize = 14.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                        Spacer(modifier = Modifier.height(2.dp))
+                                                        val subLabel = when {
+                                                            group.identity.instrumentType == InstrumentType.CARD -> "Auto-Matched • Credit Card"
+                                                            group.identity.institutionName == null -> "Merchant Direct Debit"
+                                                            group.groupId.contains("salary", ignoreCase = true) -> "Auto-Matched • Salary Account"
+                                                            group.groupId.contains("upi", ignoreCase = true) -> "Auto-Matched • Primary UPI"
+                                                            else -> "Auto-Matched • Savings"
+                                                        }
+                                                        val subColor = if (subLabel.startsWith("Auto-Matched")) EmeraldAccent else Color(0xFF94A3B8)
+                                                        Text(
+                                                            text = subLabel,
+                                                            color = subColor,
+                                                            fontSize = 10.5.sp,
+                                                            fontFamily = FontFamily.Monospace,
+                                                            fontWeight = FontWeight.Medium
+                                                        )
+                                                    }
+
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier.clickable {
+                                                            expandedGroupIds = if (isExpanded) expandedGroupIds - group.groupId else expandedGroupIds + group.groupId
+                                                        }
+                                                    ) {
+                                                        Surface(
+                                                            color = Color(0xFF1A2230),
+                                                            shape = RoundedCornerShape(4.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = "${group.transactionCount} txns",
+                                                                color = Color(0xFFCBD5E1),
+                                                                fontSize = 11.sp,
+                                                                fontFamily = FontFamily.Monospace,
+                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            )
+                                                        }
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Icon(
+                                                            imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.ChevronRight,
+                                                            contentDescription = null,
+                                                            tint = Color(0xFF64748B),
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                }
+
+                                                // Bottom Row: Debit / Credit
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(top = 8.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Text("Debit ", color = Color(0xFF64748B), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                                        Text("-₹${formatCurrency(group.totalDebit)}", color = Color(0xFFEF4444), fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                                    }
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Text("Credit ", color = Color(0xFF64748B), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                                        val creditText = if (group.totalCredit > 0) "+₹${formatCurrency(group.totalCredit)}" else "₹0.00"
+                                                        val creditColor = if (group.totalCredit > 0) EmeraldAccent else Color(0xFF64748B)
+                                                        Text(creditText, color = creditColor, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                                    }
+                                                }
+
+                                                if (isExpanded && group.transactions.isNotEmpty()) {
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    HorizontalDivider(color = Color(0xFF1E2838))
+                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                    group.transactions.forEach { txnItem ->
+                                                        val cand = txnItem.candidate.candidate
+                                                        val isCredit = cand.direction == TransactionDirection.CREDIT
+                                                        val party = cand.merchant?.takeIf { it.isNotBlank() }
+                                                            ?: cand.counterparty?.takeIf { it.isNotBlank() }
+                                                            ?: "Transaction"
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(vertical = 3.dp),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Column(modifier = Modifier.weight(1f)) {
+                                                                Text(party, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = TextWhite, maxLines = 1)
+                                                                cand.transactionDateString?.let {
+                                                                    Text(it, fontSize = 10.sp, color = TextMuted)
+                                                                }
+                                                            }
+                                                            Text(
+                                                                (if (isCredit) "+₹" else "-₹") + formatCurrency(cand.amount ?: 0.0),
+                                                                fontSize = 12.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = if (isCredit) EmeraldAccent else Color(0xFFF87171)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 5. Staging Ingest Summary Card
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF10151E),
+                                border = BorderStroke(1.dp, Color(0xFF1E2838))
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    // Top Row: Icon + Title + Counts
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.AccountBalanceWallet,
+                                                contentDescription = null,
+                                                tint = Color(0xFFCBD5E1),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Column {
+                                                Text("Staging Ingest", color = TextWhite, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
+                                                Text("Summary", color = TextWhite, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text("Accounts: ${selectedGroups.size} |", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                            Text("Transactions: $selectedTxnCount", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Spending & Income Blocks Side-by-Side
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        // Selected Spending Box
+                                        Surface(
+                                            modifier = Modifier.weight(1f),
+                                            color = Color(0xFF241014),
+                                            border = BorderStroke(1.dp, Color(0xFF4C1D24)),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                                                Text("Selected Spending", color = Color(0xFFEF4444), fontSize = 9.5.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium)
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text("-₹${formatCurrency(selectedDebitTotal)}", color = Color(0xFFEF4444), fontSize = 14.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+
+                                        // Selected Income Box
+                                        Surface(
+                                            modifier = Modifier.weight(1f),
+                                            color = Color(0xFF0A2018),
+                                            border = BorderStroke(1.dp, Color(0xFF124330)),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                                                Text("Selected Income", color = EmeraldAccent, fontSize = 9.5.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium)
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text("+₹${formatCurrency(selectedCreditTotal)}", color = EmeraldAccent, fontSize = 14.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Net Ledger Impact Row
+                                    val netBalance = selectedCreditTotal - selectedDebitTotal
+                                    val netFormatted = (if (netBalance >= 0) "+₹" else "-₹") + formatCurrency(Math.abs(netBalance))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text("Net Ledger", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                            Text("Impact", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                        }
+
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                text = "$netFormatted net balance",
+                                                color = if (netBalance >= 0) EmeraldAccent else Color(0xFFEF4444),
+                                                fontSize = 12.5.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = "adjustment",
+                                                color = if (netBalance >= 0) EmeraldAccent else Color(0xFFEF4444),
+                                                fontSize = 12.5.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Bottom Action Controls Docked at Screen End
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(46.dp)
+                                    .shadow(
+                                        elevation = if (selectedGroupIds.isNotEmpty()) 8.dp else 0.dp,
+                                        shape = RoundedCornerShape(12.dp),
+                                        spotColor = Color(0x66000000),
+                                        ambientColor = Color(0x33000000)
+                                    )
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable(
+                                        enabled = selectedGroupIds.isNotEmpty(),
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = rememberRipple(color = Color.Black.copy(alpha = 0.2f))
+                                    ) {
+                                        currentPhase = SmsImportUiPhase.IMPORTING
+                                        isCancelled = false
+                                        scope.launch {
+                                            val impRes = withContext(Dispatchers.IO) {
+                                                importManager.importTransactions(
+                                                    scanResult = result,
+                                                    selectedGroupIds = selectedGroupIds
+                                                ) { prog ->
+                                                    importProgress = prog
+                                                    !isCancelled
+                                                }
+                                            }
+                                            if (isCancelled || impRes is SmsImportResult.Cancelled) {
+                                                currentPhase = SmsImportUiPhase.SELECT_RANGE
+                                            } else if (impRes is SmsImportResult.Success) {
+                                                importResult = impRes
+                                                SmsPermissionHelper.setInitialImportCompleted(context, true)
+                                                currentPhase = SmsImportUiPhase.IMPORT_COMPLETE
+                                            } else if (impRes is SmsImportResult.Failure) {
+                                                errorMessage = impRes.message
+                                                currentPhase = SmsImportUiPhase.ERROR
+                                            }
+                                        }
+                                    },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (selectedGroupIds.isNotEmpty()) Color.White else Color(0xFF1E232E),
+                                border = if (selectedGroupIds.isNotEmpty()) null else BorderStroke(1.dp, Color(0xFF2E3747))
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxSize(),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Import $selectedTxnCount Transactions to Ledger",
+                                        color = if (selectedGroupIds.isNotEmpty()) Color(0xFF090C10) else Color(0xFF6B7280),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.1.sp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = null,
+                                        tint = if (selectedGroupIds.isNotEmpty()) Color(0xFF090C10) else Color(0xFF6B7280),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { currentPhase = SmsImportUiPhase.SELECT_RANGE }
+                                    .padding(vertical = 4.dp, horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.CalendarToday,
+                                    contentDescription = null,
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Change Date Range",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             else -> {
                 Column(
                     modifier = Modifier
@@ -953,321 +1779,6 @@ fun SmsImportScreen(
                                 Box(contentAlignment = Alignment.Center) {
                                     Text("Cancel Scan", color = TextSecondary, fontSize = 13.5.sp, fontWeight = FontWeight.Medium)
                                 }
-                            }
-                        }
-                    }
-                }
-
-                SmsImportUiPhase.SCAN_PREVIEW -> {
-                    val result = scanResult
-                    if (result != null) {
-                        val groups = result.accountGroups
-                        val selectedGroups = groups.filter { selectedGroupIds.contains(it.groupId) }
-                        val selectedTxnCount = selectedGroups.sumOf { it.transactionCount }
-                        val selectedDebitTotal = selectedGroups.sumOf { it.totalDebit }
-                        val selectedCreditTotal = selectedGroups.sumOf { it.totalCredit }
-
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            color = CardSurface,
-                            border = BorderStroke(1.dp, CardBorder)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Text(
-                                    text = "Scan Complete",
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextWhite
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                DarkResultRow(Icons.Outlined.Info, "${result.messagesScanned} messages scanned")
-                                DarkResultRow(Icons.Outlined.AccountBalance, "${result.financialMessages} financial messages found", EmeraldAccent)
-                                DarkResultRow(Icons.Filled.CheckCircle, "${result.transactionCandidatesCount} transaction candidates", EmeraldAccent)
-                                DarkResultRow(Icons.Filled.Add, "${result.newTransactionsCount} new transactions available", Color(0xFF60A5FA))
-                                if (result.duplicatesCount > 0) {
-                                    DarkResultRow(Icons.Filled.ContentCopy, "${result.duplicatesCount} duplicates already in database", TextMuted)
-                                }
-                                if (result.correlationsCount > 0) {
-                                    DarkResultRow(Icons.Filled.Refresh, "${result.correlationsCount} matches with existing notifications", Color(0xFF38BDF8))
-                                }
-                                if (result.pendingReviewCount > 0) {
-                                    DarkResultRow(Icons.Filled.Warning, "${result.pendingReviewCount} require review", AmberAccent)
-                                }
-                                val ignoredCount = result.noiseMessages + result.nonFinancialMessages
-                                if (ignoredCount > 0) {
-                                    DarkResultRow(Icons.Filled.RemoveCircleOutline, "$ignoredCount non-financial or OTP messages ignored", TextMuted)
-                                }
-                            }
-                        }
-
-                        // Discovered Account Groups Selection
-                        if (groups.isNotEmpty()) {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                color = CardSurface,
-                                border = BorderStroke(1.dp, CardBorder)
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            "Select Accounts to Import",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp,
-                                            color = TextWhite
-                                        )
-                                        Row {
-                                            TextButton(
-                                                onClick = { selectedGroupIds = groups.map { it.groupId }.toSet() },
-                                                contentPadding = PaddingValues(horizontal = 8.dp)
-                                            ) {
-                                                Text("Select All", fontSize = 12.sp, color = EmeraldAccent)
-                                            }
-                                            TextButton(
-                                                onClick = { selectedGroupIds = emptySet() },
-                                                contentPadding = PaddingValues(horizontal = 8.dp)
-                                            ) {
-                                                Text("Clear All", fontSize = 12.sp, color = TextMuted)
-                                            }
-                                        }
-                                    }
-
-                                    Text(
-                                        "${selectedGroups.size} of ${groups.size} accounts selected • $selectedTxnCount transactions",
-                                        fontSize = 12.5.sp,
-                                        color = if (selectedGroupIds.isEmpty()) Color(0xFFF87171) else TextSecondary,
-                                        fontWeight = FontWeight.Medium
-                                    )
-
-                                    HorizontalDivider(color = Color(0xFF222836))
-
-                                    groups.forEach { group ->
-                                        val isSelected = selectedGroupIds.contains(group.groupId)
-                                        val isExpanded = expandedGroupIds.contains(group.groupId)
-                                        val isUnidentified = group.groupId == "unidentified_account"
-
-                                        Surface(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            shape = RoundedCornerShape(10.dp),
-                                            color = if (isSelected) Color(0xFF161F2E) else Color(0xFF0F1219),
-                                            border = BorderStroke(1.dp, if (isSelected) Color(0xFF2E4163) else Color(0xFF1E232F))
-                                        ) {
-                                            Column(modifier = Modifier.padding(12.dp)) {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Checkbox(
-                                                        checked = isSelected,
-                                                        onCheckedChange = { checked ->
-                                                            selectedGroupIds = if (checked) {
-                                                                selectedGroupIds + group.groupId
-                                                            } else {
-                                                                selectedGroupIds - group.groupId
-                                                            }
-                                                        },
-                                                        colors = CheckboxDefaults.colors(
-                                                            checkedColor = EmeraldAccent,
-                                                            checkmarkColor = Color(0xFF090C10)
-                                                        )
-                                                    )
-
-                                                    Spacer(modifier = Modifier.width(4.dp))
-
-                                                    Column(
-                                                        modifier = Modifier
-                                                            .weight(1f)
-                                                            .clickable {
-                                                                selectedGroupIds = if (isSelected) {
-                                                                    selectedGroupIds - group.groupId
-                                                                } else {
-                                                                    selectedGroupIds + group.groupId
-                                                                }
-                                                            }
-                                                    ) {
-                                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                                            Icon(
-                                                                imageVector = Icons.Outlined.AccountBalance,
-                                                                contentDescription = null,
-                                                                tint = if (isUnidentified) AmberAccent else EmeraldAccent,
-                                                                modifier = Modifier.size(16.dp)
-                                                            )
-                                                            Spacer(modifier = Modifier.width(6.dp))
-                                                            Text(
-                                                                group.identity.getDisplayName(),
-                                                                fontWeight = FontWeight.SemiBold,
-                                                                fontSize = 13.5.sp,
-                                                                color = TextWhite
-                                                            )
-                                                            if (isUnidentified) {
-                                                                Spacer(modifier = Modifier.width(6.dp))
-                                                                Surface(
-                                                                    color = AmberPillBg,
-                                                                    border = BorderStroke(1.dp, AmberPillBorder),
-                                                                    shape = RoundedCornerShape(4.dp)
-                                                                ) {
-                                                                    Text(
-                                                                        "Review",
-                                                                        color = AmberAccent,
-                                                                        fontSize = 10.sp,
-                                                                        fontWeight = FontWeight.Bold,
-                                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                                                    )
-                                                                }
-                                                            }
-                                                        }
-
-                                                        Spacer(modifier = Modifier.height(2.dp))
-
-                                                        Text(
-                                                            "${group.transactionCount} transactions",
-                                                            fontSize = 11.5.sp,
-                                                            color = TextSecondary
-                                                        )
-
-                                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                                            if (group.totalDebit > 0) {
-                                                                Text(
-                                                                    "Debit: ₹${"%.2f".format(group.totalDebit)}",
-                                                                    fontSize = 11.5.sp,
-                                                                    color = Color(0xFFF87171),
-                                                                    fontWeight = FontWeight.Medium
-                                                                )
-                                                            }
-                                                            if (group.totalCredit > 0) {
-                                                                Text(
-                                                                    "Credit: ₹${"%.2f".format(group.totalCredit)}",
-                                                                    fontSize = 11.5.sp,
-                                                                    color = EmeraldAccent,
-                                                                    fontWeight = FontWeight.Medium
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-
-                                                    IconButton(
-                                                        onClick = {
-                                                            expandedGroupIds = if (isExpanded) {
-                                                                expandedGroupIds - group.groupId
-                                                            } else {
-                                                                expandedGroupIds + group.groupId
-                                                            }
-                                                        }
-                                                    ) {
-                                                        Icon(
-                                                            if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                                                            contentDescription = if (isExpanded) "Collapse" else "Expand",
-                                                            tint = TextMuted
-                                                        )
-                                                    }
-                                                }
-
-                                                if (isExpanded && group.transactions.isNotEmpty()) {
-                                                    Spacer(modifier = Modifier.height(8.dp))
-                                                    HorizontalDivider(color = Color(0xFF1E232F))
-                                                    Spacer(modifier = Modifier.height(6.dp))
-                                                    group.transactions.forEach { txnItem ->
-                                                        val cand = txnItem.candidate.candidate
-                                                        val isCredit = cand.direction == TransactionDirection.CREDIT
-                                                        val party = cand.merchant?.takeIf { it.isNotBlank() }
-                                                            ?: cand.counterparty?.takeIf { it.isNotBlank() }
-                                                            ?: "Transaction"
-                                                        Row(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .padding(vertical = 3.dp),
-                                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                                            verticalAlignment = Alignment.CenterVertically
-                                                        ) {
-                                                            Column(modifier = Modifier.weight(1f)) {
-                                                                Text(party, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = TextWhite, maxLines = 1)
-                                                                cand.transactionDateString?.let {
-                                                                    Text(it, fontSize = 10.sp, color = TextMuted)
-                                                                }
-                                                            }
-                                                            Text(
-                                                                (if (isCredit) "+₹" else "-₹") + "%.2f".format(cand.amount ?: 0.0),
-                                                                fontSize = 12.sp,
-                                                                fontWeight = FontWeight.Bold,
-                                                                color = if (isCredit) EmeraldAccent else Color(0xFFF87171)
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Import Action CTA
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .clickable(enabled = selectedGroupIds.isNotEmpty()) {
-                                    currentPhase = SmsImportUiPhase.IMPORTING
-                                    isCancelled = false
-                                    scope.launch {
-                                        val impRes = withContext(Dispatchers.IO) {
-                                            importManager.importTransactions(
-                                                scanResult = result,
-                                                selectedGroupIds = selectedGroupIds
-                                            ) { prog ->
-                                                importProgress = prog
-                                                !isCancelled
-                                            }
-                                        }
-                                        if (isCancelled || impRes is SmsImportResult.Cancelled) {
-                                            currentPhase = SmsImportUiPhase.SELECT_RANGE
-                                        } else if (impRes is SmsImportResult.Success) {
-                                            importResult = impRes
-                                            SmsPermissionHelper.setInitialImportCompleted(context, true)
-                                            currentPhase = SmsImportUiPhase.IMPORT_COMPLETE
-                                        } else if (impRes is SmsImportResult.Failure) {
-                                            errorMessage = impRes.message
-                                            currentPhase = SmsImportUiPhase.ERROR
-                                        }
-                                    }
-                                },
-                            shape = RoundedCornerShape(14.dp),
-                            color = if (selectedGroupIds.isNotEmpty()) Color.White else Color(0xFF4A4E5A)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = if (selectedTxnCount > 0) "Import Selected ($selectedTxnCount)" else "Import Selected",
-                                    color = Color(0xFF090C10),
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(46.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { currentPhase = SmsImportUiPhase.SELECT_RANGE },
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF141722),
-                            border = BorderStroke(1.dp, Color(0xFF222836))
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text("Change Date Range", color = TextSecondary, fontSize = 13.5.sp, fontWeight = FontWeight.Medium)
                             }
                         }
                     }
@@ -1604,3 +2115,56 @@ private fun Context.findActivity(): Activity? {
     }
     return null
 }
+
+@Composable
+private fun DiagnosticRow(
+    icon: ImageVector,
+    iconTint: Color,
+    label: String,
+    labelColor: Color = Color(0xFFCBD5E1),
+    tag: String,
+    tagColor: Color = Color(0xFF64748B),
+    tagBold: Boolean = false
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f, fill = false)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(15.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = label,
+                color = labelColor,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = tag,
+            color = tagColor,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = if (tagBold) FontWeight.Bold else FontWeight.Normal
+        )
+    }
+}
+
+private fun formatCurrency(amount: Double): String {
+    val formatter = java.text.NumberFormat.getNumberInstance(Locale("en", "IN"))
+    formatter.minimumFractionDigits = 2
+    formatter.maximumFractionDigits = 2
+    return formatter.format(amount)
+}
+
