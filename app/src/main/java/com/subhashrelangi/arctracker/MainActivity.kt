@@ -282,6 +282,14 @@ fun ExpenseScreen() {
     }
     val currentRoute = backStack.lastOrNull() ?: "Home"
 
+    // If onboarding was not permanently completed (e.g. user was in demo mode),
+    // any app restart / relaunch MUST return to the Initial Welcome Screen.
+    LaunchedEffect(Unit) {
+        if (!settingsRepo.isInitialOnboardingCompleted() && backStack != listOf("InitialOnboarding")) {
+            backStack = listOf("InitialOnboarding")
+        }
+    }
+
     var isSearching by remember {
         mutableStateOf(false)
     }
@@ -702,14 +710,26 @@ fun ExpenseScreen() {
             } else if (currentRoute == "InitialOnboarding") {
 
                 com.subhashrelangi.arctracker.ui.InitialPageScreen(
-                    onGetStartedClick = {
+                    onStartSetupClick = {
+                        scope.launch(Dispatchers.IO) {
+                            com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
+                        }
                         settingsRepo.setInitialOnboardingCompleted(true)
+                        hasDismissedNotificationPermissionDialog = false
+                        hasDismissedInitialSmsImportDialog = false
                         navigateTo("Home")
                     },
-                    onExploreDemoClick = {
-                        settingsRepo.setInitialOnboardingCompleted(true)
+                    onSkipToDashboardClick = {
+                        // Demo mode: give access to all features with dummy data across all screens.
+                        // DO NOT set initialOnboardingCompleted to true in persistent SharedPreferences!
+                        // This guarantees that when the user closes the app and opens again, it returns to the Initial Setup page.
+                        scope.launch(Dispatchers.IO) {
+                            com.subhashrelangi.arctracker.data.MockData.seedCompleteDemoData(database)
+                        }
+                        hasDismissedNotificationPermissionDialog = true
+                        hasDismissedInitialSmsImportDialog = true
                         navigateTo("Home")
-                        Toast.makeText(context, "Demo mode: sample ledger loaded", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Demo mode active with sample data", Toast.LENGTH_SHORT).show()
                     }
                 )
 

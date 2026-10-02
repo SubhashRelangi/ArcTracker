@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -66,13 +67,19 @@ fun DeveloperOptionsScreen(onNavigate: (String) -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val settingsRepo = remember { com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository.getInstance(context) }
+
         // Options List
         SettingsCard {
             SettingsRow(
                 icon = Icons.Filled.Smartphone,
                 title = "Initial Welcome Screen",
                 subtitle = "Preview redesigned on-device onboarding page",
-                onClick = { onNavigate("InitialOnboarding") }
+                onClick = { 
+                    settingsRepo.setInitialOnboardingCompleted(false)
+                    onNavigate("InitialOnboarding") 
+                }
             )
             SettingsRow(
                 icon = Icons.Filled.Search,
