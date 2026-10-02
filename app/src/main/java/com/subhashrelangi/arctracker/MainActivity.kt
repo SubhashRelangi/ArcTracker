@@ -286,7 +286,7 @@ fun ExpenseScreen() {
             backStack = listOf("Home")
         } else if (route == "InitialOnboarding") {
             backStack = listOf("InitialOnboarding")
-        } else if (route == "Transactions" || route == "Settings" || route == "Insights" || route == "Analytics") {
+        } else if (route == "Transactions" || route == "Settings" || route == "Insights" || route == "Analytics" || route == "Pending" || route == "Review") {
             backStack = listOf("Home", route)
         } else {
             if (backStack.lastOrNull() != route) {
@@ -342,13 +342,15 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
-        containerColor = if (currentRoute == "Home" || currentRoute == "InitialOnboarding" || currentRoute == "Transactions") Color(0xFF090C10) else MaterialTheme.colorScheme.background,
+        containerColor = if (currentRoute == "Home" || currentRoute == "InitialOnboarding" || currentRoute == "Transactions" || currentRoute == "Pending" || currentRoute == "Review") Color(0xFF090C10) else MaterialTheme.colorScheme.background,
 
         topBar = {
             if (currentRoute != "SmsImport" &&
                 currentRoute != "InitialOnboarding" &&
                 currentRoute != "Home" &&
                 currentRoute != "Transactions" &&
+                currentRoute != "Pending" &&
+                currentRoute != "Review" &&
                 currentRoute != "FinancialAccounts" &&
                 currentRoute != "UnresolvedTransactions" &&
                 currentRoute != "AccountTransactions" &&
@@ -468,7 +470,6 @@ fun ExpenseScreen() {
             if (
                 currentRoute != "InitialOnboarding" &&
                 currentRoute != "ClearAllData" &&
-                currentRoute != "Pending" &&
                 currentRoute != "SmsImport" &&
                 currentRoute != "BackupRestore" &&
                 currentRoute != "SupportedApps" &&
@@ -487,7 +488,7 @@ fun ExpenseScreen() {
                 val pendingCount = expenses.count { it.isPending }
                 com.subhashrelangi.arctracker.ui.FloatingNavigationBar(
                     currentRoute = currentRoute,
-                    pendingReviewCount = if (pendingCount > 0) pendingCount else 3,
+                    pendingReviewCount = pendingCount,
                     onNavigate = {
                         navigateTo(it.route)
                     }
@@ -745,81 +746,23 @@ fun ExpenseScreen() {
                 com.subhashrelangi.arctracker.ui.BackupScreen(
                     onNavigateBack = { navigateBack() }
                 )
-            } else if (currentRoute == "Pending") {
+            } else if (currentRoute == "Pending" || currentRoute == "Review") {
 
-                val pendingExpenses =
-                    expenses.filter {
-                        it.isPending
+                com.subhashrelangi.arctracker.ui.review.ReviewPage(
+                    expenses = displayedExpenses,
+                    onSearchClick = {
+                        isSearching = !isSearching
+                    },
+                    onAddExpenseClick = {
+                        showAddDialog = true
+                    },
+                    onViewLedger = {
+                        navigateTo("Transactions")
+                    },
+                    onEditExpense = {
+                        editExpense = it
                     }
-
-                LazyColumn(
-                    modifier =
-                        Modifier.fillMaxWidth()
-                ) {
-
-                    if (pendingExpenses.isEmpty()) {
-
-                        item {
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment =
-                                    Alignment.Center
-                            ) {
-
-                                Text(
-                                    text =
-                                        "No pending expenses!",
-                                    color =
-                                        Color.Gray
-                                )
-                            }
-                        }
-
-                    } else {
-
-                        item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "${pendingExpenses.size} Pending Review",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Button(
-                                    onClick = { showCompleteAllDialog = true }
-                                ) {
-                                    Text("Complete All")
-                                }
-                            }
-                        }
-
-                        items(
-                            pendingExpenses
-                        ) { expense ->
-
-                            ExpenseItemRow(
-                                expense = expense,
-                                isLast = false,
-                                onClick = {
-                                    showApproveDialog =
-                                        expense
-                                },
-                                onLongClick = {
-                                    actionSheetExpense =
-                                        expense
-                                }
-                            )
-                        }
-                    }
-                }
+                )
 
             } else if (currentRoute == "InitialOnboarding") {
 
