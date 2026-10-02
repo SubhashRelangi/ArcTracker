@@ -78,4 +78,25 @@ class UniversalFoundationTest {
         assertEquals(36.dp, ArcDimensions.BrandLogoSize)
         assertEquals(6.dp, ArcDimensions.LiveDotSize)
     }
+
+    @Test
+    fun testAnalyticsDateRangeLabels() {
+        val ranges = com.subhashrelangi.arctracker.service.AnalyticsDateRange.values()
+        assertEquals(5, ranges.size)
+        assertEquals("Today", ranges[0].label)
+        assertEquals("This Week", ranges[1].label)
+        assertEquals("This Month", ranges[2].label)
+        assertEquals("All Time", ranges[3].label)
+        assertEquals("Custom Range", ranges[4].label)
+    }
+
+    @Test
+    fun testPrimaryDestinationsSet() {
+        val primaryRoutes = setOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")
+        assertEquals(true, primaryRoutes.contains(ArcDestination.HOME.route))
+        assertEquals(true, primaryRoutes.contains(ArcDestination.LEDGER.route))
+        assertEquals(true, primaryRoutes.contains(ArcDestination.REVIEW.route))
+        assertEquals(true, primaryRoutes.contains(ArcDestination.INSIGHTS.route))
+        assertEquals(true, primaryRoutes.contains(ArcDestination.SETTINGS.route))
+    }
 }

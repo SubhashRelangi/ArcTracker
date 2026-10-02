@@ -69,6 +69,7 @@ private val MiniCardBorder = Color(0xFF222837)
 @Composable
 fun HomeScreenRedesign(
     expenses: List<Expense> = emptyList(),
+    showHeader: Boolean = false,
     onSearchClick: () -> Unit = {},
     onAddExpenseClick: () -> Unit = {},
     onReviewClick: () -> Unit = {},
@@ -106,20 +107,22 @@ fun HomeScreenRedesign(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
+                .then(if (showHeader) Modifier.statusBarsPadding() else Modifier)
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp)
-                .padding(top = 10.dp, bottom = 90.dp)
+                .padding(top = if (showHeader) 10.dp else 4.dp, bottom = 90.dp)
         ) {
-            // ----------------------------------------------------
-            // 1. App Header: Logo + "ArcTracker" + Badges + Search/Add
-            // ----------------------------------------------------
-            HomeTopHeader(
-                onSearchClick = onSearchClick,
-                onAddClick = onAddExpenseClick
-            )
+            if (showHeader) {
+                // ----------------------------------------------------
+                // 1. App Header: Logo + "ArcTracker" + Badges + Search/Add
+                // ----------------------------------------------------
+                HomeTopHeader(
+                    onSearchClick = onSearchClick,
+                    onAddClick = onAddExpenseClick
+                )
 
-            Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+            }
 
             // ----------------------------------------------------
             // 2. Review Alert Banner: "3 Transactions Require Review"

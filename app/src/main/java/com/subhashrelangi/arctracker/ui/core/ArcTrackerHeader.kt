@@ -3,8 +3,10 @@ package com.subhashrelangi.arctracker.ui.core
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
@@ -47,11 +49,14 @@ fun ArcTrackerHeader(
     ) {
         // Left: Branding Logo + Title + Subtitle
         ArcTrackerBrand(
+            modifier = Modifier.weight(1f, fill = false),
             title = title,
             showBadge = showBadge,
             badgeText = badgeText,
             statusText = statusText
         )
+
+        Spacer(modifier = Modifier.width(8.dp))
 
         // Right: Configurable Action Buttons
         Row(

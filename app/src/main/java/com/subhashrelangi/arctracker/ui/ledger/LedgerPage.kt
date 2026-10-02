@@ -57,6 +57,8 @@ import java.util.Locale
 @Composable
 fun LedgerPage(
     expenses: List<Expense>,
+    showHeader: Boolean = false,
+    searchFocusTrigger: Int = 0,
     onExpenseClick: (Expense) -> Unit = {},
     onExpenseLongClick: (Expense) -> Unit = {},
     onAddTransactionClick: () -> Unit = {},
@@ -207,6 +209,12 @@ fun LedgerPage(
         }.toSortedMap(compareByDescending { it })
     }
 
+    LaunchedEffect(searchFocusTrigger) {
+        if (searchFocusTrigger > 0) {
+            searchFocusRequester.requestFocus()
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -215,13 +223,15 @@ fun LedgerPage(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // 1. Ledger Top Branding Header
-            LedgerHeader(
-                onSearchClick = {
-                    searchFocusRequester.requestFocus()
-                },
-                onAddClick = onAddTransactionClick
-            )
+            if (showHeader) {
+                // 1. Ledger Top Branding Header
+                LedgerHeader(
+                    onSearchClick = {
+                        searchFocusRequester.requestFocus()
+                    },
+                    onAddClick = onAddTransactionClick
+                )
+            }
 
             // 2. Search Field
             LedgerSearchBar(

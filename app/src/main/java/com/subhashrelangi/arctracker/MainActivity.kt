@@ -325,6 +325,10 @@ fun ExpenseScreen() {
         mutableStateOf(false)
     }
 
+    var ledgerSearchFocusTrigger by remember {
+        mutableStateOf(0)
+    }
+
     var searchQuery by remember {
         mutableStateOf("")
     }
@@ -345,30 +349,30 @@ fun ExpenseScreen() {
         containerColor = if (currentRoute in listOf("Home", "InitialOnboarding", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
 
         topBar = {
-            if (currentRoute == "Settings") {
+            if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
                 com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
                     modifier = Modifier.statusBarsPadding(),
-                    title = "Settings",
-                    showBadge = false,
-                    statusText = "Configure your preferences",
-                    showSearch = false,
-                    showAdd = false
+                    title = "ArcTracker",
+                    showBadge = true,
+                    badgeText = "UPI",
+                    statusText = "Automated  •  Local-first",
+                    showSearch = true,
+                    showAdd = true,
+                    onSearchClick = {
+                        if (currentRoute == "Transactions") {
+                            ledgerSearchFocusTrigger++
+                        } else {
+                            isSearching = !isSearching
+                            if (!isSearching) searchQuery = ""
+                        }
+                    },
+                    onAddClick = {
+                        showAddDialog = true
+                    }
                 )
-            } else if (currentRoute == "Analytics" || currentRoute == "Insights") {
-                com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
-                    modifier = Modifier.statusBarsPadding(),
-                    title = "Insights",
-                    showBadge = false,
-                    statusText = "Financial analytics & trends",
-                    showSearch = false,
-                    showAdd = false
-                )
-            } else if (currentRoute != "SmsImport" &&
+            } else if (
+                currentRoute != "SmsImport" &&
                 currentRoute != "InitialOnboarding" &&
-                currentRoute != "Home" &&
-                currentRoute != "Transactions" &&
-                currentRoute != "Pending" &&
-                currentRoute != "Review" &&
                 currentRoute != "FinancialAccounts" &&
                 currentRoute != "UnresolvedTransactions" &&
                 currentRoute != "AccountTransactions" &&
@@ -377,30 +381,22 @@ fun ExpenseScreen() {
                 currentRoute != "MerchantAliases" &&
                 currentRoute != "ApplyCategoryRules" &&
                 currentRoute != "Analytics" &&
-                currentRoute != "Insights" &&
                 currentRoute != "Budgets" &&
-                currentRoute != "Backup" &&
-                currentRoute != "Settings"
+                currentRoute != "Backup"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
                     "ClearAllData" -> "Clear All Data"
                     "BackupRestore" -> "Backup & Restore"
-                    "Pending" -> "Pending Expenses"
                     "IgnoreRules" -> "Ignore Rules"
                     "DeveloperOptions" -> "Developer Options"
                     "RegexPatterns" -> "Regex Patterns"
                     "EditRegexPattern" -> if (editingRegexRuleId == null) "Add Pattern" else "Edit Pattern"
-                    "Transactions" -> "ArcTracker"
-                    "Settings" -> "Settings"
                     "SupportedApps" -> "Monitored Apps"
                     else -> "ArcTracker"
                 }
 
                 val subtitle = when (currentRoute) {
-                    "Home" -> "Overview of your finances"
-                    "Transactions" -> "All transactions, at a glance"
-                    "Settings" -> "Configure your app"
                     "SupportedApps" -> "Choose which apps can be monitored"
                     "IgnoreRules" -> "Keywords, senders or patterns to ignore"
                     "DeveloperOptions" -> "Advanced tools for debugging and customization."
@@ -409,7 +405,7 @@ fun ExpenseScreen() {
                     else -> null
                 }
 
-                val onBackClick: (() -> Unit)? = if (backStack.size > 1 && currentRoute != "Transactions") {
+                val onBackClick: (() -> Unit)? = if (backStack.size > 1) {
                     { navigateBack() }
                 } else {
                     null
@@ -420,67 +416,25 @@ fun ExpenseScreen() {
                     subtitle = subtitle,
                     onBackClick = onBackClick,
                     actions = {
-                    if (currentRoute == "Home") {
-                        IconButton(onClick = { refreshTrigger++ }) {
-                            Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
-                        }
-                        IconButton(onClick = {
-                            isSearching = !isSearching
-                            if (!isSearching) searchQuery = ""
-                        }) {
-                            Icon(
-                                imageVector = if (isSearching) Icons.Filled.Close else Icons.Filled.Search,
-                                contentDescription = if (isSearching) "Close Search" else "Search"
-                            )
-                        }
-                        IconButton(onClick = { navigateTo("Pending") }) {
-                            BadgedBox(
-                                badge = {
-                                    val pendingCount = expenses.count { it.isPending }
-                                    if (pendingCount > 0) {
-                                        Badge { Text(pendingCount.toString()) }
-                                    }
+                        if (currentRoute == "RegexPatterns") {
+                            IconButton(onClick = { /* TODO */ }) {
+                                Icon(Icons.Outlined.HelpOutline, contentDescription = "Help", tint = Color(0xFF3F51B5))
+                            }
+                        } else if (currentRoute == "EditRegexPattern") {
+                            if (editingRegexRuleId != null) {
+                                val context = LocalContext.current
+                                TextButton(onClick = {
+                                    RegexPatternsManager.resetSystemRule(context, editingRegexRuleId!!)
+                                    navigateBack()
+                                }) {
+                                    Icon(Icons.Filled.Refresh, contentDescription = "Reset", tint = Color(0xFF3F51B5), modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Reset", color = Color(0xFF3F51B5), fontWeight = FontWeight.Medium)
                                 }
-                            ) {
-                                Icon(Icons.Rounded.PendingActions, contentDescription = "Pending Expenses")
-                            }
-                        }
-                    } else if (currentRoute == "Pending") {
-                        val pendingCount = expenses.count { it.isPending }
-                        if (pendingCount > 0) {
-                            TextButton(onClick = { showCompleteAllDialog = true }) {
-                                Text("Complete All", fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    } else if (currentRoute == "Transactions") {
-                        IconButton(onClick = { /* TODO */ }) {
-                            Icon(Icons.Default.Search, contentDescription = "Search", tint = Color(0xFF1E1E1E))
-                        }
-                        IconButton(onClick = { /* TODO */ }) {
-                            Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = Color(0xFF1E1E1E))
-                        }
-                        IconButton(onClick = { /* TODO */ }) {
-                            Icon(Icons.Default.Download, contentDescription = "Download", tint = Color(0xFF1E1E1E))
-                        }
-                    } else if (currentRoute == "RegexPatterns") {
-                        IconButton(onClick = { /* TODO */ }) {
-                            Icon(Icons.Outlined.HelpOutline, contentDescription = "Help", tint = Color(0xFF3F51B5))
-                        }
-                    } else if (currentRoute == "EditRegexPattern") {
-                        if (editingRegexRuleId != null) {
-                            val context = LocalContext.current
-                            TextButton(onClick = {
-                                RegexPatternsManager.resetSystemRule(context, editingRegexRuleId!!)
-                                navigateBack()
-                            }) {
-                                Icon(Icons.Filled.Refresh, contentDescription = "Reset", tint = Color(0xFF3F51B5), modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Reset", color = Color(0xFF3F51B5), fontWeight = FontWeight.Medium)
                             }
                         }
                     }
-                }
-            )
+                )
             }
         },
 
@@ -581,6 +535,8 @@ fun ExpenseScreen() {
 
                 com.subhashrelangi.arctracker.ui.ledger.LedgerPage(
                     expenses = expenses,
+                    showHeader = false,
+                    searchFocusTrigger = ledgerSearchFocusTrigger,
                     onExpenseClick = { expense ->
                         if (expense.isPending) {
                             showApproveDialog = expense
@@ -771,6 +727,7 @@ fun ExpenseScreen() {
 
                 com.subhashrelangi.arctracker.ui.review.ReviewPage(
                     expenses = displayedExpenses,
+                    showHeader = false,
                     onSearchClick = {
                         isSearching = !isSearching
                     },
@@ -825,6 +782,7 @@ fun ExpenseScreen() {
 
                 com.subhashrelangi.arctracker.ui.HomeScreenRedesign(
                     expenses = displayedExpenses,
+                    showHeader = false,
                     onSearchClick = {
                         isSearching = !isSearching
                     },

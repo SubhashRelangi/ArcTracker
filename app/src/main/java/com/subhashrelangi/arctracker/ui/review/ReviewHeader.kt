@@ -31,6 +31,7 @@ import com.subhashrelangi.arctracker.ui.AppHeaderBrandLogo
 @Composable
 fun ReviewHeader(
     pendingCount: Int,
+    showHeader: Boolean = false,
     onSearchClick: () -> Unit = {},
     onAddClick: () -> Unit = {}
 ) {
@@ -39,14 +40,16 @@ fun ReviewHeader(
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
     ) {
-        // 1. Top Branding Row (ArcTracker, UPI badge, status, Search, Add)
-        com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
-            modifier = Modifier.fillMaxWidth(),
-            onSearchClick = onSearchClick,
-            onAddClick = onAddClick
-        )
+        if (showHeader) {
+            // 1. Top Branding Row (ArcTracker, UPI badge, status, Search, Add)
+            com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
+                modifier = Modifier.fillMaxWidth(),
+                onSearchClick = onSearchClick,
+                onAddClick = onAddClick
+            )
 
-        Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+        }
 
         // 2. Micro-telemetry Banner (AUTOMATED INGEST SANDBOX | Local AES-256)
         Row(

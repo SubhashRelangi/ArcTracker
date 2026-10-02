@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.AppDatabase
@@ -101,6 +103,7 @@ fun AnalyticsScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             if (showInternalHeader) {
                 TopAppBar(
@@ -131,22 +134,48 @@ fun AnalyticsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Screen Title for primary Insights tab
+            if (!showInternalHeader) {
+                item(key = "insights_header_title") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp, bottom = 2.dp)
+                    ) {
+                        Text(
+                            text = "Insights",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Financial analytics & trends",
+                            fontSize = 13.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                    }
+                }
+            }
+
             // ==========================================
-            // Date Range Selector
+            // Date Range Selector (Intrinsic, No Clipping, Horizontal Scroll)
             // ==========================================
-            item {
+            item(key = "insights_date_range_selector") {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .horizontalScroll(rememberScrollState())
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     AnalyticsDateRange.values().forEach { range ->
                         val isSelected = selectedRange == range
-                        FilterChip(
-                            selected = isSelected,
+                        Surface(
                             onClick = {
                                 selectedRange = range
                                 if (range == AnalyticsDateRange.CUSTOM && customStartMillis == null) {
@@ -155,23 +184,42 @@ fun AnalyticsScreen(
                                     customEndMillis = now
                                 }
                             },
-                            label = { Text(range.label) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        )
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (isSelected) Color(0xFF21262D) else Color(0xFF161B22),
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = if (isSelected) Color(0xFF388BFD) else Color(0xFF30363D)
+                            ),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                                    .wrapContentWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = range.label,
+                                    color = if (isSelected) Color.White else Color(0xFF8B949E),
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        }
                     }
                 }
             }
 
             // Custom Range Date Pickers
             if (selectedRange == AnalyticsDateRange.CUSTOM) {
-                item {
+                item(key = "insights_custom_range") {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF161B22)),
+                        border = BorderStroke(1.dp, Color(0xFF30363D))
                     ) {
                         Row(
                             modifier = Modifier
@@ -185,24 +233,26 @@ fun AnalyticsScreen(
                                     customStartMillis = it
                                 }
                             }) {
-                                Text("From", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("From", fontSize = 11.sp, color = Color(0xFF8B949E))
                                 Text(
                                     text = customStartMillis?.let { dateFormatter.format(Date(it)) } ?: "Select Start",
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
+                                    fontSize = 14.sp,
+                                    color = Color.White
                                 )
                             }
-                            Icon(Icons.Filled.ArrowForward, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color(0xFF8B949E), modifier = Modifier.size(16.dp))
                             Column(modifier = Modifier.clickable {
                                 showDatePicker(customEndMillis ?: System.currentTimeMillis()) {
                                     customEndMillis = it
                                 }
                             }) {
-                                Text("To", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("To", fontSize = 11.sp, color = Color(0xFF8B949E))
                                 Text(
                                     text = customEndMillis?.let { dateFormatter.format(Date(it)) } ?: "Select End",
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
+                                    fontSize = 14.sp,
+                                    color = Color.White
                                 )
                             }
                         }
@@ -212,53 +262,64 @@ fun AnalyticsScreen(
 
             val report = reportState
             if (report == null) {
-                item {
+                item(key = "insights_loading") {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp),
+                            .height(180.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(color = Color(0xFF388BFD))
                     }
                 }
             } else if (report.isEmpty) {
                 // ==========================================
-                // Empty State
+                // Empty State: Responsive, Natural Height, No Vertical Stretch
                 // ==========================================
-                item {
+                item(key = "insights_empty_state") {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 32.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                            .padding(vertical = 12.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF161B22)),
+                        border = BorderStroke(1.dp, Color(0xFF30363D))
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(32.dp),
+                                .padding(horizontal = 24.dp, vertical = 28.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.QueryStats,
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .background(Color(0xFF21262D), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.QueryStats,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(28.dp),
+                                    tint = Color(0xFF8B949E)
+                                )
+                            }
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = "No Transactions Found",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
+                                fontSize = 17.sp,
+                                color = Color.White
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "There are no recorded transactions within the ${selectedRange.label.lowercase()} timeframe.",
+                                text = "There are no recorded transactions within the\n${selectedRange.label.lowercase()} timeframe.",
                                 fontSize = 13.sp,
-                                color = Color.Gray,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                color = Color(0xFF8B949E),
+                                textAlign = TextAlign.Center,
+                                lineHeight = 19.sp,
+                                modifier = Modifier.fillMaxWidth(0.9f)
                             )
                         }
                     }

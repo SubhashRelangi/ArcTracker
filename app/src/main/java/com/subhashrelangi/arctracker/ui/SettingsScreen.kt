@@ -115,6 +115,20 @@ fun SettingsScreen(
             .padding(horizontal = 16.dp)
             .padding(top = 16.dp, bottom = 100.dp)
     ) {
+        Text(
+            text = "Settings",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = textColor
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = "Configure your preferences",
+            fontSize = 13.sp,
+            color = subtitleColor
+        )
+        Spacer(modifier = Modifier.height(14.dp))
+
         AccountsSection(onNavigate = onNavigate)
         Spacer(modifier = Modifier.height(16.dp))
         TrackerStatusSection(

@@ -30,6 +30,7 @@ import java.util.Calendar
 @Composable
 fun ReviewPage(
     expenses: List<Expense>,
+    showHeader: Boolean = false,
     onSearchClick: () -> Unit = {},
     onAddExpenseClick: () -> Unit = {},
     onViewLedger: () -> Unit = {},
@@ -110,14 +111,15 @@ fun ReviewPage(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding(),
-            contentPadding = PaddingValues(bottom = 100.dp),
+                .then(if (showHeader) Modifier.statusBarsPadding() else Modifier),
+            contentPadding = PaddingValues(top = if (showHeader) 0.dp else 4.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // 1. Header: Branding, Sandbox Telemetry, Review Queue Title & Pending Badge
             item(key = "review_header") {
                 ReviewHeader(
                     pendingCount = pendingExpenses.size,
+                    showHeader = showHeader,
                     onSearchClick = onSearchClick,
                     onAddClick = onAddExpenseClick
                 )

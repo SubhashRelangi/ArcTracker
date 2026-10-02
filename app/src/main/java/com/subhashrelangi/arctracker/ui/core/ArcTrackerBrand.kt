@@ -10,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.subhashrelangi.arctracker.ui.AppHeaderBrandLogo
 import com.subhashrelangi.arctracker.ui.theme.ArcDimensions
@@ -39,13 +40,17 @@ fun ArcTrackerBrand(
 
         Spacer(modifier = Modifier.width(10.dp))
 
-        Column {
+        Column(
+            modifier = Modifier.weight(1f, fill = false)
+        ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = title,
-                    style = ArcTypography.BrandTitle
+                    style = ArcTypography.BrandTitle,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 if (showBadge) {
@@ -65,7 +70,9 @@ fun ArcTrackerBrand(
 
                 Text(
                     text = statusText,
-                    style = ArcTypography.BrandSubtitle
+                    style = ArcTypography.BrandSubtitle,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
