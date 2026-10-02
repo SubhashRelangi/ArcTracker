@@ -1,6 +1,7 @@
 package com.subhashrelangi.arctracker.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -8,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
@@ -19,7 +21,9 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.subhashrelangi.arctracker.R
 
 /**
  * Custom vector icon implementations for pixel-perfect match with Ui-Designs/HomePage.png.
@@ -33,48 +37,20 @@ fun AppHeaderBrandLogo(
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier) {
-        // Outer Circular Container with white stroke
+        // Outer Circular Container with white background and subtle dark border
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black, CircleShape)
-                .border(1.8.dp, Color.White, CircleShape),
+                .clip(CircleShape)
+                .background(Color.White)
+                .border(1.2.dp, Color(0xFF2D3748), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Canvas(modifier = Modifier.fillMaxSize(0.65f)) {
-                val strokeW = 1.8.dp.toPx()
-                val w = size.width
-                val h = size.height
-
-                // Stylized ArcTracker 'A' lettermark
-                val leftBase = Offset(w * 0.22f, h * 0.80f)
-                val apex = Offset(w * 0.50f, h * 0.20f)
-                val rightBase = Offset(w * 0.78f, h * 0.80f)
-                val crossStart = Offset(w * 0.32f, h * 0.60f)
-                val crossEnd = Offset(w * 0.68f, h * 0.60f)
-
-                drawLine(
-                    color = Color.White,
-                    start = leftBase,
-                    end = apex,
-                    strokeWidth = strokeW,
-                    cap = StrokeCap.Round
-                )
-                drawLine(
-                    color = Color.White,
-                    start = apex,
-                    end = rightBase,
-                    strokeWidth = strokeW,
-                    cap = StrokeCap.Round
-                )
-                drawLine(
-                    color = Color.White,
-                    start = crossStart,
-                    end = crossEnd,
-                    strokeWidth = strokeW,
-                    cap = StrokeCap.Round
-                )
-            }
+            Image(
+                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                contentDescription = "ArcTracker App Icon",
+                modifier = Modifier.fillMaxSize()
+            )
         }
 
         // Green Indicator Dot on bottom-right
