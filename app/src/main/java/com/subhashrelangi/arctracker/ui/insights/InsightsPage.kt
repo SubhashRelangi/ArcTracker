@@ -41,6 +41,7 @@ fun InsightsPage(
     analyticsManager: AnalyticsManager? = null,
     showHeader: Boolean = false,
     onNavigateBack: () -> Unit = {},
+    searchQuery: String = "",
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -114,19 +115,32 @@ fun InsightsPage(
         }
     }
 
-    val allocationData = remember(report, expenses) {
-        if (report != null) {
+    val allocationData = remember(report, expenses, searchQuery) {
+        val baseData = if (report != null) {
             InsightsCalculations.computeCategoryAllocation(report, expenses)
         } else {
             CategoryAllocationData()
         }
+        if (searchQuery.isNotBlank()) {
+            val q = searchQuery.trim().lowercase(Locale.ROOT)
+            val filtered = baseData.categories.filter { it.name.lowercase(Locale.ROOT).contains(q) }
+            baseData.copy(categories = filtered)
+        } else {
+            baseData
+        }
     }
 
-    val topPayees = remember(report, expenses) {
-        if (report != null) {
+    val topPayees = remember(report, expenses, searchQuery) {
+        val list = if (report != null) {
             InsightsCalculations.computeTopPayees(report, expenses)
         } else {
             emptyList()
+        }
+        if (searchQuery.isNotBlank()) {
+            val q = searchQuery.trim().lowercase(Locale.ROOT)
+            list.filter { it.name.lowercase(Locale.ROOT).contains(q) }
+        } else {
+            list
         }
     }
 

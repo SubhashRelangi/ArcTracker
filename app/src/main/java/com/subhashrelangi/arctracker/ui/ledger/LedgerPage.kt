@@ -237,7 +237,7 @@ fun LedgerPage(
             LedgerSearchBar(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
-                modifier = Modifier.focusRequester(searchFocusRequester)
+                focusRequester = searchFocusRequester
             )
 
             // 3. Horizontal Filter Row

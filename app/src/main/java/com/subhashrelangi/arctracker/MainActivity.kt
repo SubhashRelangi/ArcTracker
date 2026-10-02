@@ -42,6 +42,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -281,7 +282,23 @@ fun ExpenseScreen() {
     }
     val currentRoute = backStack.lastOrNull() ?: "Home"
 
+    var isSearching by remember {
+        mutableStateOf(false)
+    }
+
+    var searchQuery by remember {
+        mutableStateOf("")
+    }
+
+    var ledgerSearchFocusTrigger by remember {
+        mutableStateOf(0)
+    }
+
     fun navigateTo(route: String) {
+        if (route != currentRoute) {
+            isSearching = false
+            searchQuery = ""
+        }
         if (route == "Home") {
             backStack = listOf("Home")
         } else if (route == "InitialOnboarding") {
@@ -321,25 +338,26 @@ fun ExpenseScreen() {
         mutableStateOf<String?>(null)
     }
 
-    var isSearching by remember {
-        mutableStateOf(false)
-    }
+    val homeSearchFocusRequester = remember { FocusRequester() }
 
-    var ledgerSearchFocusTrigger by remember {
-        mutableStateOf(0)
-    }
-
-    var searchQuery by remember {
-        mutableStateOf("")
+    LaunchedEffect(isSearching) {
+        if (isSearching) {
+            kotlinx.coroutines.delay(120)
+            try {
+                homeSearchFocusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
     }
 
     val displayedExpenses =
         if (searchQuery.isNotBlank()) {
+            val q = searchQuery.trim().lowercase(java.util.Locale.ROOT)
             expenses.filter {
-                it.merchant.contains(
-                    searchQuery,
-                    ignoreCase = true
-                )
+                it.merchant.lowercase(java.util.Locale.ROOT).contains(q) ||
+                it.note?.lowercase(java.util.Locale.ROOT)?.contains(q) == true ||
+                it.rawText?.lowercase(java.util.Locale.ROOT)?.contains(q) == true ||
+                it.category?.lowercase(java.util.Locale.ROOT)?.contains(q) == true ||
+                it.amount.toString().contains(q)
             }
         } else {
             expenses
@@ -350,14 +368,15 @@ fun ExpenseScreen() {
 
         topBar = {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
+                val isReviewOrSettings = currentRoute in listOf("Pending", "Review", "Settings")
                 com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
                     modifier = Modifier.statusBarsPadding(),
                     title = "ArcTracker",
                     showBadge = true,
                     badgeText = "UPI",
                     statusText = "Automated  •  Local-first",
-                    showSearch = true,
-                    showAdd = true,
+                    showSearch = !isReviewOrSettings,
+                    showAdd = !isReviewOrSettings,
                     onSearchClick = {
                         if (currentRoute == "Transactions") {
                             ledgerSearchFocusTrigger++
@@ -481,52 +500,16 @@ fun ExpenseScreen() {
         ) {
 
             AnimatedVisibility(
-                visible = isSearching && currentRoute != "InitialOnboarding" && currentRoute != "Transactions"
+                visible = isSearching && (currentRoute == "Home" || currentRoute == "Insights" || currentRoute == "Analytics")
             ) {
-
-                OutlinedTextField(
-
-                    value = searchQuery,
-
-                    onValueChange = {
-                        searchQuery = it
-                    },
-
-                    placeholder = {
-                        Text(
-                            "Search transactions by name..."
-                        )
-                    },
-
-                    singleLine = true,
-
-                    shape =
-                        RoundedCornerShape(24.dp),
-
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = 16.dp,
-                            vertical = 8.dp
-                        ),
-
-                    textStyle =
-                        MaterialTheme
-                            .typography
-                            .bodyMedium,
-
-                    leadingIcon = {
-
-                        Icon(
-                            imageVector =
-                                Icons.Filled.Search,
-                            contentDescription =
-                                "Search Icon",
-                            tint =
-                                MaterialTheme
-                                    .colorScheme
-                                    .primary
-                        )
+                com.subhashrelangi.arctracker.ui.ledger.LedgerSearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    focusRequester = homeSearchFocusRequester,
+                    placeholderText = if (currentRoute == "Insights" || currentRoute == "Analytics") {
+                        "Search analytics by merchant or category..."
+                    } else {
+                        "Search transactions, merchants, accounts..."
                     }
                 )
             }
@@ -713,7 +696,8 @@ fun ExpenseScreen() {
             } else if (currentRoute == "Analytics" || currentRoute == "Insights") {
                 com.subhashrelangi.arctracker.ui.AnalyticsScreen(
                     onNavigateBack = { navigateBack() },
-                    showInternalHeader = (currentRoute == "Analytics")
+                    showInternalHeader = (currentRoute == "Analytics"),
+                    searchQuery = searchQuery
                 )
             } else if (currentRoute == "Budgets") {
                 com.subhashrelangi.arctracker.ui.BudgetsScreen(

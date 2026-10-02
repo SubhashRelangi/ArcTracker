@@ -44,6 +44,8 @@ fun ReviewHeader(
             // 1. Top Branding Row (ArcTracker, UPI badge, status, Search, Add)
             com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
                 modifier = Modifier.fillMaxWidth(),
+                showSearch = false,
+                showAdd = false,
                 onSearchClick = onSearchClick,
                 onAddClick = onAddClick
             )

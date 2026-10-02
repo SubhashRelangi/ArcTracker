@@ -16,6 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -30,6 +32,7 @@ fun LedgerSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    focusRequester: FocusRequester? = null,
     placeholderText: String = "Search merchant, VPA, amount, bank...",
     onSearchTriggered: () -> Unit = {}
 ) {
@@ -70,10 +73,16 @@ fun LedgerSearchBar(
                     )
                 }
 
+                val fieldModifier = if (focusRequester != null) {
+                    Modifier.fillMaxWidth().focusRequester(focusRequester)
+                } else {
+                    Modifier.fillMaxWidth()
+                }
+
                 BasicTextField(
                     value = query,
                     onValueChange = onQueryChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = fieldModifier,
                     singleLine = true,
                     textStyle = TextStyle(
                         color = LedgerColors.TextPrimary,

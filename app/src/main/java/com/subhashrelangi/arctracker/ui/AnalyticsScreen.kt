@@ -11,11 +11,13 @@ import com.subhashrelangi.arctracker.ui.insights.InsightsPage
 fun AnalyticsScreen(
     onNavigateBack: () -> Unit = {},
     analyticsManager: AnalyticsManager? = null,
-    showInternalHeader: Boolean = true
+    showInternalHeader: Boolean = true,
+    searchQuery: String = ""
 ) {
     InsightsPage(
         analyticsManager = analyticsManager,
         showHeader = showInternalHeader,
-        onNavigateBack = onNavigateBack
+        onNavigateBack = onNavigateBack,
+        searchQuery = searchQuery
     )
 }
