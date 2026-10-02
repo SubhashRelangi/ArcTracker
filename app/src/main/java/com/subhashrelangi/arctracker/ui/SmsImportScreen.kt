@@ -5,9 +5,12 @@ import android.app.Activity
 import android.app.DatePickerDialog
 import android.content.Context
 import android.content.ContextWrapper
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,21 +34,34 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.subhashrelangi.arctracker.R
+import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.service.*
+import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -54,6 +70,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.sin
 
 // ==========================================
 // Color Tokens matching Ui-Designs/SmsScanWizard.png
@@ -88,6 +106,12 @@ enum class SmsImportUiPhase {
     ERROR
 }
 
+enum class ImportAnimationState {
+    IMPORTING,
+    SUCCESS,
+    FAILURE
+}
+
 /**
  * Historical SMS Import Wizard screen matching Ui-Designs/SmsScanWizard.png exactly.
  *
@@ -98,6 +122,8 @@ enum class SmsImportUiPhase {
 fun SmsImportScreen(
     onNavigateBack: () -> Unit,
     onImportCompleted: () -> Unit = onNavigateBack,
+    onNavigateToLedger: () -> Unit = onImportCompleted,
+    onNavigateToReview: () -> Unit = onImportCompleted,
     manager: HistoricalSmsImportManager? = null,
     modifier: Modifier = Modifier
 ) {
@@ -105,6 +131,35 @@ fun SmsImportScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+
+    val csvExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                try {
+                    val count = withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { stream ->
+                            val db = AppDatabase.getDatabase(context)
+                            val backupManager = com.subhashrelangi.arctracker.backup.BackupManager(
+                                database = db,
+                                expenseDao = db.expenseDao(),
+                                categoryDao = db.transactionCategoryDao(),
+                                accountDao = db.knownFinancialAccountDao(),
+                                ruleDao = db.userCategoryRuleDao(),
+                                aliasDao = db.merchantAliasDao(),
+                                budgetDao = db.budgetDao()
+                            )
+                            backupManager.exportTransactionsCsv(stream).getOrThrow()
+                        } ?: 0
+                    }
+                    android.widget.Toast.makeText(context, "Exported $count transactions to CSV", android.widget.Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(context, "Export failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     val importManager = manager ?: remember { HistoricalSmsImportManager.create(context) }
 
@@ -129,6 +184,9 @@ fun SmsImportScreen(
     var hasSmsPermission by remember {
         mutableStateOf(SmsPermissionHelper.isSmsPermissionGranted(context))
     }
+    var isNotificationAccessGranted by remember {
+        mutableStateOf(NotificationPermissionHelper.isNotificationAccessGranted(context))
+    }
     var hasRequestedPermissionThisSession by rememberSaveable { mutableStateOf(false) }
     var isPermanentlyDenied by remember { mutableStateOf(false) }
 
@@ -141,11 +199,27 @@ fun SmsImportScreen(
                     isPermanentlyDenied = false
                     SmsPermissionHelper.setInitialImportCompleted(context, true)
                 }
+                isNotificationAccessGranted = NotificationPermissionHelper.isNotificationAccessGranted(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    BackHandler(enabled = true) {
+        when (currentPhase) {
+            SmsImportUiPhase.IMPORT_COMPLETE -> onImportCompleted()
+            SmsImportUiPhase.SCAN_PREVIEW -> currentPhase = SmsImportUiPhase.SELECT_RANGE
+            SmsImportUiPhase.SCANNING -> {
+                isCancelled = true
+                currentPhase = SmsImportUiPhase.SELECT_RANGE
+            }
+            SmsImportUiPhase.IMPORTING -> {
+                isCancelled = true
+            }
+            else -> onNavigateBack()
         }
     }
 
@@ -282,10 +356,14 @@ fun SmsImportScreen(
         // ----------------------------------------------------
         // 1. Static Wizard Header matching reference
         // ----------------------------------------------------
+        val isCompletionPhase = currentPhase == SmsImportUiPhase.IMPORT_COMPLETE || currentPhase == SmsImportUiPhase.IMPORTING
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(
+                    horizontal = 16.dp,
+                    vertical = if (isCompletionPhase) 4.dp else 10.dp
+                ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -294,47 +372,88 @@ fun SmsImportScreen(
             ) {
                 IconButton(
                     onClick = {
-                        if (currentPhase == SmsImportUiPhase.SCAN_PREVIEW) {
-                            currentPhase = SmsImportUiPhase.SELECT_RANGE
-                        } else {
-                            onNavigateBack()
+                        when (currentPhase) {
+                            SmsImportUiPhase.SCAN_PREVIEW -> {
+                                currentPhase = SmsImportUiPhase.SELECT_RANGE
+                            }
+                            SmsImportUiPhase.IMPORT_COMPLETE -> {
+                                onImportCompleted()
+                            }
+                            SmsImportUiPhase.IMPORTING -> {
+                                // Do not interrupt running persistence
+                            }
+                            else -> {
+                                onNavigateBack()
+                            }
                         }
                     },
-                    modifier = Modifier.size(38.dp)
+                    enabled = currentPhase != SmsImportUiPhase.IMPORTING,
+                    modifier = Modifier.size(if (isCompletionPhase) 34.dp else 38.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = TextWhite,
+                        tint = if (currentPhase == SmsImportUiPhase.IMPORTING) TextMuted else TextWhite,
                         modifier = Modifier.size(20.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Text(
-                    text = "Sms Import Wizard",
-                    color = TextWhite,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.2).sp
-                )
+                Column {
+                    Text(
+                        text = "Sms Import Wizard",
+                        color = TextWhite,
+                        fontSize = if (isCompletionPhase) 17.sp else 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.2).sp
+                    )
+                    if (isCompletionPhase) {
+                        Text(
+                            text = "ArcTracker Secure Vault",
+                            color = Color(0xFF64748B),
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
             }
 
-            // Real ArcTracker App Icon from app res folder
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black)
-                    .border(BorderStroke(1.dp, Color(0xFF2D3748)), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                    contentDescription = "ArcTracker App Icon",
-                    modifier = Modifier.size(36.dp)
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isCompletionPhase) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF161C26))
+                            .border(BorderStroke(1.dp, Color(0xFF222C3D)), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Shield,
+                            contentDescription = "Secure Vault",
+                            tint = Color(0xFF64748B),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
+                // Real ArcTracker App Icon from app res folder
+                Box(
+                    modifier = Modifier
+                        .size(if (isCompletionPhase) 32.dp else 34.dp)
+                        .clip(CircleShape)
+                        .background(if (isCompletionPhase) Color.White else Color.Black)
+                        .border(BorderStroke(1.dp, Color(0xFF2D3748)), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                        contentDescription = "ArcTracker App Icon",
+                        modifier = Modifier.size(if (isCompletionPhase) 34.dp else 36.dp)
+                    )
+                }
             }
         }
 
@@ -1710,6 +1829,28 @@ fun SmsImportScreen(
                     }
                 }
             }
+            SmsImportUiPhase.IMPORTING, SmsImportUiPhase.IMPORT_COMPLETE -> {
+                SmsImportCompletionContent(
+                    animationState = if (currentPhase == SmsImportUiPhase.IMPORTING) ImportAnimationState.IMPORTING else ImportAnimationState.SUCCESS,
+                    importResult = importResult,
+                    scanResult = scanResult,
+                    selectedGroupIds = selectedGroupIds,
+                    isRealTimeIngestionActive = isNotificationAccessGranted &&
+                        MonitoringSettingsRepository.getInstance(context).getSettings().let {
+                            it.isNotificationTrackingEnabled && it.globalEnabled
+                        },
+                    onOpenNotificationSettings = {
+                        NotificationPermissionHelper.openNotificationAccessSettings(context)
+                    },
+                    onCompleteGoHome = onImportCompleted,
+                    onNavigateToReview = onNavigateToReview,
+                    onExportCsv = {
+                        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                        csvExportLauncher.launch("arctracker_ingestion_audit_$timestamp.csv")
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+            }
             else -> {
                 Column(
                     modifier = Modifier
@@ -1784,149 +1925,7 @@ fun SmsImportScreen(
                     }
                 }
 
-                SmsImportUiPhase.IMPORTING -> {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        color = CardSurface,
-                        border = BorderStroke(1.dp, CardBorder)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(28.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            CircularProgressIndicator(color = EmeraldAccent, strokeWidth = 3.dp, modifier = Modifier.size(44.dp))
-                            Spacer(modifier = Modifier.height(18.dp))
-                            Text("Importing Transactions...", style = MaterialTheme.typography.titleMedium, color = TextWhite)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "${importProgress.itemsProcessed} / ${importProgress.totalToImport} processed",
-                                fontSize = 14.sp,
-                                color = TextSecondary,
-                                fontFamily = FontFamily.Monospace
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                "Imported: ${importProgress.insertedCount} | Duplicates skipped: ${importProgress.duplicatesSkipped}",
-                                fontSize = 12.sp,
-                                color = TextMuted,
-                                fontFamily = FontFamily.Monospace
-                            )
-                            Spacer(modifier = Modifier.height(20.dp))
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(44.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { isCancelled = true },
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFF1E2433),
-                                border = BorderStroke(1.dp, Color(0xFF2E394F))
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text("Cancel Import", color = TextSecondary, fontSize = 13.5.sp, fontWeight = FontWeight.Medium)
-                                }
-                            }
-                        }
-                    }
-                }
 
-                SmsImportUiPhase.IMPORT_COMPLETE -> {
-                    val result = importResult
-                    if (result != null) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            color = CardSurface,
-                            border = BorderStroke(1.dp, CardBorder)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(18.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        Icons.Filled.CheckCircle,
-                                        contentDescription = null,
-                                        tint = EmeraldAccent,
-                                        modifier = Modifier.size(28.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        "Import Complete",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TextWhite
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(4.dp))
-                                DarkResultRow(Icons.Filled.CheckCircle, "${result.insertedCount} transactions imported", EmeraldAccent)
-                                if (result.duplicatesSkippedCount > 0) {
-                                    DarkResultRow(Icons.Filled.ContentCopy, "${result.duplicatesSkippedCount} duplicates skipped", TextMuted)
-                                }
-                                if (result.enrichedCount > 0) {
-                                    DarkResultRow(Icons.Filled.Refresh, "${result.enrichedCount} existing transactions enriched", Color(0xFF60A5FA))
-                                }
-                                if (result.reviewPendingCount > 0) {
-                                    DarkResultRow(Icons.Filled.Warning, "${result.reviewPendingCount} routed to Pending Expenses for review", AmberAccent)
-                                }
-
-                                Spacer(modifier = Modifier.height(8.dp))
-                                HorizontalDivider(color = Color(0xFF222836))
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                if (result.totalAmountImported > 0) {
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("Imported spending", fontSize = 13.5.sp, color = TextSecondary)
-                                        Text("₹${"%.2f".format(result.totalAmountImported)}", fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF87171))
-                                    }
-                                }
-                                if (result.totalIncomeImported > 0) {
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("Imported income", fontSize = 13.5.sp, color = TextSecondary)
-                                        Text("₹${"%.2f".format(result.totalIncomeImported)}", fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = EmeraldAccent)
-                                    }
-                                }
-                            }
-                        }
-
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .clickable { onImportCompleted() },
-                            shape = RoundedCornerShape(14.dp),
-                            color = Color.White
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text("Done", color = Color(0xFF090C10), fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                            }
-                        }
-
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(46.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable {
-                                    currentPhase = SmsImportUiPhase.SELECT_RANGE
-                                    scanResult = null
-                                    importResult = null
-                                },
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF141722),
-                            border = BorderStroke(1.dp, Color(0xFF222836))
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text("Import More", color = TextSecondary, fontSize = 13.5.sp, fontWeight = FontWeight.Medium)
-                            }
-                        }
-                    }
-                }
 
                 SmsImportUiPhase.ERROR -> {
                     Surface(
@@ -2166,5 +2165,1021 @@ private fun formatCurrency(amount: Double): String {
     formatter.minimumFractionDigits = 2
     formatter.maximumFractionDigits = 2
     return formatter.format(amount)
+}
+
+private fun formatIndianNumber(number: Int): String {
+    val formatter = java.text.NumberFormat.getNumberInstance(Locale("en", "IN"))
+    return formatter.format(number)
+}
+
+private fun formatIndianCurrency(amount: Double): String {
+    val formatter = java.text.NumberFormat.getNumberInstance(Locale("en", "IN"))
+    if (amount % 1.0 == 0.0) {
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 0
+    } else {
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+    }
+    return formatter.format(amount)
+}
+
+// ==========================================
+// Animation Components & Particles
+// ==========================================
+private data class AnimationParticle(
+    val angleDeg: Float,
+    val distanceDp: Float,
+    val sizeDp: Float,
+    val color: Color
+)
+
+private val SuccessParticles = listOf(
+    AnimationParticle(25f, 26f, 3.0f, EmeraldAccent),
+    AnimationParticle(70f, 22f, 2.2f, Color.White),
+    AnimationParticle(115f, 28f, 2.8f, EmeraldAccent),
+    AnimationParticle(165f, 20f, 2.4f, AmberAccent),
+    AnimationParticle(210f, 27f, 3.0f, EmeraldAccent),
+    AnimationParticle(255f, 23f, 2.0f, Color.White),
+    AnimationParticle(295f, 29f, 2.8f, EmeraldAccent),
+    AnimationParticle(340f, 21f, 2.2f, Color(0xFF86EFAC))
+)
+
+@Composable
+fun ImportCompletionAnimation(
+    state: ImportAnimationState,
+    modifier: Modifier = Modifier,
+    sizeDp: Dp = 68.dp
+) {
+    // Persist completion state across recompositions and scrolling
+    var hasPlayedSuccess by rememberSaveable { mutableStateOf(false) }
+
+    // State A: Rotating arc + pulsing glow while IMPORTING
+    val infiniteTransition = rememberInfiniteTransition(label = "ImportLoadingTransition")
+    val loadingRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1100, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "loadingRotation"
+    )
+    val loadingGlowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.12f,
+        targetValue = 0.28f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "loadingGlowAlpha"
+    )
+
+    // State B: Success fill, pop, checkmark path draw, and particles burst
+    val circlePopScale = remember { Animatable(if (hasPlayedSuccess) 1f else 0.85f) }
+    val checkmarkDrawProgress = remember { Animatable(if (hasPlayedSuccess) 1f else 0f) }
+    val particlesProgress = remember { Animatable(if (hasPlayedSuccess) 1f else 0f) }
+
+    LaunchedEffect(state) {
+        if (state == ImportAnimationState.SUCCESS && !hasPlayedSuccess) {
+            // Trigger sequence: pop scale, checkmark draw, particles burst
+            launch {
+                circlePopScale.animateTo(1.08f, tween(160, easing = FastOutSlowInEasing))
+                circlePopScale.animateTo(1.0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow))
+            }
+            launch {
+                // Particles burst outward and fade smoothly
+                particlesProgress.animateTo(1f, tween(480, easing = LinearOutSlowInEasing))
+            }
+            // Checkmark draws smoothly stroke-by-stroke
+            checkmarkDrawProgress.animateTo(1f, tween(360, easing = FastOutSlowInEasing))
+            hasPlayedSuccess = true
+        }
+    }
+
+    val contentDesc = when (state) {
+        ImportAnimationState.IMPORTING -> "Importing transactions to local ledger"
+        ImportAnimationState.SUCCESS -> "Import completed successfully"
+        ImportAnimationState.FAILURE -> "Import failed"
+    }
+
+    Box(
+        modifier = modifier
+            .size(sizeDp)
+            .semantics { contentDescription = contentDesc },
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val width = size.width
+            val height = size.height
+            val center = Offset(width / 2f, height / 2f)
+            val outerRadius = width / 2f
+            val coreCircleRadius = width * 0.32f
+
+            when (state) {
+                ImportAnimationState.IMPORTING -> {
+                    // 1. Subtle pulsing outer glow
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                EmeraldAccent.copy(alpha = loadingGlowAlpha),
+                                EmeraldAccent.copy(alpha = loadingGlowAlpha * 0.3f),
+                                Color.Transparent
+                            ),
+                            center = center,
+                            radius = outerRadius
+                        ),
+                        radius = outerRadius,
+                        center = center
+                    )
+
+                    // 2. Dark inner core
+                    drawCircle(
+                        color = Color(0xFF10151E),
+                        radius = coreCircleRadius,
+                        center = center
+                    )
+
+                    // 3. Faint background track
+                    drawCircle(
+                        color = EmeraldAccent.copy(alpha = 0.15f),
+                        radius = coreCircleRadius,
+                        center = center,
+                        style = Stroke(width = 2.5.dp.toPx())
+                    )
+
+                    // 4. Rotating active arc
+                    val strokePx = 3.dp.toPx()
+                    val arcTopLeft = Offset(center.x - coreCircleRadius, center.y - coreCircleRadius)
+                    val arcSize = Size(coreCircleRadius * 2, coreCircleRadius * 2)
+                    drawArc(
+                        color = EmeraldAccent,
+                        startAngle = loadingRotation,
+                        sweepAngle = 100f,
+                        useCenter = false,
+                        topLeft = arcTopLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokePx, cap = StrokeCap.Round)
+                    )
+                }
+
+                ImportAnimationState.SUCCESS -> {
+                    val pop = circlePopScale.value
+                    val currentRadius = coreCircleRadius * pop
+
+                    // 1. Surrounding subtle green glow
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                EmeraldAccent.copy(alpha = 0.22f),
+                                EmeraldAccent.copy(alpha = 0.05f),
+                                Color.Transparent
+                            ),
+                            center = center,
+                            radius = outerRadius
+                        ),
+                        radius = outerRadius,
+                        center = center
+                    )
+
+                    // 2. Solid green success circle
+                    drawCircle(
+                        color = EmeraldAccent,
+                        radius = currentRadius,
+                        center = center
+                    )
+
+                    // 3. Subtle fintech particles emitted outward during transition
+                    val pProg = particlesProgress.value
+                    if (pProg > 0f && pProg < 1f) {
+                        val particleFade = (1f - pProg).coerceIn(0f, 1f)
+                        SuccessParticles.forEach { particle ->
+                            val angleRad = Math.toRadians(particle.angleDeg.toDouble())
+                            val travelDist = currentRadius + (particle.distanceDp.dp.toPx() * pProg)
+                            val px = center.x + (cos(angleRad) * travelDist).toFloat()
+                            val py = center.y + (sin(angleRad) * travelDist).toFloat()
+                            val pRadius = (particle.sizeDp.dp.toPx() / 2f) * (1f - 0.25f * pProg)
+                            drawCircle(
+                                color = particle.color.copy(alpha = particleFade * 0.9f),
+                                radius = pRadius,
+                                center = Offset(px, py)
+                            )
+                        }
+                    }
+
+                    // 4. Checkmark drawing via Path stroke animation
+                    val checkProg = checkmarkDrawProgress.value
+                    if (checkProg > 0f) {
+                        // Checkmark coordinates relative to center and currentRadius
+                        val p1 = Offset(center.x - currentRadius * 0.42f, center.y + currentRadius * 0.02f)
+                        val p2 = Offset(center.x - currentRadius * 0.10f, center.y + currentRadius * 0.38f)
+                        val p3 = Offset(center.x + currentRadius * 0.44f, center.y - currentRadius * 0.32f)
+
+                        val seg1Len = kotlin.math.hypot(p2.x - p1.x, p2.y - p1.y)
+                        val seg2Len = kotlin.math.hypot(p3.x - p2.x, p3.y - p2.y)
+                        val totalLen = seg1Len + seg2Len
+                        val seg1Fraction = seg1Len / totalLen
+
+                        val checkPath = Path()
+                        checkPath.moveTo(p1.x, p1.y)
+
+                        if (checkProg <= seg1Fraction) {
+                            val localT = (checkProg / seg1Fraction).coerceIn(0f, 1f)
+                            val curX = p1.x + (p2.x - p1.x) * localT
+                            val curY = p1.y + (p2.y - p1.y) * localT
+                            checkPath.lineTo(curX, curY)
+                        } else {
+                            checkPath.lineTo(p2.x, p2.y)
+                            val localT = ((checkProg - seg1Fraction) / (1f - seg1Fraction)).coerceIn(0f, 1f)
+                            val curX = p2.x + (p3.x - p2.x) * localT
+                            val curY = p2.y + (p3.y - p2.y) * localT
+                            checkPath.lineTo(curX, curY)
+                        }
+
+                        drawPath(
+                            path = checkPath,
+                            color = Color.White,
+                            style = Stroke(
+                                width = 3.2.dp.toPx(),
+                                cap = StrokeCap.Round,
+                                join = StrokeJoin.Round
+                            )
+                        )
+                    }
+                }
+
+                ImportAnimationState.FAILURE -> {
+                    // Soft red circle with X
+                    drawCircle(
+                        color = Color(0xFFEF4444),
+                        radius = coreCircleRadius,
+                        center = center
+                    )
+                    val xOffset = coreCircleRadius * 0.35f
+                    val strokePx = 3.dp.toPx()
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(center.x - xOffset, center.y - xOffset),
+                        end = Offset(center.x + xOffset, center.y + xOffset),
+                        strokeWidth = strokePx,
+                        cap = StrokeCap.Round
+                    )
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(center.x + xOffset, center.y - xOffset),
+                        end = Offset(center.x - xOffset, center.y + xOffset),
+                        strokeWidth = strokePx,
+                        cap = StrokeCap.Round
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Rebuilt SMS Import Completion Screen matching Ui-Designs/ImportCompletePage.png exactly.
+ *
+ * Content is scrollable for safe fit across all device form factors while the primary CTA
+ * is pinned statically at the bottom.
+ */
+@Composable
+private fun SmsImportCompletionContent(
+    animationState: ImportAnimationState,
+    importResult: SmsImportResult.Success?,
+    scanResult: SmsScanResult.Success?,
+    selectedGroupIds: Set<String>,
+    isRealTimeIngestionActive: Boolean,
+    onOpenNotificationSettings: () -> Unit,
+    onCompleteGoHome: () -> Unit,
+    onNavigateToReview: () -> Unit,
+    onExportCsv: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isImporting = animationState == ImportAnimationState.IMPORTING
+
+    val insertedCount = importResult?.insertedCount ?: run {
+        val groups = scanResult?.accountGroups?.filter { selectedGroupIds.contains(it.groupId) }
+        groups?.sumOf { it.transactionCount } ?: 0
+    }
+    val totalDebits = importResult?.totalAmountImported ?: run {
+        val groups = scanResult?.accountGroups?.filter { selectedGroupIds.contains(it.groupId) }
+        groups?.sumOf { it.totalDebit } ?: 0.0
+    }
+    val totalCredits = importResult?.totalIncomeImported ?: run {
+        val groups = scanResult?.accountGroups?.filter { selectedGroupIds.contains(it.groupId) }
+        groups?.sumOf { it.totalCredit } ?: 0.0
+    }
+    val netBalance = totalCredits - totalDebits
+
+    val debitCount = remember(importResult, scanResult, selectedGroupIds) {
+        if (importResult != null) {
+            importResult.persistenceResults.count { res ->
+                when (res) {
+                    is ExpensePersistenceResult.Inserted -> !res.expense.type.equals("Credit", ignoreCase = true)
+                    is ExpensePersistenceResult.ReviewPending -> !res.expense.type.equals("Credit", ignoreCase = true)
+                    else -> false
+                }
+            }.takeIf { it > 0 } ?: (if (totalDebits > 0) insertedCount else 0)
+        } else {
+            scanResult?.accountGroups
+                ?.filter { selectedGroupIds.contains(it.groupId) }
+                ?.sumOf { group -> group.transactions.count { it.candidate.candidate.direction != TransactionDirection.CREDIT } }
+                ?: 0
+        }
+    }
+
+    val creditCount = remember(importResult, scanResult, selectedGroupIds) {
+        if (importResult != null) {
+            importResult.persistenceResults.count { res ->
+                when (res) {
+                    is ExpensePersistenceResult.Inserted -> res.expense.type.equals("Credit", ignoreCase = true)
+                    is ExpensePersistenceResult.ReviewPending -> res.expense.type.equals("Credit", ignoreCase = true)
+                    else -> false
+                }
+            }.takeIf { it > 0 } ?: 0
+        } else {
+            scanResult?.accountGroups
+                ?.filter { selectedGroupIds.contains(it.groupId) }
+                ?.sumOf { group -> group.transactions.count { it.candidate.candidate.direction == TransactionDirection.CREDIT } }
+                ?: 0
+        }
+    }
+
+    val messagesScanned = scanResult?.messagesScanned ?: (importResult?.totalProcessed ?: 0)
+    val duplicatesFiltered = importResult?.duplicatesSkippedCount ?: (scanResult?.duplicatesCount ?: 0)
+    val spamAndOtps = scanResult?.noiseMessages ?: 0
+    val reviewCount = importResult?.reviewPendingCount ?: 0
+
+    val reconciledAccounts = remember(scanResult, importResult, selectedGroupIds) {
+        val groups = scanResult?.accountGroups ?: emptyList()
+        val activeGroups = if (importResult?.selectedGroupIds != null) {
+            groups.filter { importResult.selectedGroupIds.contains(it.groupId) }
+        } else {
+            groups.filter { selectedGroupIds.contains(it.groupId) }
+        }
+        activeGroups.mapNotNull { group ->
+            group.identity.institutionName?.let { name ->
+                when {
+                    name.contains("HDFC", ignoreCase = true) -> "HDFC"
+                    name.contains("SBI", ignoreCase = true) || name.contains("State Bank", ignoreCase = true) -> "SBI"
+                    name.contains("Axis", ignoreCase = true) -> "Axis"
+                    name.contains("ICICI", ignoreCase = true) -> "ICICI"
+                    name.contains("Kotak", ignoreCase = true) -> "Kotak"
+                    name.contains("PNB", ignoreCase = true) || name.contains("Punjab National", ignoreCase = true) -> "PNB"
+                    name.contains("BOB", ignoreCase = true) || name.contains("Bank of Baroda", ignoreCase = true) -> "BOB"
+                    else -> name.split(" ").firstOrNull() ?: name
+                }
+            } ?: group.identity.institutionId?.uppercase()
+              ?: (if (group.groupId != "unidentified_account") group.groupId.uppercase() else null)
+        }.distinct()
+    }
+
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = modifier.fillMaxSize()
+    ) {
+        // ----------------------------------------------------
+        // Scrollable Body Content
+        // ----------------------------------------------------
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // 1. HERO AREA with ImportCompletionAnimation
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Success / Loading Animation
+                ImportCompletionAnimation(
+                    state = animationState,
+                    sizeDp = 68.dp
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // 100% LOCAL VAULT INITIALIZED Badge
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF082215),
+                    border = BorderStroke(1.dp, Color(0xFF164E35))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Lock,
+                            contentDescription = null,
+                            tint = EmeraldAccent,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "100% LOCAL VAULT",
+                                color = EmeraldAccent,
+                                fontSize = 8.5.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp,
+                                lineHeight = 10.sp
+                            )
+                            Text(
+                                text = if (isImporting) "INITIALIZING" else "INITIALIZED",
+                                color = EmeraldAccent,
+                                fontSize = 8.5.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp,
+                                lineHeight = 10.sp
+                            )
+                        }
+                    }
+                }
+
+                // Main Headline
+                Text(
+                    text = if (isImporting) "Ingesting $insertedCount Transactions..." else "$insertedCount Transactions Ingested",
+                    color = TextWhite,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    letterSpacing = (-0.2).sp
+                )
+
+                // Explanatory Subtitle
+                Text(
+                    text = if (isImporting) {
+                        "Parsing, deduplicating, and securely committing selected SMS records to your local encrypted SQLite Room ledger."
+                    } else {
+                        "Historical SMS data parsed, deduplicated, and securely committed to your local encrypted SQLite Room ledger."
+                    },
+                    color = Color(0xFF94A3B8),
+                    fontSize = 11.5.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 15.sp,
+                    modifier = Modifier.padding(horizontal = 10.dp)
+                )
+            }
+
+            // 2. INGESTION AUDIT REPORT Card
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                color = CardSurface,
+                border = BorderStroke(1.dp, CardBorder)
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Outlined.Layers,
+                                contentDescription = null,
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column {
+                                Text(
+                                    text = "INGESTION AUDIT",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 9.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp,
+                                    lineHeight = 11.sp
+                                )
+                                Text(
+                                    text = "REPORT",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 9.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp,
+                                    lineHeight = 11.sp
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(5.dp),
+                            color = Color(0xFF161C26),
+                            border = BorderStroke(1.dp, Color(0xFF222C3D))
+                        ) {
+                            Text(
+                                text = "Room v${AppDatabase.DATABASE_VERSION} • AES-256",
+                                color = Color(0xFF64748B),
+                                fontSize = 9.5.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    // 2-Column Metric Grid
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Column 1
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Column {
+                                Text("Messages Scanned", fontSize = 9.5.sp, color = TextMuted)
+                                Text(
+                                    text = formatIndianNumber(messagesScanned),
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextWhite,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                            Column {
+                                Text("Duplicates Filtered", fontSize = 9.5.sp, color = TextMuted)
+                                Text(
+                                    text = "${formatIndianNumber(duplicatesFiltered)} suppressed",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFCBD5E1),
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+
+                        // Column 2
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Column {
+                                Text("Financial Entries", fontSize = 9.5.sp, color = TextMuted)
+                                Text(
+                                    text = "${formatIndianNumber(insertedCount)} records",
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldAccent,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                            Column {
+                                Text("Spam & OTPs", fontSize = 9.5.sp, color = TextMuted)
+                                Text(
+                                    text = "${formatIndianNumber(spamAndOtps)} ignored",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF94A3B8),
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+
+                    // Reconciled Accounts
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Reconciled Accounts (${reconciledAccounts.size})",
+                            fontSize = 10.sp,
+                            color = TextSecondary,
+                            fontFamily = FontFamily.Monospace
+                        )
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val visibleAccounts = reconciledAccounts.take(3)
+                            val remainingCount = reconciledAccounts.size - visibleAccounts.size
+                            visibleAccounts.forEach { acc ->
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = Color(0xFF1E2433),
+                                    border = BorderStroke(1.dp, Color(0xFF2E394F))
+                                ) {
+                                    Text(
+                                        text = acc,
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextWhite,
+                                        fontFamily = FontFamily.Monospace,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            if (remainingCount > 0) {
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = Color(0xFF1E2433),
+                                    border = BorderStroke(1.dp, Color(0xFF2E394F))
+                                ) {
+                                    Text(
+                                        text = "+$remainingCount",
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextSecondary,
+                                        fontFamily = FontFamily.Monospace,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. HISTORICAL BALANCE DELTA Card
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                color = CardSurface,
+                border = BorderStroke(1.dp, CardBorder)
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Outlined.AccountBalanceWallet,
+                                contentDescription = null,
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column {
+                                Text(
+                                    text = "HISTORICAL BALANCE",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 9.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp,
+                                    lineHeight = 11.sp
+                                )
+                                Text(
+                                    text = "DELTA",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 9.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp,
+                                    lineHeight = 11.sp
+                                )
+                            }
+                        }
+
+                        val netPrefix = if (netBalance > 0) "+₹" else if (netBalance < 0) "-₹" else "₹"
+                        val netText = "$netPrefix${formatIndianCurrency(Math.abs(netBalance))} net"
+                        Text(
+                            text = netText,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = if (netBalance >= 0) EmeraldAccent else Color(0xFFF87171)
+                        )
+                    }
+
+                    // Debits and Credits summary blocks
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Debits
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF241318),
+                            border = BorderStroke(1.dp, Color(0xFF451922))
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                                Text("Total Debits tracked", fontSize = 9.5.sp, color = Color(0xFFF87171), maxLines = 1)
+                                Text(
+                                    text = "-₹${formatIndianCurrency(totalDebits)}",
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFEF4444),
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1
+                                )
+                                Text("$debitCount debits", fontSize = 9.5.sp, color = Color(0xFFFCA5A5), maxLines = 1)
+                            }
+                        }
+
+                        // Credits
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF0F261B),
+                            border = BorderStroke(1.dp, Color(0xFF1A4732))
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                                Text("Total Credits tracked", fontSize = 9.5.sp, color = Color(0xFF34D399), maxLines = 1)
+                                Text(
+                                    text = "+₹${formatIndianCurrency(totalCredits)}",
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldAccent,
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1
+                                )
+                                Text("$creditCount deposits", fontSize = 9.5.sp, color = Color(0xFF86EFAC), maxLines = 1)
+                            }
+                        }
+                    }
+
+                    // Review / Triage Warning Strip
+                    if (reviewCount > 0) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFF2A1C08),
+                            border = BorderStroke(1.dp, Color(0xFF4D3410))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Info,
+                                        contentDescription = null,
+                                        tint = AmberAccent,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "$reviewCount ${if (reviewCount == 1) "item requires" else "items require"} categorization tria...",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFFFDE68A),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Review",
+                                    color = AmberAccent,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.clickable { onNavigateToReview() }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. NEXT ACTIONS Section
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Text(
+                    text = "NEXT ACTIONS",
+                    fontSize = 9.sp,
+                    color = Color(0xFF64748B),
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp
+                )
+
+                // Review Triage Inbox card
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToReview() },
+                    shape = RoundedCornerShape(10.dp),
+                    color = CardSurface,
+                    border = BorderStroke(1.dp, CardBorder)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(RoundedCornerShape(7.dp))
+                                .background(if (reviewCount > 0) Color(0xFF281C09) else Color(0xFF0F261B))
+                                .border(
+                                    BorderStroke(1.dp, if (reviewCount > 0) Color(0xFF4A3412) else Color(0xFF1A4732)),
+                                    RoundedCornerShape(7.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (reviewCount > 0) Icons.Outlined.Warning else Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = if (reviewCount > 0) AmberAccent else EmeraldAccent,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(9.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Review Triage Inbox",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextWhite
+                            )
+                            Text(
+                                text = if (reviewCount > 0) "$reviewCount UPI merchant transactions unmapped" else "All transactions categorized and mapped",
+                                fontSize = 10.sp,
+                                color = TextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (reviewCount > 0) "Review →" else "Clean ✓",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (reviewCount > 0) AmberAccent else EmeraldAccent
+                        )
+                    }
+                }
+
+                // Real-Time Ingestion card
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onOpenNotificationSettings()
+                        },
+                    shape = RoundedCornerShape(10.dp),
+                    color = CardSurface,
+                    border = BorderStroke(1.dp, CardBorder)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(RoundedCornerShape(7.dp))
+                                .background(if (isRealTimeIngestionActive) Color(0xFF0F261B) else Color(0xFF1A1F2B))
+                                .border(
+                                    BorderStroke(1.dp, if (isRealTimeIngestionActive) Color(0xFF1A4732) else Color(0xFF2E384D)),
+                                    RoundedCornerShape(7.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Sensors,
+                                contentDescription = null,
+                                tint = if (isRealTimeIngestionActive) EmeraldAccent else Color(0xFF94A3B8),
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(9.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Real-Time Ingestion",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextWhite
+                            )
+                            Text(
+                                text = "Local zero-network daemon monitor",
+                                fontSize = 10.sp,
+                                color = TextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isRealTimeIngestionActive) EmeraldAccent else Color(0xFF64748B))
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isRealTimeIngestionActive) "Active" else "Inactive",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isRealTimeIngestionActive) EmeraldAccent else Color(0xFF94A3B8)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // ----------------------------------------------------
+        // Pinned Static Bottom Actions Bar
+        // ----------------------------------------------------
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            color = Color.Transparent
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // PRIMARY CTA: Complete & Go to Home ->
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                        .shadow(
+                            elevation = if (isImporting) 0.dp else 4.dp,
+                            shape = RoundedCornerShape(12.dp),
+                            spotColor = Color(0x66000000)
+                        )
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(enabled = !isImporting) { onCompleteGoHome() },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isImporting) Color(0xFF1E2433) else Color.White
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (isImporting) "Committing to Ledger..." else "Complete & Go to Home",
+                            color = if (isImporting) Color(0xFF64748B) else Color(0xFF090C10),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.1.sp
+                        )
+                        if (!isImporting) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = Color(0xFF090C10),
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .size(16.dp)
+                            )
+                        }
+                    }
+                }
+
+                // EXPORT AUDIT LOG (CSV)
+                if (!isImporting) {
+                    Text(
+                        text = "Export Ingestion Audit Log (CSV)",
+                        color = Color(0xFF64748B),
+                        fontSize = 10.5.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { onExportCsv() }
+                            .padding(vertical = 2.dp, horizontal = 8.dp)
+                    )
+                }
+            }
+        }
+    }
 }
 

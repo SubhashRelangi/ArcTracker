@@ -35,6 +35,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun budgetDao(): BudgetDao
 
     companion object {
+        const val DATABASE_VERSION = 8
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 

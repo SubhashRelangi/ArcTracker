@@ -609,6 +609,18 @@ fun ExpenseScreen() {
                         settingsRepo.setInitialOnboardingCompleted(true)
                         SmsPermissionHelper.setInitialImportCompleted(context, true)
                         backStack = listOf("Home")
+                    },
+                    onNavigateToLedger = {
+                        settingsRepo.setSetupInProgress(false)
+                        settingsRepo.setInitialOnboardingCompleted(true)
+                        SmsPermissionHelper.setInitialImportCompleted(context, true)
+                        backStack = listOf("Home", "Transactions")
+                    },
+                    onNavigateToReview = {
+                        settingsRepo.setSetupInProgress(false)
+                        settingsRepo.setInitialOnboardingCompleted(true)
+                        SmsPermissionHelper.setInitialImportCompleted(context, true)
+                        backStack = listOf("Home", "Review")
                     }
                 )
 
