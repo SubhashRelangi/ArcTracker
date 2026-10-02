@@ -713,6 +713,18 @@ class MonitoringSettingsTest {
         assertFalse("Banking app is now disabled", repo.isAppEnabled(hdfc))
         assertFalse("SMS app state remained intact", repo.isAppEnabled(gmessages))
     }
+
+    // 21. Initial onboarding state defaults to false and can be persisted
+    @Test
+    fun test94_initialOnboardingState_defaultsFalse_andCanBePersisted() {
+        assertFalse("Initial onboarding completed defaults to false", repo.isInitialOnboardingCompleted())
+
+        repo.setInitialOnboardingCompleted(true)
+        assertTrue("Initial onboarding completed is now true", repo.isInitialOnboardingCompleted())
+
+        val reloaded = SharedPreferencesMonitoringSettingsRepository(fakePrefs)
+        assertTrue("Initial onboarding completed persisted across reload", reloaded.isInitialOnboardingCompleted())
+    }
 }
 
 /**

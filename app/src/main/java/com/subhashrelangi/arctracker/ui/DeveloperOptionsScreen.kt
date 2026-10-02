@@ -69,6 +69,12 @@ fun DeveloperOptionsScreen(onNavigate: (String) -> Unit = {}) {
         // Options List
         SettingsCard {
             SettingsRow(
+                icon = Icons.Filled.Smartphone,
+                title = "Initial Welcome Screen",
+                subtitle = "Preview redesigned on-device onboarding page",
+                onClick = { onNavigate("InitialOnboarding") }
+            )
+            SettingsRow(
                 icon = Icons.Filled.Search,
                 title = "Regex Patterns",
                 subtitle = "View & edit amount, name, type patterns",

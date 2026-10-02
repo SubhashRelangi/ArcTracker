@@ -138,6 +138,16 @@ interface MonitoringSettingsRepository {
      */
     fun setInitialSmsImportCompleted(completed: Boolean) {}
 
+    /**
+     * Returns whether the initial onboarding / welcome screen has been completed.
+     */
+    fun isInitialOnboardingCompleted(): Boolean = false
+
+    /**
+     * Sets whether the initial onboarding / welcome screen has been completed.
+     */
+    fun setInitialOnboardingCompleted(completed: Boolean) {}
+
     companion object {
         const val PREFS_NAME = "ArcTrackerPrefs"
         const val KEY_GLOBAL_ENABLED = "monitoring_global_enabled"
@@ -147,6 +157,7 @@ interface MonitoringSettingsRepository {
         const val KEY_NOTIFICATION_TRACKING_ENABLED = "isNotificationTrackingEnabled"
         const val KEY_SMS_TRACKING_ENABLED = "isSmsTrackingEnabled"
         const val KEY_INITIAL_SMS_IMPORT_COMPLETED = "initial_sms_import_completed"
+        const val KEY_INITIAL_ONBOARDING_COMPLETED = "initial_onboarding_completed"
 
         @Volatile
         private var INSTANCE: MonitoringSettingsRepository? = null
@@ -446,6 +457,16 @@ class SharedPreferencesMonitoringSettingsRepository(
             .commit()
     }
 
+    override fun isInitialOnboardingCompleted(): Boolean = synchronized(lock) {
+        prefs.getBoolean(MonitoringSettingsRepository.KEY_INITIAL_ONBOARDING_COMPLETED, false)
+    }
+
+    override fun setInitialOnboardingCompleted(completed: Boolean): Unit = synchronized(lock) {
+        prefs.edit()
+            .putBoolean(MonitoringSettingsRepository.KEY_INITIAL_ONBOARDING_COMPLETED, completed)
+            .commit()
+    }
+
     override fun resetToDefaults(): Unit = synchronized(lock) {
         val wasInitialCompleted = prefs.getBoolean(MonitoringSettingsRepository.KEY_INITIAL_SMS_IMPORT_COMPLETED, false)
         prefs.edit()
@@ -581,6 +602,7 @@ class InMemoryMonitoringSettingsRepository(
     }
 
     private var initialSmsImportCompleted: Boolean = false
+    private var initialOnboardingCompleted: Boolean = false
 
     override fun isInitialSmsImportCompleted(): Boolean = synchronized(lock) {
         initialSmsImportCompleted
@@ -588,6 +610,14 @@ class InMemoryMonitoringSettingsRepository(
 
     override fun setInitialSmsImportCompleted(completed: Boolean): Unit = synchronized(lock) {
         initialSmsImportCompleted = completed
+    }
+
+    override fun isInitialOnboardingCompleted(): Boolean = synchronized(lock) {
+        initialOnboardingCompleted
+    }
+
+    override fun setInitialOnboardingCompleted(completed: Boolean): Unit = synchronized(lock) {
+        initialOnboardingCompleted = completed
     }
 
     override fun resetToDefaults(): Unit = synchronized(lock) {

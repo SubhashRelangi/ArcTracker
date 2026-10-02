@@ -272,14 +272,20 @@ fun ExpenseScreen() {
         expenses.filter { it.dateMillis in start..end }
     }
 
+    val isOnboardingCompleted = remember {
+        settingsRepo.isInitialOnboardingCompleted()
+    }
+
     var backStack by rememberSaveable {
-        mutableStateOf(listOf("Home"))
+        mutableStateOf(if (isOnboardingCompleted) listOf("Home") else listOf("InitialOnboarding"))
     }
     val currentRoute = backStack.lastOrNull() ?: "Home"
 
     fun navigateTo(route: String) {
         if (route == "Home") {
             backStack = listOf("Home")
+        } else if (route == "InitialOnboarding") {
+            backStack = listOf("InitialOnboarding")
         } else if (route == "Transactions" || route == "Settings" || route == "Insights" || route == "Analytics") {
             backStack = listOf("Home", route)
         } else {
@@ -339,6 +345,7 @@ fun ExpenseScreen() {
 
         topBar = {
             if (currentRoute != "SmsImport" &&
+                currentRoute != "InitialOnboarding" &&
                 currentRoute != "FinancialAccounts" &&
                 currentRoute != "UnresolvedTransactions" &&
                 currentRoute != "AccountTransactions" &&
@@ -456,6 +463,7 @@ fun ExpenseScreen() {
         bottomBar = {
 
             if (
+                currentRoute != "InitialOnboarding" &&
                 currentRoute != "ClearAllData" &&
                 currentRoute != "Pending" &&
                 currentRoute != "SmsImport" &&
@@ -510,7 +518,7 @@ fun ExpenseScreen() {
         ) {
 
             AnimatedVisibility(
-                visible = isSearching
+                visible = isSearching && currentRoute != "InitialOnboarding"
             ) {
 
                 OutlinedTextField(
@@ -814,6 +822,20 @@ fun ExpenseScreen() {
                         }
                     }
                 }
+
+            } else if (currentRoute == "InitialOnboarding") {
+
+                com.subhashrelangi.arctracker.ui.InitialPageScreen(
+                    onGetStartedClick = {
+                        settingsRepo.setInitialOnboardingCompleted(true)
+                        navigateTo("Home")
+                    },
+                    onExploreDemoClick = {
+                        settingsRepo.setInitialOnboardingCompleted(true)
+                        navigateTo("Home")
+                        Toast.makeText(context, "Demo mode: sample ledger loaded", Toast.LENGTH_SHORT).show()
+                    }
+                )
 
             } else if (currentRoute != "Home") {
 
@@ -1342,30 +1364,32 @@ fun ExpenseScreen() {
             )
         }
 
-        if (!isNotificationAccessGranted && !hasDismissedNotificationPermissionDialog) {
-            NotificationPermissionDialog(
-                onGrantClick = {
-                    pendingHomeNotificationGrant = true
-                    NotificationPermissionHelper.openNotificationAccessSettings(context)
-                },
-                onDismiss = {
-                    hasDismissedNotificationPermissionDialog = true
-                    settingsRepo.setGlobalEnabled(false)
-                    settingsRepo.setNotificationTrackingEnabled(false)
-                }
-            )
-        } else if (!hasDismissedInitialSmsImportDialog && !SmsPermissionHelper.isInitialImportCompleted(context)) {
-            InitialSmsImportDialog(
-                onDismiss = {
-                    hasDismissedInitialSmsImportDialog = true
-                    SmsPermissionHelper.setInitialImportCompleted(context, true)
-                },
-                onNavigateToImport = {
-                    hasDismissedInitialSmsImportDialog = true
-                    SmsPermissionHelper.setInitialImportCompleted(context, true)
-                    navigateTo("SmsImport")
-                }
-            )
+        if (currentRoute != "InitialOnboarding") {
+            if (!isNotificationAccessGranted && !hasDismissedNotificationPermissionDialog) {
+                NotificationPermissionDialog(
+                    onGrantClick = {
+                        pendingHomeNotificationGrant = true
+                        NotificationPermissionHelper.openNotificationAccessSettings(context)
+                    },
+                    onDismiss = {
+                        hasDismissedNotificationPermissionDialog = true
+                        settingsRepo.setGlobalEnabled(false)
+                        settingsRepo.setNotificationTrackingEnabled(false)
+                    }
+                )
+            } else if (!hasDismissedInitialSmsImportDialog && !SmsPermissionHelper.isInitialImportCompleted(context)) {
+                InitialSmsImportDialog(
+                    onDismiss = {
+                        hasDismissedInitialSmsImportDialog = true
+                        SmsPermissionHelper.setInitialImportCompleted(context, true)
+                    },
+                    onNavigateToImport = {
+                        hasDismissedInitialSmsImportDialog = true
+                        SmsPermissionHelper.setInitialImportCompleted(context, true)
+                        navigateTo("SmsImport")
+                    }
+                )
+            }
         }
     }
 }
