@@ -9,9 +9,11 @@ import java.util.Locale
  * Supported date range options for Analytics (Milestone 13).
  */
 enum class AnalyticsDateRange(val label: String) {
+    THIS_MONTH("This Month"),
+    LAST_MONTH("Last Month"),
+    LAST_3_MONTHS("Last 3 Months"),
     TODAY("Today"),
     THIS_WEEK("This Week"),
-    THIS_MONTH("This Month"),
     ALL_TIME("All Time"),
     CUSTOM("Custom Range");
 
@@ -24,6 +26,60 @@ enum class AnalyticsDateRange(val label: String) {
             firstDayOfWeek: Int = Calendar.getInstance().firstDayOfWeek
         ): Pair<Long, Long> {
             return when (range) {
+                THIS_MONTH -> {
+                    val cal = Calendar.getInstance().apply {
+                        timeInMillis = referenceTimeMillis
+                        set(Calendar.DAY_OF_MONTH, 1)
+                        set(Calendar.HOUR_OF_DAY, 0)
+                        set(Calendar.MINUTE, 0)
+                        set(Calendar.SECOND, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }
+                    val start = cal.timeInMillis
+                    cal.add(Calendar.MONTH, 1)
+                    cal.add(Calendar.MILLISECOND, -1)
+                    val end = cal.timeInMillis
+                    Pair(start, end)
+                }
+                LAST_MONTH -> {
+                    val cal = Calendar.getInstance().apply {
+                        timeInMillis = referenceTimeMillis
+                        add(Calendar.MONTH, -1)
+                        set(Calendar.DAY_OF_MONTH, 1)
+                        set(Calendar.HOUR_OF_DAY, 0)
+                        set(Calendar.MINUTE, 0)
+                        set(Calendar.SECOND, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }
+                    val start = cal.timeInMillis
+                    cal.add(Calendar.MONTH, 1)
+                    cal.add(Calendar.MILLISECOND, -1)
+                    val end = cal.timeInMillis
+                    Pair(start, end)
+                }
+                LAST_3_MONTHS -> {
+                    val cal = Calendar.getInstance().apply {
+                        timeInMillis = referenceTimeMillis
+                        add(Calendar.MONTH, -2)
+                        set(Calendar.DAY_OF_MONTH, 1)
+                        set(Calendar.HOUR_OF_DAY, 0)
+                        set(Calendar.MINUTE, 0)
+                        set(Calendar.SECOND, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }
+                    val start = cal.timeInMillis
+                    val endCal = Calendar.getInstance().apply {
+                        timeInMillis = referenceTimeMillis
+                        set(Calendar.DAY_OF_MONTH, 1)
+                        add(Calendar.MONTH, 1)
+                        set(Calendar.HOUR_OF_DAY, 0)
+                        set(Calendar.MINUTE, 0)
+                        set(Calendar.SECOND, 0)
+                        set(Calendar.MILLISECOND, 0)
+                        add(Calendar.MILLISECOND, -1)
+                    }
+                    Pair(start, endCal.timeInMillis)
+                }
                 TODAY -> {
                     val cal = Calendar.getInstance().apply {
                         timeInMillis = referenceTimeMillis
@@ -51,21 +107,6 @@ enum class AnalyticsDateRange(val label: String) {
                     }
                     val start = cal.timeInMillis
                     cal.add(Calendar.DAY_OF_YEAR, 7)
-                    cal.add(Calendar.MILLISECOND, -1)
-                    val end = cal.timeInMillis
-                    Pair(start, end)
-                }
-                THIS_MONTH -> {
-                    val cal = Calendar.getInstance().apply {
-                        timeInMillis = referenceTimeMillis
-                        set(Calendar.DAY_OF_MONTH, 1)
-                        set(Calendar.HOUR_OF_DAY, 0)
-                        set(Calendar.MINUTE, 0)
-                        set(Calendar.SECOND, 0)
-                        set(Calendar.MILLISECOND, 0)
-                    }
-                    val start = cal.timeInMillis
-                    cal.add(Calendar.MONTH, 1)
                     cal.add(Calendar.MILLISECOND, -1)
                     val end = cal.timeInMillis
                     Pair(start, end)

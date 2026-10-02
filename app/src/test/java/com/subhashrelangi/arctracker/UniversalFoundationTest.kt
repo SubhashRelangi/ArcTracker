@@ -82,12 +82,14 @@ class UniversalFoundationTest {
     @Test
     fun testAnalyticsDateRangeLabels() {
         val ranges = com.subhashrelangi.arctracker.service.AnalyticsDateRange.values()
-        assertEquals(5, ranges.size)
-        assertEquals("Today", ranges[0].label)
-        assertEquals("This Week", ranges[1].label)
-        assertEquals("This Month", ranges[2].label)
-        assertEquals("All Time", ranges[3].label)
-        assertEquals("Custom Range", ranges[4].label)
+        assertEquals(7, ranges.size)
+        assertEquals("This Month", ranges[0].label)
+        assertEquals("Last Month", ranges[1].label)
+        assertEquals("Last 3 Months", ranges[2].label)
+        assertEquals("Today", ranges[3].label)
+        assertEquals("This Week", ranges[4].label)
+        assertEquals("All Time", ranges[5].label)
+        assertEquals("Custom Range", ranges[6].label)
     }
 
     @Test
