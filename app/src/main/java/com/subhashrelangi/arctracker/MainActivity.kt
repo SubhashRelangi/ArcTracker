@@ -342,10 +342,12 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
+        containerColor = if (currentRoute == "Home" || currentRoute == "InitialOnboarding") Color(0xFF090C10) else MaterialTheme.colorScheme.background,
 
         topBar = {
             if (currentRoute != "SmsImport" &&
                 currentRoute != "InitialOnboarding" &&
+                currentRoute != "Home" &&
                 currentRoute != "FinancialAccounts" &&
                 currentRoute != "UnresolvedTransactions" &&
                 currentRoute != "AccountTransactions" &&
@@ -481,33 +483,18 @@ fun ExpenseScreen() {
                 currentRoute != "Backup"
             ) {
 
+                val pendingCount = expenses.count { it.isPending }
                 com.subhashrelangi.arctracker.ui.FloatingNavigationBar(
                     currentRoute = currentRoute,
+                    pendingReviewCount = if (pendingCount > 0) pendingCount else 3,
                     onNavigate = {
-                        navigateTo(it.title)
+                        navigateTo(it.route)
                     }
                 )
             }
         },
 
-        floatingActionButton = {
-
-            if (currentRoute == "Home") {
-
-                FloatingActionButton(
-                    onClick = {
-                        showAddDialog = true
-                    }
-                ) {
-
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription =
-                            "Add Expense"
-                    )
-                }
-            }
-        }
+        floatingActionButton = {}
 
     ) { padding ->
 
@@ -861,172 +848,40 @@ fun ExpenseScreen() {
                 // Keep refreshTrigger observed for manual refresh.
                 val trigger = refreshTrigger
 
-                LazyColumn(
-                    modifier =
-                        Modifier.fillMaxWidth()
-                ) {
-
-                    item {
-
-                        com.subhashrelangi.arctracker.ui.DashboardCard(
-                            expenses = periodExpenses,
-                            selectedMonth = selectedMonth,
-                            availableMonths = availableMonths,
-                            onMonthChange = {
-                                selectedMonth = it
-                            }
-                        )
-
-                        com.subhashrelangi.arctracker.ui.SpendingOverviewCard(
-                            expenses = periodExpenses,
-                            periodLabel = selectedMonthLabel
-                        )
-
-                        Spacer(
-                            modifier =
-                                Modifier.height(8.dp)
-                        )
-
-                        Card(
-
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(
-                                    horizontal = 16.dp,
-                                    vertical = 8.dp
-                                ),
-
-                            shape =
-                                RoundedCornerShape(16.dp),
-
-                            colors =
-                                CardDefaults.cardColors(
-                                    containerColor =
-                                        Color.White
-                                ),
-
-                            border =
-                                BorderStroke(
-                                    1.dp,
-                                    Color(0xFFF0F0F0)
-                                ),
-
-                            elevation =
-                                CardDefaults.cardElevation(
-                                    defaultElevation =
-                                        0.dp
-                                )
-
-                        ) {
-
-                            Column {
-
-                                Row(
-
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(
-                                            horizontal = 16.dp,
-                                            vertical = 16.dp
-                                        ),
-
-                                    horizontalArrangement =
-                                        Arrangement.SpaceBetween,
-
-                                    verticalAlignment =
-                                        Alignment.CenterVertically
-
-                                ) {
-
-                                    Text(
-                                        text =
-                                            "Recent Transactions",
-                                        fontWeight =
-                                            FontWeight.Bold,
-                                        fontSize = 16.sp,
-                                        color =
-                                            Color(0xFF1E1E1E)
-                                    )
-
-                                    Text(
-                                        text = "View All",
-                                        fontSize = 14.sp,
-                                        color =
-                                            Color(0xFF673AB7),
-                                        fontWeight =
-                                            FontWeight.Medium
-                                    )
-                                }
-
-                                if (
-                                    displayedExpenses.isEmpty()
-                                ) {
-
-                                    Text(
-
-                                        text =
-                                            if (isSearching) {
-                                                "No matching transactions found."
-                                            } else {
-                                                "No expenses yet."
-                                            },
-
-                                        modifier =
-                                            Modifier.padding(
-                                                start = 16.dp,
-                                                bottom = 16.dp
-                                            ),
-
-                                        color =
-                                            Color(0xFF757575)
-                                    )
-
-                                } else {
-
-                                    displayedExpenses
-                                        .take(5)
-                                        .forEachIndexed {
-                                                index,
-                                                expense ->
-
-                                            val isLast =
-                                                index ==
-                                                        minOf(
-                                                            displayedExpenses.size,
-                                                            5
-                                                        ) - 1
-
-                                            ExpenseItemRow(
-
-                                                expense = expense,
-
-                                                isLast =
-                                                    isLast,
-
-                                                onClick = {
-
-                                                    if (
-                                                        expense
-                                                            .isPending
-                                                    ) {
-
-                                                        showApproveDialog =
-                                                            expense
-                                                    }
-                                                },
-
-                                                onLongClick = {
-
-                                                    actionSheetExpense =
-                                                        expense
-                                                }
-                                            )
-                                        }
-                                }
-                            }
+                com.subhashrelangi.arctracker.ui.HomeScreenRedesign(
+                    expenses = displayedExpenses,
+                    onSearchClick = {
+                        isSearching = !isSearching
+                    },
+                    onAddExpenseClick = {
+                        showAddDialog = true
+                    },
+                    onReviewClick = {
+                        navigateTo("Pending")
+                    },
+                    onAccountsClick = {
+                        navigateTo("FinancialAccounts")
+                    },
+                    onScanSmsClick = {
+                        navigateTo("SmsImport")
+                    },
+                    onAddCashClick = {
+                        showAddDialog = true
+                    },
+                    onExportClick = {
+                        navigateTo("Backup")
+                    },
+                    onViewAllClick = {
+                        navigateTo("Transactions")
+                    },
+                    onExpenseClick = { expense ->
+                        if (expense.isPending) {
+                            showApproveDialog = expense
+                        } else {
+                            actionSheetExpense = expense
                         }
                     }
-                }
+                )
             }
         }
 
