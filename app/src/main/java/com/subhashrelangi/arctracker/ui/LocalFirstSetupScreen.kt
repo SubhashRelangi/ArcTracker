@@ -944,7 +944,7 @@ fun LocalFirstSetupScreen(
                 ) {
                     Text(
                         text = if (isNotificationGranted && isSmsGranted) {
-                            "Complete Setup & Continue"
+                            if (autoScanSmsArchive) "Continue to SMS Import Wizard" else "Complete Setup & Continue"
                         } else {
                             "Enable Permissions & Start Setup"
                         },

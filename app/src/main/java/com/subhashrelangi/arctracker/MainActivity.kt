@@ -394,7 +394,7 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
-        containerColor = if (currentRoute in listOf("Home", "InitialOnboarding", "LocalFirstSetup", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
+        containerColor = if (currentRoute in listOf("Home", "InitialOnboarding", "LocalFirstSetup", "SmsImport", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
 
         topBar = {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
@@ -497,7 +497,7 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup")) 0.dp else padding.calculateTopPadding()
+            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport")) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
                     .padding(top = contentTopPadding)
@@ -603,6 +603,12 @@ fun ExpenseScreen() {
                 com.subhashrelangi.arctracker.ui.SmsImportScreen(
                     onNavigateBack = {
                         navigateBack()
+                    },
+                    onImportCompleted = {
+                        settingsRepo.setSetupInProgress(false)
+                        settingsRepo.setInitialOnboardingCompleted(true)
+                        SmsPermissionHelper.setInitialImportCompleted(context, true)
+                        backStack = listOf("Home")
                     }
                 )
 
@@ -760,15 +766,9 @@ fun ExpenseScreen() {
 
                 com.subhashrelangi.arctracker.ui.LocalFirstSetupScreen(
                     onSetupCompleted = { autoScanSms ->
-                        settingsRepo.setSetupInProgress(false)
-                        settingsRepo.setInitialOnboardingCompleted(true)
                         hasDismissedNotificationPermissionDialog = true
                         hasDismissedInitialSmsImportDialog = true
-                        if (autoScanSms && SmsPermissionHelper.isSmsPermissionGranted(context)) {
-                            backStack = listOf("Home", "SmsImport")
-                        } else {
-                            navigateTo("Home")
-                        }
+                        backStack = listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport")
                     },
                     onSkipToDemoClick = {
                         scope.launch(Dispatchers.IO) {
