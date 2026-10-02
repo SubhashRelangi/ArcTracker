@@ -342,12 +342,13 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
-        containerColor = if (currentRoute == "Home" || currentRoute == "InitialOnboarding") Color(0xFF090C10) else MaterialTheme.colorScheme.background,
+        containerColor = if (currentRoute == "Home" || currentRoute == "InitialOnboarding" || currentRoute == "Transactions") Color(0xFF090C10) else MaterialTheme.colorScheme.background,
 
         topBar = {
             if (currentRoute != "SmsImport" &&
                 currentRoute != "InitialOnboarding" &&
                 currentRoute != "Home" &&
+                currentRoute != "Transactions" &&
                 currentRoute != "FinancialAccounts" &&
                 currentRoute != "UnresolvedTransactions" &&
                 currentRoute != "AccountTransactions" &&
@@ -505,7 +506,7 @@ fun ExpenseScreen() {
         ) {
 
             AnimatedVisibility(
-                visible = isSearching && currentRoute != "InitialOnboarding"
+                visible = isSearching && currentRoute != "InitialOnboarding" && currentRoute != "Transactions"
             ) {
 
                 OutlinedTextField(
@@ -557,13 +558,23 @@ fun ExpenseScreen() {
 
             if (currentRoute == "Transactions") {
 
-                com.subhashrelangi.arctracker.ui.TransactionsScreen(
+                com.subhashrelangi.arctracker.ui.ledger.LedgerPage(
                     expenses = expenses,
-                    onExpenseClick = {
-                        showApproveDialog = it
+                    onExpenseClick = { expense ->
+                        if (expense.isPending) {
+                            showApproveDialog = expense
+                        } else {
+                            actionSheetExpense = expense
+                        }
                     },
-                    onExpenseLongClick = {
-                        actionSheetExpense = it
+                    onExpenseLongClick = { expense ->
+                        actionSheetExpense = expense
+                    },
+                    onAddTransactionClick = {
+                        showAddDialog = true
+                    },
+                    onScanSmsClick = {
+                        navigateTo("SmsImport")
                     },
                     selectedMonth = selectedMonth,
                     availableMonths = availableMonths,
