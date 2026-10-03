@@ -175,101 +175,162 @@ fun TransactionActionSheet(
     onDelete: () -> Unit
 ) {
     val isCredit = expense.type.equals("Credit", ignoreCase = true)
-    val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
     val sign = if (isCredit) "+" else "-"
-    val amountColor = if (isCredit) Color(0xFF2E7D32) else Color(0xFFC62828)
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault())
+    val amountColor = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444)
+    val formattedDateTime = remember(expense.dateMillis) {
+        if (expense.dateMillis > 0) {
+            val dateStr = SimpleDateFormat("dd MMM yyyy", Locale.US).format(Date(expense.dateMillis))
+            val timeStr = SimpleDateFormat("h:mm a", Locale.US).format(Date(expense.dateMillis))
+            "$dateStr • $timeStr IST"
+        } else {
+            "-"
+        }
+    }
+    val currencyFormatter = remember {
+        NumberFormat.getCurrencyInstance(Locale("en", "IN")).apply {
+            maximumFractionDigits = 2
+            minimumFractionDigits = if (expense.amount % 1.0 == 0.0) 0 else 2
+        }
+    }
+    val amountFormatted = remember(expense.amount) {
+        val formatted = currencyFormatter.format(expense.amount).replace("Rs.", "₹").replace("INR", "₹").trim()
+        if (!formatted.startsWith("₹")) "₹$formatted" else formatted
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFFFBF8FF)
+        containerColor = Color(0xFF141722),
+        windowInsets = WindowInsets(0, 0, 0, 0),
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 12.dp, bottom = 8.dp)
+                    .width(36.dp)
+                    .height(4.dp)
+                    .background(Color(0xFF333D52), RoundedCornerShape(2.dp))
+            )
+        },
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        tonalElevation = 8.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp)
+                .padding(bottom = 16.dp)
         ) {
+            // Header summary row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = expense.merchant.ifEmpty { "Unknown" },
+                        text = if (expense.merchant.isNotBlank() && expense.merchant != "-") expense.merchant else (expense.category ?: "Transaction"),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = Color(0xFF1E1E1E)
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = dateFormat.format(Date(expense.dateMillis)),
-                        fontSize = 12.sp,
-                        color = Color(0xFF757575)
+                        text = formattedDateTime,
+                        fontSize = 11.5.sp,
+                        color = Color(0xFF8E9BAE)
                     )
                 }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
                 Text(
-                    text = "$sign${currencyFormatter.format(expense.amount).replace("Rs.", "₹")}",
+                    text = "$sign$amountFormatted",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = amountColor
+                    fontSize = 17.sp,
+                    color = amountColor,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                 )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Surface(
-                onClick = onEdit,
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Color(0xFF222938))
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Small and clean quick action buttons side-by-side
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFF3EFFF)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Small & clean Edit Button
+                Surface(
+                    onClick = onEdit,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF1A1F2C),
+                    border = BorderStroke(1.dp, Color(0xFF283245))
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = null,
-                        tint = Color(0xFF673AB7),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Edit",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        color = Color(0xFF673AB7)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = null,
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Edit",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                            color = Color.White
+                        )
+                    }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Surface(
-                onClick = onDelete,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFFFEBEE)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Small & clean Delete Button
+                Surface(
+                    onClick = onDelete,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF241418),
+                    border = BorderStroke(1.dp, Color(0xFF4A1E24))
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = null,
-                        tint = Color(0xFFD32F2F),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Delete",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        color = Color(0xFFD32F2F)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = null,
+                            tint = Color(0xFFEF4444),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Delete",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                            color = Color(0xFFEF4444)
+                        )
+                    }
                 }
             }
         }

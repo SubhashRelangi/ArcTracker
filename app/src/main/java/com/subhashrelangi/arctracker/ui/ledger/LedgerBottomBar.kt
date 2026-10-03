@@ -65,6 +65,8 @@ fun LedgerSummaryActionBar(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 8.dp)
             .shadow(
                 elevation = 16.dp,
                 shape = LedgerShapes.FloatingSummary,
