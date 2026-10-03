@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -71,6 +72,7 @@ import java.util.Locale
 fun TransactionDetailDialog(
     expense: Expense,
     initialEditMode: Boolean = false,
+    closeOnBackOrSave: Boolean = false,
     knownAccounts: List<KnownFinancialAccount> = emptyList(),
     allCategories: List<TransactionCategory> = emptyList(),
     recentMerchants: List<String> = emptyList(),
@@ -179,9 +181,21 @@ fun TransactionDetailDialog(
         }
     }
 
+    BackHandler {
+        if (closeOnBackOrSave || !isEditMode) {
+            onDismiss()
+        } else {
+            isEditMode = false
+        }
+    }
+
     Dialog(
         onDismissRequest = {
-            if (!isEditMode) onDismiss()
+            if (closeOnBackOrSave || !isEditMode) {
+                onDismiss()
+            } else {
+                isEditMode = false
+            }
         },
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
@@ -203,13 +217,23 @@ fun TransactionDetailDialog(
                     knownAccounts = knownAccounts,
                     allCategories = allCategories,
                     recentMerchants = recentMerchants,
-                    onBack = { isEditMode = false },
+                    onBack = {
+                        if (closeOnBackOrSave) {
+                            onDismiss()
+                        } else {
+                            isEditMode = false
+                        }
+                    },
                     onSave = { expenseId, merchant, category, note ->
                         editedMerchant = merchant
                         editedCategory = category ?: ""
                         editedNote = note ?: ""
                         onSaveEdit(expenseId, merchant, category, note)
-                        isEditMode = false
+                        if (closeOnBackOrSave) {
+                            onDismiss()
+                        } else {
+                            isEditMode = false
+                        }
                     },
                     onDelete = if (onDelete != null) { { showDeleteConfirmDialog = true } } else null,
                     onAssignAccount = onAssignAccount,

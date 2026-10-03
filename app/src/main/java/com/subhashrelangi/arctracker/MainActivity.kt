@@ -58,11 +58,16 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.subhashrelangi.arctracker.data.Expense
+import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
+import com.subhashrelangi.arctracker.service.AccountReconciliationManager
 import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.SmsPermissionHelper
+import com.subhashrelangi.arctracker.service.TransactionManager
 import com.subhashrelangi.arctracker.ui.AddExpenseDialog
+import com.subhashrelangi.arctracker.ui.DarkDeleteConfirmDialog
 import com.subhashrelangi.arctracker.ui.InitialSmsImportDialog
 import com.subhashrelangi.arctracker.ui.NotificationPermissionDialog
+import com.subhashrelangi.arctracker.ui.TransactionDetailDialog
 import com.subhashrelangi.arctracker.utils.RegexPatternsManager
 import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
@@ -182,6 +187,10 @@ fun ExpenseScreen() {
             .distinct()
             .take(8)
     }
+
+    val accountRepo = remember { KnownFinancialAccountRepository(knownAccountDao) }
+    val reconciliationManager = remember { AccountReconciliationManager(expenseDao, accountRepo, database) }
+    val transactionManager = remember { TransactionManager(expenseDao) }
 
     var refreshTrigger by remember {
         mutableStateOf(0)
@@ -1116,59 +1125,56 @@ fun ExpenseScreen() {
         }
 
         editExpense?.let { expenseToEdit ->
-
-            AddExpenseDialog(
-                initialAmount = if (expenseToEdit.amount > 0) expenseToEdit.amount.toString() else "",
-                initialMerchant = if (expenseToEdit.merchant != "Unknown Merchant") expenseToEdit.merchant else "",
-                initialType = expenseToEdit.type ?: "Debit",
-                initialTag = expenseToEdit.tag ?: "",
-                initialNote = expenseToEdit.note ?: "",
-                initialDateMillis = expenseToEdit.dateMillis,
-                isEditMode = true,
+            TransactionDetailDialog(
+                expense = expenseToEdit,
+                initialEditMode = true,
+                closeOnBackOrSave = true,
                 knownAccounts = knownAccounts,
                 allCategories = allCategories,
                 recentMerchants = recentMerchants,
                 onDismiss = {
                     editExpense = null
                 },
-                onAddFull = { amount, merchant, type, tag, note, dateMillis, accountId, accountSuffix, categoryId ->
-                    val updated = expenseToEdit.copy(
-                        amount = amount,
-                        merchant = merchant,
-                        type = type,
-                        tag = tag,
-                        note = note,
-                        dateMillis = dateMillis,
-                        accountId = accountId ?: expenseToEdit.accountId,
-                        accountSuffix = accountSuffix ?: expenseToEdit.accountSuffix,
-                        categoryId = categoryId ?: expenseToEdit.categoryId
-                    )
-                    expenses = expenses.map {
-                        if (it.id == expenseToEdit.id) updated else it
-                    }
+                onSaveEdit = { expenseId, merchant, category, note ->
                     scope.launch(Dispatchers.IO) {
                         try {
-                            expenseDao.update(updated)
-                        } catch (_: Exception) {}
+                            transactionManager.updateTransaction(expenseId, merchant, category, note)
+                        } catch (_: Exception) {
+                            val target = expenses.find { it.id == expenseId }
+                            if (target != null) {
+                                val updated = target.copy(
+                                    merchant = merchant,
+                                    tag = category,
+                                    note = note
+                                )
+                                expenseDao.update(updated)
+                            }
+                        }
                     }
                     editExpense = null
                 },
-                onAdd = { amount, merchant, type, tag, note, dateMillis ->
-                    val updated = expenseToEdit.copy(
-                        amount = amount,
-                        merchant = merchant,
-                        type = type,
-                        tag = tag,
-                        note = note,
-                        dateMillis = dateMillis
-                    )
-                    expenses = expenses.map {
-                        if (it.id == expenseToEdit.id) updated else it
+                onAssignAccount = { expenseId, targetAccountId ->
+                    scope.launch(Dispatchers.IO) {
+                        reconciliationManager.assignAccount(expenseId, targetAccountId)
                     }
+                },
+                onReassignAccount = { expenseId, newAccountId ->
+                    scope.launch(Dispatchers.IO) {
+                        reconciliationManager.reassignAccount(expenseId, newAccountId)
+                    }
+                },
+                onUnlinkAccount = { expenseId ->
+                    scope.launch(Dispatchers.IO) {
+                        reconciliationManager.unlinkAccount(expenseId)
+                    }
+                },
+                onDelete = { expenseToDelete ->
                     scope.launch(Dispatchers.IO) {
                         try {
-                            expenseDao.update(updated)
-                        } catch (_: Exception) {}
+                            transactionManager.deleteTransaction(expenseToDelete.id)
+                        } catch (_: Exception) {
+                            expenseDao.delete(expenseToDelete)
+                        }
                     }
                     editExpense = null
                 }
@@ -1176,57 +1182,24 @@ fun ExpenseScreen() {
         }
 
         deleteConfirmExpense?.let { expenseToDelete ->
-
-            AlertDialog(
-
-                onDismissRequest = {
+            val isCredit = expenseToDelete.type.equals("Credit", ignoreCase = true)
+            val sign = if (isCredit) "+" else "-"
+            DarkDeleteConfirmDialog(
+                expense = expenseToDelete,
+                sign = sign,
+                onConfirm = {
+                    val idToDelete = expenseToDelete.id
                     deleteConfirmExpense = null
-                },
-
-                title = {
-                    Text(
-                        text = "Delete Transaction?",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-
-                text = {
-                    Text(
-                        text =
-                            "This will permanently delete the transaction of â‚¹${expenseToDelete.amount} to ${expenseToDelete.merchant}. " +
-                                    "This action cannot be undone."
-                    )
-                },
-
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            expenses = expenses.filter { it.id != expenseToDelete.id }
-                            scope.launch(Dispatchers.IO) {
-                                try {
-                                    expenseDao.delete(expenseToDelete)
-                                } catch (_: Exception) {}
-                            }
-                            deleteConfirmExpense = null
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            transactionManager.deleteTransaction(idToDelete)
+                        } catch (_: Exception) {
+                            expenseDao.delete(expenseToDelete)
                         }
-                    ) {
-                        Text(
-                            text = "Delete",
-                            color = Color(0xFFD32F2F),
-                            fontWeight = FontWeight.Bold
-                        )
                     }
+                    Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()
                 },
-
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            deleteConfirmExpense = null
-                        }
-                    ) {
-                        Text("Cancel")
-                    }
-                }
+                onDismiss = { deleteConfirmExpense = null }
             )
         }
 
