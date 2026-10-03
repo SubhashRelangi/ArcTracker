@@ -72,6 +72,7 @@ fun TransactionDetailDialog(
     expense: Expense,
     knownAccounts: List<KnownFinancialAccount> = emptyList(),
     allCategories: List<TransactionCategory> = emptyList(),
+    recentMerchants: List<String> = emptyList(),
     onDismiss: () -> Unit,
     onSaveEdit: (expenseId: Int, merchant: String, category: String?, note: String?) -> Unit,
     onAssignAccount: ((expenseId: Int, targetAccountId: String) -> Unit)? = null,
@@ -189,29 +190,34 @@ fun TransactionDetailDialog(
             modifier = Modifier.fillMaxSize(),
             color = Color(0xFF0D0F14)
         ) {
-            Box(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                // 1. SCROLLABLE SCREEN CONTENT (FULL SCREEN)
-                Column(
+            if (isEditMode) {
+                EditTransactionPage(
+                    expense = expense,
+                    knownAccounts = knownAccounts,
+                    allCategories = allCategories,
+                    recentMerchants = recentMerchants,
+                    onBack = { isEditMode = false },
+                    onSave = { expenseId, merchant, category, note ->
+                        onSaveEdit(expenseId, merchant, category, note)
+                        isEditMode = false
+                    },
+                    onDelete = if (onDelete != null) { { showDeleteConfirmDialog = true } } else null,
+                    onAssignAccount = onAssignAccount,
+                    onReassignAccount = onReassignAccount
+                )
+            } else {
+                Box(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // TOP APP BAR
-                    TransactionDetailsHeader(
-                        modifier = Modifier.statusBarsPadding(),
-                        onBackClick = {
-                            if (isEditMode) {
-                                editedMerchant = expense.merchant
-                                editedCategory = expense.tag ?: expense.category ?: ""
-                                editedCategoryId = expense.categoryId
-                                editedNote = expense.note ?: ""
-                                merchantError = null
-                                isEditMode = false
-                            } else {
-                                onDismiss()
-                            }
-                        }
-                    )
+                    // 1. SCROLLABLE SCREEN CONTENT (FULL SCREEN)
+                    Column(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        // TOP APP BAR
+                        TransactionDetailsHeader(
+                            modifier = Modifier.statusBarsPadding(),
+                            onBackClick = onDismiss
+                        )
 
                     // SCROLLABLE MAIN CONTENT
                     LazyColumn(
@@ -375,6 +381,7 @@ fun TransactionDetailDialog(
             }
         }
     }
+}
 
     // --- MODAL DIALOGS ---
 
@@ -1881,7 +1888,7 @@ private fun TransactionBottomActions(
 // ==========================================
 
 @Composable
-private fun DarkAccountPickerDialog(
+internal fun DarkAccountPickerDialog(
     isReassign: Boolean,
     candidateAccounts: List<KnownFinancialAccount>,
     currentSuffix: String?,
@@ -2012,7 +2019,7 @@ private fun DarkUnlinkConfirmDialog(
 }
 
 @Composable
-private fun DarkDeleteConfirmDialog(
+internal fun DarkDeleteConfirmDialog(
     expense: Expense,
     sign: String,
     onConfirm: () -> Unit,
@@ -2062,7 +2069,7 @@ private fun DarkDeleteConfirmDialog(
 }
 
 @Composable
-private fun DarkCategoryPickerDialog(
+internal fun DarkCategoryPickerDialog(
     allCategories: List<TransactionCategory>,
     currentCategoryId: String?,
     currentCategoryName: String,
@@ -2149,7 +2156,7 @@ private fun DarkCategoryPickerDialog(
 }
 
 @Composable
-private fun DarkAddTagDialog(
+internal fun DarkAddTagDialog(
     onAddTag: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -2199,7 +2206,7 @@ private fun DarkAddTagDialog(
 // UTILITY FUNCTIONS
 // ==========================================
 
-private fun extractTags(note: String?, legacyTag: String?): List<String> {
+internal fun extractTags(note: String?, legacyTag: String?): List<String> {
     val results = mutableListOf<String>()
     if (!note.isNullOrBlank()) {
         val matches = Regex("""#([A-Za-z0-9_-]+)""").findAll(note)
@@ -2219,7 +2226,7 @@ private fun extractTags(note: String?, legacyTag: String?): List<String> {
     return results
 }
 
-private fun extractUpiRef(rawText: String?, note: String?, notificationKey: String?): String {
+internal fun extractUpiRef(rawText: String?, note: String?, notificationKey: String?): String {
     // 1. Search in note
     if (!note.isNullOrBlank()) {
         val notePattern = Regex("""(?:Ref|UTR|UPI)[:\s]+(\d{8,16})""", RegexOption.IGNORE_CASE).find(note)
@@ -2250,7 +2257,7 @@ private fun extractUpiRef(rawText: String?, note: String?, notificationKey: Stri
     return "-"
 }
 
-private fun extractBalance(rawText: String?): String? {
+internal fun extractBalance(rawText: String?): String? {
     if (rawText.isNullOrBlank()) return null
     val balPattern = Regex("""(?:Bal(?:ance)?|Avl\s*Bal|Avail\s*Bal)(?:\s*(?:is|INR|Rs\.?))?[:\s]*([0-9,]+(?:\.[0-9]{2})?)""", RegexOption.IGNORE_CASE)
     val match = balPattern.find(rawText)

@@ -337,10 +337,17 @@ fun LedgerPage(
 
     // Detail Dialog Integration (View, Edit, Delete, Reconcile)
     activeDetailExpense?.let { detailExpense ->
+        val recentMerchants = remember(expenses) {
+            expenses.map { it.merchant }
+                .filter { it.isNotBlank() && it != "-" }
+                .distinct()
+                .take(8)
+        }
         TransactionDetailDialog(
             expense = detailExpense,
             knownAccounts = knownAccounts,
             allCategories = allCategories,
+            recentMerchants = recentMerchants,
             onDismiss = { selectedExpenseForDetailId = null },
             onSaveEdit = { expenseId, merchant, category, note ->
                 scope.launch(Dispatchers.IO) {
