@@ -60,6 +60,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.SmsPermissionHelper
+import com.subhashrelangi.arctracker.ui.AddExpenseDialog
 import com.subhashrelangi.arctracker.ui.InitialSmsImportDialog
 import com.subhashrelangi.arctracker.ui.NotificationPermissionDialog
 import com.subhashrelangi.arctracker.utils.RegexPatternsManager
@@ -169,6 +170,17 @@ fun ExpenseScreen() {
 
     LaunchedEffect(dbExpenses) {
         expenses = dbExpenses
+    }
+
+    val knownAccountDao = remember { database.knownFinancialAccountDao() }
+    val knownAccounts by knownAccountDao.getAllFlow().collectAsState(initial = emptyList())
+    val categoryDao = remember { database.transactionCategoryDao() }
+    val allCategories by categoryDao.getAllFlow().collectAsState(initial = emptyList())
+    val recentMerchants = remember(expenses) {
+        expenses.map { it.merchant }
+            .filter { it.isNotBlank() && it != "-" && it != "Unknown Merchant" }
+            .distinct()
+            .take(8)
     }
 
     var refreshTrigger by remember {
@@ -404,7 +416,7 @@ fun ExpenseScreen() {
                     title = "ArcTracker",
                     showBadge = true,
                     badgeText = "UPI",
-                    statusText = "Automated  •  Local-first",
+                    statusText = "Automated  â€¢  Local-first",
                     showSearch = !isReviewOrSettings,
                     showAdd = !isReviewOrSettings,
                     onSearchClick = {
@@ -886,32 +898,46 @@ fun ExpenseScreen() {
     }
 
         if (showAddDialog) {
-
             AddExpenseDialog(
-
                 initialAmount = "",
-
                 initialMerchant = "",
-
                 initialType = "Debit",
-
                 initialNote = "",
-
-                initialDateMillis =
-                    System.currentTimeMillis(),
-
+                initialDateMillis = System.currentTimeMillis(),
+                knownAccounts = knownAccounts,
+                allCategories = allCategories,
+                recentMerchants = recentMerchants,
                 onDismiss = {
                     showAddDialog = false
                 },
-
-                onAdd = {
-                        amount,
-                        merchant,
-                        type,
-                        tag,
-                        note,
-                        dateMillis ->
-
+                onAddFull = { amount, merchant, type, tag, note, dateMillis, accountId, accountSuffix, categoryId ->
+                    val newExpense = Expense(
+                        id = 0,
+                        amount = amount,
+                        merchant = merchant,
+                        dateMillis = dateMillis,
+                        type = type,
+                        notificationKey = UUID.randomUUID().toString(),
+                        isPending = false,
+                        rawText = "Manual Entry",
+                        tag = tag,
+                        note = note,
+                        source = "MANUAL",
+                        accountId = accountId,
+                        accountSuffix = accountSuffix,
+                        categoryId = categoryId,
+                        categorySource = if (categoryId != null) "USER_MANUAL" else "NONE"
+                    )
+                    expenses = listOf(newExpense) + expenses
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            val id = expenseDao.insert(newExpense)
+                            newExpense.id = id.toInt()
+                        } catch (_: Exception) {}
+                    }
+                    showAddDialog = false
+                },
+                onAdd = { amount, merchant, type, tag, note, dateMillis ->
                     val newExpense = Expense(
                         id = 0,
                         amount = amount,
@@ -938,42 +964,20 @@ fun ExpenseScreen() {
         }
 
         showApproveDialog?.let { pendingExpense ->
-
             AddExpenseDialog(
-
-                initialAmount =
-                    if (pendingExpense.amount > 0) {
-                        pendingExpense.amount
-                            .toString()
-                    } else {
-                        ""
-                    },
-
-                initialMerchant =
-                    if (
-                        pendingExpense.merchant.isNotBlank()
-                    ) {
-                        pendingExpense.merchant
-                    } else {
-                        "Unknown Merchant"
-                    },
-
-                initialType =
-                    pendingExpense.type ?: "Debit",
-
-                initialNote =
-                    pendingExpense.note ?: "",
-
-                initialDateMillis =
-                    pendingExpense.dateMillis,
-
-                rawText =
-                    pendingExpense.rawText,
-
+                initialAmount = if (pendingExpense.amount > 0) pendingExpense.amount.toString() else "",
+                initialMerchant = if (pendingExpense.merchant.isNotBlank()) pendingExpense.merchant else "Unknown Merchant",
+                initialType = pendingExpense.type ?: "Debit",
+                initialTag = pendingExpense.tag ?: "",
+                initialNote = pendingExpense.note ?: "",
+                initialDateMillis = pendingExpense.dateMillis,
+                rawText = pendingExpense.rawText,
+                knownAccounts = knownAccounts,
+                allCategories = allCategories,
+                recentMerchants = recentMerchants,
                 onDismiss = {
                     showApproveDialog = null
                 },
-
                 onDelete = {
                     expenses = expenses.filter { it.id != pendingExpense.id }
                     scope.launch(Dispatchers.IO) {
@@ -983,15 +987,30 @@ fun ExpenseScreen() {
                     }
                     showApproveDialog = null
                 },
-
-                onAdd = {
-                        amount,
-                        merchant,
-                        type,
-                        tag,
-                        note,
-                        dateMillis ->
-
+                onAddFull = { amount, merchant, type, tag, note, dateMillis, accountId, accountSuffix, categoryId ->
+                    val updated = pendingExpense.copy(
+                        amount = amount,
+                        merchant = merchant,
+                        type = type,
+                        tag = tag,
+                        note = note,
+                        dateMillis = dateMillis,
+                        accountId = accountId ?: pendingExpense.accountId,
+                        accountSuffix = accountSuffix ?: pendingExpense.accountSuffix,
+                        categoryId = categoryId ?: pendingExpense.categoryId,
+                        isPending = false
+                    )
+                    expenses = expenses.map {
+                        if (it.id == pendingExpense.id) updated else it
+                    }
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            expenseDao.update(updated)
+                        } catch (_: Exception) {}
+                    }
+                    showApproveDialog = null
+                },
+                onAdd = { amount, merchant, type, tag, note, dateMillis ->
                     val updated = pendingExpense.copy(
                         amount = amount,
                         merchant = merchant,
@@ -1099,50 +1118,42 @@ fun ExpenseScreen() {
         editExpense?.let { expenseToEdit ->
 
             AddExpenseDialog(
-
-                initialAmount =
-                    if (expenseToEdit.amount > 0) {
-                        expenseToEdit.amount.toString()
-                    } else {
-                        ""
-                    },
-
-                initialMerchant =
-                    if (
-                        expenseToEdit.merchant !=
-                        "Unknown Merchant"
-                    ) {
-                        expenseToEdit.merchant
-                    } else {
-                        ""
-                    },
-
-                initialType =
-                    expenseToEdit.type ?: "Debit",
-
-                initialTag =
-                    expenseToEdit.tag ?: "",
-
-                initialNote =
-                    expenseToEdit.note ?: "",
-
-                initialDateMillis =
-                    expenseToEdit.dateMillis,
-
+                initialAmount = if (expenseToEdit.amount > 0) expenseToEdit.amount.toString() else "",
+                initialMerchant = if (expenseToEdit.merchant != "Unknown Merchant") expenseToEdit.merchant else "",
+                initialType = expenseToEdit.type ?: "Debit",
+                initialTag = expenseToEdit.tag ?: "",
+                initialNote = expenseToEdit.note ?: "",
+                initialDateMillis = expenseToEdit.dateMillis,
                 isEditMode = true,
-
+                knownAccounts = knownAccounts,
+                allCategories = allCategories,
+                recentMerchants = recentMerchants,
                 onDismiss = {
                     editExpense = null
                 },
-
-                onAdd = {
-                        amount,
-                        merchant,
-                        type,
-                        tag,
-                        note,
-                        dateMillis ->
-
+                onAddFull = { amount, merchant, type, tag, note, dateMillis, accountId, accountSuffix, categoryId ->
+                    val updated = expenseToEdit.copy(
+                        amount = amount,
+                        merchant = merchant,
+                        type = type,
+                        tag = tag,
+                        note = note,
+                        dateMillis = dateMillis,
+                        accountId = accountId ?: expenseToEdit.accountId,
+                        accountSuffix = accountSuffix ?: expenseToEdit.accountSuffix,
+                        categoryId = categoryId ?: expenseToEdit.categoryId
+                    )
+                    expenses = expenses.map {
+                        if (it.id == expenseToEdit.id) updated else it
+                    }
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            expenseDao.update(updated)
+                        } catch (_: Exception) {}
+                    }
+                    editExpense = null
+                },
+                onAdd = { amount, merchant, type, tag, note, dateMillis ->
                     val updated = expenseToEdit.copy(
                         amount = amount,
                         merchant = merchant,
@@ -1182,7 +1193,7 @@ fun ExpenseScreen() {
                 text = {
                     Text(
                         text =
-                            "This will permanently delete the transaction of ₹${expenseToDelete.amount} to ${expenseToDelete.merchant}. " +
+                            "This will permanently delete the transaction of â‚¹${expenseToDelete.amount} to ${expenseToDelete.merchant}. " +
                                     "This action cannot be undone."
                     )
                 },
@@ -1389,7 +1400,7 @@ fun ExpenseItemRow(
                                     if (
                                         expense.tag != null
                                     ) {
-                                        " • ${expense.tag}"
+                                        " \u2022 ${expense.tag}"
                                     } else {
                                         ""
                                     } +
@@ -1397,7 +1408,7 @@ fun ExpenseItemRow(
                                         !expense.note
                                             .isNullOrBlank()
                                     ) {
-                                        " • ${expense.note}"
+                                        " \u2022 ${expense.note}"
                                     } else {
                                         ""
                                     },
@@ -1416,7 +1427,7 @@ fun ExpenseItemRow(
 
                     Text(
                         text =
-                            "$sign₹${expense.amount}",
+                            "$sign\u20B9${expense.amount}",
                         fontWeight =
                             FontWeight.Bold,
                         fontSize = 15.sp,
@@ -1449,1301 +1460,6 @@ fun ExpenseItemRow(
 
                     thickness = 1.dp
                 )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AddExpenseDialog(
-
-    initialAmount: String,
-
-    initialMerchant: String,
-
-    initialType: String = "Debit",
-
-    initialTag: String = "",
-
-    initialNote: String = "",
-
-    isEditMode: Boolean = false,
-
-    initialDateMillis: Long =
-        System.currentTimeMillis(),
-
-    rawText: String? = null,
-
-    onDismiss: () -> Unit,
-
-    onDelete: (() -> Unit)? = null,
-
-    onAdd: (
-        Double,
-        String,
-        String,
-        String,
-        String,
-        Long
-    ) -> Unit
-
-) {
-
-    val sheetState =
-        rememberModalBottomSheetState(
-            skipPartiallyExpanded = true
-        )
-
-    var amount by remember {
-        mutableStateOf(initialAmount)
-    }
-
-    var merchant by remember {
-        mutableStateOf(initialMerchant)
-    }
-
-    var note by remember {
-        mutableStateOf(initialNote)
-    }
-
-    var type by remember {
-        mutableStateOf(initialType)
-    }
-
-    var tag by remember {
-
-        mutableStateOf(
-            if (initialTag.isNotBlank()) {
-                initialTag
-            } else if (initialType == "Credit") {
-                "Salary"
-            } else {
-                "Food"
-            }
-        )
-    }
-
-    var dateMillis by remember {
-        mutableStateOf(initialDateMillis)
-    }
-
-    var showDatePicker by remember {
-        mutableStateOf(false)
-    }
-
-    val primaryPurple =
-        Color(0xFF7859C1)
-
-    val lightPurple =
-        Color(0xFFF3EFFF)
-
-    val bgGray =
-        Color(0xFFF9F9FB)
-
-    val textDark =
-        Color(0xFF1E1E1E)
-
-    var amountError by remember {
-        mutableStateOf(false)
-    }
-
-    var isAnimating by remember {
-        mutableStateOf(false)
-    }
-
-    val scale by animateFloatAsState(
-
-        targetValue =
-            if (isAnimating) {
-                0.95f
-            } else {
-                1f
-            },
-
-        animationSpec =
-            spring(
-                dampingRatio =
-                    Spring.DampingRatioMediumBouncy
-            ),
-
-        finishedListener = {
-
-            if (isAnimating) {
-
-                val amt =
-                    amount.toDoubleOrNull()
-                        ?: 0.0
-
-                if (
-                    amt > 0 &&
-                    merchant.isNotBlank()
-                ) {
-
-                    onAdd(
-                        amt,
-                        merchant,
-                        type,
-                        tag,
-                        note,
-                        dateMillis
-                    )
-
-                } else {
-
-                    isAnimating = false
-                }
-            }
-        }
-    )
-
-    ModalBottomSheet(
-
-        onDismissRequest = onDismiss,
-
-        sheetState = sheetState,
-
-        containerColor =
-            Color(0xFFFBF8FF),
-
-        dragHandle = {
-            BottomSheetDefaults.DragHandle()
-        }
-
-    ) {
-
-        Column(
-
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 16.dp)
-                .imePadding()
-                .verticalScroll(
-                    rememberScrollState()
-                )
-
-        ) {
-
-            Row(
-
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                horizontalArrangement =
-                    Arrangement.SpaceBetween,
-
-                verticalAlignment =
-                    Alignment.CenterVertically
-
-            ) {
-
-                Row(
-                    verticalAlignment =
-                        Alignment.CenterVertically
-                ) {
-
-                    Box(
-
-                        modifier = Modifier
-                            .size(44.dp)
-                            .background(
-                                lightPurple,
-                                CircleShape
-                            ),
-
-                        contentAlignment =
-                            Alignment.Center
-
-                    ) {
-
-                        Icon(
-                            imageVector =
-                                Icons.Rounded.Add,
-                            contentDescription = null,
-                            tint =
-                                primaryPurple,
-                            modifier =
-                                Modifier.size(24.dp)
-                        )
-                    }
-
-                    Spacer(
-                        modifier =
-                            Modifier.width(12.dp)
-                    )
-
-                    Column {
-
-                        Text(
-                            text =
-                                if (isEditMode) {
-                                    "Edit Expense"
-                                } else if (rawText != null) {
-                                    "Approve Expense"
-                                } else {
-                                    "Add Expense"
-                                },
-                            fontWeight =
-                                FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = textDark
-                        )
-
-                        Text(
-                            text =
-                                if (rawText != null) {
-                                    "Review detected transaction"
-                                } else {
-                                    "Add a transaction manually"
-                                },
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                    }
-                }
-
-                IconButton(
-
-                    onClick = onDismiss,
-
-                    modifier = Modifier
-                        .background(
-                            bgGray,
-                            CircleShape
-                        )
-                        .size(36.dp)
-
-                ) {
-
-                    Icon(
-                        imageVector =
-                            Icons.Rounded.Close,
-                        contentDescription =
-                            "Close",
-                        tint =
-                            textDark,
-                        modifier =
-                            Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Spacer(
-                modifier =
-                    Modifier.height(16.dp)
-            )
-
-            OutlinedTextField(
-
-                value = amount,
-
-                onValueChange = {
-                    amount = it
-                    if (amountError && (it.toDoubleOrNull() ?: 0.0) > 0.0) {
-                        amountError = false
-                    }
-                },
-
-                isError = amountError,
-
-                supportingText = if (amountError) {
-                    { Text("Please enter a valid amount greater than 0", color = Color(0xFFD32F2F), fontSize = 11.sp) }
-                } else null,
-
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                shape =
-                    RoundedCornerShape(12.dp),
-
-                textStyle =
-                    TextStyle(
-                        fontSize = 24.sp,
-                        color = textDark
-                    ),
-
-                colors =
-                    OutlinedTextFieldDefaults.colors(
-
-                        unfocusedBorderColor =
-                            Color(0xFFEBEBEB),
-
-                        focusedBorderColor =
-                            primaryPurple,
-
-                        unfocusedContainerColor =
-                            Color.White,
-
-                        focusedContainerColor =
-                            Color.White
-                    ),
-
-                keyboardOptions =
-                    KeyboardOptions(
-                        keyboardType =
-                            KeyboardType.Number
-                    ),
-
-                leadingIcon = {
-
-                    Text(
-                        text = "₹",
-                        fontSize = 20.sp,
-                        fontWeight =
-                            FontWeight.Bold,
-                        color =
-                            textDark,
-                        modifier =
-                            Modifier.padding(
-                                start = 12.dp
-                            )
-                    )
-                },
-
-                trailingIcon = {
-
-                    Box(
-
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .background(
-                                bgGray,
-                                RoundedCornerShape(8.dp)
-                            )
-                            .padding(6.dp)
-
-                    ) {
-
-                        Icon(
-                            imageVector =
-                                Icons.Outlined.Calculate,
-                            contentDescription = null,
-                            tint =
-                                textDark,
-                            modifier =
-                                Modifier.size(20.dp)
-                        )
-                    }
-                }
-            )
-
-            Spacer(
-                modifier =
-                    Modifier.height(12.dp)
-            )
-
-            OutlinedTextField(
-
-                value = merchant,
-
-                onValueChange = {
-                    merchant = it
-                },
-
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                shape =
-                    RoundedCornerShape(12.dp),
-
-                colors =
-                    OutlinedTextFieldDefaults.colors(
-
-                        unfocusedBorderColor =
-                            Color(0xFFEBEBEB),
-
-                        focusedBorderColor =
-                            primaryPurple,
-
-                        unfocusedContainerColor =
-                            Color.White,
-
-                        focusedContainerColor =
-                            Color.White
-                    ),
-
-                placeholder = {
-
-                    Column(
-                        modifier =
-                            Modifier.padding(top = 2.dp)
-                    ) {
-
-                        Text(
-                            text =
-                                "Merchant / Person",
-                            fontSize = 14.sp,
-                            color = Color.Gray
-                        )
-
-                        Text(
-                            text =
-                                "e.g. Zomato, Amazon, Mom",
-                            fontSize = 10.sp,
-                            color =
-                                Color.LightGray
-                        )
-                    }
-                },
-
-                leadingIcon = {
-
-                    Icon(
-                        imageVector =
-                            Icons.Outlined.Person,
-                        contentDescription = null,
-                        tint = textDark
-                    )
-                }
-            )
-
-            Spacer(
-                modifier =
-                    Modifier.height(16.dp)
-            )
-
-            Row(
-
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                horizontalArrangement =
-                    Arrangement.SpaceBetween,
-
-                verticalAlignment =
-                    Alignment.CenterVertically
-
-            ) {
-
-                Text(
-                    text = "Category",
-                    fontWeight =
-                        FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = textDark
-                )
-
-                Row(
-                    verticalAlignment =
-                        Alignment.CenterVertically
-                ) {
-
-                    Text(
-                        text = "See all",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-
-                    Icon(
-                        imageVector =
-                            Icons.Rounded
-                                .KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = Color.Gray,
-                        modifier =
-                            Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            Spacer(
-                modifier =
-                    Modifier.height(8.dp)
-            )
-
-            Row(
-
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                horizontalArrangement =
-                    Arrangement.SpaceBetween
-
-            ) {
-
-                val categories =
-                    if (type == "Debit") {
-
-                        listOf(
-
-                            "Food" to
-                                    Icons.Outlined.Fastfood,
-
-                            "Travel" to
-                                    Icons.Outlined.DirectionsCar,
-
-                            "Bills" to
-                                    Icons.Outlined.Receipt,
-
-                            "Shopping" to
-                                    Icons.Outlined.ShoppingBag,
-
-                            "Other" to
-                                    Icons.Outlined.MoreHoriz
-
-                        )
-
-                    } else {
-
-                        listOf(
-
-                            "Salary" to
-                                    Icons.Outlined.Payments,
-
-                            "Allowance" to
-                                    Icons.Outlined.Savings,
-
-                            "Refund" to
-                                    Icons.Outlined.Replay,
-
-                            "Gift" to
-                                    Icons.Outlined.CardGiftcard,
-
-                            "Other" to
-                                    Icons.Outlined.MoreHoriz
-
-                        )
-                    }
-
-                categories.forEach {
-                        (catName, iconRes) ->
-
-                    val isSelected =
-                        tag == catName
-
-                    Column(
-
-                        horizontalAlignment =
-                            Alignment.CenterHorizontally,
-
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(
-                                horizontal = 4.dp
-                            )
-                            .background(
-                                if (isSelected) {
-                                    lightPurple
-                                } else {
-                                    bgGray
-                                },
-                                RoundedCornerShape(
-                                    10.dp
-                                )
-                            )
-                            .clickable {
-                                tag = catName
-                            }
-                            .padding(
-                                vertical = 8.dp
-                            )
-
-                    ) {
-
-                        Icon(
-
-                            imageVector =
-                                iconRes,
-
-                            contentDescription =
-                                catName,
-
-                            tint =
-                                if (isSelected) {
-                                    primaryPurple
-                                } else {
-                                    textDark
-                                },
-
-                            modifier =
-                                Modifier.size(20.dp)
-                        )
-
-                        Spacer(
-                            modifier =
-                                Modifier.height(4.dp)
-                        )
-
-                        Text(
-
-                            text = catName,
-
-                            fontSize = 10.sp,
-
-                            color =
-                                if (isSelected) {
-                                    primaryPurple
-                                } else {
-                                    textDark
-                                },
-
-                            fontWeight =
-                                if (isSelected) {
-                                    FontWeight.Bold
-                                } else {
-                                    FontWeight.Normal
-                                }
-                        )
-                    }
-                }
-            }
-
-            Spacer(
-                modifier =
-                    Modifier.height(16.dp)
-            )
-
-            Text(
-                text = "Type",
-                fontWeight =
-                    FontWeight.Bold,
-                fontSize = 14.sp,
-                color = textDark
-            )
-
-            Spacer(
-                modifier =
-                    Modifier.height(8.dp)
-            )
-
-            Row(
-                modifier =
-                    Modifier.fillMaxWidth()
-            ) {
-
-                val isDebit =
-                    type == "Debit"
-
-                Box(
-
-                    modifier = Modifier
-                        .weight(1f)
-                        .background(
-                            if (isDebit) {
-                                lightPurple
-                            } else {
-                                Color.White
-                            },
-                            RoundedCornerShape(10.dp)
-                        )
-                        .border(
-                            1.dp,
-                            if (isDebit) {
-                                primaryPurple
-                            } else {
-                                Color(0xFFEBEBEB)
-                            },
-                            RoundedCornerShape(10.dp)
-                        )
-                        .clickable(
-                            enabled =
-                                onDelete == null
-                        ) {
-
-                            type = "Debit"
-                            tag = "Food"
-                        }
-                        .padding(
-                            vertical = 10.dp
-                        ),
-
-                    contentAlignment =
-                        Alignment.Center
-
-                ) {
-
-                    Row(
-                        verticalAlignment =
-                            Alignment.CenterVertically
-                    ) {
-
-                        Icon(
-                            imageVector =
-                                Icons.Outlined
-                                    .RemoveCircleOutline,
-                            contentDescription =
-                                null,
-                            tint =
-                                if (isDebit) {
-                                    primaryPurple
-                                } else {
-                                    textDark
-                                },
-                            modifier =
-                                Modifier.size(18.dp)
-                        )
-
-                        Spacer(
-                            modifier =
-                                Modifier.width(6.dp)
-                        )
-
-                        Text(
-                            text =
-                                "Expense (Debit)",
-                            fontSize = 13.sp,
-                            color =
-                                if (isDebit) {
-                                    primaryPurple
-                                } else {
-                                    textDark
-                                },
-                            fontWeight =
-                                if (isDebit) {
-                                    FontWeight.Bold
-                                } else {
-                                    FontWeight.Normal
-                                }
-                        )
-                    }
-                }
-
-                Spacer(
-                    modifier =
-                        Modifier.width(12.dp)
-                )
-
-                Box(
-
-                    modifier = Modifier
-                        .weight(1f)
-                        .background(
-                            if (!isDebit) {
-                                lightPurple
-                            } else {
-                                Color.White
-                            },
-                            RoundedCornerShape(10.dp)
-                        )
-                        .border(
-                            1.dp,
-                            if (!isDebit) {
-                                primaryPurple
-                            } else {
-                                Color(0xFFEBEBEB)
-                            },
-                            RoundedCornerShape(10.dp)
-                        )
-                        .clickable(
-                            enabled =
-                                onDelete == null
-                        ) {
-
-                            type = "Credit"
-                            tag = "Salary"
-                        }
-                        .padding(
-                            vertical = 10.dp
-                        ),
-
-                    contentAlignment =
-                        Alignment.Center
-
-                ) {
-
-                    Row(
-                        verticalAlignment =
-                            Alignment.CenterVertically
-                    ) {
-
-                        Icon(
-                            imageVector =
-                                Icons.Outlined
-                                    .AddCircleOutline,
-                            contentDescription =
-                                null,
-                            tint =
-                                if (!isDebit) {
-                                    primaryPurple
-                                } else {
-                                    textDark
-                                },
-                            modifier =
-                                Modifier.size(18.dp)
-                        )
-
-                        Spacer(
-                            modifier =
-                                Modifier.width(6.dp)
-                        )
-
-                        Text(
-                            text =
-                                "Income (Credit)",
-                            fontSize = 13.sp,
-                            color =
-                                if (!isDebit) {
-                                    primaryPurple
-                                } else {
-                                    textDark
-                                },
-                            fontWeight =
-                                if (!isDebit) {
-                                    FontWeight.Bold
-                                } else {
-                                    FontWeight.Normal
-                                }
-                        )
-                    }
-                }
-            }
-
-            Spacer(
-                modifier =
-                    Modifier.height(12.dp)
-            )
-
-            val sdf =
-                SimpleDateFormat(
-                    "MMM dd, yyyy",
-                    Locale.getDefault()
-                )
-
-            val dateStr =
-                sdf.format(
-                    Date(dateMillis)
-                )
-
-            Box(
-
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        enabled =
-                            onDelete == null
-                    ) {
-                        showDatePicker = true
-                    }
-
-            ) {
-
-                OutlinedTextField(
-
-                    value = dateStr,
-
-                    onValueChange = {},
-
-                    readOnly = true,
-
-                    enabled = false,
-
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-
-                    shape =
-                        RoundedCornerShape(10.dp),
-
-                    colors =
-                        OutlinedTextFieldDefaults
-                            .colors(
-
-                                disabledBorderColor =
-                                    Color(0xFFEBEBEB),
-
-                                disabledContainerColor =
-                                    Color.White,
-
-                                disabledTextColor =
-                                    textDark,
-
-                                disabledLeadingIconColor =
-                                    textDark,
-
-                                disabledTrailingIconColor =
-                                    textDark
-                            ),
-
-                    textStyle =
-                        TextStyle(
-                            fontSize = 14.sp
-                        ),
-
-                    leadingIcon = {
-
-                        Icon(
-                            imageVector =
-                                Icons.Outlined
-                                    .CalendarToday,
-                            contentDescription =
-                                null,
-                            tint =
-                                textDark,
-                            modifier =
-                                Modifier.size(20.dp)
-                        )
-                    },
-
-                    trailingIcon = {
-
-                        if (
-                            onDelete == null
-                        ) {
-
-                            Icon(
-                                imageVector =
-                                    Icons.Rounded
-                                        .KeyboardArrowDown,
-                                contentDescription =
-                                    null,
-                                tint =
-                                    textDark,
-                                modifier =
-                                    Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                )
-            }
-
-            if (showDatePicker) {
-
-                val datePickerState =
-                    rememberDatePickerState(
-                        initialSelectedDateMillis =
-                            dateMillis
-                    )
-
-                DatePickerDialog(
-
-                    onDismissRequest = {
-                        showDatePicker = false
-                    },
-
-                    confirmButton = {
-
-                        TextButton(
-
-                            onClick = {
-
-                                datePickerState
-                                    .selectedDateMillis
-                                    ?.let {
-                                        dateMillis = it
-                                    }
-
-                                showDatePicker = false
-                            }
-
-                        ) {
-
-                            Text("OK")
-                        }
-                    },
-
-                    dismissButton = {
-
-                        TextButton(
-
-                            onClick = {
-                                showDatePicker = false
-                            }
-
-                        ) {
-
-                            Text("Cancel")
-                        }
-                    }
-
-                ) {
-
-                    DatePicker(
-                        state =
-                            datePickerState
-                    )
-                }
-            }
-
-            Spacer(
-                modifier =
-                    Modifier.height(12.dp)
-            )
-
-            if (rawText != null) {
-
-                Text(
-
-                    text =
-                        "Source: $rawText",
-
-                    fontSize = 12.sp,
-
-                    color =
-                        Color.Gray,
-
-                    modifier =
-                        Modifier.padding(
-                            bottom = 8.dp
-                        )
-                )
-            }
-
-            OutlinedTextField(
-
-                value = note,
-
-                onValueChange = {
-                    note = it
-                },
-
-                readOnly = false,
-
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-
-                shape =
-                    RoundedCornerShape(10.dp),
-
-                colors =
-                    OutlinedTextFieldDefaults
-                        .colors(
-
-                            unfocusedBorderColor =
-                                Color(0xFFEBEBEB),
-
-                            unfocusedContainerColor =
-                                Color.White,
-
-                            focusedContainerColor =
-                                Color.White
-                        ),
-
-                textStyle =
-                    TextStyle(
-                        fontSize = 14.sp
-                    ),
-
-                placeholder = {
-
-                    Text(
-                        text =
-                            "Add a note (optional)",
-                        color =
-                            Color.Gray,
-                        fontSize = 14.sp
-                    )
-                },
-
-                leadingIcon = {
-
-                    Icon(
-                        imageVector =
-                            Icons.Outlined
-                                .Description,
-                        contentDescription =
-                            null,
-                        tint =
-                            textDark,
-                        modifier =
-                            Modifier.size(20.dp)
-                    )
-                }
-            )
-
-            Spacer(
-                modifier =
-                    Modifier.height(20.dp)
-            )
-
-            Row(
-                modifier =
-                    Modifier.fillMaxWidth()
-            ) {
-
-                if (onDelete != null) {
-
-                    Button(
-
-                        onClick = {
-                            onDelete()
-                        },
-
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-
-                        colors =
-                            ButtonDefaults
-                                .buttonColors(
-                                    containerColor =
-                                        Color(0xFFFFEBEE),
-                                    contentColor =
-                                        Color(0xFFD32F2F)
-                                ),
-
-                        shape =
-                            RoundedCornerShape(
-                                10.dp
-                            )
-
-                    ) {
-
-                        Text(
-                            text = "Delete",
-                            fontWeight =
-                                FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    }
-
-                    Spacer(
-                        modifier =
-                            Modifier.width(12.dp)
-                    )
-
-                    Button(
-
-                        onClick = {
-
-                            val amt =
-                                amount
-                                    .toDoubleOrNull()
-                                    ?: 0.0
-
-                            if (amt <= 0.0) {
-                                amountError = true
-                            } else {
-                                amountError = false
-                                val resolvedMerchant = if (merchant.isNotBlank()) merchant.trim() else "Unknown Merchant"
-                                onAdd(
-                                    amt,
-                                    resolvedMerchant,
-                                    type,
-                                    tag,
-                                    note,
-                                    dateMillis
-                                )
-                            }
-                        },
-
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-
-                        colors =
-                            ButtonDefaults
-                                .buttonColors(
-                                    containerColor =
-                                        primaryPurple,
-                                    contentColor =
-                                        Color.White
-                                ),
-
-                        shape =
-                            RoundedCornerShape(
-                                10.dp
-                            )
-
-                    ) {
-
-                        Text(
-                            text = "Complete",
-                            fontWeight =
-                                FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    }
-
-                } else {
-
-                    Button(
-
-                        onClick = onDismiss,
-
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-
-                        colors =
-                            ButtonDefaults
-                                .buttonColors(
-                                    containerColor =
-                                        lightPurple,
-                                    contentColor =
-                                        primaryPurple
-                                ),
-
-                        shape =
-                            RoundedCornerShape(
-                                10.dp
-                            )
-
-                    ) {
-
-                        Text(
-                            text = "Cancel",
-                            fontWeight =
-                                FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    }
-
-                    Spacer(
-                        modifier =
-                            Modifier.width(12.dp)
-                    )
-
-                    Button(
-
-                        onClick = {
-
-                            val amt =
-                                amount
-                                    .toDoubleOrNull()
-                                    ?: 0.0
-
-                            if (amt <= 0.0) {
-                                amountError = true
-                            } else {
-                                amountError = false
-                                val resolvedMerchant = if (merchant.isNotBlank()) merchant.trim() else "Unknown Merchant"
-                                onAdd(
-                                    amt,
-                                    resolvedMerchant,
-                                    type,
-                                    tag,
-                                    note,
-                                    dateMillis
-                                )
-                            }
-                        },
-
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-
-                        colors =
-                            ButtonDefaults
-                                .buttonColors(
-                                    containerColor =
-                                        primaryPurple,
-                                    contentColor =
-                                        Color.White
-                                ),
-
-                        shape =
-                            RoundedCornerShape(
-                                10.dp
-                            )
-
-                    ) {
-
-                        Text(
-
-                            text =
-                                if (isEditMode) {
-                                    "Change"
-                                } else {
-                                    "Add Expense"
-                                },
-                            fontWeight =
-                                FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
             }
         }
     }
