@@ -28,6 +28,7 @@ import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
 import com.subhashrelangi.arctracker.service.AccountReconciliationManager
 import com.subhashrelangi.arctracker.service.CategoryManager
 import com.subhashrelangi.arctracker.service.TransactionManager
+import com.subhashrelangi.arctracker.ui.DarkDeleteConfirmDialog
 import com.subhashrelangi.arctracker.ui.MonthOption
 import com.subhashrelangi.arctracker.ui.TransactionActionSheet
 import com.subhashrelangi.arctracker.ui.TransactionDetailDialog
@@ -101,6 +102,8 @@ fun LedgerPage(
 
     // Detail dialog & Action sheet state
     var selectedExpenseForDetailId by remember { mutableStateOf<Int?>(null) }
+    var openDetailInEditMode by remember { mutableStateOf(false) }
+    var deleteConfirmExpense by remember { mutableStateOf<Expense?>(null) }
     val activeDetailExpense = remember(selectedExpenseForDetailId, expenses) {
         selectedExpenseForDetailId?.let { id -> expenses.find { it.id == id } }
     }
@@ -300,11 +303,12 @@ fun LedgerPage(
                                 account = expense.accountId?.let { accountsMap[it] },
                                 onClick = {
                                     onExpenseClick(expense)
+                                    openDetailInEditMode = false
                                     selectedExpenseForDetailId = expense.id
                                 },
                                 onLongClick = {
-                                    onExpenseLongClick(expense)
                                     sheetExpense = expense
+                                    onExpenseLongClick(expense)
                                 }
                             )
                         }
@@ -345,15 +349,19 @@ fun LedgerPage(
         }
         TransactionDetailDialog(
             expense = detailExpense,
+            initialEditMode = openDetailInEditMode,
             knownAccounts = knownAccounts,
             allCategories = allCategories,
             recentMerchants = recentMerchants,
-            onDismiss = { selectedExpenseForDetailId = null },
+            onDismiss = {
+                selectedExpenseForDetailId = null
+                openDetailInEditMode = false
+            },
             onSaveEdit = { expenseId, merchant, category, note ->
                 scope.launch(Dispatchers.IO) {
                     transactionManager.updateTransaction(expenseId, merchant, category, note)
                 }
-                selectedExpenseForDetailId = null
+                openDetailInEditMode = false
             },
             onAssignAccount = { expenseId, targetAccountId ->
                 scope.launch(Dispatchers.IO) {
@@ -375,6 +383,7 @@ fun LedgerPage(
                     transactionManager.deleteTransaction(expenseToDelete.id)
                 }
                 selectedExpenseForDetailId = null
+                openDetailInEditMode = false
             }
         )
     }
@@ -386,14 +395,32 @@ fun LedgerPage(
             onDismiss = { sheetExpense = null },
             onEdit = {
                 sheetExpense = null
+                openDetailInEditMode = true
                 selectedExpenseForDetailId = currentSheetExpense.id
             },
             onDelete = {
                 sheetExpense = null
-                scope.launch(Dispatchers.IO) {
-                    transactionManager.deleteTransaction(currentSheetExpense.id)
-                }
+                deleteConfirmExpense = currentSheetExpense
             }
+        )
+    }
+
+    // Quick Delete Confirm Dialog from Action Sheet
+    deleteConfirmExpense?.let { expenseToDelete ->
+        val isCredit = expenseToDelete.type.equals("Credit", ignoreCase = true)
+        val sign = if (isCredit) "+" else "-"
+        DarkDeleteConfirmDialog(
+            expense = expenseToDelete,
+            sign = sign,
+            onConfirm = {
+                val idToDelete = expenseToDelete.id
+                deleteConfirmExpense = null
+                scope.launch(Dispatchers.IO) {
+                    transactionManager.deleteTransaction(idToDelete)
+                }
+                Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { deleteConfirmExpense = null }
         )
     }
 }

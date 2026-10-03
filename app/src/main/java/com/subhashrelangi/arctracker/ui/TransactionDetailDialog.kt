@@ -70,6 +70,7 @@ import java.util.Locale
 @Composable
 fun TransactionDetailDialog(
     expense: Expense,
+    initialEditMode: Boolean = false,
     knownAccounts: List<KnownFinancialAccount> = emptyList(),
     allCategories: List<TransactionCategory> = emptyList(),
     recentMerchants: List<String> = emptyList(),
@@ -83,7 +84,7 @@ fun TransactionDetailDialog(
     val context = LocalContext.current
 
     // Edit Mode State
-    var isEditMode by remember { mutableStateOf(false) }
+    var isEditMode by remember(initialEditMode) { mutableStateOf(initialEditMode) }
     var editedMerchant by remember(expense) { mutableStateOf(expense.merchant) }
     var editedCategory by remember(expense) { mutableStateOf(expense.tag ?: expense.category ?: "") }
     var editedCategoryId by remember(expense) { mutableStateOf(expense.categoryId) }
@@ -102,8 +103,8 @@ fun TransactionDetailDialog(
     var isEvidenceExpanded by remember { mutableStateOf(false) }
 
     // Tags State
-    var currentTags by remember(expense.note, expense.tag) {
-        mutableStateOf(extractTags(expense.note, expense.tag))
+    var currentTags by remember(expense.note, expense.tag, editedNote, editedCategory) {
+        mutableStateOf(extractTags(editedNote.ifBlank { expense.note }, editedCategory.ifBlank { expense.tag }))
     }
 
     // Linked Account lookup
@@ -129,9 +130,10 @@ fun TransactionDetailDialog(
     }
     val txnCode = "#TXN-$dateCode-${expense.id.toString().padStart(4, '0')}"
 
-    val transactionTitle = remember(expense.merchant, expense.category, expense.tag) {
+    val transactionTitle = remember(expense.merchant, expense.category, expense.tag, editedMerchant) {
+        val currentMerchant = if (editedMerchant.isNotBlank()) editedMerchant else expense.merchant
         when {
-            expense.merchant.isNotBlank() && expense.merchant != "-" -> expense.merchant
+            currentMerchant.isNotBlank() && currentMerchant != "-" -> currentMerchant
             !expense.category.isNullOrBlank() -> expense.category!!
             !expense.tag.isNullOrBlank() -> expense.tag!!
             else -> "Transaction"
@@ -192,12 +194,20 @@ fun TransactionDetailDialog(
         ) {
             if (isEditMode) {
                 EditTransactionPage(
-                    expense = expense,
+                    expense = expense.copy(
+                        merchant = editedMerchant.ifBlank { expense.merchant },
+                        tag = editedCategory.ifBlank { expense.tag },
+                        categoryId = editedCategoryId ?: expense.categoryId,
+                        note = editedNote
+                    ),
                     knownAccounts = knownAccounts,
                     allCategories = allCategories,
                     recentMerchants = recentMerchants,
                     onBack = { isEditMode = false },
                     onSave = { expenseId, merchant, category, note ->
+                        editedMerchant = merchant
+                        editedCategory = category ?: ""
+                        editedNote = note ?: ""
                         onSaveEdit(expenseId, merchant, category, note)
                         isEditMode = false
                     },

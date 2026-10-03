@@ -528,13 +528,9 @@ fun ExpenseScreen() {
                     onExpenseClick = { expense ->
                         if (expense.isPending) {
                             showApproveDialog = expense
-                        } else {
-                            actionSheetExpense = expense
                         }
                     },
-                    onExpenseLongClick = { expense ->
-                        actionSheetExpense = expense
-                    },
+                    onExpenseLongClick = { /* Handled internally by LedgerPage */ },
                     onAddTransactionClick = {
                         showAddDialog = true
                     },
