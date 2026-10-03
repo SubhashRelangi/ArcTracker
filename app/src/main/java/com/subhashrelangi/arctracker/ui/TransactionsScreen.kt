@@ -200,45 +200,46 @@ fun TransactionActionSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF141722),
+        windowInsets = WindowInsets(0, 0, 0, 0),
         dragHandle = {
             Box(
                 modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(40.dp)
+                    .padding(top = 12.dp, bottom = 8.dp)
+                    .width(36.dp)
                     .height(4.dp)
                     .background(Color(0xFF333D52), RoundedCornerShape(2.dp))
             )
         },
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         tonalElevation = 8.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
                 .navigationBarsPadding()
-                .padding(bottom = 24.dp)
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 16.dp)
         ) {
             // Header summary row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = if (expense.merchant.isNotBlank() && expense.merchant != "-") expense.merchant else (expense.category ?: "Transaction"),
                         fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
+                        fontSize = 16.sp,
                         color = Color.White,
                         maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = formattedDateTime,
-                        fontSize = 12.sp,
+                        fontSize = 11.5.sp,
                         color = Color(0xFF8E9BAE)
                     )
                 }
@@ -248,13 +249,13 @@ fun TransactionActionSheet(
                 Text(
                     text = "$sign$amountFormatted",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
+                    fontSize = 17.sp,
                     color = amountColor,
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Box(
                 modifier = Modifier
@@ -265,119 +266,71 @@ fun TransactionActionSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            Text(
-                text = "QUICK ACTIONS",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF64748B),
-                letterSpacing = 1.sp
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 1. Quick Edit Option
-            Surface(
-                onClick = onEdit,
+            // Small and clean quick action buttons side-by-side
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                color = Color(0xFF1A1F2C),
-                border = BorderStroke(1.dp, Color(0xFF283245))
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Small & clean Edit Button
+                Surface(
+                    onClick = onEdit,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF1A1F2C),
+                    border = BorderStroke(1.dp, Color(0xFF283245))
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .background(Color(0xFF242E42), RoundedCornerShape(10.dp)),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = null,
                             tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(16.dp)
                         )
-                    }
-
-                    Spacer(modifier = Modifier.width(14.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Edit Transaction",
+                            text = "Edit",
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             color = Color.White
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Modify amount, merchant, category, or note",
-                            fontSize = 12.sp,
-                            color = Color(0xFF8E9BAE)
-                        )
                     }
-
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = Color(0xFF64748B),
-                        modifier = Modifier.size(20.dp)
-                    )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 2. Quick Delete Option
-            Surface(
-                onClick = onDelete,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                color = Color(0xFF241418),
-                border = BorderStroke(1.dp, Color(0xFF4A1E24))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Small & clean Delete Button
+                Surface(
+                    onClick = onDelete,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF241418),
+                    border = BorderStroke(1.dp, Color(0xFF4A1E24))
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .background(Color(0xFF381A20), RoundedCornerShape(10.dp)),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = null,
                             tint = Color(0xFFEF4444),
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(16.dp)
                         )
-                    }
-
-                    Spacer(modifier = Modifier.width(14.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Delete Transaction",
+                            text = "Delete",
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             color = Color(0xFFEF4444)
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Permanently remove from encrypted vault",
-                            fontSize = 12.sp,
-                            color = Color(0xFFA5787E)
-                        )
                     }
-
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = Color(0xFF7F2D38),
-                        modifier = Modifier.size(20.dp)
-                    )
                 }
             }
         }

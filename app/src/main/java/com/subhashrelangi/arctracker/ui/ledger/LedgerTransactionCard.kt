@@ -147,10 +147,20 @@ fun LedgerTransactionCard(
         else -> BorderStroke(1.dp, LedgerColors.Border)
     }
 
+    val categoryDisplay = remember(categoryName, isUnresolved, isSalary) {
+        when {
+            isUnresolved -> "Action Req."
+            isSalary -> "Credited"
+            categoryName.isNotBlank() && categoryName != "-" -> categoryName
+            else -> "General"
+        }
+    }
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 5.dp)
+            .height(72.dp)
             .clip(LedgerShapes.Card)
             .combinedClickable(
                 onClick = onClick,
@@ -162,8 +172,8 @@ fun LedgerTransactionCard(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 13.dp),
+                .fillMaxSize()
+                .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 1. Icon Container with Indicator Dot
@@ -211,7 +221,8 @@ fun LedgerTransactionCard(
 
             // 2. Middle Column: Merchant & Metadata
             Column(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
             ) {
                 // Top line: Merchant name + Status badge
                 Row(
@@ -244,7 +255,7 @@ fun LedgerTransactionCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
                 // Bottom line: Metadata (Time • Bank • Channel)
                 Row(
@@ -270,7 +281,8 @@ fun LedgerTransactionCard(
                             fontSize = 11.5.sp,
                             fontWeight = if (isUnresolved) FontWeight.SemiBold else FontWeight.Normal,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                     }
 
@@ -296,6 +308,7 @@ fun LedgerTransactionCard(
             // 3. Right Column: Tabular Amount + Category / Status Label
             Column(
                 horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.Center,
                 modifier = Modifier.widthIn(min = 90.dp)
             ) {
                 // Top line: Amount
@@ -309,41 +322,22 @@ fun LedgerTransactionCard(
                     textAlign = TextAlign.End
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
                 // Bottom line: Category or Status Label
-                when {
-                    isUnresolved -> {
-                        Text(
-                            text = "Action Req.",
-                            color = LedgerColors.Unresolved,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.End,
-                            maxLines = 1
-                        )
-                    }
-                    isSalary -> {
-                        Text(
-                            text = "Credited",
-                            color = LedgerColors.Credit,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.End,
-                            maxLines = 1
-                        )
-                    }
-                    else -> {
-                        Text(
-                            text = categoryName,
-                            color = LedgerColors.TextMutedLight,
-                            fontSize = 11.5.sp,
-                            textAlign = TextAlign.End,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
+                Text(
+                    text = categoryDisplay,
+                    color = when {
+                        isUnresolved -> LedgerColors.Unresolved
+                        isSalary -> LedgerColors.Credit
+                        else -> LedgerColors.TextMutedLight
+                    },
+                    fontSize = 11.5.sp,
+                    fontWeight = if (isUnresolved || isSalary) FontWeight.Medium else FontWeight.Normal,
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
