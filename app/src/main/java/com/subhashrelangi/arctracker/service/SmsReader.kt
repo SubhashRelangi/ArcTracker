@@ -4,7 +4,7 @@ import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.provider.Telephony
-import android.util.Log
+import com.subhashrelangi.arctracker.security.SecureLogger
 
 /**
  * Result of reading SMS messages from the system inbox (Milestone 3A).
@@ -149,13 +149,13 @@ class AndroidSmsReader(
     ): SmsReadResult {
         // 1. Check runtime READ_SMS permission
         if (!permissionChecker(context)) {
-            Log.w(TAG, "Cannot read SMS: READ_SMS permission not granted")
+            SecureLogger.w(TAG, "Cannot read SMS: READ_SMS permission not granted")
             return SmsReadResult.PermissionRequired
         }
 
         // 2. Validate date range bounds
         if (startTimeMillis > endTimeMillis) {
-            Log.d(TAG, "Empty date range requested: startTime ($startTimeMillis) > endTime ($endTimeMillis)")
+            SecureLogger.d(TAG, "Empty date range requested: startTime ($startTimeMillis) > endTime ($endTimeMillis)")
             return SmsReadResult.Success(0)
         }
 
@@ -169,15 +169,15 @@ class AndroidSmsReader(
         val cursor: Cursor? = try {
             queryExecutor(inboxUri, PROJECTION, selection, selectionArgs, sortOrder)
         } catch (e: SecurityException) {
-            Log.w(TAG, "SecurityException while querying SMS inbox: ${e.message}")
+            SecureLogger.w(TAG, "SecurityException while querying SMS inbox", e)
             return SmsReadResult.PermissionRequired
         } catch (e: Throwable) {
-            Log.e(TAG, "Unexpected error executing SMS query", e)
+            SecureLogger.e(TAG, "Unexpected error executing SMS query", e)
             return SmsReadResult.Failure(e, "Error querying SMS inbox: ${e.message}")
         }
 
         if (cursor == null) {
-            Log.w(TAG, "ContentResolver returned null cursor for SMS inbox")
+            SecureLogger.w(TAG, "ContentResolver returned null cursor for SMS inbox")
             return SmsReadResult.Failure(
                 IllegalStateException("ContentResolver returned null cursor for SMS inbox"),
                 "Null cursor returned by SMS provider"
@@ -199,13 +199,13 @@ class AndroidSmsReader(
             while (c.moveToNext()) {
                 try {
                     if (idIndex < 0 || c.isNull(idIndex)) {
-                        Log.w(TAG, "Skipping SMS row: missing _id column or null id")
+                        SecureLogger.w(TAG, "Skipping SMS row: missing _id column or null id")
                         continue
                     }
                     val id = c.getLong(idIndex)
 
                     if (dateIndex < 0 || c.isNull(dateIndex)) {
-                        Log.w(TAG, "Skipping SMS row $id: missing date column or null date")
+                        SecureLogger.w(TAG, "Skipping SMS row $id: missing date column or null date")
                         continue
                     }
                     val dateMillis = c.getLong(dateIndex)
@@ -254,17 +254,17 @@ class AndroidSmsReader(
                     totalRead++
                     val shouldContinue = onRecord(record)
                     if (!shouldContinue) {
-                        Log.d(TAG, "SMS reading halted early by caller after $totalRead records")
+                        SecureLogger.d(TAG, "SMS reading halted early by caller after $totalRead records")
                         break
                     }
                 } catch (e: Exception) {
                     // Privacy: Never log raw SMS body!
-                    Log.w(TAG, "Skipping malformed SMS row: ${e.javaClass.simpleName}: ${e.message}")
+                    SecureLogger.w(TAG, "Skipping malformed SMS row: ${e.javaClass.simpleName}", e)
                 }
             }
         }
 
-        Log.d(TAG, "Completed SMS scan. Total records processed: $totalRead")
+        SecureLogger.d(TAG, "Completed SMS scan. Total records processed: $totalRead")
         return SmsReadResult.Success(totalRead)
     }
 

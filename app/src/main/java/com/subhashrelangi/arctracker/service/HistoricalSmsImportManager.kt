@@ -1,9 +1,9 @@
 package com.subhashrelangi.arctracker.service
 
 import android.content.Context
-import android.util.Log
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.data.ExpenseDao
+import com.subhashrelangi.arctracker.security.SecureLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -168,7 +168,7 @@ class HistoricalSmsImportManager(
         endTimeMillis: Long,
         progressCallback: ((SmsScanProgress) -> Boolean)? = null
     ): SmsScanResult = executionMutex.withLock {
-        Log.i(TAG, "Starting non-destructive SMS scan for range [$startTimeMillis..$endTimeMillis]")
+        SecureLogger.i(TAG, "Starting non-destructive SMS scan for range [$startTimeMillis..$endTimeMillis]")
 
         var isCancelled = false
         var messagesScanned = 0
@@ -313,20 +313,20 @@ class HistoricalSmsImportManager(
         // Handle reader outcomes
         when (readResult) {
             is SmsReadResult.PermissionRequired -> {
-                Log.w(TAG, "Scan failed: READ_SMS permission required")
+                SecureLogger.w(TAG, "Scan failed: READ_SMS permission required")
                 _state.value = HistoricalSmsImportState.PermissionRequired
                 SmsScanResult.PermissionRequired
             }
 
             is SmsReadResult.Failure -> {
-                Log.e(TAG, "Scan failed: ${readResult.message}", readResult.error)
+                SecureLogger.e(TAG, "Scan failed: ${readResult.message}", readResult.error)
                 _state.value = HistoricalSmsImportState.Error(readResult.message, readResult.error)
                 SmsScanResult.Failure(readResult.error, readResult.message)
             }
 
             is SmsReadResult.Success -> {
                 if (isCancelled) {
-                    Log.i(TAG, "Scan cancelled by caller after $messagesScanned messages")
+                    SecureLogger.i(TAG, "Scan cancelled by caller after $messagesScanned messages")
                     _state.value = HistoricalSmsImportState.ScanCancelled
                     SmsScanResult.Cancelled
                 } else {
@@ -351,7 +351,7 @@ class HistoricalSmsImportManager(
                         scannedItems = scannedItems,
                         accountGroups = accountGroups
                     )
-                    Log.i(TAG, "Scan completed successfully: $messagesScanned scanned, $financialMessages financial, $transactionCandidatesCount candidates")
+                    SecureLogger.i(TAG, "Scan completed successfully: $messagesScanned scanned, $financialMessages financial, $transactionCandidatesCount candidates")
                     _state.value = HistoricalSmsImportState.ScanComplete(result)
                     result
                 }
@@ -384,7 +384,7 @@ class HistoricalSmsImportManager(
             scanResult.scannedItems
         }
 
-        Log.i(TAG, "Starting persistence reconciliation for ${items.size} candidates (selectedGroupIds: ${selectedGroupIds?.size ?: "ALL"})")
+        SecureLogger.i(TAG, "Starting persistence reconciliation for ${items.size} candidates (selectedGroupIds: ${selectedGroupIds?.size ?: "ALL"})")
 
         var insertedCount = 0
         var updatedCount = 0
@@ -539,7 +539,7 @@ class HistoricalSmsImportManager(
         }
 
         if (isCancelled) {
-            Log.i(TAG, "Import cancelled by caller after processing $insertedCount inserts")
+            SecureLogger.i(TAG, "Import cancelled by caller after processing $insertedCount inserts")
             _state.value = HistoricalSmsImportState.ImportCancelled
             return SmsImportResult.Cancelled
         }
@@ -565,7 +565,7 @@ class HistoricalSmsImportManager(
             synchronizer.synchronizeAll(selectedIdentities)
         }
 
-        Log.i(TAG, "Import complete: $insertedCount inserted, $enrichedCount enriched, $duplicatesSkippedCount duplicates skipped, $reviewPendingCount review pending")
+        SecureLogger.i(TAG, "Import complete: $insertedCount inserted, $enrichedCount enriched, $duplicatesSkippedCount duplicates skipped, $reviewPendingCount review pending")
         _state.value = HistoricalSmsImportState.ImportComplete(importResult)
         return importResult
     }

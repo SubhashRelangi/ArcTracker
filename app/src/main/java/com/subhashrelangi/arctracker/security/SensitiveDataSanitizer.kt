@@ -28,8 +28,18 @@ object SensitiveDataSanitizer {
         "(?i)\\b(otp|code|pin|passcode|secret)\\s*(?:is|:|=)?\\s*([0-9]{4,8})\\b"
     )
 
+    // Regex for UPI IDs / VPAs (e.g., user@okhdfcbank, merchant@upi)
+    private val UPI_PATTERN = Pattern.compile(
+        "(?i)\\b([a-zA-Z0-9.\\-_]{2,64})@([a-zA-Z]{2,32})\\b"
+    )
+
+    // Regex for transaction reference / UTR numbers (e.g., "Ref: 123456789012", "UTR: 9876543210")
+    private val REF_PATTERN = Pattern.compile(
+        "(?i)\\b(ref(?:erence)?(?:\\s*no)?|utr|txn(?:\\s*id)?)\\s*(?:is|:|=)?\\s*([a-zA-Z0-9]{8,25})\\b"
+    )
+
     /**
-     * Sanitizes a string by redacting cards, long account numbers, and OTPs.
+     * Sanitizes a string by redacting cards, long account numbers, OTPs, UPI handles, and reference numbers.
      */
     fun sanitize(input: String?): String {
         if (input.isNullOrBlank()) return ""
@@ -40,7 +50,15 @@ object SensitiveDataSanitizer {
         val otpMatcher = OTP_PATTERN.matcher(result)
         result = otpMatcher.replaceAll("$1 [REDACTED]")
 
-        // 2. Mask 15-16 digit cards: keep only last 4 digits
+        // 2. Redact Transaction References / UTRs
+        val refMatcher = REF_PATTERN.matcher(result)
+        result = refMatcher.replaceAll("$1 [REDACTED]")
+
+        // 3. Redact UPI / VPA handles
+        val upiMatcher = UPI_PATTERN.matcher(result)
+        result = upiMatcher.replaceAll("[REDACTED_VPA]")
+
+        // 4. Mask 15-16 digit cards: keep only last 4 digits
         val cardMatcher = CARD_PATTERN.matcher(result)
         val sbCard = StringBuffer()
         while (cardMatcher.find()) {
@@ -52,7 +70,7 @@ object SensitiveDataSanitizer {
         cardMatcher.appendTail(sbCard)
         result = sbCard.toString()
 
-        // 3. Mask bank account numbers (8-18 consecutive digits): keep only last 4 digits
+        // 5. Mask bank account numbers (8-18 consecutive digits): keep only last 4 digits
         val accountMatcher = ACCOUNT_NUMBER_PATTERN.matcher(result)
         val sbAccount = StringBuffer()
         while (accountMatcher.find()) {

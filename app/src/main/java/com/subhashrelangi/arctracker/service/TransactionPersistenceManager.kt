@@ -1,10 +1,10 @@
 package com.subhashrelangi.arctracker.service
 
 import android.content.Context
-import android.util.Log
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.ExpenseDao
+import com.subhashrelangi.arctracker.security.SecureLogger
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -80,7 +80,7 @@ object TransactionPersistenceManager {
         return try {
             ruleManager?.getActiveRules()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to resolve active category rules", e)
+            SecureLogger.e(TAG, "Failed to resolve active category rules", e)
             null
         }
     }
@@ -93,7 +93,7 @@ object TransactionPersistenceManager {
         return try {
             aliasManager?.getActiveAliases()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to resolve active merchant aliases", e)
+            SecureLogger.e(TAG, "Failed to resolve active merchant aliases", e)
             null
         }
     }
@@ -138,7 +138,7 @@ object TransactionPersistenceManager {
             val classification = FinancialClassifier.classify(normalized)
 
             if (classification.financialRelevance == FinancialRelevance.NON_FINANCIAL) {
-                Log.d(TAG, "Notification ${captured.notificationKey} ignored: not financially relevant")
+                SecureLogger.d(TAG, "Notification ${captured.notificationKey} ignored: not financially relevant")
                 val res = ExpensePersistenceResult.IgnoredNonFinancial("Notification is not financially relevant")
                 persistenceListener?.invoke(res)
                 return listOf(res)
@@ -146,7 +146,7 @@ object TransactionPersistenceManager {
 
             if (classification.isNoise) {
                 val reason = classification.noiseReasons.joinToString("; ").ifBlank { classification.noiseCategory.name }
-                Log.d(TAG, "Notification ${captured.notificationKey} ignored: classified as noise ($reason)")
+                SecureLogger.d(TAG, "Notification ${captured.notificationKey} ignored: classified as noise ($reason)")
                 val res = ExpensePersistenceResult.IgnoredNonFinancial("Notification classified as noise: $reason")
                 persistenceListener?.invoke(res)
                 return listOf(res)
@@ -156,7 +156,7 @@ object TransactionPersistenceManager {
             val eventAssessment = ActualTransactionEventGate.assessNotification(normalized, classification)
             if (eventAssessment.actualEvent == ActualEventStatus.FALSE) {
                 val reason = eventAssessment.diagnosticReasons.joinToString("; ").ifBlank { eventAssessment.eventType.name }
-                Log.d(TAG, "Notification ${captured.notificationKey} ignored: Actual Transaction Event Gate rejected ($reason)")
+                SecureLogger.d(TAG, "Notification ${captured.notificationKey} ignored: Actual Transaction Event Gate rejected ($reason)")
                 val res = ExpensePersistenceResult.IgnoredNonFinancial("No actual transaction event: $reason")
                 persistenceListener?.invoke(res)
                 return listOf(res)
@@ -165,7 +165,7 @@ object TransactionPersistenceManager {
             // Step 5: Structured Transaction Extraction (Support multi-candidate)
             val candidates = StructuredTransactionExtractor.extractAll(classification)
             if (candidates.isEmpty()) {
-                Log.d(TAG, "Notification ${captured.notificationKey} ignored: structured extraction returned empty")
+                SecureLogger.d(TAG, "Notification ${captured.notificationKey} ignored: structured extraction returned empty")
                 val res = ExpensePersistenceResult.IgnoredNonFinancial("No structured transaction candidate could be extracted")
                 persistenceListener?.invoke(res)
                 return listOf(res)
@@ -181,7 +181,7 @@ object TransactionPersistenceManager {
                 val validated = TransactionValidator.validate(candidate, classification)
                 if (validated.isRejected) {
                     val reason = validated.rejectionReasons.joinToString("; ").ifBlank { "Validation rejected" }
-                    Log.d(TAG, "Notification candidate ${candidate.sourceNotificationKey} rejected by validator: $reason")
+                    SecureLogger.d(TAG, "Notification candidate ${candidate.sourceNotificationKey} rejected by validator: $reason")
                     val res = ExpensePersistenceResult.Rejected("Transaction candidate rejected: $reason")
                     persistenceListener?.invoke(res)
                     results.add(res)
@@ -191,7 +191,7 @@ object TransactionPersistenceManager {
                 // Invariant Guard: Strictly reject absent or non-positive amount
                 val amount = candidate.amount
                 if (amount == null || amount <= 0.0 || amount.isNaN() || amount.isInfinite()) {
-                    Log.d(TAG, "Notification candidate ${candidate.sourceNotificationKey} rejected: invalid amount ($amount)")
+                    SecureLogger.d(TAG, "Notification candidate ${candidate.sourceNotificationKey} rejected: invalid amount")
                     val res = ExpensePersistenceResult.Rejected("Transaction amount is absent, non-positive, or non-finite: $amount")
                     persistenceListener?.invoke(res)
                     results.add(res)
@@ -224,7 +224,7 @@ object TransactionPersistenceManager {
 
             results
         } catch (e: Exception) {
-            Log.e(TAG, "Unhandled error in processCapturedNotificationAll", e)
+            SecureLogger.e(TAG, "Unhandled error in processCapturedNotificationAll", e)
             val res = ExpensePersistenceResult.Error(e, e.message ?: "Pipeline processing error")
             persistenceListener?.invoke(res)
             listOf(res)
@@ -359,7 +359,7 @@ object TransactionPersistenceManager {
             persistenceListener?.invoke(result)
             result
         } catch (e: Exception) {
-            Log.e(TAG, "Error persisting validated transaction candidate", e)
+            SecureLogger.e(TAG, "Error persisting validated transaction candidate", e)
             val res = ExpensePersistenceResult.Error(e, e.message ?: "Database persistence error")
             persistenceListener?.invoke(res)
             res
@@ -483,7 +483,7 @@ object TransactionPersistenceManager {
                         existing
                     }
 
-                    Log.d(TAG, "Candidate duplicate skipped for key=$key, reason=${result.reason}")
+                    SecureLogger.d(TAG, "Candidate duplicate skipped for key=$key, reason=${result.reason}")
                     ExpensePersistenceResult.SkippedDuplicate(resolvedExisting, result.reason, matchResult = candidate.accountMatchResult)
                 }
 
@@ -502,7 +502,7 @@ object TransactionPersistenceManager {
                         insertNewCandidate(candidate, result, dao, userRules, merchantAliases)
                     } else if (existing.source == "MANUAL") {
                         // Protect user's manual expense: never overwrite manual expense
-                        Log.i(TAG, "Protecting manual expense id=${existing.id}; skipping overwrite by notification")
+                        SecureLogger.i(TAG, "Protecting manual expense id=${existing.id}; skipping overwrite by notification")
                         ExpensePersistenceResult.SkippedDuplicate(existing, "Protected manual expense cannot be overwritten", matchResult = candidate.accountMatchResult)
                     } else {
                         val isNowSuccess = candidate.status == TransactionStatus.SUCCESS
@@ -531,7 +531,7 @@ object TransactionPersistenceManager {
                             accountSuffix = newAccountSuffix
                         )
                         dao.update(updated)
-                        Log.d(TAG, "Updated existing transaction id=${updated.id} to isPending=${updated.isPending}")
+                        SecureLogger.d(TAG, "Updated existing transaction id=${updated.id} to isPending=${updated.isPending}")
                         ExpensePersistenceResult.Updated(updated, existing, result.reason, matchResult = candidate.accountMatchResult)
                     }
                 }
@@ -551,7 +551,7 @@ object TransactionPersistenceManager {
                         insertNewCandidate(candidate, result, dao, userRules, merchantAliases)
                     } else if (existing.source == "MANUAL") {
                         // Protect user's manual expense: never overwrite or modify manual expense fields
-                        Log.i(TAG, "Protecting manual expense id=${existing.id}; preserving all user manual fields")
+                        SecureLogger.i(TAG, "Protecting manual expense id=${existing.id}; preserving all user manual fields")
                         ExpensePersistenceResult.SkippedDuplicate(existing, "Protected manual expense preserved without modification", matchResult = candidate.accountMatchResult)
                     } else {
                         val isNowSuccess = candidate.status == TransactionStatus.SUCCESS
@@ -571,7 +571,7 @@ object TransactionPersistenceManager {
                             accountSuffix = newAccountSuffix
                         )
                         dao.update(enriched)
-                        Log.d(TAG, "Correlated transaction id=${enriched.id}, enriched note. Row count preserved.")
+                        SecureLogger.d(TAG, "Correlated transaction id=${enriched.id}, enriched note. Row count preserved.")
                         ExpensePersistenceResult.Enriched(enriched, correlationDesc, matchResult = candidate.accountMatchResult)
                     }
                 }
@@ -597,14 +597,14 @@ object TransactionPersistenceManager {
                     )
                     val newId = dao.insert(reviewExpense)
                     val saved = reviewExpense.copy(id = newId.toInt())
-                    Log.d(TAG, "Inserted pending review expense id=${saved.id}, reason=${result.reason}")
+                    SecureLogger.d(TAG, "Inserted pending review expense id=${saved.id}, reason=${result.reason}")
                     ExpensePersistenceResult.ReviewPending(saved, result.reason, matchResult = candidate.accountMatchResult)
                 }
 
                 DedupDecision.NEW_TRANSACTION -> {
                     // Idempotency check: if key already exists, do not duplicate
                     if (existingByKey != null) {
-                        Log.d(TAG, "Candidate with key=$key already exists in DB. Skipping duplicate insert.")
+                        SecureLogger.d(TAG, "Candidate with key=$key already exists in DB. Skipping duplicate insert.")
                         return@withLock ExpensePersistenceResult.SkippedDuplicate(existingByKey, "Already recorded with key $key", matchResult = candidate.accountMatchResult)
                     }
 
@@ -612,7 +612,7 @@ object TransactionPersistenceManager {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Database failure safely handled in processDedupResult", e)
+            SecureLogger.e(TAG, "Database failure safely handled in processDedupResult", e)
             ExpensePersistenceResult.Error(e, e.message ?: "Database write failure")
         }
     }
@@ -653,11 +653,11 @@ object TransactionPersistenceManager {
                     relationshipId = result.relationshipId
                 )
                 dao.update(updatedExisting)
-                Log.d(TAG, "Updated existing counterpart transaction id=${existing.id} with relationship ${result.relationshipType}")
+                SecureLogger.d(TAG, "Updated existing counterpart transaction id=${existing.id} with relationship ${result.relationshipType}")
             }
         }
 
-        Log.d(TAG, "Inserted new transaction id=${saved.id}, isPending=$isPending, amount=${saved.amount}")
+        SecureLogger.d(TAG, "Inserted new transaction id=${saved.id}, isPending=$isPending")
         return ExpensePersistenceResult.Inserted(saved, isPending, result.reason, matchResult = candidate.accountMatchResult)
     }
 
@@ -709,7 +709,7 @@ object TransactionPersistenceManager {
                 )
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Category inference failure safely handled", e)
+            SecureLogger.e(TAG, "Category inference failure safely handled", e)
             CategoryInferenceResult.noMatch("Inference failure safely handled: ${e.message}")
         }
 

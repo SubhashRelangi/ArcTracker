@@ -5,7 +5,7 @@ import android.os.Build
 import android.os.Bundle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import android.util.Log
+import com.subhashrelangi.arctracker.security.SecureLogger
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import kotlinx.coroutines.launch
 import java.util.Collections
@@ -203,20 +203,20 @@ class NotificationReaderService : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         isConnected = true
-        Log.d(TAG, "NotificationReaderService connected.")
+        SecureLogger.d(TAG, "NotificationReaderService connected.")
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         isConnected = false
-        Log.d(TAG, "NotificationReaderService disconnected.")
+        SecureLogger.d(TAG, "NotificationReaderService disconnected.")
     }
 
     override fun onDestroy() {
         super.onDestroy()
         serviceJob.cancel()
         isConnected = false
-        Log.d(TAG, "NotificationReaderService destroyed.")
+        SecureLogger.d(TAG, "NotificationReaderService destroyed.")
     }
 
     /**
@@ -246,7 +246,7 @@ class NotificationReaderService : NotificationListenerService() {
     ): CapturedNotificationInfo? {
         // Independently verify that Notification Access permission is currently granted before any processing
         if (!NotificationPermissionHelper.isNotificationAccessGranted(this)) {
-            Log.w(TAG, "Notification received but Notification Access permission is not granted. Discarding.")
+            SecureLogger.w(TAG, "Notification received but Notification Access permission is not granted. Discarding.")
             return null
         }
 
@@ -278,15 +278,15 @@ class NotificationReaderService : NotificationListenerService() {
                 isUpdate = isUpdate
             )
 
-            // Diagnostic logging of complete captured structure
-            Log.d(
+            // Diagnostic logging of minimal, non-sensitive notification metadata (no raw financial payload)
+            SecureLogger.d(
                 TAG,
                 "Notification captured [isUpdate=$isUpdate]: " +
                     "package=$packageName, key=$notificationKey, postTime=$postTime, " +
-                    "title=$title, text=$text, bigText=$bigText, subText=$subText, " +
-                    "summaryText=$summaryText, infoText=$infoText, textLines=$textLines, " +
-                    "category=$category, channelId=$channelId, groupKey=$groupKey, " +
-                    "isGroup=$isGroup, isGroupSummary=$isGroupSummary, flags=$flags"
+                    "hasTitle=${!title.isNullOrEmpty()}, hasText=${!text.isNullOrEmpty()}, " +
+                    "hasBigText=${!bigText.isNullOrEmpty()}, hasSubText=${!subText.isNullOrEmpty()}, " +
+                    "textLinesCount=${textLines.size}, category=$category, channelId=$channelId, " +
+                    "groupKey=$groupKey, isGroup=$isGroup, isGroupSummary=$isGroupSummary, flags=$flags"
             )
 
             if (notificationKey.isNotEmpty()) {
@@ -301,13 +301,13 @@ class NotificationReaderService : NotificationListenerService() {
                 try {
                     TransactionPersistenceManager.processCapturedNotification(applicationContext, captured)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Safe catch: pipeline failure in NotificationReaderService", e)
+                    SecureLogger.e(TAG, "Safe catch: pipeline failure in NotificationReaderService", e)
                 }
             }
 
             captured
         } catch (e: Exception) {
-            Log.e(TAG, "Error recording captured notification in NotificationReaderService", e)
+            SecureLogger.e(TAG, "Error recording captured notification in NotificationReaderService", e)
             null
         }
     }
@@ -368,7 +368,7 @@ class NotificationReaderService : NotificationListenerService() {
     ): Boolean {
         // Step 1: Independently verify Notification Access permission
         if (!NotificationPermissionHelper.isNotificationAccessGranted(this)) {
-            Log.w(TAG, "Notification received but Notification Access permission is not granted. Discarding.")
+            SecureLogger.w(TAG, "Notification received but Notification Access permission is not granted. Discarding.")
             return false
         }
 
@@ -380,25 +380,25 @@ class NotificationReaderService : NotificationListenerService() {
         val settings = try {
             getSettingsRepository().getSettings()
         } catch (e: Exception) {
-            Log.e(TAG, "Privacy gate: failed to read monitoring settings. Failing closed (blocking notification).", e)
+            SecureLogger.e(TAG, "Privacy gate: failed to read monitoring settings. Failing closed (blocking notification).", e)
             return false
         }
 
         // Step 3: Global monitoring check - MUST return before content extraction
         if (!settings.globalEnabled) {
-            Log.d(TAG, "Notification ignored: global monitoring is disabled")
+            SecureLogger.d(TAG, "Notification ignored: global monitoring is disabled")
             return false
         }
 
         // App Notifications source check - MUST return before content extraction
         if (!settings.isNotificationTrackingEnabled) {
-            Log.d(TAG, "Notification ignored: notification tracking is disabled")
+            SecureLogger.d(TAG, "Notification ignored: notification tracking is disabled")
             return false
         }
 
         // Step 4: Package monitoring check - MUST return before content extraction
         if (!settings.isAppEnabled(packageName)) {
-            Log.d(TAG, "Notification ignored: package is not enabled for monitoring")
+            SecureLogger.d(TAG, "Notification ignored: package is not enabled for monitoring")
             return false
         }
 
@@ -406,7 +406,7 @@ class NotificationReaderService : NotificationListenerService() {
         val content = try {
             contentExtractor()
         } catch (e: Exception) {
-            Log.e(TAG, "Error extracting notification content in NotificationReaderService", e)
+            SecureLogger.e(TAG, "Error extracting notification content in NotificationReaderService", e)
             return false
         }
 
@@ -478,7 +478,7 @@ class NotificationReaderService : NotificationListenerService() {
         super.onNotificationRemoved(sbn)
         if (sbn == null) return
         val key = sbn.key ?: ""
-        Log.d(TAG, "Notification removed: key=$key, package=${sbn.packageName}")
+        SecureLogger.d(TAG, "Notification removed: key=$key, package=${sbn.packageName}")
         if (key.isNotEmpty()) {
             activeNotificationsMap.remove(key)
         }
