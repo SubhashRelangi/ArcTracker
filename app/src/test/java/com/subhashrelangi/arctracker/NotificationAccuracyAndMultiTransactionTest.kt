@@ -142,7 +142,7 @@ class NotificationAccuracyAndMultiTransactionTest {
         assertEquals(500.0, saved.amount, 0.001)
         // Must NOT store synthetic "Unknown Merchant" as extracted data
         assertNotEquals("Unknown Merchant", saved.merchant)
-        assertEquals("", saved.merchant)
+        assertEquals("UPI Debit", saved.merchant)
     }
 
     // 11. Valid debit

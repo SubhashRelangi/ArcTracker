@@ -30,6 +30,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
+import com.subhashrelangi.arctracker.service.NotificationReaderService
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 
 val purpleColor = Color(0xFF673AB7)
@@ -57,6 +58,10 @@ fun SettingsScreen(
     var hasNotifAccess by remember {
         mutableStateOf(NotificationPermissionHelper.isNotificationAccessGranted(context))
     }
+    val isServiceConnected by NotificationReaderService.connectionState.collectAsState()
+    var isListenerConnected by remember {
+        mutableStateOf(NotificationReaderService.isConnected)
+    }
     var userPrefGlobalEnabled by remember {
         mutableStateOf(settingsRepo.getSettings().globalEnabled)
     }
@@ -67,8 +72,9 @@ fun SettingsScreen(
         mutableStateOf(settingsRepo.isNotificationTrackingEnabled())
     }
 
-    val effectiveAutoTracking = userPrefGlobalEnabled && hasNotifAccess
-    val effectiveNotifTracking = notifTracking && hasNotifAccess
+    val effectiveListenerBound = isServiceConnected || isListenerConnected
+    val effectiveAutoTracking = userPrefGlobalEnabled && hasNotifAccess && effectiveListenerBound
+    val effectiveNotifTracking = notifTracking && hasNotifAccess && effectiveListenerBound
 
     var pendingPermissionAction by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -77,6 +83,7 @@ fun SettingsScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
                 hasNotifAccess = granted
+                isListenerConnected = NotificationReaderService.isConnected
                 userPrefGlobalEnabled = settingsRepo.getSettings().globalEnabled
                 smsTracking = settingsRepo.isSmsTrackingEnabled()
                 notifTracking = settingsRepo.isNotificationTrackingEnabled()
@@ -133,6 +140,8 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(16.dp))
         TrackerStatusSection(
             autoTracking = effectiveAutoTracking,
+            hasNotifAccess = hasNotifAccess,
+            isListenerBound = effectiveListenerBound,
             onAutoTrackingChange = { isEnabled ->
                 if (isEnabled) {
                     if (!NotificationPermissionHelper.isNotificationAccessGranted(context)) {
@@ -157,6 +166,7 @@ fun SettingsScreen(
             autoTracking = effectiveAutoTracking,
             smsTracking = smsTracking,
             notifTracking = effectiveNotifTracking,
+            isListenerBound = effectiveListenerBound,
             onSmsTrackingChange = { isEnabled ->
                 smsTracking = isEnabled
                 settingsRepo.setSmsTrackingEnabled(isEnabled)
@@ -431,15 +441,24 @@ fun AccountsSection(onNavigate: (String) -> Unit = {}) {
 @Composable
 fun TrackerStatusSection(
     autoTracking: Boolean,
+    hasNotifAccess: Boolean = true,
+    isListenerBound: Boolean = true,
     onAutoTrackingChange: (Boolean) -> Unit,
     todayCount: Int = 0,
     thisMonthCount: Int = 0
 ) {
+    val statusSubtitle = when {
+        !hasNotifAccess -> "Permission Missing • Tap to enable Notification Access"
+        !isListenerBound -> "Service Disconnected • Tap to reconnect in Android Settings"
+        autoTracking -> "Active • Automatically track transactions in the background"
+        else -> "Disabled • Toggle to enable automatic tracking"
+    }
+
     SettingsCard(title = "Tracker Status") {
         SettingsSwitchRow(
-            icon = Icons.Filled.CheckCircle,
+            icon = if (!hasNotifAccess || !isListenerBound) Icons.Filled.Warning else Icons.Filled.CheckCircle,
             title = "Automatic Tracking",
-            subtitle = "Automatically track transactions in the background",
+            subtitle = statusSubtitle,
             checked = autoTracking,
             onCheckedChange = onAutoTrackingChange,
             isLast = false
@@ -518,10 +537,17 @@ fun TrackingSourcesSection(
     autoTracking: Boolean,
     smsTracking: Boolean,
     notifTracking: Boolean,
+    isListenerBound: Boolean = true,
     onSmsTrackingChange: (Boolean) -> Unit,
     onNotifTrackingChange: (Boolean) -> Unit,
     onNavigate: (String) -> Unit
 ) {
+    val notifSubtitle = if (!isListenerBound && notifTracking) {
+        "Service Disconnected • Reconnect in Android Settings"
+    } else {
+        "Monitor notifications from selected apps"
+    }
+
     SettingsCard(title = "Tracking Sources") {
         SettingsSwitchRow(
             icon = Icons.Filled.Email,
@@ -535,7 +561,7 @@ fun TrackingSourcesSection(
         SettingsSwitchRow(
             icon = Icons.Filled.Notifications,
             title = "App Notifications",
-            subtitle = "Monitor notifications from selected apps",
+            subtitle = notifSubtitle,
             checked = notifTracking,
             onCheckedChange = onNotifTrackingChange,
             enabled = autoTracking,

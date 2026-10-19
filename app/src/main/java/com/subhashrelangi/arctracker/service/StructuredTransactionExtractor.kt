@@ -42,11 +42,11 @@ object StructuredTransactionExtractor {
 
     // Context detection patterns for amount categorization
     private val BALANCE_CONTEXT_PATTERN = Regex(
-        """(?i)\b(available balance|avl bal|available bal|current balance|account balance|closing balance|ledger balance|remaining balance|remaining amount|clear balance|acc balance|a/c balance|bal\s*[:is\-=]|balance\s*[:is\-=]?)\b"""
+        """(?i)\b(available balance|avl bal|available bal|current balance|account balance|closing balance|ledger balance|remaining balance|remaining amount|clear balance|acc balance|a/c balance|bal\s*[:is\-=]?|balance\s*[:is\-=]?|bal\s+rs\.?|bal\s+inr|bal\s+₹|avl\s+bal\s*[:is\-=]?)\b"""
     )
 
     private val LIMIT_CONTEXT_PATTERN = Regex(
-        """(?i)\b(transaction limit|daily limit|transfer limit|credit limit|limit is|limit of)\b"""
+        """(?i)\b(avl\s*limit|available\s*limit|avl\s*lmt|available\s*lmt|transaction\s*limit|daily\s*limit|transfer\s*limit|credit\s*limit|card\s*limit|limit\s*[:is\-=]?|limit\s+is|limit\s+of)\b"""
     )
 
     private val FEE_CONTEXT_PATTERN = Regex(
@@ -626,12 +626,28 @@ object StructuredTransactionExtractor {
 
         val candidates = mutableListOf<ParsedAmountCandidate>()
 
-        // Helper to extract clause containing a range (split by periods and newlines)
+        // Helper to extract clause containing a range (split by sentence boundaries and newlines)
         fun findClause(start: Int, end: Int): String {
+            fun isSentenceBoundary(index: Int): Boolean {
+                val c = text[index]
+                if (c == '\n' || c == ';') return true
+                if (c == '.') {
+                    // Do not split within decimals (e.g. 2500.00)
+                    if (index + 1 < text.length && text[index + 1].isDigit()) return false
+                    // Do not split after "Rs."
+                    if (index >= 2 && text.substring(maxOf(0, index - 2), index).equals("rs", ignoreCase = true)) return false
+                    // Do not split after "A/c."
+                    if (index >= 3 && text.substring(maxOf(0, index - 3), index).equals("a/c", ignoreCase = true)) return false
+                    // Boundary when followed by whitespace or at text boundary
+                    if (index + 1 == text.length || text[index + 1].isWhitespace()) return true
+                }
+                return false
+            }
+
             // Find closest sentence boundary before start
             var clauseStart = 0
             for (i in (start - 1) downTo 0) {
-                if (text[i] == '\n' || text[i] == '.' || text[i] == ';') {
+                if (isSentenceBoundary(i)) {
                     clauseStart = i + 1
                     break
                 }
@@ -639,7 +655,7 @@ object StructuredTransactionExtractor {
             // Find closest sentence boundary after end
             var clauseEnd = text.length
             for (i in end until text.length) {
-                if (text[i] == '\n' || text[i] == '.' || text[i] == ';') {
+                if (isSentenceBoundary(i)) {
                     clauseEnd = i
                     break
                 }
@@ -886,8 +902,8 @@ object StructuredTransactionExtractor {
             return TransactionDirection.CREDIT
         }
 
-        val hasDebitWord = Regex("""(?i)\b(debited|debit|paid|spent|withdrawn)\b""").containsMatchIn(text)
-        val hasCreditWord = Regex("""(?i)\b(credited|credit|deposited|received|refunded)\b""").containsMatchIn(text)
+        val hasDebitWord = Regex("""(?i)\b(debited|debit(?!\s*(?:card|ending|limit|offer|option))|paid|spent|withdrawn)\b""").containsMatchIn(text)
+        val hasCreditWord = Regex("""(?i)\b(credited|credit(?!\s*(?:card|score|limit|bill|line|facility|offer|option))|deposited|received|refunded)\b""").containsMatchIn(text)
 
         // Ambiguous when both debit and credit words are present
         if (hasDebitWord && hasCreditWord) {
@@ -912,7 +928,7 @@ object StructuredTransactionExtractor {
             return gateAssessment.directionHint
         }
 
-        val hasDebitExplicit = Regex("""(?i)\b(paid to|sent to|transferred to|debited from|spent at|purchase at|paid at|debited by|debited for|paid using|is debited|was debited|has been debited|debited|debit(?!\s*(?:card|limit|offer|option)))\b""").containsMatchIn(text)
+        val hasDebitExplicit = Regex("""(?i)\b(paid to|sent to|transferred to|debited from|spent at|purchase at|paid at|debited by|debited for|paid using|is debited|was debited|has been debited|debited|debit(?!\s*(?:card|limit|offer|option))|payment\s+(?:processing|pending|successful|completed)?\s*(?:for|to|towards)|payment\s+(?:processing|pending|successful))\b""").containsMatchIn(text)
         val hasCreditExplicit = Regex("""(?i)\b(received from|credited to|credited in|credited into|credited with|deposited|refund of .* received|cashback received|cashback credited|is credited|was credited|has been credited|credited|credit(?!\s*(?:card|limit|score|bill|line|facility|offer|option)))\b""").containsMatchIn(text)
 
         if (hasDebitExplicit) {

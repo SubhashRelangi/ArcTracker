@@ -13,7 +13,8 @@ object ActualTransactionEventGate {
         Regex("""\b(?:paid|sent|transferred)\s+(?:to|at|for)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:debited\s+(?:from|by|for)|spent\s+at|purchase\s+(?:at|on|of)|withdrawn\s+from)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(paid|debited|deducted|spent|withdrawn|charged)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:payment|transaction|txn)\s+(?:at|to|for)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:payment|transaction|txn)\s+(?:processing|pending|successful|completed)?\s*(?:at|to|for|towards)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\bpayment\s+(?:processing|pending|successful)\b""", RegexOption.IGNORE_CASE),
         Regex("""\bpayment\s+of\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?(?:/-)?\s+(?:made|to|debited|sent)\b""", RegexOption.IGNORE_CASE),
         Regex("""(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?(?:/-)?\s+(?:was\s+|is\s+|has been\s+)?(?:debited|paid|deducted|spent|sent|transferred|charged)\b""", RegexOption.IGNORE_CASE),
         Regex("""(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?(?:/-)?\s+(?:transaction|txn)\b""", RegexOption.IGNORE_CASE),
@@ -53,9 +54,9 @@ object ActualTransactionEventGate {
     )
 
     private val STATUS_PENDING_PATTERNS = listOf(
-        Regex("""\b(?:payment|transaction|transfer)\s+(?:pending|under process|in process)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:payment|transaction|transfer)\s+(?:pending|under process|in process|processing)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:payment|transaction)\s+pending\s*[:\-]?\s*(?:rs\.?|inr|₹)?\s*[\d,]+""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:pending|under process|in process)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(?:pending|under process|in process|processing)\b""", RegexOption.IGNORE_CASE)
     )
 
     private val STATUS_REVERSED_PATTERNS = listOf(
@@ -101,6 +102,12 @@ object ActualTransactionEventGate {
         Regex("""\b(?:minimum\s+amount\s+due|bill\s+amount|amount\s+due|statement\s+total|bill\s+due|payment\s+due|due\s+date|total\s+due|due\s+on)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:statement\s+generated|statement\s+available|monthly\s+statement|e-statement|account\s+summary|bill\s+reminder|payment\s+reminder|reminder\b|reminder\s*[:\-])""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:credit\s+card\s+payment\s+options|payment\s+options?\s+available|options?\s+available)\b""", RegexOption.IGNORE_CASE)
+    )
+
+    // 7. Negative Evidence: Authentication / OTP Patterns
+    private val OTP_PATTERNS = listOf(
+        Regex("""\b(?:otp|one[\s-]+time[\s-]+password|verification\s+code|security\s+code)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:is\s+your\s+otp|otp\s+for|secret\s+code)\b""", RegexOption.IGNORE_CASE)
     )
 
     // Currency Detection
@@ -160,6 +167,7 @@ object ActualTransactionEventGate {
         val isReversed = STATUS_REVERSED_PATTERNS.any { it.containsMatchIn(text) }
         val hasStatus = isSuccess || isFailed || isPending || isReversed
 
+        val hasOtp = OTP_PATTERNS.any { it.containsMatchIn(text) }
         val hasFutureAction = FUTURE_ACTION_PATTERNS.any { it.containsMatchIn(text) }
         val hasPromotional = PROMOTIONAL_PATTERNS.any { it.containsMatchIn(text) }
         val hasInformational = INFORMATIONAL_PATTERNS.any { it.containsMatchIn(text) }
@@ -171,9 +179,24 @@ object ActualTransactionEventGate {
         if (isPending) positiveEvidence.add("STATUS_PENDING")
         if (isReversed) positiveEvidence.add("STATUS_REVERSED")
 
+        if (hasOtp) negativeEvidence.add("OTP_OR_AUTHENTICATION")
         if (hasFutureAction) negativeEvidence.add("FUTURE_ACTION")
         if (hasPromotional) negativeEvidence.add("PROMOTIONAL_OFFER")
         if (hasInformational) negativeEvidence.add("INFORMATIONAL_STATEMENT")
+
+        // 0. Clear False: OTP / Authentication code
+        if (hasOtp) {
+            diagnosticReasons.add("Authentication OTP or security code without completed transaction event")
+            return TransactionEventAssessment(
+                actualEvent = ActualEventStatus.FALSE,
+                eventType = TransactionEventType.INFORMATIONAL,
+                directionHint = TransactionDirection.UNKNOWN,
+                isActionAssociatedWithAmount = false,
+                positiveEvidence = positiveEvidence,
+                negativeEvidence = negativeEvidence,
+                diagnosticReasons = diagnosticReasons
+            )
+        }
 
         val hasPositiveSignal = hasCompletedDebit || hasCompletedCredit || hasStatus
         val hasCurrency = CURRENCY_PATTERN.containsMatchIn(text) || candidateAmount != null
@@ -239,7 +262,7 @@ object ActualTransactionEventGate {
             else -> TransactionEventType.COMPLETED
         }
 
-        val hasDebitWord = Regex("""(?i)\b(debited|debit(?!\s*(?:card|limit|offer|option))|paid|spent|withdrawn)\b""").containsMatchIn(text)
+        val hasDebitWord = Regex("""(?i)\b(debited|debit(?!\s*(?:card|limit|offer|option))|paid|spent|withdrawn|payment\s+(?:processing|pending|successful|completed)?\s*(?:for|to|towards)|payment\s+(?:processing|pending))\b""").containsMatchIn(text)
         val hasCreditWord = Regex("""(?i)\b(credited|credit(?!\s*(?:card|score|limit|bill|line|facility|offer|option))|deposited|received|refunded)\b""").containsMatchIn(text)
 
         val directionHint = when {
@@ -249,9 +272,6 @@ object ActualTransactionEventGate {
             hasCompletedDebit && !hasCompletedCredit -> TransactionDirection.DEBIT
             hasCreditWord && !hasDebitWord -> TransactionDirection.CREDIT
             hasDebitWord && !hasCreditWord -> TransactionDirection.DEBIT
-            isSuccess && !hasCompletedCredit && !hasCreditWord -> TransactionDirection.DEBIT
-            isFailed -> TransactionDirection.DEBIT
-            isPending -> TransactionDirection.DEBIT
             else -> TransactionDirection.UNKNOWN
         }
 

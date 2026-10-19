@@ -69,6 +69,11 @@ class NotificationReaderService : NotificationListenerService() {
         var isConnected: Boolean = false
             internal set
 
+        private val _connectionState = kotlinx.coroutines.flow.MutableStateFlow(false)
+        val connectionState: kotlinx.coroutines.flow.StateFlow<Boolean> = _connectionState
+
+        fun isServiceRunningAndConnected(): Boolean = isConnected
+
         @Volatile
         var lastCapturedNotification: CapturedNotificationInfo? = null
             internal set
@@ -198,17 +203,66 @@ class NotificationReaderService : NotificationListenerService() {
                 else -> emptyList()
             }
         }
+
+        /**
+         * Safely extracts message lines from raw value (e.g., Array<Bundle> or Array<CharSequence>).
+         */
+        @Suppress("DEPRECATION")
+        fun extractMessagingLinesFromValue(rawMessages: Any?): List<String> {
+            if (rawMessages == null) return emptyList()
+            val lines = mutableListOf<String>()
+            fun processItem(item: Any?) {
+                when (item) {
+                    is Bundle -> {
+                        val msgText = item.getCharSequence("text")?.toString()
+                            ?: item.getString("text")
+                            ?: extractTextField(item, Notification.EXTRA_TEXT)
+                        if (!msgText.isNullOrBlank()) {
+                            lines.add(msgText)
+                        }
+                    }
+                    is CharSequence -> {
+                        if (item.isNotBlank()) lines.add(item.toString())
+                    }
+                }
+            }
+
+            when (rawMessages) {
+                is Array<*> -> rawMessages.forEach { processItem(it) }
+                is Collection<*> -> rawMessages.forEach { processItem(it) }
+                is CharSequence -> if (rawMessages.isNotBlank()) lines.add(rawMessages.toString())
+            }
+            return lines
+        }
+
+        /**
+         * Safely extracts message lines from MessagingStyle notifications (EXTRA_MESSAGES).
+         */
+        @Suppress("DEPRECATION")
+        fun extractMessagingLines(bundle: Bundle?): List<String> {
+            if (bundle == null) return emptyList()
+            val rawMessages = try {
+                bundle.get(Notification.EXTRA_MESSAGES) ?: bundle.get("android.messages")
+            } catch (_: Throwable) {
+                null
+            } ?: return emptyList()
+            return extractMessagingLinesFromValue(rawMessages)
+        }
     }
 
     override fun onListenerConnected() {
         super.onListenerConnected()
         isConnected = true
+        _connectionState.value = true
+        DiagnosticEventManager.logEvent(DiagnosticCategory.LISTENER_CONNECTED)
         SecureLogger.d(TAG, "NotificationReaderService connected.")
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         isConnected = false
+        _connectionState.value = false
+        DiagnosticEventManager.logEvent(DiagnosticCategory.LISTENER_DISCONNECTED)
         SecureLogger.d(TAG, "NotificationReaderService disconnected.")
     }
 
@@ -216,6 +270,8 @@ class NotificationReaderService : NotificationListenerService() {
         super.onDestroy()
         serviceJob.cancel()
         isConnected = false
+        _connectionState.value = false
+        DiagnosticEventManager.logEvent(DiagnosticCategory.LISTENER_DISCONNECTED)
         SecureLogger.d(TAG, "NotificationReaderService destroyed.")
     }
 
@@ -297,12 +353,21 @@ class NotificationReaderService : NotificationListenerService() {
             notificationListener?.invoke(captured)
 
             // Step 8: Trigger end-to-end transaction pipeline safely on background IO thread
-            serviceScope.launch {
-                try {
-                    TransactionPersistenceManager.processCapturedNotification(applicationContext, captured)
-                } catch (e: Exception) {
-                    SecureLogger.e(TAG, "Safe catch: pipeline failure in NotificationReaderService", e)
+            if (!isGroupSummary) {
+                serviceScope.launch {
+                    try {
+                        TransactionPersistenceManager.processCapturedNotification(applicationContext, captured)
+                    } catch (e: Exception) {
+                        SecureLogger.e(TAG, "Safe catch: pipeline failure in NotificationReaderService", e)
+                    }
                 }
+            } else {
+                DiagnosticEventManager.logEvent(
+                    DiagnosticCategory.NOTIFICATION_IGNORED,
+                    packageName = packageName,
+                    reason = "group_summary"
+                )
+                SecureLogger.d(TAG, "Notification skipped from transaction ingestion: group summary container")
             }
 
             captured
@@ -335,15 +400,30 @@ class NotificationReaderService : NotificationListenerService() {
         val summaryText = extractTextField(extras, Notification.EXTRA_SUMMARY_TEXT)
         val infoText = extractTextField(extras, Notification.EXTRA_INFO_TEXT)
         val textLines = extractTextLines(extras)
+        val messagingLines = extractMessagingLines(extras)
+
+        val combinedTextLines = if (textLines.isNotEmpty() && messagingLines.isNotEmpty()) {
+            (textLines + messagingLines).distinct()
+        } else if (messagingLines.isNotEmpty()) {
+            messagingLines
+        } else {
+            textLines
+        }
+
+        val resolvedText = if (text.isNullOrBlank() && messagingLines.isNotEmpty()) {
+            messagingLines.lastOrNull()
+        } else {
+            text
+        }
 
         return NotificationContent(
             title = title,
-            text = text,
+            text = resolvedText,
             bigText = bigText,
             subText = subText,
             summaryText = summaryText,
             infoText = infoText,
-            textLines = textLines
+            textLines = combinedTextLines
         )
     }
 
@@ -386,18 +466,33 @@ class NotificationReaderService : NotificationListenerService() {
 
         // Step 3: Global monitoring check - MUST return before content extraction
         if (!settings.globalEnabled) {
+            DiagnosticEventManager.logEvent(
+                DiagnosticCategory.NOTIFICATION_IGNORED,
+                packageName = packageName,
+                reason = "global_disabled"
+            )
             SecureLogger.d(TAG, "Notification ignored: global monitoring is disabled")
             return false
         }
 
         // App Notifications source check - MUST return before content extraction
         if (!settings.isNotificationTrackingEnabled) {
+            DiagnosticEventManager.logEvent(
+                DiagnosticCategory.NOTIFICATION_IGNORED,
+                packageName = packageName,
+                reason = "notification_tracking_disabled"
+            )
             SecureLogger.d(TAG, "Notification ignored: notification tracking is disabled")
             return false
         }
 
         // Step 4: Package monitoring check - MUST return before content extraction
         if (!settings.isAppEnabled(packageName)) {
+            DiagnosticEventManager.logEvent(
+                DiagnosticCategory.SOURCE_NOT_SUPPORTED,
+                packageName = packageName,
+                reason = "app_not_monitored"
+            )
             SecureLogger.d(TAG, "Notification ignored: package is not enabled for monitoring")
             return false
         }
@@ -406,8 +501,23 @@ class NotificationReaderService : NotificationListenerService() {
         val content = try {
             contentExtractor()
         } catch (e: Exception) {
+            DiagnosticEventManager.logEvent(
+                DiagnosticCategory.PARSE_FAILED,
+                packageName = packageName,
+                reason = "content_extraction_failed"
+            )
             SecureLogger.e(TAG, "Error extracting notification content in NotificationReaderService", e)
             return false
+        }
+
+        if (content.title.isNullOrBlank() && content.text.isNullOrBlank() &&
+            content.bigText.isNullOrBlank() && content.textLines.isEmpty()
+        ) {
+            DiagnosticEventManager.logEvent(
+                DiagnosticCategory.CONTENT_UNAVAILABLE,
+                packageName = packageName,
+                reason = "all_content_fields_empty"
+            )
         }
 
         // Step 6: Record captured notification and trigger transaction pipeline
@@ -441,6 +551,11 @@ class NotificationReaderService : NotificationListenerService() {
         if (sbn == null) {
             return false
         }
+
+        DiagnosticEventManager.logEvent(
+            DiagnosticCategory.NOTIFICATION_RECEIVED,
+            packageName = sbn.packageName
+        )
 
         val notification = sbn.notification
         val channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

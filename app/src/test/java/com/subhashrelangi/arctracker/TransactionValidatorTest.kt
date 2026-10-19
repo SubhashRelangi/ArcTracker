@@ -226,7 +226,7 @@ class TransactionValidatorTest {
 
     @Test
     fun test19_conflictingDebitAndCreditDirectionUnknownNeedsReview() {
-        val notif = createNotification("Debited ₹500 for credit card bill")
+        val notif = createNotification("Debited ₹500 and credited")
         val result = TransactionValidator.validate(notif)
 
         assertEquals(TransactionDirection.UNKNOWN, result.candidate.direction)

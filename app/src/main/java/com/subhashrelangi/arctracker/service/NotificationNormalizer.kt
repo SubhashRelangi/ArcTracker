@@ -184,8 +184,30 @@ object NotificationNormalizer {
         }
 
         addPiece(title)
-        addPiece(text)
-        addPiece(bigText)
+
+        val cleanT = text?.trim()
+        val cleanB = bigText?.trim()
+
+        if (!cleanB.isNullOrBlank()) {
+            if (!cleanT.isNullOrBlank()) {
+                val textStem = cleanT.trimEnd('.', ' ', '…')
+                if (cleanB.contains(cleanT, ignoreCase = true) ||
+                    (textStem.isNotEmpty() && cleanB.contains(textStem, ignoreCase = true)) ||
+                    cleanT.contains(cleanB, ignoreCase = true)
+                ) {
+                    // bigText takes precedence over truncated or subsumed text
+                    addPiece(cleanB)
+                } else {
+                    addPiece(cleanT)
+                    addPiece(cleanB)
+                }
+            } else {
+                addPiece(cleanB)
+            }
+        } else {
+            addPiece(cleanT)
+        }
+
         for (line in textLines) {
             addPiece(line)
         }

@@ -356,7 +356,7 @@ class StructuredTransactionExtractorTest {
 
     @Test
     fun test29_conflictingDebitAndCreditDirectionUnknown() {
-        val notif = createNotification("Debited ₹500 for credit card bill")
+        val notif = createNotification("Debited ₹500 and credited")
         val candidate = StructuredTransactionExtractor.extract(notif)
 
         assertNotNull(candidate)

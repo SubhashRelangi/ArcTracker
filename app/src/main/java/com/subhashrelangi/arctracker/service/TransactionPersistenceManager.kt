@@ -181,6 +181,11 @@ object TransactionPersistenceManager {
                 val validated = TransactionValidator.validate(candidate, classification)
                 if (validated.isRejected) {
                     val reason = validated.rejectionReasons.joinToString("; ").ifBlank { "Validation rejected" }
+                    DiagnosticEventManager.logEvent(
+                        DiagnosticCategory.VALIDATION_REJECTED,
+                        packageName = candidate.packageName,
+                        reason = reason
+                    )
                     SecureLogger.d(TAG, "Notification candidate ${candidate.sourceNotificationKey} rejected by validator: $reason")
                     val res = ExpensePersistenceResult.Rejected("Transaction candidate rejected: $reason")
                     persistenceListener?.invoke(res)
@@ -191,8 +196,27 @@ object TransactionPersistenceManager {
                 // Invariant Guard: Strictly reject absent or non-positive amount
                 val amount = candidate.amount
                 if (amount == null || amount <= 0.0 || amount.isNaN() || amount.isInfinite()) {
+                    DiagnosticEventManager.logEvent(
+                        DiagnosticCategory.AMOUNT_UNAVAILABLE,
+                        packageName = candidate.packageName,
+                        reason = "invalid_or_missing_amount"
+                    )
                     SecureLogger.d(TAG, "Notification candidate ${candidate.sourceNotificationKey} rejected: invalid amount")
                     val res = ExpensePersistenceResult.Rejected("Transaction amount is absent, non-positive, or non-finite: $amount")
+                    persistenceListener?.invoke(res)
+                    results.add(res)
+                    continue
+                }
+
+                // Direction Invariant Gate: Strictly reject UNKNOWN direction from automatic confirmation
+                if (candidate.direction == TransactionDirection.UNKNOWN) {
+                    DiagnosticEventManager.logEvent(
+                        DiagnosticCategory.DIRECTION_AMBIGUOUS,
+                        packageName = candidate.packageName,
+                        reason = "direction_unknown_or_ambiguous"
+                    )
+                    SecureLogger.d(TAG, "Notification candidate ${candidate.sourceNotificationKey} rejected: ambiguous or unknown direction")
+                    val res = ExpensePersistenceResult.Rejected("Transaction direction is ambiguous or unknown")
                     persistenceListener?.invoke(res)
                     results.add(res)
                     continue
@@ -484,6 +508,11 @@ object TransactionPersistenceManager {
                     }
 
                     SecureLogger.d(TAG, "Candidate duplicate skipped for key=$key, reason=${result.reason}")
+                    DiagnosticEventManager.logEvent(
+                        DiagnosticCategory.DUPLICATE_SKIPPED,
+                        packageName = candidate.packageName,
+                        reason = result.reason
+                    )
                     ExpensePersistenceResult.SkippedDuplicate(resolvedExisting, result.reason, matchResult = candidate.accountMatchResult)
                 }
 
@@ -511,7 +540,7 @@ object TransactionPersistenceManager {
                         } else {
                             existing.amount
                         }
-                        val newMerchant = if ((existing.merchant.isBlank() || existing.merchant == "Unknown Merchant") && !candidate.merchant.isNullOrBlank()) {
+                        val newMerchant = if (isPlaceholderMerchant(existing.merchant) && !isPlaceholderMerchant(candidate.merchant)) {
                             candidate.merchant!!
                         } else {
                             existing.merchant
@@ -564,7 +593,14 @@ object TransactionPersistenceManager {
                         val newAccountId = existing.accountId ?: candidateAccountId
                         val newAccountSuffix = existing.accountSuffix ?: candidateAccountSuffix
 
+                        val newMerchant = if (isPlaceholderMerchant(existing.merchant) && !isPlaceholderMerchant(candidate.merchant)) {
+                            candidate.merchant!!
+                        } else {
+                            existing.merchant
+                        }
+
                         val enriched = existing.copy(
+                            merchant = newMerchant,
                             isPending = newIsPending,
                             note = newNote,
                             accountId = newAccountId,
@@ -604,6 +640,11 @@ object TransactionPersistenceManager {
                 DedupDecision.NEW_TRANSACTION -> {
                     // Idempotency check: if key already exists, do not duplicate
                     if (existingByKey != null) {
+                        DiagnosticEventManager.logEvent(
+                            DiagnosticCategory.DUPLICATE_SKIPPED,
+                            packageName = candidate.packageName,
+                            reason = "idempotency_duplicate_key"
+                        )
                         SecureLogger.d(TAG, "Candidate with key=$key already exists in DB. Skipping duplicate insert.")
                         return@withLock ExpensePersistenceResult.SkippedDuplicate(existingByKey, "Already recorded with key $key", matchResult = candidate.accountMatchResult)
                     }
@@ -612,6 +653,11 @@ object TransactionPersistenceManager {
                 }
             }
         } catch (e: Exception) {
+            DiagnosticEventManager.logEvent(
+                DiagnosticCategory.PERSISTENCE_FAILED,
+                packageName = result.candidate.candidate.packageName,
+                reason = "db_write_error"
+            )
             SecureLogger.e(TAG, "Database failure safely handled in processDedupResult", e)
             ExpensePersistenceResult.Error(e, e.message ?: "Database write failure")
         }
@@ -642,6 +688,12 @@ object TransactionPersistenceManager {
         )
         val newId = dao.insert(expense)
         val saved = expense.copy(id = newId.toInt())
+
+        DiagnosticEventManager.logEvent(
+            DiagnosticCategory.TRANSACTION_PERSISTED,
+            packageName = candidate.packageName,
+            reason = "id=${saved.id}"
+        )
 
         // If this is a self-transfer, also update the existing matched counterpart in Room
         if (result.relationshipType != null && result.matchedRecordId != null) {
@@ -681,7 +733,11 @@ object TransactionPersistenceManager {
 
         val merchant = candidate.merchant?.takeIf { it.isNotBlank() && !it.equals("Unknown", ignoreCase = true) && !it.equals("Unknown Merchant", ignoreCase = true) }
             ?: candidate.counterparty?.takeIf { it.isNotBlank() }
-            ?: ""
+            ?: deriveFallbackMerchant(candidate)
+
+        require(merchant.isNotBlank()) {
+            "Expense merchant cannot be blank, must have a valid name or deterministic fallback"
+        }
 
         val dateMillis = if (candidate.transactionTimestamp > 0) {
             candidate.transactionTimestamp
@@ -793,5 +849,50 @@ object TransactionPersistenceManager {
             base.contains(addition) -> base
             else -> "$base | $addition"
         }
+    }
+
+    /**
+     * Constructs a deterministic, non-blank fallback merchant name based on instrument,
+     * direction, and available identifier signals (Phase 6).
+     */
+    fun deriveFallbackMerchant(candidate: StructuredTransactionCandidate): String {
+        // 1. If UPI ID is present, use it
+        if (!candidate.upiId.isNullOrBlank()) {
+            return candidate.upiId!!
+        }
+
+        // 2. Derive based on instrument and direction
+        val isCredit = candidate.direction == TransactionDirection.CREDIT
+        val hasCard = !candidate.cardSuffix.isNullOrBlank() || candidate.paymentRail?.contains("card", ignoreCase = true) == true
+        val hasUpi = !candidate.upiTransactionId.isNullOrBlank() || candidate.paymentRail?.contains("upi", ignoreCase = true) == true
+        val hasAccount = !candidate.accountSuffix.isNullOrBlank() || candidate.paymentRail?.contains("account", ignoreCase = true) == true || candidate.paymentRail?.contains("bank", ignoreCase = true) == true
+
+        return when {
+            hasCard && isCredit -> "Card Refund"
+            hasCard -> "Card Purchase"
+            hasUpi && isCredit -> "UPI Credit"
+            hasUpi -> "UPI Debit"
+            hasAccount && isCredit -> "Bank Credit"
+            hasAccount -> "Bank Debit"
+            isCredit -> "Bank Credit"
+            else -> "Bank Debit"
+        }
+    }
+
+    /**
+     * Determines whether a merchant name is null, blank, or a synthetic/placeholder fallback
+     * that should be replaced if an authentic merchant name is later discovered.
+     */
+    fun isPlaceholderMerchant(name: String?): Boolean {
+        if (name.isNullOrBlank()) return true
+        val trimmed = name.trim()
+        if (trimmed.equals("Unknown", ignoreCase = true) || trimmed.equals("Unknown Merchant", ignoreCase = true)) return true
+        val fallbackPatterns = setOf(
+            "Bank Debit", "Bank Credit", "Bank Transaction",
+            "UPI Debit", "UPI Credit", "UPI Transaction",
+            "Card Debit", "Card Credit", "Card Transaction", "Card Purchase", "Card Refund",
+            "Wallet Debit", "Wallet Credit", "Wallet Transaction"
+        )
+        return trimmed in fallbackPatterns
     }
 }
