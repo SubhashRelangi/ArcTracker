@@ -168,4 +168,134 @@ class SelfTransferAndCompleteAllDeviceTest {
         assertEquals(3, all.size)
         assertTrue(all.all { !it.isPending })
     }
+
+    @Test
+    fun testDevice_atomicSelfTransfer_counterpartMissing_rollsBackInRealSqlite() = runBlocking {
+        val dao = testDb.expenseDao()
+        assertEquals(0, dao.getCount())
+
+        // Insert initial valid expense
+        val initialId = dao.insert(
+            Expense(
+                id = 0,
+                amount = 500.0,
+                merchant = "Existing Merchant",
+                dateMillis = System.currentTimeMillis(),
+                type = "Debit",
+                notificationKey = "existing_device_key_1"
+            )
+        )
+        assertEquals(1, dao.getCount())
+
+        // Attempt insertSelfTransferPair with a missing counterpart key
+        val candidate = Expense(
+            id = 0,
+            amount = 500.0,
+            merchant = "Transfer Credit",
+            dateMillis = System.currentTimeMillis(),
+            type = "Credit",
+            notificationKey = "new_transfer_candidate_key",
+            relationshipType = "SELF_TRANSFER",
+            relationshipId = "SELF_TRANSFER_12345"
+        )
+
+        var thrown = false
+        try {
+            dao.insertSelfTransferPair(
+                newExpense = candidate,
+                counterpartRecordId = "completely_missing_counterpart_key",
+                relationshipType = "SELF_TRANSFER",
+                relationshipId = "SELF_TRANSFER_12345"
+            )
+        } catch (e: IllegalStateException) {
+            thrown = true
+            assertTrue(e.message?.contains("Self-transfer counterpart record not found") == true)
+        }
+
+        assertTrue("Expected IllegalStateException from insertSelfTransferPair", thrown)
+
+        // Verify SQLite transaction rollback: count must still be exactly 1!
+        assertEquals(1, dao.getCount())
+        assertNull(dao.getExpenseByNotificationKey("new_transfer_candidate_key"))
+
+        val surviving = dao.getExpenseById(initialId.toInt())
+        assertNotNull(surviving)
+        assertNull(surviving!!.relationshipType)
+        assertNull(surviving.relationshipId)
+    }
+
+    @Test
+    fun testDevice_atomicSelfTransfer_success_bothPersistedAndLinkedAtomically() = runBlocking {
+        val dao = testDb.expenseDao()
+        assertEquals(0, dao.getCount())
+
+        val debitCand = StructuredTransactionCandidate(
+            sourceNotificationKey = "device_atomic_debit",
+            packageName = "com.google.android.apps.messaging",
+            postTime = System.currentTimeMillis(),
+            transactionTimestamp = System.currentTimeMillis(),
+            amount = 750.0,
+            merchant = "IPPB Transfer",
+            direction = TransactionDirection.DEBIT,
+            status = TransactionStatus.SUCCESS,
+            referenceId = "UPI77889900",
+            utr = "UPI77889900",
+            accountSuffix = "2959",
+            bank = "IPPB",
+            rawContent = "Rs.750.00 debited from A/c XX2959. UPI Ref: UPI77889900."
+        )
+        val validDebit = ValidatedTransactionCandidate(
+            candidate = debitCand,
+            validationState = ValidationState.ACCEPTABLE,
+            evidenceLevel = EvidenceLevel.VERY_STRONG,
+            isStructurallyValid = true,
+            validationReasons = listOf("Valid debit")
+        )
+
+        val creditCand = StructuredTransactionCandidate(
+            sourceNotificationKey = "device_atomic_credit",
+            packageName = "com.google.android.apps.messaging",
+            postTime = System.currentTimeMillis() + 1000L,
+            transactionTimestamp = System.currentTimeMillis() + 1000L,
+            amount = 750.0,
+            merchant = "APGBank Transfer",
+            direction = TransactionDirection.CREDIT,
+            status = TransactionStatus.SUCCESS,
+            referenceId = "UPI77889900",
+            utr = "UPI77889900",
+            accountSuffix = "1065",
+            bank = "APGBank",
+            rawContent = "Rs.750/- is credited in your A/c XXXX1065. UPI Ref: UPI77889900."
+        )
+        val validCredit = ValidatedTransactionCandidate(
+            candidate = creditCand,
+            validationState = ValidationState.ACCEPTABLE,
+            evidenceLevel = EvidenceLevel.VERY_STRONG,
+            isStructurallyValid = true,
+            validationReasons = listOf("Valid credit")
+        )
+
+        val resA = TransactionPersistenceManager.processValidatedCandidate(validDebit, dao)
+        assertTrue(resA is ExpensePersistenceResult.Inserted)
+        assertEquals(1, dao.getCount())
+
+        val resB = TransactionPersistenceManager.processValidatedCandidate(validCredit, dao)
+        assertTrue(resB is ExpensePersistenceResult.Inserted)
+        assertEquals(2, dao.getCount())
+
+        val all = dao.getAllExpensesList()
+        val debit = all.find { it.type == "Debit" }
+        val credit = all.find { it.type == "Credit" }
+
+        assertNotNull(debit)
+        assertNotNull(credit)
+        assertEquals("SELF_TRANSFER", debit!!.relationshipType)
+        assertEquals("SELF_TRANSFER_UPI77889900", debit.relationshipId)
+        assertEquals("SELF_TRANSFER", credit!!.relationshipType)
+        assertEquals("SELF_TRANSFER_UPI77889900", credit.relationshipId)
+        assertEquals(750.0, debit.amount, 0.001)
+        assertEquals(750.0, credit.amount, 0.001)
+        assertEquals("2959", debit.accountSuffix)
+        assertEquals("1065", credit.accountSuffix)
+    }
 }

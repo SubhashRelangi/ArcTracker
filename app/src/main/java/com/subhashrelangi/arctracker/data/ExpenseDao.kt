@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -58,6 +59,43 @@ interface ExpenseDao {
 
     @Query("SELECT * FROM expenses WHERE relationshipId = :relationshipId")
     suspend fun getExpensesByRelationshipId(relationshipId: String): List<Expense>
+
+    /**
+     * Atomically persists a self-transfer candidate and updates its matched counterpart in a single Room transaction.
+     *
+     * Invariants:
+     * - The counterpart record must exist (by notificationKey or integer id).
+     * - The new transfer expense is inserted.
+     * - The counterpart is linked with the provided [relationshipType] and [relationshipId].
+     * - If counterpart retrieval, candidate insert, or counterpart update fails, the entire transaction rolls back.
+     */
+    @Transaction
+    suspend fun insertSelfTransferPair(
+        newExpense: Expense,
+        counterpartRecordId: String,
+        relationshipType: String,
+        relationshipId: String
+    ): Expense {
+        val existing = getExpenseByNotificationKey(counterpartRecordId)
+            ?: counterpartRecordId.toIntOrNull()?.let { getExpenseById(it) }
+            ?: throw IllegalStateException("Self-transfer counterpart record not found: $counterpartRecordId")
+
+        val newId = insert(newExpense)
+        val saved = newExpense.copy(id = newId.toInt())
+
+        if (existing.relationshipType == null || existing.relationshipId == null) {
+            val updatedExisting = existing.copy(
+                relationshipType = relationshipType,
+                relationshipId = relationshipId
+            )
+            val updatedRows = update(updatedExisting)
+            if (updatedRows <= 0) {
+                throw IllegalStateException("Failed to update self-transfer counterpart record: $counterpartRecordId")
+            }
+        }
+
+        return saved
+    }
 
     @Query("UPDATE expenses SET accountId = :accountId WHERE id = :id")
     suspend fun updateAccountId(id: Int, accountId: String?): Int

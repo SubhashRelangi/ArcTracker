@@ -686,8 +686,21 @@ object TransactionPersistenceManager {
             userRules = userRules,
             merchantAliases = merchantAliases
         )
-        val newId = dao.insert(expense)
-        val saved = expense.copy(id = newId.toInt())
+
+        val saved = if (result.relationshipType != null && result.matchedRecordId != null) {
+            // Self-transfer: atomically insert new transaction and link counterpart in a single Room transaction
+            val relType = result.relationshipType
+            val relId = result.relationshipId ?: "SELF_TRANSFER"
+            dao.insertSelfTransferPair(
+                newExpense = expense,
+                counterpartRecordId = result.matchedRecordId,
+                relationshipType = relType,
+                relationshipId = relId
+            )
+        } else {
+            val newId = dao.insert(expense)
+            expense.copy(id = newId.toInt())
+        }
 
         DiagnosticEventManager.logEvent(
             DiagnosticCategory.TRANSACTION_PERSISTED,
@@ -695,21 +708,7 @@ object TransactionPersistenceManager {
             reason = "id=${saved.id}"
         )
 
-        // If this is a self-transfer, also update the existing matched counterpart in Room
-        if (result.relationshipType != null && result.matchedRecordId != null) {
-            val existing = dao.getExpenseByNotificationKey(result.matchedRecordId)
-                ?: result.matchedRecordId.toIntOrNull()?.let { dao.getExpenseById(it) }
-            if (existing != null && (existing.relationshipType == null || existing.relationshipId == null)) {
-                val updatedExisting = existing.copy(
-                    relationshipType = result.relationshipType,
-                    relationshipId = result.relationshipId
-                )
-                dao.update(updatedExisting)
-                SecureLogger.d(TAG, "Updated existing counterpart transaction id=${existing.id} with relationship ${result.relationshipType}")
-            }
-        }
-
-        SecureLogger.d(TAG, "Inserted new transaction id=${saved.id}, isPending=$isPending")
+        SecureLogger.d(TAG, "Inserted transaction id=${saved.id}, isPending=$isPending, relationshipType=${saved.relationshipType}")
         return ExpensePersistenceResult.Inserted(saved, isPending, result.reason, matchResult = candidate.accountMatchResult)
     }
 

@@ -18,6 +18,8 @@ open class FakeExpenseDao : ExpenseDao {
     private val expenses = mutableListOf<Expense>()
     private val expensesFlow = MutableStateFlow<List<Expense>>(emptyList())
 
+    var failOnUpdate: Boolean = false
+
     private fun notifyFlow() {
         expensesFlow.value = expenses.toList()
     }
@@ -46,6 +48,9 @@ open class FakeExpenseDao : ExpenseDao {
     }
 
     override suspend fun update(expense: Expense): Int = synchronized(lock) {
+        if (failOnUpdate) {
+            throw RuntimeException("Simulated SQLite update failure")
+        }
         val idx = expenses.indexOfFirst { it.id == expense.id }
         if (idx >= 0) {
             expenses[idx] = expense
@@ -53,6 +58,27 @@ open class FakeExpenseDao : ExpenseDao {
             1
         } else {
             0
+        }
+    }
+
+    override suspend fun insertSelfTransferPair(
+        newExpense: Expense,
+        counterpartRecordId: String,
+        relationshipType: String,
+        relationshipId: String
+    ): Expense {
+        val snapshotExpenses = synchronized(lock) { expenses.map { it.copy() }.toMutableList() }
+        val snapshotCounter = idCounter.get()
+        try {
+            return super.insertSelfTransferPair(newExpense, counterpartRecordId, relationshipType, relationshipId)
+        } catch (t: Throwable) {
+            synchronized(lock) {
+                expenses.clear()
+                expenses.addAll(snapshotExpenses)
+                idCounter.set(snapshotCounter)
+                notifyFlow()
+            }
+            throw t
         }
     }
 

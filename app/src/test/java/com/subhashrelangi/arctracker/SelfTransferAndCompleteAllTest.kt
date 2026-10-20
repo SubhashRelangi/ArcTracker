@@ -637,4 +637,166 @@ class SelfTransferAndCompleteAllTest {
         assertEquals(900.0, nonPendingTotal, 0.01)
         assertEquals(3, nonPendingCount)
     }
+
+    // =========================================================================
+    // Atomic Self-Transfer Persistence Tests (Step 1 Remediation)
+    // =========================================================================
+
+    @Test
+    fun test22_atomicSelfTransfer_success_bothRecordsExistAndLinkedCorrectly() = runBlocking {
+        // Test A: Successful self-transfer
+        val candidateA = makeCandidate(
+            amount = 350.0,
+            merchant = "IPPB Transfer",
+            direction = TransactionDirection.DEBIT,
+            accountSuffix = "2959",
+            bank = "IPPB",
+            referenceId = "UPI987654321",
+            key = "notif_debit_atomic_1"
+        )
+        val candidateB = makeCandidate(
+            amount = 350.0,
+            merchant = "APGBank Transfer",
+            direction = TransactionDirection.CREDIT,
+            accountSuffix = "1065",
+            bank = "APGBank",
+            referenceId = "UPI987654321",
+            key = "notif_credit_atomic_2"
+        )
+
+        val resA = TransactionPersistenceManager.processValidatedCandidate(candidateA, dao)
+        assertTrue(resA is ExpensePersistenceResult.Inserted)
+        assertEquals(1, dao.getCount())
+
+        val resB = TransactionPersistenceManager.processValidatedCandidate(candidateB, dao)
+        assertTrue(resB is ExpensePersistenceResult.Inserted)
+        assertEquals(2, dao.getCount())
+
+        val allExpenses = dao.getAllExpensesList()
+        val debitExp = allExpenses.find { it.type == "Debit" }
+        val creditExp = allExpenses.find { it.type == "Credit" }
+
+        assertNotNull(debitExp)
+        assertNotNull(creditExp)
+
+        // Matching relationship ID and type
+        assertEquals("SELF_TRANSFER", debitExp!!.relationshipType)
+        assertEquals("SELF_TRANSFER_UPI987654321", debitExp.relationshipId)
+        assertEquals("SELF_TRANSFER", creditExp!!.relationshipType)
+        assertEquals("SELF_TRANSFER_UPI987654321", creditExp.relationshipId)
+
+        // Original amounts, directions, account assignments, and notification keys preserved
+        assertEquals(350.0, debitExp.amount, 0.001)
+        assertEquals(350.0, creditExp.amount, 0.001)
+        assertEquals("2959", debitExp.accountSuffix)
+        assertEquals("1065", creditExp.accountSuffix)
+        assertEquals("notif_debit_atomic_1", debitExp.notificationKey)
+        assertEquals("notif_credit_atomic_2", creditExp.notificationKey)
+        assertFalse(debitExp.isPending)
+        assertFalse(creditExp.isPending)
+    }
+
+    @Test
+    fun test23_atomicSelfTransfer_counterpartUpdateFailure_rollsBackCompletely() = runBlocking {
+        // Test B: Counterpart update failure simulation
+        val candidateA = makeCandidate(
+            amount = 450.0,
+            merchant = "IPPB Out",
+            direction = TransactionDirection.DEBIT,
+            accountSuffix = "2959",
+            bank = "IPPB",
+            referenceId = "UPI555666777",
+            key = "notif_debit_fail_1"
+        )
+        val candidateB = makeCandidate(
+            amount = 450.0,
+            merchant = "HDFC In",
+            direction = TransactionDirection.CREDIT,
+            accountSuffix = "8899",
+            bank = "HDFC",
+            referenceId = "UPI555666777",
+            key = "notif_credit_fail_2"
+        )
+
+        // Process first transaction successfully
+        val resA = TransactionPersistenceManager.processValidatedCandidate(candidateA, dao)
+        assertTrue(resA is ExpensePersistenceResult.Inserted)
+        assertEquals(1, dao.getCount())
+
+        val initialExpense = dao.getAllExpensesList().first()
+        assertNull(initialExpense.relationshipType)
+        assertNull(initialExpense.relationshipId)
+
+        // Arm failure on update: simulate failure when counterpart update is attempted
+        dao.failOnUpdate = true
+
+        val resB = TransactionPersistenceManager.processValidatedCandidate(candidateB, dao)
+
+        // Verify failure reported via ExpensePersistenceResult.Error
+        assertTrue("Expected ExpensePersistenceResult.Error but was $resB", resB is ExpensePersistenceResult.Error)
+
+        // Verify total rollback: exactly 1 expense remains in database (candidateB was not retained)
+        assertEquals(1, dao.getCount())
+
+        // Verify initial counterpart was rolled back and not partially modified
+        val survivingExpense = dao.getAllExpensesList().first()
+        assertEquals(initialExpense.id, survivingExpense.id)
+        assertNull("Counterpart relationshipType must remain null on rollback", survivingExpense.relationshipType)
+        assertNull("Counterpart relationshipId must remain null on rollback", survivingExpense.relationshipId)
+        assertEquals(450.0, survivingExpense.amount, 0.001)
+        assertEquals("notif_debit_fail_1", survivingExpense.notificationKey)
+    }
+
+    @Test
+    fun test24_ordinaryTransactionRegression_persistsAndHandlesDuplicatesAndPending() = runBlocking {
+        // Test C: Ordinary transaction regression
+        val normalCandidate = makeCandidate(
+            amount = 75.0,
+            merchant = "Coffee Shop",
+            direction = TransactionDirection.DEBIT,
+            accountSuffix = "1234",
+            bank = "SBI",
+            referenceId = "REF123456",
+            key = "key_normal_1"
+        )
+
+        // 1. Normal insert
+        val resNormal = TransactionPersistenceManager.processValidatedCandidate(normalCandidate, dao)
+        assertTrue(resNormal is ExpensePersistenceResult.Inserted)
+        assertEquals(1, dao.getCount())
+        val saved = (resNormal as ExpensePersistenceResult.Inserted).expense
+        assertEquals(75.0, saved.amount, 0.001)
+        assertEquals("Coffee Shop", saved.merchant)
+
+        // 2. Duplicate insert skipped
+        val resDuplicate = TransactionPersistenceManager.processValidatedCandidate(normalCandidate, dao)
+        assertTrue("Expected SkippedDuplicate but was $resDuplicate", resDuplicate is ExpensePersistenceResult.SkippedDuplicate)
+        assertEquals(1, dao.getCount())
+
+        // 3. Pending transaction transition to completed
+        val pendingCandidate = makeCandidate(
+            amount = 120.0,
+            merchant = "Pending Merchant",
+            direction = TransactionDirection.DEBIT,
+            status = TransactionStatus.PENDING,
+            key = "key_pending_1"
+        )
+        val resPending = TransactionPersistenceManager.processValidatedCandidate(pendingCandidate, dao)
+        assertTrue(resPending is ExpensePersistenceResult.Inserted)
+        assertTrue((resPending as ExpensePersistenceResult.Inserted).isPending)
+        assertEquals(2, dao.getCount())
+
+        // Success update for the same key
+        val successCandidate = makeCandidate(
+            amount = 120.0,
+            merchant = "Pending Merchant",
+            direction = TransactionDirection.DEBIT,
+            status = TransactionStatus.SUCCESS,
+            key = "key_pending_1"
+        )
+        val resSuccess = TransactionPersistenceManager.processValidatedCandidate(successCandidate, dao)
+        assertTrue(resSuccess is ExpensePersistenceResult.Updated)
+        assertFalse((resSuccess as ExpensePersistenceResult.Updated).updatedExpense.isPending)
+        assertEquals(2, dao.getCount())
+    }
 }
