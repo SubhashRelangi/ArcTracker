@@ -1,5 +1,6 @@
 package com.subhashrelangi.arctracker
 
+import com.subhashrelangi.arctracker.data.DeletedTransactionTombstone
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.ExpenseDao
 import kotlinx.coroutines.flow.Flow
@@ -17,10 +18,12 @@ open class FakeExpenseDao : ExpenseDao {
     private val idCounter = AtomicInteger(1)
     private val expenses = mutableListOf<Expense>()
     private val expensesFlow = MutableStateFlow<List<Expense>>(emptyList())
+    private val tombstones = mutableSetOf<DeletedTransactionTombstone>()
 
     var failOnInsert: Boolean = false
     var failOnUpdate: Boolean = false
     var failOnDelete: Boolean = false
+    var failOnInsertTombstone: Boolean = false
 
     private fun notifyFlow() {
         expensesFlow.value = expenses.toList()
@@ -98,6 +101,7 @@ open class FakeExpenseDao : ExpenseDao {
 
     override suspend fun deleteSelfTransferAware(expenseId: Int): Int {
         val snapshotExpenses = synchronized(lock) { expenses.map { it.copy() }.toMutableList() }
+        val snapshotTombstones = synchronized(lock) { tombstones.map { it.copy() }.toMutableSet() }
         val snapshotCounter = idCounter.get()
         try {
             return super.deleteSelfTransferAware(expenseId)
@@ -105,11 +109,30 @@ open class FakeExpenseDao : ExpenseDao {
             synchronized(lock) {
                 expenses.clear()
                 expenses.addAll(snapshotExpenses)
+                tombstones.clear()
+                tombstones.addAll(snapshotTombstones)
                 idCounter.set(snapshotCounter)
                 notifyFlow()
             }
             throw t
         }
+    }
+
+    override suspend fun insertTombstone(tombstone: DeletedTransactionTombstone): Unit = synchronized(lock) {
+        if (failOnInsertTombstone) {
+            throw RuntimeException("Simulated SQLite failure on inserting tombstone")
+        }
+        tombstones.removeIf { it.sourceKey == tombstone.sourceKey }
+        tombstones.add(tombstone)
+        Unit
+    }
+
+    override suspend fun isSourceKeyTombstoned(sourceKey: String): Boolean = synchronized(lock) {
+        tombstones.any { it.sourceKey == sourceKey }
+    }
+
+    override suspend fun getAllTombstonedSmsSourceKeys(): List<String> = synchronized(lock) {
+        tombstones.filter { it.sourceType == "SMS_HISTORY" }.map { it.sourceKey }
     }
 
     override fun getAllExpenses(): Flow<List<Expense>> {

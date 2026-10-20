@@ -187,6 +187,7 @@ class HistoricalSmsImportManager(
         val scannedItems = mutableListOf<ScannedTransactionItem>()
         val claimedRecordIds = mutableSetOf<String>()
         val inScanSeenRecords = mutableListOf<TransactionRecord>()
+        val tombstonedKeys = dao.getAllTombstonedSmsSourceKeys().toSet()
 
         val readResult = smsReader.readSms(startTimeMillis, endTimeMillis) { smsRecord ->
             messagesScanned++
@@ -243,6 +244,34 @@ class HistoricalSmsImportManager(
                 }
 
                 transactionCandidatesCount++
+
+                // Milestone P2 Step 4: Check if this SMS transaction source was intentionally deleted by user
+                val candKey = candidate.sourceNotificationKey
+                val isTombstoned = candKey.isNotBlank() && (
+                    tombstonedKeys.contains(candKey) ||
+                    (candKey.contains("#") && tombstonedKeys.contains(candKey.substringBefore("#")))
+                )
+
+                if (isTombstoned) {
+                    duplicatesCount++
+                    val accountIdentity = AccountIdentityExtractor.extractIdentity(
+                        candidate = validated,
+                        rawBody = smsRecord.body,
+                        sender = smsRecord.address
+                    )
+                    scannedItems.add(
+                        ScannedTransactionItem(
+                            candidate = validated,
+                            sourceEvent = event,
+                            plannedDecision = DedupDecision.DUPLICATE,
+                            matchStrategy = MatchStrategy.SOURCE_EVENT_ID,
+                            matchedRecordId = candKey,
+                            reason = "Transaction source was previously deleted by user",
+                            accountIdentity = accountIdentity
+                        )
+                    )
+                    continue
+                }
 
                 // Non-destructive targeted candidate lookup from database
                 val targetedExpenses = kotlinx.coroutines.runBlocking {

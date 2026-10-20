@@ -48,6 +48,15 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE notificationKey = :key AND notificationKey != ''")
     suspend fun findByNotificationKey(key: String): List<Expense>
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTombstone(tombstone: DeletedTransactionTombstone)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM deleted_transaction_tombstones WHERE sourceKey = :sourceKey LIMIT 1)")
+    suspend fun isSourceKeyTombstoned(sourceKey: String): Boolean
+
+    @Query("SELECT sourceKey FROM deleted_transaction_tombstones WHERE sourceType = 'SMS_HISTORY'")
+    suspend fun getAllTombstonedSmsSourceKeys(): List<String>
+
     @Query("SELECT * FROM expenses WHERE dateMillis BETWEEN :startMillis AND :endMillis ORDER BY dateMillis DESC")
     suspend fun getExpensesBetween(startMillis: Long, endMillis: Long): List<Expense>
 
@@ -136,6 +145,20 @@ interface ExpenseDao {
                 if (updated <= 0) {
                     throw IllegalStateException("Failed to disassociate self-transfer counterpart id=${targetCounterpart.id}")
                 }
+            }
+        }
+
+        // Milestone P2 Step 4: Record tombstone for historical SMS transactions to prevent resurrection
+        if (existing.source == "SMS_HISTORY" || existing.notificationKey.startsWith("sms_")) {
+            val key = existing.notificationKey
+            if (key.isNotBlank()) {
+                insertTombstone(
+                    DeletedTransactionTombstone(
+                        sourceKey = key,
+                        sourceType = "SMS_HISTORY",
+                        deletedAtMillis = System.currentTimeMillis()
+                    )
+                )
             }
         }
 

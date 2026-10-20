@@ -360,6 +360,26 @@ object TransactionPersistenceManager {
             persistenceListener?.invoke(res)
             return res
         }
+
+        // Milestone P2 Step 4: Check if this source event was explicitly deleted and tombstoned
+        val sourceKey = validated.candidate.sourceNotificationKey
+        if (sourceKey.isNotBlank()) {
+            val isTombstoned = dao.isSourceKeyTombstoned(sourceKey) ||
+                    (sourceKey.contains("#") && dao.isSourceKeyTombstoned(sourceKey.substringBefore("#")))
+            if (isTombstoned) {
+                val effectiveRules = resolveActiveRules(userRules)
+                val effectiveAliases = resolveActiveAliases(merchantAliases)
+                val placeholderExpense = mapToExpense(validated.candidate, false, userRules = effectiveRules, merchantAliases = effectiveAliases)
+                val res = ExpensePersistenceResult.SkippedDuplicate(
+                    existingExpense = placeholderExpense,
+                    reason = "Transaction source was previously deleted by user",
+                    matchResult = validated.candidate.accountMatchResult
+                )
+                persistenceListener?.invoke(res)
+                return res
+            }
+        }
+
         return try {
             // Targeted query lookup: fetch only relevant correlation/dedup candidates instead of full table
             val targetedExpenses = findTargetedCandidates(validated, dao)
