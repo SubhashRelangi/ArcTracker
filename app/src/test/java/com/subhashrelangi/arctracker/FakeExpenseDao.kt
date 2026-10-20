@@ -18,6 +18,7 @@ open class FakeExpenseDao : ExpenseDao {
     private val expenses = mutableListOf<Expense>()
     private val expensesFlow = MutableStateFlow<List<Expense>>(emptyList())
 
+    var failOnInsert: Boolean = false
     var failOnUpdate: Boolean = false
     var failOnDelete: Boolean = false
 
@@ -26,6 +27,9 @@ open class FakeExpenseDao : ExpenseDao {
     }
 
     override suspend fun insert(expense: Expense): Long = synchronized(lock) {
+        if (failOnInsert) {
+            throw RuntimeException("Simulated SQLite disk/constraint failure on insert")
+        }
         val assignedId = if (expense.id <= 0) {
             idCounter.getAndIncrement()
         } else {

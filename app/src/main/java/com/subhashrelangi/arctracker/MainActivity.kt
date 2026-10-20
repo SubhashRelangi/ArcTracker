@@ -63,6 +63,7 @@ import com.subhashrelangi.arctracker.service.AccountReconciliationManager
 import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.SmsPermissionHelper
 import com.subhashrelangi.arctracker.service.TransactionManager
+import com.subhashrelangi.arctracker.security.SecureLogger
 import com.subhashrelangi.arctracker.ui.AddExpenseDialog
 import com.subhashrelangi.arctracker.ui.DarkDeleteConfirmDialog
 import com.subhashrelangi.arctracker.ui.InitialSmsImportDialog
@@ -70,6 +71,7 @@ import com.subhashrelangi.arctracker.ui.NotificationPermissionDialog
 import com.subhashrelangi.arctracker.ui.TransactionDetailDialog
 import com.subhashrelangi.arctracker.utils.RegexPatternsManager
 import android.widget.Toast
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -167,15 +169,7 @@ fun ExpenseScreen() {
 
     val database = remember { com.subhashrelangi.arctracker.data.AppDatabase.getDatabase(context) }
     val expenseDao = remember { database.expenseDao() }
-    val dbExpenses by expenseDao.getAllExpenses().collectAsState(initial = emptyList())
-
-    var expenses by remember {
-        mutableStateOf(emptyList<Expense>())
-    }
-
-    LaunchedEffect(dbExpenses) {
-        expenses = dbExpenses
-    }
+    val expenses by expenseDao.getAllExpenses().collectAsState(initial = emptyList())
 
     val knownAccountDao = remember { database.knownFinancialAccountDao() }
     val knownAccounts by knownAccountDao.getAllFlow().collectAsState(initial = emptyList())
@@ -604,11 +598,16 @@ fun ExpenseScreen() {
                     onClearData = {
                         val repo = com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository.getInstance(context)
                         val wasCompleted = repo.isInitialSmsImportCompleted()
-                        expenses = emptyList()
                         scope.launch(Dispatchers.IO) {
                             try {
                                 expenseDao.clearAll()
-                            } catch (_: Exception) {}
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                SecureLogger.e("MainActivity", "Failed to clear all data", e)
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to clear all data", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                         }
                         repo.setInitialSmsImportCompleted(wasCompleted)
                         navigateBack()
@@ -937,12 +936,21 @@ fun ExpenseScreen() {
                         categoryId = categoryId,
                         categorySource = if (categoryId != null) "USER_MANUAL" else "NONE"
                     )
-                    expenses = listOf(newExpense) + expenses
                     scope.launch(Dispatchers.IO) {
                         try {
                             val id = expenseDao.insert(newExpense)
-                            newExpense.id = id.toInt()
-                        } catch (_: Exception) {}
+                            if (id <= 0) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to save transaction", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to insert manual expense", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to save transaction", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                     showAddDialog = false
                 },
@@ -960,12 +968,21 @@ fun ExpenseScreen() {
                         note = note,
                         source = "MANUAL"
                     )
-                    expenses = listOf(newExpense) + expenses
                     scope.launch(Dispatchers.IO) {
                         try {
                             val id = expenseDao.insert(newExpense)
-                            newExpense.id = id.toInt()
-                        } catch (_: Exception) {}
+                            if (id <= 0) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to save transaction", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to insert manual expense", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to save transaction", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                     showAddDialog = false
                 }
@@ -988,12 +1005,20 @@ fun ExpenseScreen() {
                     showApproveDialog = null
                 },
                 onDelete = {
-                    expenses = expenses.filter { it.id != pendingExpense.id }
                     scope.launch(Dispatchers.IO) {
                         try {
-                            transactionManager.deleteTransaction(pendingExpense.id)
-                        } catch (_: Exception) {
-                            expenseDao.deleteSelfTransferAware(pendingExpense.id)
+                            val res = transactionManager.deleteTransaction(pendingExpense.id)
+                            if (res.isFailure) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to delete pending transaction", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                     showApproveDialog = null
@@ -1011,13 +1036,21 @@ fun ExpenseScreen() {
                         categoryId = categoryId ?: pendingExpense.categoryId,
                         isPending = false
                     )
-                    expenses = expenses.map {
-                        if (it.id == pendingExpense.id) updated else it
-                    }
                     scope.launch(Dispatchers.IO) {
                         try {
-                            expenseDao.update(updated)
-                        } catch (_: Exception) {}
+                            val count = expenseDao.update(updated)
+                            if (count <= 0) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to approve transaction", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to approve pending transaction", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to approve transaction", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                     showApproveDialog = null
                 },
@@ -1031,13 +1064,21 @@ fun ExpenseScreen() {
                         dateMillis = dateMillis,
                         isPending = false
                     )
-                    expenses = expenses.map {
-                        if (it.id == pendingExpense.id) updated else it
-                    }
                     scope.launch(Dispatchers.IO) {
                         try {
-                            expenseDao.update(updated)
-                        } catch (_: Exception) {}
+                            val count = expenseDao.update(updated)
+                            if (count <= 0) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to approve transaction", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to approve pending transaction", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to approve transaction", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                     showApproveDialog = null
                 }
@@ -1062,7 +1103,6 @@ fun ExpenseScreen() {
                             scope.launch {
                                 var successCount = 0
                                 var failCount = 0
-                                val updatedList = expenses.toMutableList()
                                 for (item in toComplete) {
                                     try {
                                         val updated = item.copy(isPending = false)
@@ -1070,19 +1110,15 @@ fun ExpenseScreen() {
                                             expenseDao.update(updated)
                                         }
                                         if (count > 0) {
-                                            val idx = updatedList.indexOfFirst { it.id == item.id }
-                                            if (idx != -1) {
-                                                updatedList[idx] = updated
-                                            }
                                             successCount++
                                         } else {
                                             failCount++
                                         }
                                     } catch (e: Exception) {
+                                        if (e is CancellationException) throw e
                                         failCount++
                                     }
                                 }
-                                expenses = updatedList
                                 refreshTrigger++
                                 val msg = if (failCount == 0) {
                                     "Completed all $successCount pending transactions"
@@ -1140,16 +1176,17 @@ fun ExpenseScreen() {
                 onSaveEdit = { expenseId, merchant, category, note ->
                     scope.launch(Dispatchers.IO) {
                         try {
-                            transactionManager.updateTransaction(expenseId, merchant, category, note)
-                        } catch (_: Exception) {
-                            val target = expenses.find { it.id == expenseId }
-                            if (target != null) {
-                                val updated = target.copy(
-                                    merchant = merchant,
-                                    tag = category,
-                                    note = note
-                                )
-                                expenseDao.update(updated)
+                            val res = transactionManager.updateTransaction(expenseId, merchant, category, note)
+                            if (res.isFailure) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to update transaction", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to update transaction", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to update transaction", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -1157,25 +1194,73 @@ fun ExpenseScreen() {
                 },
                 onAssignAccount = { expenseId, targetAccountId ->
                     scope.launch(Dispatchers.IO) {
-                        reconciliationManager.assignAccount(expenseId, targetAccountId)
+                        try {
+                            val res = reconciliationManager.assignAccount(expenseId, targetAccountId)
+                            if (res.isFailure) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to assign account", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to assign account", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to assign account", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                 },
                 onReassignAccount = { expenseId, newAccountId ->
                     scope.launch(Dispatchers.IO) {
-                        reconciliationManager.reassignAccount(expenseId, newAccountId)
+                        try {
+                            val res = reconciliationManager.reassignAccount(expenseId, newAccountId)
+                            if (res.isFailure) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to reassign account", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to reassign account", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to reassign account", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                 },
                 onUnlinkAccount = { expenseId ->
                     scope.launch(Dispatchers.IO) {
-                        reconciliationManager.unlinkAccount(expenseId)
+                        try {
+                            val res = reconciliationManager.unlinkAccount(expenseId)
+                            if (res.isFailure) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to unlink account", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to unlink account", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to unlink account", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                 },
                 onDelete = { expenseToDelete ->
                     scope.launch(Dispatchers.IO) {
                         try {
-                            transactionManager.deleteTransaction(expenseToDelete.id)
-                        } catch (_: Exception) {
-                            expenseDao.deleteSelfTransferAware(expenseToDelete.id)
+                            val res = transactionManager.deleteTransaction(expenseToDelete.id)
+                            if (res.isFailure) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to delete transaction", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                     editExpense = null
@@ -1194,12 +1279,22 @@ fun ExpenseScreen() {
                     deleteConfirmExpense = null
                     scope.launch(Dispatchers.IO) {
                         try {
-                            transactionManager.deleteTransaction(idToDelete)
-                        } catch (_: Exception) {
-                            expenseDao.deleteSelfTransferAware(idToDelete)
+                            val res = transactionManager.deleteTransaction(idToDelete)
+                            withContext(Dispatchers.Main) {
+                                if (res.isSuccess) {
+                                    Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to delete transaction", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
-                    Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()
                 },
                 onDismiss = { deleteConfirmExpense = null }
             )

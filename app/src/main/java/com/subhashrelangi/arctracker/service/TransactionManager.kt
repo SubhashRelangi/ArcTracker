@@ -63,57 +63,61 @@ class TransactionManager(
         category: String? = null,
         note: String? = null
     ): Result<Expense> {
-        val existing = expenseDao.getExpenseById(expenseId)
-            ?: return Result.failure(IllegalArgumentException("Expense with id $expenseId not found"))
+        return try {
+            val existing = expenseDao.getExpenseById(expenseId)
+                ?: return Result.failure(IllegalArgumentException("Expense with id $expenseId not found"))
 
-        val newMerchant = if (merchant != null) {
-            val trimmed = merchant.trim()
-            if (trimmed.isEmpty()) {
-                return Result.failure(IllegalArgumentException("Merchant name cannot be empty"))
-            }
-            trimmed
-        } else {
-            existing.merchant
-        }
-
-        val (resolvedCategoryId, resolvedCategoryName, resolvedCategorySource) = if (category != null) {
-            val trimmed = category.trim()
-            if (trimmed.isEmpty() || trimmed.equals("uncategorized", ignoreCase = true)) {
-                Triple(null, null, CategorySource.NONE)
-            } else {
-                val cat = categoryDao?.getById(trimmed)
-                    ?: categoryDao?.findByName(trimmed)
-                    ?: BuiltInCategories.findLegacyMapping(trimmed)
-                if (cat != null) {
-                    Triple(cat.id, cat.name, CategorySource.USER_ASSIGNED)
-                } else {
-                    Triple(trimmed, trimmed, CategorySource.USER_ASSIGNED)
+            val newMerchant = if (merchant != null) {
+                val trimmed = merchant.trim()
+                if (trimmed.isEmpty()) {
+                    return Result.failure(IllegalArgumentException("Merchant name cannot be empty"))
                 }
+                trimmed
+            } else {
+                existing.merchant
             }
-        } else {
-            Triple(existing.categoryId, existing.tag, existing.categorySource)
+
+            val (resolvedCategoryId, resolvedCategoryName, resolvedCategorySource) = if (category != null) {
+                val trimmed = category.trim()
+                if (trimmed.isEmpty() || trimmed.equals("uncategorized", ignoreCase = true)) {
+                    Triple(null, null, CategorySource.NONE)
+                } else {
+                    val cat = categoryDao?.getById(trimmed)
+                        ?: categoryDao?.findByName(trimmed)
+                        ?: BuiltInCategories.findLegacyMapping(trimmed)
+                    if (cat != null) {
+                        Triple(cat.id, cat.name, CategorySource.USER_ASSIGNED)
+                    } else {
+                        Triple(trimmed, trimmed, CategorySource.USER_ASSIGNED)
+                    }
+                }
+            } else {
+                Triple(existing.categoryId, existing.tag, existing.categorySource)
+            }
+
+            val newNote = if (note != null) {
+                note.trim().ifEmpty { null }
+            } else {
+                existing.note
+            }
+
+            val updated = existing.copy(
+                merchant = newMerchant,
+                categoryId = resolvedCategoryId,
+                tag = resolvedCategoryName,
+                categorySource = resolvedCategorySource,
+                note = newNote
+            )
+
+            val rows = expenseDao.update(updated)
+            if (rows <= 0) {
+                Result.failure(IllegalStateException("Failed to update expense $expenseId in database"))
+            } else {
+                Result.success(updated)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
-
-        val newNote = if (note != null) {
-            note.trim().ifEmpty { null }
-        } else {
-            existing.note
-        }
-
-        val updated = existing.copy(
-            merchant = newMerchant,
-            categoryId = resolvedCategoryId,
-            tag = resolvedCategoryName,
-            categorySource = resolvedCategorySource,
-            note = newNote
-        )
-
-        val rows = expenseDao.update(updated)
-        if (rows <= 0) {
-            return Result.failure(IllegalStateException("Failed to update expense $expenseId in database"))
-        }
-
-        return Result.success(updated)
     }
 
     /**
