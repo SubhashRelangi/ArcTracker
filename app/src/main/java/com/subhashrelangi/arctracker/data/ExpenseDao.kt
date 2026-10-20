@@ -39,6 +39,24 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE isPending = 1 ORDER BY dateMillis DESC")
     suspend fun getPendingExpensesList(): List<Expense>
 
+    @Query("UPDATE expenses SET isPending = 0 WHERE id IN (:ids)")
+    suspend fun updatePendingStatusByIds(ids: List<Int>): Int
+
+    /**
+     * Atomically marks a list of transaction IDs as approved (isPending = 0).
+     *
+     * Invariants:
+     * - Only updates rows where id IN (:ids).
+     * - Preserves all other transaction fields (amount, date, merchant, category, account, relationships).
+     * - If [ids] is empty, safely returns 0 without executing any database query.
+     * - Executes inside a single Room database transaction; rolls back completely on any failure.
+     */
+    @Transaction
+    suspend fun approvePendingTransactions(ids: List<Int>): Int {
+        if (ids.isEmpty()) return 0
+        return updatePendingStatusByIds(ids)
+    }
+
     @Query("SELECT * FROM expenses WHERE id = :id LIMIT 1")
     suspend fun getExpenseById(id: Int): Expense?
 

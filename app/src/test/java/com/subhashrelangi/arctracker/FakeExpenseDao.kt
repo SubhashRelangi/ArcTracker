@@ -24,6 +24,7 @@ open class FakeExpenseDao : ExpenseDao {
     var failOnUpdate: Boolean = false
     var failOnDelete: Boolean = false
     var failOnInsertTombstone: Boolean = false
+    var failOnBatchUpdate: Boolean = false
 
     private fun notifyFlow() {
         expensesFlow.value = expenses.toList()
@@ -112,6 +113,40 @@ open class FakeExpenseDao : ExpenseDao {
                 tombstones.clear()
                 tombstones.addAll(snapshotTombstones)
                 idCounter.set(snapshotCounter)
+                notifyFlow()
+            }
+            throw t
+        }
+    }
+
+    override suspend fun updatePendingStatusByIds(ids: List<Int>): Int = synchronized(lock) {
+        if (failOnBatchUpdate || failOnUpdate) {
+            throw RuntimeException("Simulated SQLite batch update failure")
+        }
+        if (ids.isEmpty()) return 0
+        var updatedCount = 0
+        val targetIds = ids.toSet()
+        for (i in 0 until expenses.size) {
+            val item = expenses[i]
+            if (item.id in targetIds && item.isPending) {
+                expenses[i] = item.copy(isPending = false)
+                updatedCount++
+            }
+        }
+        if (updatedCount > 0) {
+            notifyFlow()
+        }
+        updatedCount
+    }
+
+    override suspend fun approvePendingTransactions(ids: List<Int>): Int {
+        val snapshotExpenses = synchronized(lock) { expenses.map { it.copy() }.toMutableList() }
+        try {
+            return super.approvePendingTransactions(ids)
+        } catch (t: Throwable) {
+            synchronized(lock) {
+                expenses.clear()
+                expenses.addAll(snapshotExpenses)
                 notifyFlow()
             }
             throw t

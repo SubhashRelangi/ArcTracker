@@ -1100,32 +1100,24 @@ fun ExpenseScreen() {
                         onClick = {
                             showCompleteAllDialog = false
                             val toComplete = expenses.filter { it.isPending }
+                            val ids = toComplete.map { it.id }
+                            if (ids.isEmpty()) return@TextButton
                             scope.launch {
-                                var successCount = 0
-                                var failCount = 0
-                                for (item in toComplete) {
-                                    try {
-                                        val updated = item.copy(isPending = false)
-                                        val count = withContext(Dispatchers.IO) {
-                                            expenseDao.update(updated)
-                                        }
-                                        if (count > 0) {
-                                            successCount++
-                                        } else {
-                                            failCount++
-                                        }
-                                    } catch (e: Exception) {
-                                        if (e is CancellationException) throw e
-                                        failCount++
+                                try {
+                                    val updatedCount = withContext(Dispatchers.IO) {
+                                        expenseDao.approvePendingTransactions(ids)
+                                    }
+                                    refreshTrigger++
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Completed all $updatedCount pending transactions", Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (e: Exception) {
+                                    if (e is CancellationException) throw e
+                                    SecureLogger.e("MainActivity", "Failed to batch approve pending transactions", e)
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Failed to complete pending transactions", Toast.LENGTH_SHORT).show()
                                     }
                                 }
-                                refreshTrigger++
-                                val msg = if (failCount == 0) {
-                                    "Completed all $successCount pending transactions"
-                                } else {
-                                    "Completed $successCount transactions ($failCount failed)"
-                                }
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                             }
                         }
                     ) {

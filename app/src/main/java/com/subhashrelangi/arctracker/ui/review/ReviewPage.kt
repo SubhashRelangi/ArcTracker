@@ -16,9 +16,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.*
+import com.subhashrelangi.arctracker.security.SecureLogger
 import com.subhashrelangi.arctracker.service.AccountReconciliationManager
 import com.subhashrelangi.arctracker.service.CategoryManager
 import com.subhashrelangi.arctracker.service.MerchantAliasManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -131,17 +133,23 @@ fun ReviewPage(
                     ReviewBulkActions(
                         verifiedCount = verifiedExpenses.size,
                         onApproveVerified = {
+                            val ids = verifiedExpenses.map { it.id }
+                            if (ids.isEmpty()) return@ReviewBulkActions
                             scope.launch {
-                                var successCount = 0
-                                withContext(Dispatchers.IO) {
-                                    for (item in verifiedExpenses) {
-                                        try {
-                                            expenseDao.update(item.copy(isPending = false))
-                                            successCount++
-                                        } catch (_: Exception) {}
+                                try {
+                                    val count = withContext(Dispatchers.IO) {
+                                        expenseDao.approvePendingTransactions(ids)
+                                    }
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Approved $count verified transactions", Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (e: Exception) {
+                                    if (e is CancellationException) throw e
+                                    SecureLogger.e("ReviewPage", "Failed to approve verified transactions", e)
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Failed to approve verified transactions", Toast.LENGTH_SHORT).show()
                                     }
                                 }
-                                Toast.makeText(context, "Approved $successCount verified transactions", Toast.LENGTH_SHORT).show()
                             }
                         },
                         onDismissAll = {
@@ -348,19 +356,25 @@ fun ReviewPage(
             confirmButton = {
                 Button(
                     onClick = {
+                        val ids = pendingExpenses.map { it.id }
+                        showDismissAllDialog = false
+                        if (ids.isEmpty()) return@Button
                         scope.launch {
-                            var count = 0
-                            withContext(Dispatchers.IO) {
-                                for (item in pendingExpenses) {
-                                    try {
-                                        expenseDao.update(item.copy(isPending = false))
-                                        count++
-                                    } catch (_: Exception) {}
+                            try {
+                                val count = withContext(Dispatchers.IO) {
+                                    expenseDao.approvePendingTransactions(ids)
+                                }
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Approved all $count transactions", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                SecureLogger.e("ReviewPage", "Failed to approve all pending transactions", e)
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to approve pending transactions", Toast.LENGTH_SHORT).show()
                                 }
                             }
-                            Toast.makeText(context, "Approved all $count transactions", Toast.LENGTH_SHORT).show()
                         }
-                        showDismissAllDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
                 ) {
