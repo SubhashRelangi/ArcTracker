@@ -56,6 +56,17 @@ class SecurityPrivacyTest {
     }
 
     @Test
+    fun testCurrencyAndMonetaryAmountRedaction() {
+        val input = "Debited ₹1,500.50 at Cafe. Balance Rs. 24,000. Also paid USD 45.00 and EUR 12.00."
+        val sanitized = SensitiveDataSanitizer.sanitize(input)
+        assertFalse("Rupee amount should not be visible", sanitized.contains("1,500.50"))
+        assertFalse("Balance should not be visible", sanitized.contains("24,000"))
+        assertFalse("USD amount should not be visible", sanitized.contains("45.00"))
+        assertFalse("EUR amount should not be visible", sanitized.contains("12.00"))
+        assertTrue("Redaction placeholder should be present", sanitized.contains("[REDACTED_AMOUNT]"))
+    }
+
+    @Test
     fun testSafeAccountSuffixFormatting() {
         assertEquals("•••• 1234", SensitiveDataSanitizer.maskAccountSuffix("1234"))
         assertEquals("•••• 5678", SensitiveDataSanitizer.maskAccountSuffix("5678"))

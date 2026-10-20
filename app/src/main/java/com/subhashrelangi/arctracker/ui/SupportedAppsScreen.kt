@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
+import com.subhashrelangi.arctracker.security.SecureLogger
 import com.subhashrelangi.arctracker.settings.*
 
 data class MockApp(
@@ -118,7 +119,7 @@ fun SupportedAppsScreen(
             try {
                 settingsRepo.getSettings().globalEnabled
             } catch (e: Exception) {
-                android.util.Log.e("SupportedAppsScreen", "Error loading monitoring settings", e)
+                SecureLogger.e("SupportedAppsScreen", "Error loading monitoring settings", e)
                 true
             }
         )
@@ -128,7 +129,7 @@ fun SupportedAppsScreen(
             try {
                 settingsRepo.getSettings().enabledPackages
             } catch (e: Exception) {
-                android.util.Log.e("SupportedAppsScreen", "Error loading enabled packages", e)
+                SecureLogger.e("SupportedAppsScreen", "Error loading enabled packages", e)
                 AppCatalog.defaultEnabledPackages
             }
         )
@@ -170,7 +171,7 @@ fun SupportedAppsScreen(
             installedApps = freshInstalled
             hasLoadedInstalledApps = true
         } catch (e: Exception) {
-            android.util.Log.e("SupportedAppsScreen", "Error refreshing monitoring state; preserving previous state", e)
+            SecureLogger.e("SupportedAppsScreen", "Error refreshing monitoring state; preserving previous state", e)
         }
     }
 
@@ -204,7 +205,7 @@ fun SupportedAppsScreen(
             try {
                 settingsRepo.setAppEnabled(packageName, isChecked)
             } catch (e: Exception) {
-                android.util.Log.e("SupportedAppsScreen", "Error saving app monitoring setting for $packageName", e)
+                SecureLogger.e("SupportedAppsScreen", "Error saving app monitoring setting for $packageName", e)
                 enabledPackages = previous
             }
         }
@@ -291,7 +292,7 @@ fun SupportedAppsScreen(
         try {
             settingsRepo.addUserApp(newSupportedApp)
         } catch (e: Exception) {
-            android.util.Log.e("SupportedAppsScreen", "Error persisting user added app", e)
+            SecureLogger.e("SupportedAppsScreen", "Error persisting user added app", e)
         }
 
         categoryForAdd = null
@@ -309,7 +310,7 @@ fun SupportedAppsScreen(
         try {
             settingsRepo.updateUserApp(updated)
         } catch (e: Exception) {
-            android.util.Log.e("SupportedAppsScreen", "Error updating user app category", e)
+            SecureLogger.e("SupportedAppsScreen", "Error updating user app category", e)
         }
 
         appToEdit = null
@@ -320,10 +321,10 @@ fun SupportedAppsScreen(
         try {
             val success = settingsRepo.removeUserApp(app.packageName)
             if (!success) {
-                android.util.Log.e("SupportedAppsScreen", "Failed to remove user app ${app.packageName}")
+                SecureLogger.w("SupportedAppsScreen", "Failed to remove user app ${app.packageName}")
             }
         } catch (e: Exception) {
-            android.util.Log.e("SupportedAppsScreen", "Error removing user app ${app.packageName}", e)
+            SecureLogger.e("SupportedAppsScreen", "Error removing user app ${app.packageName}", e)
         }
         appToRemove = null
         refreshState()
@@ -384,7 +385,7 @@ fun SupportedAppsScreen(
                                 try {
                                     settingsRepo.setGlobalEnabled(isChecked)
                                 } catch (e: Exception) {
-                                    android.util.Log.e("SupportedAppsScreen", "Error saving global monitoring setting", e)
+                                    SecureLogger.e("SupportedAppsScreen", "Error saving global monitoring setting", e)
                                 }
                             },
                             colors = SwitchDefaults.colors(checkedTrackColor = Color(0xFF673AB7))

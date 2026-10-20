@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.util.Log
+import com.subhashrelangi.arctracker.security.SecureLogger
 
 /**
  * Representation of an application discovered on the current Android device.
@@ -42,7 +42,7 @@ class DefaultInstalledAppsProvider(private val context: Context) : InstalledApps
         val pm = try {
             context.packageManager
         } catch (e: Throwable) {
-            Log.e(TAG, "Failed to obtain PackageManager", e)
+            SecureLogger.e(TAG, "Failed to obtain PackageManager", e)
             return emptyList()
         } ?: return emptyList()
 
@@ -82,7 +82,7 @@ class DefaultInstalledAppsProvider(private val context: Context) : InstalledApps
                 )
             }
         } catch (e: Throwable) {
-            Log.w(TAG, "Error querying launcher activities", e)
+            SecureLogger.w(TAG, "Error querying launcher activities", e)
         }
 
         // 2. Also check built-in catalog apps in case of OEM package visibility filters

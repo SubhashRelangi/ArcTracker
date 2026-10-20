@@ -1,10 +1,10 @@
 package com.subhashrelangi.arctracker.service
 
-import android.util.Log
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.ExpenseDao
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
+import com.subhashrelangi.arctracker.security.SecureLogger
 
 /**
  * Result metrics returned by [AccountReconciliationBackfiller.backfill].
@@ -47,7 +47,7 @@ class AccountReconciliationBackfiller(
      */
     suspend fun backfill(): BackfillResult {
         val unresolvedExpenses = expenseDao.getExpensesWithoutAccount()
-        Log.i(TAG, "Starting safe backfill for ${unresolvedExpenses.size} unresolved expenses")
+        SecureLogger.i(TAG, "Starting safe backfill for ${unresolvedExpenses.size} unresolved expenses")
 
         var reconciledCount = 0
         var ambiguousCount = 0
@@ -78,7 +78,7 @@ class AccountReconciliationBackfiller(
             noAccountDataCount = noAccountDataCount,
             skippedAlreadyResolvedCount = 0
         )
-        Log.i(TAG, "Backfill complete: $result")
+        SecureLogger.i(TAG, "Backfill complete: processed=${result.processedCount}, reconciled=${result.reconciledCount}, ambiguous=${result.ambiguousCount}, unmatched=${result.unmatchedCount}")
         return result
     }
 
@@ -134,7 +134,7 @@ class AccountReconciliationBackfiller(
             finalCandidates.size == 1 -> {
                 val matched = finalCandidates.first()
                 expenseDao.updateAccountMetadata(expense.id, matched.id, safeSuffix)
-                Log.d(TAG, "Reconciled expense id=${expense.id} to accountId=${matched.id}, suffix=$safeSuffix")
+                SecureLogger.d(TAG, "Reconciled expense id=${expense.id} to accountId=${matched.id}")
                 Outcome.RECONCILED
             }
             finalCandidates.size > 1 -> {
@@ -142,7 +142,7 @@ class AccountReconciliationBackfiller(
                 if (expense.accountSuffix == null) {
                     expenseDao.updateAccountMetadata(expense.id, null, safeSuffix)
                 }
-                Log.d(TAG, "Ambiguous account for expense id=${expense.id} with suffix=$safeSuffix (${finalCandidates.size} candidates). Left null.")
+                SecureLogger.d(TAG, "Ambiguous account for expense id=${expense.id} (${finalCandidates.size} candidates). Left null.")
                 Outcome.AMBIGUOUS
             }
             else -> {

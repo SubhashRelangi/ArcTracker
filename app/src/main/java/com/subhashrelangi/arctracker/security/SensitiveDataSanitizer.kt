@@ -38,8 +38,18 @@ object SensitiveDataSanitizer {
         "(?i)\\b(ref(?:erence)?(?:\\s*no)?|utr|txn(?:\\s*id)?)\\s*(?:is|:|=)?\\s*([a-zA-Z0-9]{8,25})\\b"
     )
 
+    // Regex for currency amounts (e.g. ₹1,500.00, Rs. 500, INR 1250.50, $45.00, USD 45)
+    private val CURRENCY_AMOUNT_PATTERN = Pattern.compile(
+        "(?i)(?:₹|rs\\.?|inr|usd|eur|gbp|\\$|€|£)\\s*[\\d,]+(?:\\.\\d{1,2})?|\\b[\\d,]+(?:\\.\\d{1,2})?\\s*(?:inr|rs\\.?|usd|eur|gbp)\\b"
+    )
+
+    // Regex for explicit amount and balance key-value pairs (e.g., "amount=500.00", "bal: 50000")
+    private val EXPLICIT_AMOUNT_PATTERN = Pattern.compile(
+        "(?i)\\b(amount|amt|balance|bal)\\s*[:=]\\s*([\\d,]+(?:\\.\\d{1,2})?)\\b"
+    )
+
     /**
-     * Sanitizes a string by redacting cards, long account numbers, OTPs, UPI handles, and reference numbers.
+     * Sanitizes a string by redacting cards, long account numbers, OTPs, UPI handles, reference numbers, and monetary amounts.
      */
     fun sanitize(input: String?): String {
         if (input.isNullOrBlank()) return ""
@@ -58,7 +68,14 @@ object SensitiveDataSanitizer {
         val upiMatcher = UPI_PATTERN.matcher(result)
         result = upiMatcher.replaceAll("[REDACTED_VPA]")
 
-        // 4. Mask 15-16 digit cards: keep only last 4 digits
+        // 4. Redact currency amounts and explicit balance/amount values
+        val currencyMatcher = CURRENCY_AMOUNT_PATTERN.matcher(result)
+        result = currencyMatcher.replaceAll("[REDACTED_AMOUNT]")
+
+        val explicitAmountMatcher = EXPLICIT_AMOUNT_PATTERN.matcher(result)
+        result = explicitAmountMatcher.replaceAll("$1 [REDACTED_AMOUNT]")
+
+        // 5. Mask 15-16 digit cards: keep only last 4 digits
         val cardMatcher = CARD_PATTERN.matcher(result)
         val sbCard = StringBuffer()
         while (cardMatcher.find()) {
@@ -70,7 +87,7 @@ object SensitiveDataSanitizer {
         cardMatcher.appendTail(sbCard)
         result = sbCard.toString()
 
-        // 5. Mask bank account numbers (8-18 consecutive digits): keep only last 4 digits
+        // 6. Mask bank account numbers (8-18 consecutive digits): keep only last 4 digits
         val accountMatcher = ACCOUNT_NUMBER_PATTERN.matcher(result)
         val sbAccount = StringBuffer()
         while (accountMatcher.find()) {

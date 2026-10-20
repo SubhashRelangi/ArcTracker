@@ -1,6 +1,7 @@
 package com.subhashrelangi.arctracker.service
 
 import com.subhashrelangi.arctracker.security.SecureLogger
+import com.subhashrelangi.arctracker.security.SensitiveDataSanitizer
 import java.util.Collections
 
 /**
@@ -61,7 +62,7 @@ object DiagnosticEventManager {
         reason: String? = null
     ): DiagnosticEvent {
         val safePkg = packageName?.take(100)
-        val safeReason = reason?.take(200)
+        val safeReason = reason?.let { SensitiveDataSanitizer.sanitize(it).take(200) }
         val event = DiagnosticEvent(
             category = category,
             packageName = safePkg,

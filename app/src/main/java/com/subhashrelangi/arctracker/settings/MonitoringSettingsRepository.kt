@@ -2,7 +2,7 @@ package com.subhashrelangi.arctracker.settings
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
+import com.subhashrelangi.arctracker.security.SecureLogger
 
 /**
  * Authoritative repository interface for managing ArcTracker's monitoring settings.
@@ -362,7 +362,7 @@ class SharedPreferencesMonitoringSettingsRepository(
                 deduplicated.add(app)
             } else {
                 try {
-                    Log.w("MonitoringSettingsRepo", "Duplicate user-added app found for ${app.packageName}; ignoring duplicate")
+                    SecureLogger.w("MonitoringSettingsRepo", "Duplicate user-added app found for ${app.packageName}; ignoring duplicate")
                 } catch (e: Throwable) {}
             }
         }

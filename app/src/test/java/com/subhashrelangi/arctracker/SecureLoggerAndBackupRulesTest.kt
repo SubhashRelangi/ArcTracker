@@ -3,8 +3,7 @@ package com.subhashrelangi.arctracker
 import android.util.Log
 import com.subhashrelangi.arctracker.security.SecureLogger
 import com.subhashrelangi.arctracker.security.SensitiveDataSanitizer
-import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
-import com.subhashrelangi.arctracker.service.NotificationReaderService
+import com.subhashrelangi.arctracker.service.*
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -107,6 +106,34 @@ class SecureLoggerAndBackupRulesTest {
     }
 
     @Test
+    fun testCurrencyAndAmountRedactionInSecureLogger() {
+        SecureLogger.d("AmountTag", "Paid ₹4,500.00 at Store. New balance: Rs. 15,250. Also charged USD 99.50 and EUR 50")
+
+        assertEquals(1, loggedEntries.size)
+        val msg = loggedEntries[0].third
+        assertFalse("Raw rupee amount must not appear in logcat", msg.contains("4,500.00"))
+        assertFalse("Raw balance must not appear in logcat", msg.contains("15,250"))
+        assertFalse("Raw USD amount must not appear in logcat", msg.contains("99.50"))
+        assertFalse("Raw EUR amount must not appear in logcat", msg.contains("50"))
+        assertTrue("Redacted amount placeholder present", msg.contains("[REDACTED_AMOUNT]"))
+    }
+
+    @Test
+    fun testDiagnosticEventManagerSanitizesReasonPayloads() {
+        val event = DiagnosticEventManager.logEvent(
+            category = DiagnosticCategory.DUPLICATE_SKIPPED,
+            packageName = "com.bank.app",
+            reason = "Duplicate of ₹1,500.00 with card 4111222233334444 and OTP 123456"
+        )
+
+        assertNotNull(event.reason)
+        assertFalse("DiagnosticEvent reason must not contain raw amount", event.reason!!.contains("1,500.00"))
+        assertFalse("DiagnosticEvent reason must not contain card number", event.reason!!.contains("4111222233334444"))
+        assertFalse("DiagnosticEvent reason must not contain raw OTP", event.reason!!.contains("123456"))
+        assertTrue("DiagnosticEvent reason should contain masked card suffix", event.reason!!.contains("•••• 4444"))
+    }
+
+    @Test
     fun testExceptionSanitizationInSecureLogger() {
         val sqliteException = Exception("android.database.sqlite.SQLiteConstraintException: UNIQUE constraint failed: expenses.id at query SELECT * FROM expenses")
         SecureLogger.e("DbTag", "Insertion failed", sqliteException)
@@ -194,6 +221,10 @@ class SecureLoggerAndBackupRulesTest {
             excludedDomains.any { it.first == "database" && it.second == "arctracker_database" })
         assertTrue("Must exclude root/databases directory",
             excludedDomains.any { it.first == "root" && it.second == "databases" })
+        assertTrue("Must exclude file domain '.'",
+            excludedDomains.any { it.first == "file" && it.second == "." })
+        assertTrue("Must exclude external domain '.'",
+            excludedDomains.any { it.first == "external" && it.second == "." })
 
         val includes = root.getElementsByTagName("include")
         val includedDomains = mutableListOf<Pair<String, String>>()
@@ -233,6 +264,10 @@ class SecureLoggerAndBackupRulesTest {
             cloudExcludedList.any { it.first == "database" && it.second == "arctracker_database" })
         assertTrue("Cloud backup must exclude root/databases",
             cloudExcludedList.any { it.first == "root" && it.second == "databases" })
+        assertTrue("Cloud backup must exclude file domain '.'",
+            cloudExcludedList.any { it.first == "file" && it.second == "." })
+        assertTrue("Cloud backup must exclude external domain '.'",
+            cloudExcludedList.any { it.first == "external" && it.second == "." })
 
         // 2. Verify device-transfer exclusions
         val deviceNodes = root.getElementsByTagName("device-transfer")
@@ -251,5 +286,42 @@ class SecureLoggerAndBackupRulesTest {
             deviceExcludedList.any { it.first == "database" && it.second == "arctracker_database" })
         assertTrue("Device transfer must exclude root/databases",
             deviceExcludedList.any { it.first == "root" && it.second == "databases" })
+        assertTrue("Device transfer must exclude file domain '.'",
+            deviceExcludedList.any { it.first == "file" && it.second == "." })
+        assertTrue("Device transfer must exclude external domain '.'",
+            deviceExcludedList.any { it.first == "external" && it.second == "." })
+    }
+
+    @Test
+    fun testTransactionDeduplicatorEmitsNoRawAmountsOrReferencesInReasons() {
+        val captured1 = CapturedNotificationInfo(
+            packageName = "com.bank.app",
+            notificationKey = "key_1",
+            postTime = 1000000L,
+            text = "Debited ₹500. UTR: ABC123456789"
+        )
+        val normalized1 = NotificationNormalizer.normalize(captured1)!!
+        val classification1 = FinancialClassifier.classify(normalized1)
+        val candidate1 = StructuredTransactionExtractor.extractDirect(normalized1, classification1)
+        val validated1 = TransactionValidator.validate(candidate1, classification1)
+
+        val captured2 = CapturedNotificationInfo(
+            packageName = "com.bank.app",
+            notificationKey = "key_2",
+            postTime = 1000000L,
+            text = "Debited ₹5,000. UTR: ABC123456789"
+        )
+        val normalized2 = NotificationNormalizer.normalize(captured2)!!
+        val classification2 = FinancialClassifier.classify(normalized2)
+        val candidate2 = StructuredTransactionExtractor.extractDirect(normalized2, classification2)
+        val validated2 = TransactionValidator.validate(candidate2, classification2)
+
+        val existing = listOf(TransactionRecord.fromValidated(validated1))
+        val result = TransactionDeduplicator.evaluate(validated2, existing)
+
+        assertNotNull(result.reason)
+        assertFalse("Reason must not expose raw amounts", result.reason.contains("500") || result.reason.contains("5000"))
+        assertFalse("Reason must not expose raw reference IDs", result.reason.contains("ABC123456789"))
+        assertFalse("Conflicting signals must not expose raw amounts", result.conflictingSignals.any { it.contains("500") || it.contains("5000") })
     }
 }

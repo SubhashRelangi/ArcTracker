@@ -83,7 +83,7 @@ object TransactionDeduplicator {
                         matchedRecord = sameSourceMatch,
                         matchingSignals = listOf("SAME_NOTIFICATION_KEY", "PAYLOAD_UPDATE"),
                         timeDifferenceMillis = timeDiff,
-                        reason = "Updated payload received for existing notificationKey '$notifKey'"
+                        reason = "Updated payload received for existing notification event"
                     )
                 } else {
                     TransactionDeduplicationResult(
@@ -94,7 +94,7 @@ object TransactionDeduplicator {
                         matchedRecord = sameSourceMatch,
                         matchingSignals = listOf("EXACT_NOTIFICATION_KEY"),
                         timeDifferenceMillis = timeDiff,
-                        reason = "Identical source event already processed for notificationKey '$notifKey'"
+                        reason = "Identical source event already processed for notification event"
                     )
                 }
             }
@@ -125,10 +125,10 @@ object TransactionDeduplicator {
                             strategy = MatchStrategy.IDENTITY_CONFLICT,
                             matchedRecordId = existing.id,
                             matchedRecord = existing,
-                            matchingSignals = listOf("REFERENCE_ID_MATCH: $matchedRef"),
-                            conflictingSignals = listOf("AMOUNT_MISMATCH: candidate=${candStruct.amount}, existing=${existing.amount}"),
+                            matchingSignals = listOf("REFERENCE_ID_MATCH"),
+                            conflictingSignals = listOf("AMOUNT_MISMATCH"),
                             timeDifferenceMillis = effectiveTimeDiff,
-                            reason = "Matching reference ID ($matchedRef) but conflicting amounts: ${candStruct.amount} vs ${existing.amount}"
+                            reason = "Matching reference ID but conflicting amounts"
                         )
                     }
 
@@ -154,13 +154,13 @@ object TransactionDeduplicator {
                                 matchedRecordId = existing.id,
                                 matchedRecord = existing,
                                 matchingSignals = listOf(
-                                    "REFERENCE_ID_MATCH: $matchedRef",
-                                    "AMOUNT_MATCH: ${candStruct.amount}",
+                                    "REFERENCE_ID_MATCH",
+                                    "AMOUNT_MATCH",
                                     "SELF_TRANSFER_CORRELATED: ${candStruct.direction} vs ${existing.direction}"
                                 ),
                                 conflictingSignals = emptyList(),
                                 timeDifferenceMillis = effectiveTimeDiff,
-                                reason = "Self-transfer identified across accounts (${candBank ?: "A/c $candAccount"} <-> ${existingBank ?: "A/c $existingAccount"}) with reference $matchedRef",
+                                reason = "Self-transfer identified across distinct accounts with reference match",
                                 relationshipType = "SELF_TRANSFER",
                                 relationshipId = relId
                             )
@@ -172,10 +172,10 @@ object TransactionDeduplicator {
                                 strategy = MatchStrategy.IDENTITY_CONFLICT,
                                 matchedRecordId = existing.id,
                                 matchedRecord = existing,
-                                matchingSignals = listOf("REFERENCE_ID_MATCH: $matchedRef"),
+                                matchingSignals = listOf("REFERENCE_ID_MATCH"),
                                 conflictingSignals = listOf("DIRECTION_MISMATCH: candidate=${candStruct.direction}, existing=${existing.direction}"),
                                 timeDifferenceMillis = effectiveTimeDiff,
-                                reason = "Matching reference ID ($matchedRef) but conflicting directions: ${candStruct.direction} vs ${existing.direction}"
+                                reason = "Matching reference ID but conflicting directions: ${candStruct.direction} vs ${existing.direction}"
                             )
                         }
                     }
@@ -188,10 +188,10 @@ object TransactionDeduplicator {
                             strategy = MatchStrategy.IDENTITY_CONFLICT,
                             matchedRecordId = existing.id,
                             matchedRecord = existing,
-                            matchingSignals = listOf("REFERENCE_ID_MATCH: $matchedRef"),
+                            matchingSignals = listOf("REFERENCE_ID_MATCH"),
                             conflictingSignals = listOf("TIME_WINDOW_EXCEEDED: ${effectiveTimeDiff / (1000 * 3600)}h > 48h"),
                             timeDifferenceMillis = effectiveTimeDiff,
-                            reason = "Matching reference ID ($matchedRef) but time difference exceeds 48-hour window"
+                            reason = "Matching reference ID but time difference exceeds correlation window"
                         )
                     }
 
@@ -200,8 +200,8 @@ object TransactionDeduplicator {
                             (candStruct.status == TransactionStatus.SUCCESS || candStruct.status == null)
 
                     val decision = if (isStatusUpdate) DedupDecision.UPDATE_EXISTING else DedupDecision.CORRELATED
-                    val signals = mutableListOf("REFERENCE_ID_MATCH: $matchedRef")
-                    if (candStruct.amount != null && existing.amount != null) signals.add("AMOUNT_MATCH: ${candStruct.amount}")
+                    val signals = mutableListOf("REFERENCE_ID_MATCH")
+                    if (candStruct.amount != null && existing.amount != null) signals.add("AMOUNT_MATCH")
                     if (candStruct.direction == existing.direction) signals.add("DIRECTION_MATCH: ${candStruct.direction}")
 
                     return TransactionDeduplicationResult(
@@ -211,9 +211,9 @@ object TransactionDeduplicator {
                         matchedRecordId = existing.id,
                         matchedRecord = existing,
                         matchingSignals = signals,
-                        correlationEvidence = "Common explicit reference ID '$matchedRef' across sources (${candStruct.packageName} <-> ${existing.sourceType})",
+                        correlationEvidence = "Common explicit reference ID across sources (${candStruct.packageName} <-> ${existing.sourceType})",
                         timeDifferenceMillis = effectiveTimeDiff,
-                        reason = "Strong reference identifier ($matchedRef) matches existing record with compatible context"
+                        reason = "Strong reference identifier matches existing record with compatible context"
                     )
                 }
             }
@@ -289,9 +289,9 @@ object TransactionDeduplicator {
                         strategy = MatchStrategy.IDENTITY_CONFLICT,
                         matchedRecordId = existing.id,
                         matchedRecord = existing,
-                        conflictingSignals = listOf("ACCOUNT_SUFFIX_MISMATCH: $candInstrument vs $existInstrument"),
+                        conflictingSignals = listOf("ACCOUNT_SUFFIX_MISMATCH"),
                         timeDifferenceMillis = timeDiff,
-                        reason = "Matching amount and direction but conflicting account/card suffixes: $candInstrument vs $existInstrument"
+                        reason = "Matching amount and direction but conflicting account or card suffixes"
                     )
                 }
 
@@ -322,14 +322,14 @@ object TransactionDeduplicator {
                         matchedRecordId = existing.id,
                         matchedRecord = existing,
                         matchingSignals = listOf(
-                            "AMOUNT_MATCH: ${candStruct.amount}",
+                            "AMOUNT_MATCH",
                             "DIRECTION_MATCH: ${candStruct.direction}",
-                            "MERCHANT_MATCH: $candMerchantNorm",
+                            "MERCHANT_MATCH",
                             "CLOSE_TIME: ${timeDiff / 1000}s"
                         ),
                         conflictingSignals = listOf("INSUFFICIENT_IDENTITY_EVIDENCE: lacking instrument suffix or UPI ID with differing timestamps"),
                         timeDifferenceMillis = timeDiff,
-                        reason = "Matching amount, direction, and merchant with close timestamps (${timeDiff / 1000}s) but lacking corroborating instrument or reference identity"
+                        reason = "Matching amount, direction, and merchant with close timestamps but lacking corroborating instrument or reference identity"
                     )
                 }
 
@@ -344,13 +344,13 @@ object TransactionDeduplicator {
 
                 if (isStrongFingerprint) {
                     val matchingSignals = mutableListOf(
-                        "AMOUNT_MATCH: ${candStruct.amount}",
+                        "AMOUNT_MATCH",
                         "DIRECTION_MATCH: ${candStruct.direction}",
                         "TIME_COMPATIBLE: ${timeDiff / 1000}s <= ${FINGERPRINT_CORRELATION_WINDOW_MS / 1000}s"
                     )
-                    if (sameMerchant) matchingSignals.add("MERCHANT_MATCH: $candMerchantNorm")
-                    if (sameInstrument) matchingSignals.add("INSTRUMENT_SUFFIX_MATCH: $candInstrument")
-                    if (sameUpiId) matchingSignals.add("UPI_ID_MATCH: $candUpi")
+                    if (sameMerchant) matchingSignals.add("MERCHANT_MATCH")
+                    if (sameInstrument) matchingSignals.add("INSTRUMENT_SUFFIX_MATCH")
+                    if (sameUpiId) matchingSignals.add("UPI_ID_MATCH")
 
                     return TransactionDeduplicationResult(
                         candidate = candidate,
