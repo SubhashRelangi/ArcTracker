@@ -312,7 +312,7 @@ fun ReviewPage(
                     onClick = {
                         scope.launch {
                             withContext(Dispatchers.IO) {
-                                expenseDao.delete(exp)
+                                expenseDao.deleteSelfTransferAware(exp.id)
                             }
                             Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()
                         }

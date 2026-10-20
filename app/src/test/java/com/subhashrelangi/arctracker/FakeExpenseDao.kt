@@ -19,6 +19,7 @@ open class FakeExpenseDao : ExpenseDao {
     private val expensesFlow = MutableStateFlow<List<Expense>>(emptyList())
 
     var failOnUpdate: Boolean = false
+    var failOnDelete: Boolean = false
 
     private fun notifyFlow() {
         expensesFlow.value = expenses.toList()
@@ -83,9 +84,28 @@ open class FakeExpenseDao : ExpenseDao {
     }
 
     override suspend fun delete(expense: Expense): Int = synchronized(lock) {
+        if (failOnDelete) {
+            throw RuntimeException("Simulated SQLite delete failure")
+        }
         val removed = expenses.removeIf { it.id == expense.id }
         if (removed) notifyFlow()
         if (removed) 1 else 0
+    }
+
+    override suspend fun deleteSelfTransferAware(expenseId: Int): Int {
+        val snapshotExpenses = synchronized(lock) { expenses.map { it.copy() }.toMutableList() }
+        val snapshotCounter = idCounter.get()
+        try {
+            return super.deleteSelfTransferAware(expenseId)
+        } catch (t: Throwable) {
+            synchronized(lock) {
+                expenses.clear()
+                expenses.addAll(snapshotExpenses)
+                idCounter.set(snapshotCounter)
+                notifyFlow()
+            }
+            throw t
+        }
     }
 
     override fun getAllExpenses(): Flow<List<Expense>> {

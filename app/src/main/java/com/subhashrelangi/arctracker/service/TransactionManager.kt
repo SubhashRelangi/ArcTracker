@@ -120,19 +120,26 @@ class TransactionManager(
      * Deletes a single transaction upon explicit user confirmation.
      *
      * Invariants:
-     * - Removes only the [Expense] record from the database.
+     * - Safely disassociates any paired self-transfer counterpart so the surviving record
+     *   is correctly reflected in spending/income aggregations.
+     * - If the transaction is not a self-transfer, deletes only the target record.
      * - Never deletes or modifies [KnownFinancialAccount] records.
      * - Never modifies notification history or deduplication memory.
+     * - Executes atomically; rolls back completely on database write failure.
      */
     suspend fun deleteTransaction(expenseId: Int): Result<Boolean> {
-        val existing = expenseDao.getExpenseById(expenseId)
-            ?: return Result.failure(IllegalArgumentException("Expense with id $expenseId not found"))
+        return try {
+            val existing = expenseDao.getExpenseById(expenseId)
+                ?: return Result.failure(IllegalArgumentException("Expense with id $expenseId not found"))
 
-        val rows = expenseDao.delete(existing)
-        return if (rows > 0) {
-            Result.success(true)
-        } else {
-            Result.failure(IllegalStateException("Failed to delete expense $expenseId"))
+            val rows = expenseDao.deleteSelfTransferAware(expenseId)
+            if (rows > 0) {
+                Result.success(true)
+            } else {
+                Result.failure(IllegalStateException("Failed to delete expense $expenseId"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

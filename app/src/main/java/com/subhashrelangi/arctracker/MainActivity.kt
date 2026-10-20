@@ -991,8 +991,10 @@ fun ExpenseScreen() {
                     expenses = expenses.filter { it.id != pendingExpense.id }
                     scope.launch(Dispatchers.IO) {
                         try {
-                            expenseDao.delete(pendingExpense)
-                        } catch (_: Exception) {}
+                            transactionManager.deleteTransaction(pendingExpense.id)
+                        } catch (_: Exception) {
+                            expenseDao.deleteSelfTransferAware(pendingExpense.id)
+                        }
                     }
                     showApproveDialog = null
                 },
@@ -1173,7 +1175,7 @@ fun ExpenseScreen() {
                         try {
                             transactionManager.deleteTransaction(expenseToDelete.id)
                         } catch (_: Exception) {
-                            expenseDao.delete(expenseToDelete)
+                            expenseDao.deleteSelfTransferAware(expenseToDelete.id)
                         }
                     }
                     editExpense = null
@@ -1194,7 +1196,7 @@ fun ExpenseScreen() {
                         try {
                             transactionManager.deleteTransaction(idToDelete)
                         } catch (_: Exception) {
-                            expenseDao.delete(expenseToDelete)
+                            expenseDao.deleteSelfTransferAware(idToDelete)
                         }
                     }
                     Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()

@@ -914,4 +914,234 @@ class TransactionManagementAndManualEditingTest {
         val result = transactionManager.deleteTransaction(999999)
         assertTrue(result.isFailure)
     }
+
+    // ==========================================
+    // SELF-TRANSFER DELETION INTEGRITY (58–63)
+    // ==========================================
+
+    @Test
+    fun test58_deleteSelfTransfer_removesRequestedRecord_andClearsCounterpartRelationshipFields() = runBlocking {
+        // Test A: Delete one side of self-transfer
+        val debitId = expenseDao.insert(
+            Expense(
+                amount = 1000.0,
+                merchant = "IPPB Out",
+                dateMillis = referenceTimeMillis,
+                type = "Debit",
+                accountSuffix = "2959",
+                relationshipType = "SELF_TRANSFER",
+                relationshipId = "SELF_TRANSFER_REF99"
+            )
+        ).toInt()
+
+        val creditId = expenseDao.insert(
+            Expense(
+                amount = 1000.0,
+                merchant = "APGBank In",
+                dateMillis = referenceTimeMillis + 1000L,
+                type = "Credit",
+                accountSuffix = "1065",
+                relationshipType = "SELF_TRANSFER",
+                relationshipId = "SELF_TRANSFER_REF99"
+            )
+        ).toInt()
+
+        assertEquals(2, expenseDao.getCount())
+
+        // Delete the debit half
+        val res = transactionManager.deleteTransaction(debitId)
+        assertTrue(res.isSuccess)
+
+        // 1. Debit half is deleted
+        assertNull(expenseDao.getExpenseById(debitId))
+        assertEquals(1, expenseDao.getCount())
+
+        // 2. Credit half survives with cleared relationship fields
+        val surviving = expenseDao.getExpenseById(creditId)
+        assertNotNull(surviving)
+        assertNull(surviving!!.relationshipType)
+        assertNull(surviving.relationshipId)
+
+        // 3. Surviving record preserves original transaction fields
+        assertEquals(1000.0, surviving.amount, 0.001)
+        assertEquals("Credit", surviving.type)
+        assertEquals("APGBank In", surviving.merchant)
+        assertEquals("1065", surviving.accountSuffix)
+        assertEquals(referenceTimeMillis + 1000L, surviving.dateMillis)
+    }
+
+    @Test
+    fun test59_deleteOrdinaryTransaction_existingBehaviorRemainsUnchanged() = runBlocking {
+        // Test B: Delete an ordinary transaction
+        val id = expenseDao.insert(
+            Expense(
+                amount = 250.0,
+                merchant = "Grocery Store",
+                dateMillis = referenceTimeMillis,
+                type = "Debit",
+                accountSuffix = "4321",
+                relationshipType = null,
+                relationshipId = null
+            )
+        ).toInt()
+
+        assertEquals(1, expenseDao.getCount())
+
+        val res = transactionManager.deleteTransaction(id)
+        assertTrue(res.isSuccess)
+        assertEquals(0, expenseDao.getCount())
+        assertNull(expenseDao.getExpenseById(id))
+    }
+
+    @Test
+    fun test60_deleteSelfTransfer_whenCounterpartMissing_succeedsSafely() = runBlocking {
+        // Test C: Delete self-transfer when counterpart is missing
+        val orphanId = expenseDao.insert(
+            Expense(
+                amount = 500.0,
+                merchant = "Orphan Transfer",
+                dateMillis = referenceTimeMillis,
+                type = "Debit",
+                relationshipType = "SELF_TRANSFER",
+                relationshipId = "SELF_TRANSFER_MISSING"
+            )
+        ).toInt()
+
+        assertEquals(1, expenseDao.getCount())
+
+        val res = transactionManager.deleteTransaction(orphanId)
+        assertTrue(res.isSuccess)
+        assertEquals(0, expenseDao.getCount())
+        assertNull(expenseDao.getExpenseById(orphanId))
+    }
+
+    @Test
+    fun test61_deleteSelfTransfer_failureDuringCounterpartUnlink_rollsBackEntirely() = runBlocking {
+        // Test D: Database failure during counterpart unlinking rolls back completely
+        val debitId = expenseDao.insert(
+            Expense(
+                amount = 800.0,
+                merchant = "Bank Debit",
+                dateMillis = referenceTimeMillis,
+                type = "Debit",
+                relationshipType = "SELF_TRANSFER",
+                relationshipId = "SELF_TRANSFER_FAIL"
+            )
+        ).toInt()
+
+        val creditId = expenseDao.insert(
+            Expense(
+                amount = 800.0,
+                merchant = "Bank Credit",
+                dateMillis = referenceTimeMillis,
+                type = "Credit",
+                relationshipType = "SELF_TRANSFER",
+                relationshipId = "SELF_TRANSFER_FAIL"
+            )
+        ).toInt()
+
+        // Arm failure on update
+        expenseDao.failOnUpdate = true
+
+        val res = transactionManager.deleteTransaction(debitId)
+        assertTrue(res.isFailure)
+
+        // Verify total rollback: neither was deleted, counterpart relationship remains intact
+        assertEquals(2, expenseDao.getCount())
+        assertNotNull(expenseDao.getExpenseById(debitId))
+        val creditAfter = expenseDao.getExpenseById(creditId)
+        assertNotNull(creditAfter)
+        assertEquals("SELF_TRANSFER", creditAfter!!.relationshipType)
+        assertEquals("SELF_TRANSFER_FAIL", creditAfter.relationshipId)
+    }
+
+    @Test
+    fun test62_deleteSelfTransfer_survivingRecordNowIncludedInMonthlyExpenseAggregation() = runBlocking {
+        // Test E: Monthly aggregation includes surviving unlinked transaction
+        val startMillis = referenceTimeMillis - 10000L
+        val endMillis = referenceTimeMillis + 10000L
+
+        val debitId = expenseDao.insert(
+            Expense(
+                amount = 450.0,
+                merchant = "Transfer Out",
+                dateMillis = referenceTimeMillis,
+                type = "Debit",
+                isPending = false,
+                relationshipType = "SELF_TRANSFER",
+                relationshipId = "SELF_TRANSFER_AGG"
+            )
+        ).toInt()
+
+        val creditId = expenseDao.insert(
+            Expense(
+                amount = 450.0,
+                merchant = "Transfer In",
+                dateMillis = referenceTimeMillis,
+                type = "Credit",
+                isPending = false,
+                relationshipType = "SELF_TRANSFER",
+                relationshipId = "SELF_TRANSFER_AGG"
+            )
+        ).toInt()
+
+        // Prior to deletion: both are self-transfers -> excluded from spending aggregation
+        val initialDebitTotal = expenseDao.getTotalAmountBetween(startMillis, endMillis, "Debit")
+        val initialCreditTotal = expenseDao.getTotalAmountBetween(startMillis, endMillis, "Credit")
+        assertEquals(0.0, initialDebitTotal, 0.001)
+        assertEquals(0.0, initialCreditTotal, 0.001)
+
+        // Delete the Credit side
+        val res = transactionManager.deleteTransaction(creditId)
+        assertTrue(res.isSuccess)
+
+        // After deletion: Credit is gone, Debit has relationshipType cleared to null
+        assertNull(expenseDao.getExpenseById(creditId))
+        val survivingDebit = expenseDao.getExpenseById(debitId)
+        assertNotNull(survivingDebit)
+        assertNull(survivingDebit!!.relationshipType)
+
+        // Surviving Debit is now correctly included in total spending aggregation
+        val finalDebitTotal = expenseDao.getTotalAmountBetween(startMillis, endMillis, "Debit")
+        assertEquals(450.0, finalDebitTotal, 0.001)
+    }
+
+    @Test
+    fun test63_deleteSelfTransfer_doesNotUnlinkUnrelatedTransactions() = runBlocking {
+        // Two independent transfers that happen to share a common base reference
+        val debitA = expenseDao.insert(
+            Expense(amount = 100.0, merchant = "Debit A", dateMillis = referenceTimeMillis, type = "Debit", relationshipType = "SELF_TRANSFER", relationshipId = "SHARED_REF")
+        ).toInt()
+        val creditA = expenseDao.insert(
+            Expense(amount = 100.0, merchant = "Credit A", dateMillis = referenceTimeMillis, type = "Credit", relationshipType = "SELF_TRANSFER", relationshipId = "SHARED_REF")
+        ).toInt()
+
+        val debitB = expenseDao.insert(
+            Expense(amount = 200.0, merchant = "Debit B", dateMillis = referenceTimeMillis, type = "Debit", relationshipType = "SELF_TRANSFER", relationshipId = "SHARED_REF")
+        ).toInt()
+        val creditB = expenseDao.insert(
+            Expense(amount = 200.0, merchant = "Credit B", dateMillis = referenceTimeMillis, type = "Credit", relationshipType = "SELF_TRANSFER", relationshipId = "SHARED_REF")
+        ).toInt()
+
+        assertEquals(4, expenseDao.getCount())
+
+        // Delete debitA (100.0 Debit). Should unlink creditA (100.0 Credit), and leave debitB and creditB intact.
+        val res = transactionManager.deleteTransaction(debitA)
+        assertTrue(res.isSuccess)
+
+        assertNull(expenseDao.getExpenseById(debitA))
+        val creditAAfter = expenseDao.getExpenseById(creditA)
+        assertNotNull(creditAAfter)
+        assertNull(creditAAfter!!.relationshipType)
+
+        // debitB and creditB must remain untouched with their self-transfer links
+        val debitBAfter = expenseDao.getExpenseById(debitB)
+        val creditBAfter = expenseDao.getExpenseById(creditB)
+        assertNotNull(debitBAfter)
+        assertNotNull(creditBAfter)
+        assertEquals("SELF_TRANSFER", debitBAfter!!.relationshipType)
+        assertEquals("SHARED_REF", debitBAfter.relationshipId)
+        assertEquals("SELF_TRANSFER", creditBAfter!!.relationshipType)
+        assertEquals("SHARED_REF", creditBAfter.relationshipId)
+    }
 }

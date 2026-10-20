@@ -70,8 +70,8 @@ class TransactionManagementDeviceTest {
      */
     @Test
     fun test01_roomV4Opens_andMerchantEditSurvivesRestart() = runBlocking {
-        // 1. Room v4 opens
-        assertEquals(4, database.openHelper.readableDatabase.version)
+        // 1. Room database opens at current version
+        assertEquals(AppDatabase.DATABASE_VERSION, database.openHelper.readableDatabase.version)
 
         val hdfc = KnownFinancialAccount(
             id = "hdfc_bank_account_9020",
@@ -402,5 +402,87 @@ class TransactionManagementDeviceTest {
         val inRepo = accountRepo.getById("sbi_bank_account_9988")
         assertNotNull(inRepo)
         assertEquals("9988", inRepo!!.accountSuffix)
+    }
+
+    /**
+     * Step 2 Verification on Physical Device:
+     * - Deleting one side of a self-transfer deletes the target record.
+     * - Clears relationshipType and relationshipId on the surviving counterpart.
+     * - Surviving record is now included in SQLite monthly aggregation queries.
+     * - Survives closing and reopening the Room database on real flash storage.
+     */
+    @Test
+    fun test06_deviceSelfTransferDeletion_unlinksCounterpart_andReflectsInAggregation() = runBlocking {
+        val now = System.currentTimeMillis()
+        val startMillis = now - 60000L
+        val endMillis = now + 60000L
+
+        val debitId = expenseDao.insert(
+            Expense(
+                amount = 1250.0,
+                merchant = "Transfer Debit",
+                dateMillis = now,
+                type = "Debit",
+                accountSuffix = "1122",
+                relationshipType = "SELF_TRANSFER",
+                relationshipId = "DEVICE_REL_9988"
+            )
+        ).toInt()
+
+        val creditId = expenseDao.insert(
+            Expense(
+                amount = 1250.0,
+                merchant = "Transfer Credit",
+                dateMillis = now + 1000L,
+                type = "Credit",
+                accountSuffix = "3344",
+                relationshipType = "SELF_TRANSFER",
+                relationshipId = "DEVICE_REL_9988"
+            )
+        ).toInt()
+
+        assertEquals(2, expenseDao.getCount())
+
+        // Prior to deletion: excluded from aggregation
+        val debitBefore = expenseDao.getTotalAmountBetween(startMillis, endMillis, "Debit")
+        val creditBefore = expenseDao.getTotalAmountBetween(startMillis, endMillis, "Credit")
+        assertEquals(0.0, debitBefore, 0.001)
+        assertEquals(0.0, creditBefore, 0.001)
+
+        // Delete the Debit side using TransactionManager
+        val deleteRes = transactionManager.deleteTransaction(debitId)
+        assertTrue(deleteRes.isSuccess)
+
+        // Verify SQLite state: Debit removed, Credit unlinked
+        assertEquals(1, expenseDao.getCount())
+        assertNull(expenseDao.getExpenseById(debitId))
+
+        val creditSurviving = expenseDao.getExpenseById(creditId)
+        assertNotNull(creditSurviving)
+        assertNull(creditSurviving!!.relationshipType)
+        assertNull(creditSurviving.relationshipId)
+        assertEquals(1250.0, creditSurviving.amount, 0.001)
+        assertEquals("Credit", creditSurviving.type)
+
+        // Verify Credit is now included in SQLite aggregation
+        val creditAfter = expenseDao.getTotalAmountBetween(startMillis, endMillis, "Credit")
+        assertEquals(1250.0, creditAfter, 0.001)
+
+        // Close and reopen database to verify persistence on flash storage
+        database.close()
+        val reopenedDb = Room.databaseBuilder(context, AppDatabase::class.java, persistentDbName)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val reopenedDao = reopenedDb.expenseDao()
+            assertEquals(1, reopenedDao.getCount())
+            val reopenedCredit = reopenedDao.getExpenseById(creditId)
+            assertNotNull(reopenedCredit)
+            assertNull(reopenedCredit!!.relationshipType)
+            assertNull(reopenedCredit.relationshipId)
+            assertEquals(1250.0, reopenedCredit.amount, 0.001)
+        } finally {
+            reopenedDb.close()
+        }
     }
 }

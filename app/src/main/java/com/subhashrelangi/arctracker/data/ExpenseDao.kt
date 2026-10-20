@@ -97,6 +97,55 @@ interface ExpenseDao {
         return saved
     }
 
+    /**
+     * Atomically deletes an expense and disassociates its self-transfer counterpart if present.
+     *
+     * Invariants:
+     * - If [expenseId] does not exist, returns 0.
+     * - If the record has [relationshipType] == "SELF_TRANSFER" and a non-blank [relationshipId],
+     *   locates the paired counterpart with opposite direction and matching amount, and clears
+     *   its [relationshipType] and [relationshipId] so it is no longer excluded from spending totals.
+     * - If counterpart is missing, deletes the requested record safely.
+     * - Preserves all other transaction fields on the surviving record.
+     * - Executes inside a single Room database transaction; rolls back completely on any failure.
+     */
+    @Transaction
+    suspend fun deleteSelfTransferAware(expenseId: Int): Int {
+        val existing = getExpenseById(expenseId) ?: return 0
+
+        val relType = existing.relationshipType
+        val relId = existing.relationshipId
+
+        if (relType == "SELF_TRANSFER" && !relId.isNullOrBlank()) {
+            val candidateCounterparts = getExpensesByRelationshipId(relId).filter { it.id != expenseId }
+            val targetCounterpart = if (candidateCounterparts.size <= 1) {
+                candidateCounterparts.firstOrNull()
+            } else {
+                candidateCounterparts.find {
+                    !it.type.equals(existing.type, ignoreCase = true) &&
+                    kotlin.math.abs(it.amount - existing.amount) < 0.01
+                } ?: candidateCounterparts.firstOrNull()
+            }
+
+            if (targetCounterpart != null && targetCounterpart.relationshipType == "SELF_TRANSFER") {
+                val cleared = targetCounterpart.copy(
+                    relationshipType = null,
+                    relationshipId = null
+                )
+                val updated = update(cleared)
+                if (updated <= 0) {
+                    throw IllegalStateException("Failed to disassociate self-transfer counterpart id=${targetCounterpart.id}")
+                }
+            }
+        }
+
+        val deletedRows = delete(existing)
+        if (deletedRows <= 0) {
+            throw IllegalStateException("Failed to delete expense id=$expenseId")
+        }
+        return deletedRows
+    }
+
     @Query("UPDATE expenses SET accountId = :accountId WHERE id = :id")
     suspend fun updateAccountId(id: Int, accountId: String?): Int
 
