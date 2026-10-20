@@ -319,10 +319,21 @@ fun ReviewPage(
                 Button(
                     onClick = {
                         scope.launch {
-                            withContext(Dispatchers.IO) {
-                                expenseDao.deleteSelfTransferAware(exp.id)
+                            try {
+                                val deleted = withContext(Dispatchers.IO) {
+                                    expenseDao.deleteSelfTransferAware(exp.id)
+                                }
+                                if (deleted > 0) {
+                                    Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    SecureLogger.w("ReviewPage", "No rows affected deleting transaction id=${exp.id}")
+                                    Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                SecureLogger.e("ReviewPage", "Failed to delete transaction id=${exp.id}", e)
+                                Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
                             }
-                            Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()
                         }
                         deleteConfirmExpense = null
                     },

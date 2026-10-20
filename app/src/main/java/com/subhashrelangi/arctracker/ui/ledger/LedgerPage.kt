@@ -25,6 +25,7 @@ import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
+import com.subhashrelangi.arctracker.security.SecureLogger
 import com.subhashrelangi.arctracker.service.AccountReconciliationManager
 import com.subhashrelangi.arctracker.service.CategoryManager
 import com.subhashrelangi.arctracker.service.TransactionManager
@@ -32,6 +33,7 @@ import com.subhashrelangi.arctracker.ui.DarkDeleteConfirmDialog
 import com.subhashrelangi.arctracker.ui.MonthOption
 import com.subhashrelangi.arctracker.ui.TransactionActionSheet
 import com.subhashrelangi.arctracker.ui.TransactionDetailDialog
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -380,7 +382,20 @@ fun LedgerPage(
             },
             onDelete = { expenseToDelete ->
                 scope.launch(Dispatchers.IO) {
-                    transactionManager.deleteTransaction(expenseToDelete.id)
+                    try {
+                        val res = transactionManager.deleteTransaction(expenseToDelete.id)
+                        if (res.isFailure) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        SecureLogger.e("LedgerPage", "Failed to delete transaction id=${expenseToDelete.id}", e)
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
                 selectedExpenseForDetailId = null
                 openDetailInEditMode = false
@@ -416,9 +431,23 @@ fun LedgerPage(
                 val idToDelete = expenseToDelete.id
                 deleteConfirmExpense = null
                 scope.launch(Dispatchers.IO) {
-                    transactionManager.deleteTransaction(idToDelete)
+                    try {
+                        val res = transactionManager.deleteTransaction(idToDelete)
+                        withContext(Dispatchers.Main) {
+                            if (res.isSuccess) {
+                                Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        SecureLogger.e("LedgerPage", "Failed to delete transaction id=$idToDelete", e)
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
-                Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()
             },
             onDismiss = { deleteConfirmExpense = null }
         )

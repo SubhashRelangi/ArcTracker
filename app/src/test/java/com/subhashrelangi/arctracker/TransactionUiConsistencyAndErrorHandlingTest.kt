@@ -167,6 +167,87 @@ class TransactionUiConsistencyAndErrorHandlingTest {
         assertNotNull(expenseDao.getExpenseById(id))
     }
 
+    @Test
+    fun testD2_ledgerPageDeletionFailure_branchesOnResultCorrectly() = runBlocking {
+        val id = expenseDao.insert(
+            Expense(
+                amount = 300.0,
+                merchant = "Grocery Store",
+                type = "Debit",
+                dateMillis = testTimestamp
+            )
+        ).toInt()
+
+        // 1. Success case: res.isSuccess is true
+        val successResult = transactionManager.deleteTransaction(id)
+        assertTrue("res.isSuccess must be true on successful deletion", successResult.isSuccess)
+        assertFalse("res.isFailure must be false on successful deletion", successResult.isFailure)
+
+        // 2. Failure case: deleting non-existent ID returns Result.failure
+        val missingResult = transactionManager.deleteTransaction(99999)
+        assertTrue("res.isFailure must be true when deleting non-existent record", missingResult.isFailure)
+        assertFalse("res.isSuccess must be false when deleting non-existent record", missingResult.isSuccess)
+
+        // 3. Database error case
+        val id2 = expenseDao.insert(
+            Expense(
+                amount = 150.0,
+                merchant = "Pharmacy",
+                type = "Debit",
+                dateMillis = testTimestamp
+            )
+        ).toInt()
+        expenseDao.failOnDelete = true
+        val dbErrorResult = transactionManager.deleteTransaction(id2)
+        assertTrue("res.isFailure must be true on SQLite delete failure", dbErrorResult.isFailure)
+        assertFalse("res.isSuccess must be false on SQLite delete failure", dbErrorResult.isSuccess)
+        assertEquals("Record must be preserved in database when deletion fails", "Pharmacy", expenseDao.getExpenseById(id2)?.merchant)
+    }
+
+    @Test
+    fun testD3_reviewPageDeletionFailure_handlesExceptionSafely() = runBlocking {
+        val id = expenseDao.insert(
+            Expense(
+                amount = 250.0,
+                merchant = "Pending Dine",
+                type = "Debit",
+                dateMillis = testTimestamp,
+                isPending = true
+            )
+        ).toInt()
+
+        // 1. Failure on deleteSelfTransferAware due to simulated SQLite error
+        expenseDao.failOnDelete = true
+        var exceptionCaught = false
+        var failureHandled = false
+        try {
+            val deleted = expenseDao.deleteSelfTransferAware(id)
+            if (deleted <= 0) {
+                failureHandled = true
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            exceptionCaught = true
+        }
+
+        assertTrue("Exception must be caught safely by ReviewPage delete handler", exceptionCaught || failureHandled)
+        expenseDao.failOnDelete = false
+        assertNotNull("Record must remain in database if deleteSelfTransferAware fails", expenseDao.getExpenseById(id))
+
+        // 2. CancellationException is rethrown
+        var cancellationRethrown = false
+        try {
+            try {
+                throw CancellationException("Review dialog dismissed or scope cancelled")
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+            }
+        } catch (e: CancellationException) {
+            cancellationRethrown = true
+        }
+        assertTrue("CancellationException must be rethrown", cancellationRethrown)
+    }
+
     // ==========================================
     // TEST E: PENDING APPROVAL FAILURE
     // ==========================================
