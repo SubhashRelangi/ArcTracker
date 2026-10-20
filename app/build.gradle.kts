@@ -58,6 +58,13 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
+    sourceSets {
+        getByName("androidTest").assets.srcDirs("$projectDir/schemas")
+    }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 val releaseSigningTasks = setOf("validateSigningRelease", "signReleaseBundle")

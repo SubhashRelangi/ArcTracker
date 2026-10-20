@@ -23,7 +23,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DeletedTransactionTombstone::class
     ],
     version = 9,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(KnownFinancialAccountConverters::class)
 abstract class AppDatabase : RoomDatabase() {
