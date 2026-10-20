@@ -426,4 +426,71 @@ class NotificationIngestionRemediationTest {
         val persistedExpenses = fakeDao.getAllExpensesList()
         assertEquals("All $totalCount transactions must be safely persisted in Room without race conditions", totalCount, persistedExpenses.size)
     }
+
+    // 23. Multiple concurrent identical notifications result in exactly 1 insertion and all others skipped as duplicate
+    @Test
+    fun test23_concurrentIdenticalNotifications_exactlyOneInserted_othersSkipped() = runBlocking {
+        val count = 10
+        val deferredResults = (1..count).map {
+            async(Dispatchers.Default) {
+                val raw = CapturedNotificationInfo(
+                    packageName = "com.bank.app",
+                    notificationKey = "identical_concurrent_key",
+                    postTime = 1000L,
+                    text = "Paid ₹750 to Cafe Coffee Day. Ref ID CCD998877"
+                )
+                TransactionPersistenceManager.processCapturedNotification(raw, fakeDao)
+            }
+        }
+        val results = deferredResults.awaitAll()
+        assertEquals(count, results.size)
+        val insertedCount = results.count { it is ExpensePersistenceResult.Inserted }
+        val skippedCount = results.count { it is ExpensePersistenceResult.SkippedDuplicate }
+        assertEquals("Exactly one insertion must succeed", 1, insertedCount)
+        assertEquals("All other concurrent attempts must be skipped as duplicates", count - 1, skippedCount)
+        assertEquals("Room must contain exactly 1 transaction", 1, fakeDao.getAllExpensesList().size)
+    }
+
+    // 24. Persistence failure (e.g. disk full or Room SQLite exception) safely returns Error result and logs diagnostic
+    @Test
+    fun test24_persistenceFailure_safelyHandledAndEmitsDiagnosticEvent() = runBlocking {
+        val throwingDao = object : FakeExpenseDao() {
+            override suspend fun insert(expense: Expense): Long {
+                throw android.database.sqlite.SQLiteFullException("Disk space full")
+            }
+        }
+        val raw = CapturedNotificationInfo(
+            packageName = "com.bank.app",
+            notificationKey = "throwing_dao_key",
+            postTime = 1000L,
+            text = "Paid ₹1,500 to Grocery Mart"
+        )
+        val result = TransactionPersistenceManager.processCapturedNotification(raw, throwingDao)
+        assertTrue("Must return ExpensePersistenceResult.Error on database failure", result is ExpensePersistenceResult.Error)
+        val persistFailedEvents = DiagnosticEventManager.getEventsForCategory(DiagnosticCategory.PERSISTENCE_FAILED)
+        assertTrue("PERSISTENCE_FAILED diagnostic event must be emitted", persistFailedEvents.isNotEmpty())
+    }
+
+    // 25. Multi-transaction notification persists all distinct transactions with unique indexed notification keys
+    @Test
+    fun test25_multiTransactionNotification_bothPersistedWithDistinctKeys() = runBlocking {
+        val raw = CapturedNotificationInfo(
+            packageName = "com.phonepe.app",
+            notificationKey = "multi_phonepe_key",
+            postTime = 1000L,
+            text = "Paid ₹300 to Bakery. Paid ₹150 to Juice Shop."
+        )
+        val results = TransactionPersistenceManager.processCapturedNotificationAll(raw, fakeDao)
+        assertEquals("Must extract and process both transactions", 2, results.size)
+        assertTrue("First transaction inserted", results[0] is ExpensePersistenceResult.Inserted)
+        assertTrue("Second transaction inserted", results[1] is ExpensePersistenceResult.Inserted)
+
+        val persisted = fakeDao.getAllExpensesList()
+        assertEquals("Both transactions persisted in Room", 2, persisted.size)
+        val key0 = persisted.find { it.amount == 300.0 }?.notificationKey
+        val key1 = persisted.find { it.amount == 150.0 }?.notificationKey
+        assertNotNull("First key must be non-null", key0)
+        assertNotNull("Second key must be non-null", key1)
+        assertNotEquals("Notification keys for multi-transaction candidates must be distinct", key0, key1)
+    }
 }
