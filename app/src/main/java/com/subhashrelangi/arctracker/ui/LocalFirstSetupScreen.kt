@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.subhashrelangi.arctracker.BuildConfig
 import com.subhashrelangi.arctracker.R
 import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
@@ -69,6 +70,9 @@ import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 private val SetupLightBackground = Color(0xFFFFFFFF)
 private val BrandTextPrimary = Color(0xFF0F172A)
 private val BrandTextSecondary = Color(0xFF64748B)
+private val VersionBadgeBg = Color(0xFFF1F5F9)
+private val VersionBadgeText = Color(0xFF64748B)
+private val StatusIndicatorGreen = Color(0xFF10B981)
 
 // Step badge
 private val StepPillBg = Color(0xFFECFDF5)
@@ -174,7 +178,7 @@ fun LocalFirstSetupScreen(
                 .padding(horizontal = 24.dp, vertical = 12.dp)
         ) {
             // ----------------------------------------------------
-            // 1. Top Bar Header
+            // 1. Top Bar Header (Matches InitialPageScreen exactly)
             // ----------------------------------------------------
             Row(
                 modifier = Modifier
@@ -183,6 +187,7 @@ fun LocalFirstSetupScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Left: Title starts first, followed by GitHub version pill
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -191,89 +196,92 @@ fun LocalFirstSetupScreen(
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = BrandTextPrimary,
-                        letterSpacing = (-0.3).sp
+                        letterSpacing = (-0.4).sp
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "/ Onboarding",
-                        fontSize = 14.5.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = BrandTextSecondary
-                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Version Badge Pill (GitHub downloaded version)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(VersionBadgeBg)
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = BuildConfig.GITHUB_VERSION.ifEmpty { "v${BuildConfig.VERSION_NAME}" },
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = VersionBadgeText
+                        )
+                    }
                 }
 
-                // Top Right: Light Theme Logo
-                Image(
-                    painter = painterResource(id = R.drawable.ic_logo_light),
-                    contentDescription = "ArcTracker Light Theme Logo",
-                    modifier = Modifier.size(32.dp)
+                // Right: Status Indicator Green Dot
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(StatusIndicatorGreen)
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // ----------------------------------------------------
             // 2. Stepper Status Row
             // ----------------------------------------------------
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.CenterVertically
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(StepPillBg)
+                    .border(BorderStroke(1.dp, StepPillBorder), CircleShape)
+                    .padding(horizontal = 10.dp, vertical = 3.dp)
             ) {
-                // "• STEP 1 OF 2" pill
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(StepPillBg)
-                        .border(BorderStroke(1.dp, StepPillBorder), RoundedCornerShape(50))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(StepPillText)
-                        )
-                        Text(
-                            text = "STEP 1 OF 2",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.6.sp,
-                            color = StepPillText
-                        )
-                    }
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(StepPillText)
+                    )
+                    Text(
+                        text = "STEP 1 OF 2",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = StepPillText
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // ----------------------------------------------------
             // 3. Headline & Description
             // ----------------------------------------------------
             Text(
-                text = "Capture transactions\nautomatically",
-                fontSize = 28.sp,
+                text = "Capture transactions automatically",
+                fontSize = 23.sp,
                 fontWeight = FontWeight.Bold,
-                lineHeight = 35.sp,
+                lineHeight = 28.sp,
                 letterSpacing = (-0.4).sp,
                 color = BrandTextPrimary
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Text(
                 text = "ArcTracker listens for supported banking and payment notifications locally, recording logs instantly without cloud routing.",
-                fontSize = 14.5.sp,
+                fontSize = 13.5.sp,
                 fontWeight = FontWeight.Normal,
-                lineHeight = 21.sp,
+                lineHeight = 19.sp,
                 color = BrandTextSecondary
             )
 
-            Spacer(modifier = Modifier.height(26.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // ----------------------------------------------------
             // 4. Essential Permission Cards
@@ -282,14 +290,14 @@ fun LocalFirstSetupScreen(
             // Card 1: Notification Listener Service Status Card
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = CardSurface,
                 border = BorderStroke(1.dp, CardBorder)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -299,8 +307,8 @@ fun LocalFirstSetupScreen(
                         // Bell Icon in rounded box
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(10.dp))
                                 .background(IconBoxBg),
                             contentAlignment = Alignment.Center
                         ) {
@@ -308,23 +316,23 @@ fun LocalFirstSetupScreen(
                                 imageVector = Icons.Outlined.NotificationsNone,
                                 contentDescription = null,
                                 tint = if (isNotificationGranted) StepPillText else BrandTextPrimary,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(19.dp)
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(14.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
 
                         Column {
                             Text(
                                 text = "Notification Listener",
-                                fontSize = 15.sp,
+                                fontSize = 14.5.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = BrandTextPrimary
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "Android System Service",
-                                fontSize = 12.sp,
+                                fontSize = 11.5.sp,
                                 color = BrandTextSecondary
                             )
                         }
@@ -338,10 +346,10 @@ fun LocalFirstSetupScreen(
 
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(50))
+                            .clip(CircleShape)
                             .background(statusBg)
-                            .border(BorderStroke(1.dp, statusBorder), RoundedCornerShape(50))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .border(BorderStroke(1.dp, statusBorder), CircleShape)
+                            .padding(horizontal = 9.dp, vertical = 3.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -355,7 +363,7 @@ fun LocalFirstSetupScreen(
                             )
                             Text(
                                 text = statusLabel,
-                                fontSize = 11.5.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = statusText
                             )
@@ -364,34 +372,34 @@ fun LocalFirstSetupScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Card 2: Essential Explanation / Info Card
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = CardSurface,
                 border = BorderStroke(1.dp, CardBorder)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.Top
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Info,
                         contentDescription = null,
                         tint = BrandTextSecondary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
                     Text(
                         text = "Android isolates financial alert listeners. Tapping enable will direct you directly to Android's Device & App Notifications manager where ArcTracker can be authorized.",
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
                         color = BrandTextSecondary
                     )
                 }
@@ -552,7 +560,7 @@ fun LocalFirstSetupScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
             }
         }
     }

@@ -418,7 +418,7 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
-        containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup")) Color.White else if (currentRoute in listOf("Home", "SmsImport", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
+        containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport")) Color.White else if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
 
         topBar = {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
@@ -625,27 +625,21 @@ fun ExpenseScreen() {
 
             } else if (currentRoute == "SmsImport") {
 
-                com.subhashrelangi.arctracker.ui.SmsImportScreen(
-                    onNavigateBack = {
-                        navigateBack()
-                    },
+                com.subhashrelangi.arctracker.ui.SmsSetupScreen(
                     onImportCompleted = {
                         settingsRepo.setSetupInProgress(false)
                         settingsRepo.setInitialOnboardingCompleted(true)
                         SmsPermissionHelper.setInitialImportCompleted(context, true)
                         backStack = listOf("Home")
                     },
-                    onNavigateToLedger = {
+                    onSkipClick = {
                         settingsRepo.setSetupInProgress(false)
                         settingsRepo.setInitialOnboardingCompleted(true)
                         SmsPermissionHelper.setInitialImportCompleted(context, true)
-                        backStack = listOf("Home", "Transactions")
+                        backStack = listOf("Home")
                     },
-                    onNavigateToReview = {
-                        settingsRepo.setSetupInProgress(false)
-                        settingsRepo.setInitialOnboardingCompleted(true)
-                        SmsPermissionHelper.setInitialImportCompleted(context, true)
-                        backStack = listOf("Home", "Review")
+                    onBackClick = {
+                        navigateBack()
                     }
                 )
 
@@ -1308,7 +1302,7 @@ fun ExpenseScreen() {
             )
         }
 
-        if (currentRoute != "InitialOnboarding" && currentRoute != "LocalFirstSetup") {
+        if (currentRoute != "InitialOnboarding" && currentRoute != "LocalFirstSetup" && currentRoute != "SmsImport") {
             if (!isNotificationAccessGranted && !hasDismissedNotificationPermissionDialog) {
                 NotificationPermissionDialog(
                     onGrantClick = {

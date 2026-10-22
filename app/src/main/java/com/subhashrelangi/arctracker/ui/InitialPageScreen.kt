@@ -135,10 +135,10 @@ fun InitialPageScreen(
                 ) {
                     Text(
                         text = "ArcTracker",
-                        fontSize = 18.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = BrandTextPrimary,
-                        letterSpacing = (-0.3).sp
+                        letterSpacing = (-0.4).sp
                     )
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -397,10 +397,11 @@ fun InitialPageScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // Local-First Security Note
                 Row(
+                    modifier = Modifier.padding(vertical = 6.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -419,7 +420,7 @@ fun InitialPageScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
             }
         }
     }
