@@ -168,6 +168,16 @@ interface MonitoringSettingsRepository {
      */
     fun setAutoSmsScanArchiveEnabled(enabled: Boolean) {}
 
+    /**
+     * Returns whether the user is currently in temporary demo mode without having completed onboarding.
+     */
+    fun isDemoMode(): Boolean = false
+
+    /**
+     * Sets whether the user is currently in temporary demo mode.
+     */
+    fun setDemoMode(isDemo: Boolean) {}
+
     companion object {
         const val PREFS_NAME = "ArcTrackerPrefs"
         const val KEY_GLOBAL_ENABLED = "monitoring_global_enabled"
@@ -180,6 +190,7 @@ interface MonitoringSettingsRepository {
         const val KEY_INITIAL_ONBOARDING_COMPLETED = "initial_onboarding_completed"
         const val KEY_SETUP_IN_PROGRESS = "setup_in_progress"
         const val KEY_AUTO_SMS_SCAN_ARCHIVE = "auto_sms_scan_archive"
+        const val KEY_IS_DEMO_MODE = "is_demo_mode"
 
         @Volatile
         private var INSTANCE: MonitoringSettingsRepository? = null
@@ -509,6 +520,16 @@ class SharedPreferencesMonitoringSettingsRepository(
             .commit()
     }
 
+    override fun isDemoMode(): Boolean = synchronized(lock) {
+        prefs.getBoolean(MonitoringSettingsRepository.KEY_IS_DEMO_MODE, false)
+    }
+
+    override fun setDemoMode(isDemo: Boolean): Unit = synchronized(lock) {
+        prefs.edit()
+            .putBoolean(MonitoringSettingsRepository.KEY_IS_DEMO_MODE, isDemo)
+            .commit()
+    }
+
     override fun resetToDefaults(): Unit = synchronized(lock) {
         val wasInitialCompleted = prefs.getBoolean(MonitoringSettingsRepository.KEY_INITIAL_SMS_IMPORT_COMPLETED, false)
         prefs.edit()
@@ -517,6 +538,7 @@ class SharedPreferencesMonitoringSettingsRepository(
             .putBoolean(MonitoringSettingsRepository.KEY_NOTIFICATION_TRACKING_ENABLED, true)
             .putBoolean(MonitoringSettingsRepository.KEY_SMS_TRACKING_ENABLED, true)
             .putBoolean(MonitoringSettingsRepository.KEY_INITIAL_SMS_IMPORT_COMPLETED, wasInitialCompleted)
+            .putBoolean(MonitoringSettingsRepository.KEY_IS_DEMO_MODE, false)
             .putStringSet(MonitoringSettingsRepository.KEY_ENABLED_PACKAGES, AppCatalog.defaultEnabledPackages)
             .remove(MonitoringSettingsRepository.KEY_USER_ADDED_APPS)
             .apply()
@@ -680,10 +702,21 @@ class InMemoryMonitoringSettingsRepository(
         autoSmsScanArchiveEnabled = enabled
     }
 
+    private var isDemoMode: Boolean = false
+
+    override fun isDemoMode(): Boolean = synchronized(lock) {
+        isDemoMode
+    }
+
+    override fun setDemoMode(isDemo: Boolean): Unit = synchronized(lock) {
+        isDemoMode = isDemo
+    }
+
     override fun resetToDefaults(): Unit = synchronized(lock) {
         globalEnabled = true
         isNotificationTracking = true
         isSmsTracking = true
+        isDemoMode = false
         // initialSmsImportCompleted is preserved as onboarding state is first-time only
         enabledPackages.clear()
         enabledPackages.addAll(AppCatalog.defaultEnabledPackages)

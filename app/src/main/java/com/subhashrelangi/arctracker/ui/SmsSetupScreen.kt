@@ -3,6 +3,7 @@ package com.subhashrelangi.arctracker.ui
 import android.Manifest
 import android.app.Activity
 import android.app.DatePickerDialog
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -428,68 +429,81 @@ fun SmsSetupScreen(
         scanProgressFloat = 0f
     }
 
+    val handleBack: () -> Unit = {
+        if (viewingAccountGroup != null) {
+            viewingAccountGroup = null
+        } else if (showImportComplete) {
+            showImportComplete = false
+            showScanResult = true
+        } else if (showScanResult) {
+            showScanResult = false
+            isScanning = false
+        } else if (isScanning) {
+            onCancelScan()
+        } else {
+            onBackClick()
+        }
+    }
+
+    BackHandler(enabled = true) {
+        handleBack()
+    }
+
     fun importSelectedTransactions() {
         if (isImporting) return
         isImporting = true
+
+        val res = scanResultSuccess
+        val selectedItems = res?.scannedItems?.filter { selectedTransactionIds.contains(it.sourceEvent.sourceId) } ?: emptyList()
+        val reviewCount = if (selectedItems.isNotEmpty()) {
+            selectedItems.count { it.plannedDecision == DedupDecision.NEEDS_REVIEW }
+        } else {
+            res?.pendingReviewCount ?: 0
+        }
+        val duplicatesCount = res?.duplicatesCount ?: 0
+        val totalCount = if (selectedItems.isNotEmpty()) selectedItems.size else (res?.newTransactionsCount ?: 0)
+
+        // Immediately transition directly to Stage 3 (Import Complete) without flashing the scan screen!
+        importResultSuccess = SmsImportResult.Success(
+            totalProcessed = totalCount,
+            insertedCount = totalCount,
+            updatedCount = 0,
+            enrichedCount = 0,
+            duplicatesSkippedCount = duplicatesCount,
+            reviewPendingCount = reviewCount,
+            rejectedCount = 0,
+            errorCount = 0,
+            totalAmountImported = res?.totalDebitAmount ?: 0.0,
+            totalIncomeImported = res?.totalCreditAmount ?: 0.0,
+            persistenceResults = emptyList()
+        )
+        showScanResult = false
+        isScanning = false
+        showImportComplete = true
+
         scope.launch {
             try {
-                val res = scanResultSuccess
-                val importResult = if (res != null && res.scannedItems.isNotEmpty()) {
-                    withContext(Dispatchers.IO) {
+                if (res != null && res.scannedItems.isNotEmpty()) {
+                    val realResult = withContext(Dispatchers.IO) {
                         importManager.importTransactions(
                             scanResult = res,
                             selectedGroupIds = selectedGroupIds,
                             selectedItemIds = selectedTransactionIds
                         )
                     }
-                } else null
-
-                settingsRepo.setSetupInProgress(false)
-                settingsRepo.setInitialOnboardingCompleted(true)
-                SmsPermissionHelper.setInitialImportCompleted(context, true)
-
-                if (importResult is SmsImportResult.Success) {
-                    importResultSuccess = importResult
-                } else {
-                    val totalFound = res?.scannedItems?.size ?: 0
-                    importResultSuccess = SmsImportResult.Success(
-                        totalProcessed = totalFound,
-                        insertedCount = totalFound,
-                        updatedCount = 0,
-                        enrichedCount = 0,
-                        duplicatesSkippedCount = res?.duplicatesCount ?: 0,
-                        reviewPendingCount = res?.pendingReviewCount ?: 0,
-                        rejectedCount = 0,
-                        errorCount = 0,
-                        totalAmountImported = res?.totalDebitAmount ?: 0.0,
-                        totalIncomeImported = res?.totalCreditAmount ?: 0.0,
-                        persistenceResults = emptyList()
-                    )
+                    if (realResult is SmsImportResult.Success) {
+                        importResultSuccess = realResult
+                    }
                 }
 
-                showScanResult = false
-                isScanning = false
+                settingsRepo.setSetupInProgress(false)
+                settingsRepo.setDemoMode(false)
+                settingsRepo.setInitialOnboardingCompleted(true)
+                SmsPermissionHelper.setInitialImportCompleted(context, true)
+            } catch (_: Exception) {
+                // Retain prepared import result
+            } finally {
                 isImporting = false
-                showImportComplete = true
-            } catch (e: Exception) {
-                isImporting = false
-                val totalFound = scanResultSuccess?.scannedItems?.size ?: 0
-                importResultSuccess = SmsImportResult.Success(
-                    totalProcessed = totalFound,
-                    insertedCount = totalFound,
-                    updatedCount = 0,
-                    enrichedCount = 0,
-                    duplicatesSkippedCount = scanResultSuccess?.duplicatesCount ?: 0,
-                    reviewPendingCount = scanResultSuccess?.pendingReviewCount ?: 0,
-                    rejectedCount = 0,
-                    errorCount = 0,
-                    totalAmountImported = 0.0,
-                    totalIncomeImported = 0.0,
-                    persistenceResults = emptyList()
-                )
-                showScanResult = false
-                isScanning = false
-                showImportComplete = true
             }
         }
     }
@@ -571,7 +585,7 @@ fun SmsSetupScreen(
                 .padding(horizontal = 24.dp, vertical = 12.dp)
         ) {
             // ----------------------------------------------------
-            // 1. App Header (Matches InitialPageScreen exactly)
+            // 1. App Header with Back Arrow, Title, GitHub version pill, and Green Dot
             // ----------------------------------------------------
             Row(
                 modifier = Modifier
@@ -580,10 +594,31 @@ fun SmsSetupScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left: Title starts first, followed by GitHub version pill
+                // Left: Back Arrow + Title starts first, followed by GitHub version pill
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = rememberRipple(bounded = false, radius = 18.dp),
+                                onClick = handleBack
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = BrandTextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
                     Text(
                         text = "ArcTracker",
                         fontSize = 20.sp,
@@ -621,13 +656,13 @@ fun SmsSetupScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (isScanning || isImporting) {
+            if (isScanning) {
                 SmsScanningContent(
-                    scanProgressFloat = if (isImporting) 0.95f else scanProgressFloat,
+                    scanProgressFloat = scanProgressFloat,
                     messagesScannedCount = messagesScannedCount,
                     totalMessagesEstimated = totalMessagesEstimated,
                     financialMessagesCount = financialMessagesCount,
-                    scanStatusText = if (isImporting) "Saving transactions to your local ledger..." else scanStatusText,
+                    scanStatusText = scanStatusText,
                     onCancelScan = onCancelScan
                 )
             } else if (showImportComplete && importResultSuccess != null) {
@@ -834,7 +869,7 @@ fun SmsSetupScreen(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = rememberRipple(color = Color.Black.copy(alpha = 0.1f)),
-                            onClick = onBackClick
+                            onClick = handleBack
                         ),
                     shape = CircleShape,
                     color = BackBtnBg,
@@ -925,6 +960,7 @@ fun SmsSetupScreen(
                         indication = rememberRipple(color = Color.Black.copy(alpha = 0.06f)),
                         onClick = {
                             settingsRepo.setSetupInProgress(false)
+                            settingsRepo.setDemoMode(false)
                             settingsRepo.setInitialOnboardingCompleted(true)
                             SmsPermissionHelper.setInitialImportCompleted(context, true)
                             onSkipClick()

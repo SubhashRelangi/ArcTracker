@@ -139,34 +139,6 @@ fun ExpenseScreen() {
         mutableStateOf(false)
     }
 
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
-                if (isNotificationAccessGranted != granted) {
-                    isNotificationAccessGranted = granted
-                }
-                if (pendingHomeNotificationGrant) {
-                    pendingHomeNotificationGrant = false
-                    if (granted) {
-                        settingsRepo.setGlobalEnabled(true)
-                        settingsRepo.setNotificationTrackingEnabled(true)
-                    } else {
-                        settingsRepo.setGlobalEnabled(false)
-                        settingsRepo.setNotificationTrackingEnabled(false)
-                    }
-                }
-                if (SmsPermissionHelper.isSmsPermissionGranted(context)) {
-                    SmsPermissionHelper.setInitialImportCompleted(context, true)
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
     val database = remember { com.subhashrelangi.arctracker.data.AppDatabase.getDatabase(context) }
     val expenseDao = remember { database.expenseDao() }
     val expenses by expenseDao.getAllExpenses().collectAsState(initial = emptyList())
@@ -315,12 +287,63 @@ fun ExpenseScreen() {
     }
     val currentRoute = backStack.lastOrNull() ?: "Home"
 
+    var appWasBackgroundedInDemo by rememberSaveable { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                // If user leaves the app while in demo mode (onboarding not completed), record that the app was closed/stopped
+                if (!settingsRepo.isInitialOnboardingCompleted() && settingsRepo.isDemoMode()) {
+                    appWasBackgroundedInDemo = true
+                }
+            } else if (event == Lifecycle.Event.ON_RESUME) {
+                val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
+                if (isNotificationAccessGranted != granted) {
+                    isNotificationAccessGranted = granted
+                }
+                if (pendingHomeNotificationGrant) {
+                    pendingHomeNotificationGrant = false
+                    if (granted) {
+                        settingsRepo.setGlobalEnabled(true)
+                        settingsRepo.setNotificationTrackingEnabled(true)
+                    } else {
+                        settingsRepo.setGlobalEnabled(false)
+                        settingsRepo.setNotificationTrackingEnabled(false)
+                    }
+                }
+                if (SmsPermissionHelper.isSmsPermissionGranted(context)) {
+                    SmsPermissionHelper.setInitialImportCompleted(context, true)
+                }
+
+                // If user closes/leaves the app while in demo mode, returning brings them back to the Setup page!
+                if (appWasBackgroundedInDemo && !settingsRepo.isInitialOnboardingCompleted()) {
+                    appWasBackgroundedInDemo = false
+                    settingsRepo.setDemoMode(false)
+                    scope.launch(Dispatchers.IO) {
+                        com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
+                    }
+                    backStack = listOf("InitialOnboarding")
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     // If onboarding was not permanently completed (e.g. user was in demo mode),
     // any app restart / relaunch MUST return to the Initial Welcome Screen or recover setup in progress.
     LaunchedEffect(targetRouteFromIntent) {
         if (!targetRouteFromIntent.isNullOrEmpty()) {
             backStack = listOf("InitialOnboarding", targetRouteFromIntent)
         } else if (!settingsRepo.isInitialOnboardingCompleted()) {
+            if (settingsRepo.isDemoMode()) {
+                settingsRepo.setDemoMode(false)
+                scope.launch(Dispatchers.IO) {
+                    com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
+                }
+            }
             if (settingsRepo.isSetupInProgress()) {
                 if (backStack.lastOrNull() != "LocalFirstSetup") {
                     backStack = listOf("InitialOnboarding", "LocalFirstSetup")
@@ -372,8 +395,17 @@ fun ExpenseScreen() {
         }
     }
 
-    BackHandler(enabled = backStack.size > 1) {
-        navigateBack()
+    val isDemoModeActive = !settingsRepo.isInitialOnboardingCompleted() && currentRoute == "Home"
+    BackHandler(enabled = backStack.size > 1 || isDemoModeActive) {
+        if (isDemoModeActive && backStack.size <= 1) {
+            settingsRepo.setDemoMode(false)
+            scope.launch(Dispatchers.IO) {
+                com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
+            }
+            backStack = listOf("InitialOnboarding")
+        } else {
+            navigateBack()
+        }
     }
 
     var editingRegexRuleId by remember {
@@ -632,18 +664,21 @@ fun ExpenseScreen() {
                     initialShowResult = (currentRoute == "SmsResult"),
                     onImportCompleted = {
                         settingsRepo.setSetupInProgress(false)
+                        settingsRepo.setDemoMode(false)
                         settingsRepo.setInitialOnboardingCompleted(true)
                         SmsPermissionHelper.setInitialImportCompleted(context, true)
                         backStack = listOf("Home")
                     },
                     onNavigateToReview = {
                         settingsRepo.setSetupInProgress(false)
+                        settingsRepo.setDemoMode(false)
                         settingsRepo.setInitialOnboardingCompleted(true)
                         SmsPermissionHelper.setInitialImportCompleted(context, true)
                         backStack = listOf("Home", "Review")
                     },
                     onSkipClick = {
                         settingsRepo.setSetupInProgress(false)
+                        settingsRepo.setDemoMode(false)
                         settingsRepo.setInitialOnboardingCompleted(true)
                         SmsPermissionHelper.setInitialImportCompleted(context, true)
                         backStack = listOf("Home")
@@ -785,6 +820,7 @@ fun ExpenseScreen() {
                         scope.launch(Dispatchers.IO) {
                             com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
                         }
+                        settingsRepo.setDemoMode(false)
                         settingsRepo.setSetupInProgress(true)
                         navigateTo("LocalFirstSetup")
                     },
@@ -796,6 +832,7 @@ fun ExpenseScreen() {
                             com.subhashrelangi.arctracker.data.MockData.seedCompleteDemoData(database)
                         }
                         settingsRepo.setSetupInProgress(false)
+                        settingsRepo.setDemoMode(true)
                         hasDismissedNotificationPermissionDialog = true
                         hasDismissedInitialSmsImportDialog = true
                         navigateTo("Home")
@@ -816,6 +853,7 @@ fun ExpenseScreen() {
                             com.subhashrelangi.arctracker.data.MockData.seedCompleteDemoData(database)
                         }
                         settingsRepo.setSetupInProgress(false)
+                        settingsRepo.setDemoMode(true)
                         hasDismissedNotificationPermissionDialog = true
                         hasDismissedInitialSmsImportDialog = true
                         navigateTo("Home")
