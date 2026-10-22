@@ -37,24 +37,33 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -83,6 +92,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -90,11 +100,27 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.subhashrelangi.arctracker.BuildConfig
 import com.subhashrelangi.arctracker.R
+import com.subhashrelangi.arctracker.service.AccountIdentityExtractor
+import com.subhashrelangi.arctracker.service.DedupDecision
+import com.subhashrelangi.arctracker.service.EvidenceLevel
+import com.subhashrelangi.arctracker.service.FinancialAccountGroup
+import com.subhashrelangi.arctracker.service.FinancialAccountGrouper
+import com.subhashrelangi.arctracker.service.FinancialAccountIdentity
 import com.subhashrelangi.arctracker.service.HistoricalSmsImportManager
+import com.subhashrelangi.arctracker.service.IdentityConfidence
+import com.subhashrelangi.arctracker.service.InstrumentType
+import com.subhashrelangi.arctracker.service.MatchStrategy
+import com.subhashrelangi.arctracker.service.ScannedTransactionItem
 import com.subhashrelangi.arctracker.service.SmsImportResult
 import com.subhashrelangi.arctracker.service.SmsPermissionHelper
 import com.subhashrelangi.arctracker.service.SmsScanProgress
 import com.subhashrelangi.arctracker.service.SmsScanResult
+import com.subhashrelangi.arctracker.service.StructuredTransactionCandidate
+import com.subhashrelangi.arctracker.service.TransactionDirection
+import com.subhashrelangi.arctracker.service.TransactionSourceEvent
+import com.subhashrelangi.arctracker.service.TransactionSourceType
+import com.subhashrelangi.arctracker.service.ValidatedTransactionCandidate
+import com.subhashrelangi.arctracker.service.ValidationState
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -146,13 +172,15 @@ private val BackBtnBorder = Color(0xFFE2E8F0)
  * Implements Ui-Designs/InitialSetUp/SmsImport.png in pure Light Theme.
  * Follows circular button styling for seamless navigation.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SmsSetupScreen(
     onImportCompleted: () -> Unit,
     onSkipClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
-    initialStartScanning: Boolean = false
+    initialStartScanning: Boolean = false,
+    initialShowResult: Boolean = false
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -209,14 +237,22 @@ fun SmsSetupScreen(
     var startDateMillis by rememberSaveable { mutableLongStateOf(defaultThreeMonthsAgo) }
     var endDateMillis by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
 
-    // Dedicated Scan Screen execution & animation states
+    // Dedicated Scan Screen execution & animation states (Stage 1 of 3)
     var isScanning by rememberSaveable { mutableStateOf(initialStartScanning) }
     var scanProgressFloat by remember { mutableFloatStateOf(if (initialStartScanning) 0.05f else 0f) }
     var messagesScannedCount by remember { mutableIntStateOf(0) }
-    var totalMessagesEstimated by remember { mutableIntStateOf(400) }
+    var totalMessagesEstimated by remember { mutableIntStateOf(0) }
     var financialMessagesCount by remember { mutableIntStateOf(0) }
     var scanStatusText by remember { mutableStateOf("Initializing scanner...") }
     var scanJob by remember { mutableStateOf<Job?>(null) }
+
+    // Scan Result & Bank Categorization states (Stage 2 of 3)
+    var showScanResult by rememberSaveable { mutableStateOf(initialShowResult) }
+    var scanResultSuccess by remember { mutableStateOf<SmsScanResult.Success?>(null) }
+    var selectedGroupIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var selectedTransactionIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var viewingAccountGroup by remember { mutableStateOf<FinancialAccountGroup?>(null) }
+    var isImporting by remember { mutableStateOf(false) }
 
     // Helper to update date range when option selected
     fun selectOption(index: Int) {
@@ -246,77 +282,130 @@ fun SmsSetupScreen(
         }
     }
 
-    // Helper function to execute scan & auto-import
-    fun startScanAndImport() {
+    // Helper to run non-destructive SMS scan and transition to Stage 2 of 3
+    fun startScan() {
         if (scanJob?.isActive == true) return
         isScanning = true
+        showScanResult = false
         scanProgressFloat = 0.05f
         scanStatusText = "Reading SMS inbox..."
         messagesScannedCount = 0
         financialMessagesCount = 0
-        totalMessagesEstimated = 400
+        totalMessagesEstimated = 0
 
         scanJob = scope.launch {
             try {
-                delay(200)
-                if (scanProgressFloat < 0.15f) scanProgressFloat = 0.15f
+                delay(100)
+                if (scanProgressFloat < 0.10f) scanProgressFloat = 0.10f
 
-                val importResult = withContext(Dispatchers.IO) {
-                    importManager.scanAndImport(
+                val scanResult = withContext(Dispatchers.IO) {
+                    importManager.scan(
                         startTimeMillis = startDateMillis,
                         endTimeMillis = endDateMillis,
-                        scanProgress = { progress: SmsScanProgress ->
+                        progressCallback = { progress: SmsScanProgress ->
                             messagesScannedCount = progress.recordsProcessed
-                            val est = progress.totalEstimated?.takeIf { it > 0 } ?: maxOf(400, progress.recordsProcessed + 40)
-                            totalMessagesEstimated = est
-                            val ratio = (progress.recordsProcessed.toFloat() / est).coerceIn(0.15f, 0.75f)
-                            scanProgressFloat = ratio
+                            val est = progress.totalEstimated
+                            if (est != null && est > 0) {
+                                totalMessagesEstimated = est
+                                val ratio = (progress.recordsProcessed.toFloat() / est.toFloat()).coerceIn(0.05f, 0.95f)
+                                scanProgressFloat = ratio
+                            } else {
+                                totalMessagesEstimated = maxOf(messagesScannedCount, 1)
+                                scanProgressFloat = 0.5f
+                            }
                             financialMessagesCount = progress.financialDetected
                             scanStatusText = if (progress.financialDetected > 0) {
-                                "${progress.financialDetected} txns detected"
+                                "${progress.financialDetected} financial transactions found"
                             } else {
-                                "Scanning messages..."
+                                "Analyzing messages on device..."
                             }
-                            true
-                        },
-                        importProgress = { progress ->
-                            val ratio = if (progress.totalToImport > 0) {
-                                0.75f + 0.25f * (progress.itemsProcessed.toFloat() / progress.totalToImport)
-                            } else {
-                                0.95f
-                            }
-                            scanProgressFloat = ratio.coerceIn(0.75f, 1.0f)
-                            scanStatusText = "Importing ${progress.itemsProcessed} of ${progress.totalToImport}..."
+                            try {
+                                Thread.sleep(3)
+                            } catch (_: InterruptedException) {}
                             true
                         }
                     )
                 }
 
-                // If scan completed with zero messages (e.g. fresh environment), give a smooth visual ramp
                 if (messagesScannedCount == 0 && scanProgressFloat < 0.9f) {
                     scanProgressFloat = 0.5f
                     delay(300)
                 }
 
-                // Smoothly finish at 100%
                 scanProgressFloat = 1.0f
-                scanStatusText = if (financialMessagesCount > 0) "$financialMessagesCount txns imported" else "Scan complete"
-                delay(800)
+                scanStatusText = if (financialMessagesCount > 0) "$financialMessagesCount txns detected" else "Scan complete"
+                delay(600)
 
-                settingsRepo.setSetupInProgress(false)
-                settingsRepo.setInitialOnboardingCompleted(true)
-                SmsPermissionHelper.setInitialImportCompleted(context, true)
-                onImportCompleted()
+                val resultSuccess = if (scanResult is SmsScanResult.Success) {
+                    val groups = if (scanResult.accountGroups.isNotEmpty()) {
+                        scanResult.accountGroups
+                    } else if (scanResult.scannedItems.isNotEmpty()) {
+                        FinancialAccountGrouper.groupTransactions(scanResult.scannedItems)
+                    } else {
+                        emptyList()
+                    }
+                    scanResult.copy(
+                        accountGroups = groups,
+                        newTransactionsCount = scanResult.newTransactionsCount,
+                        duplicatesCount = scanResult.duplicatesCount
+                    )
+                } else if (scanResult is SmsScanResult.Cancelled) {
+                    isScanning = false
+                    return@launch
+                } else {
+                    SmsScanResult.Success(
+                        startTimeMillis = startDateMillis,
+                        endTimeMillis = endDateMillis,
+                        messagesScanned = messagesScannedCount,
+                        financialMessages = financialMessagesCount,
+                        nonFinancialMessages = 0,
+                        noiseMessages = 0,
+                        transactionCandidatesCount = 0,
+                        newTransactionsCount = 0,
+                        duplicatesCount = 0,
+                        correlationsCount = 0,
+                        pendingReviewCount = 0,
+                        rejectedCount = 0,
+                        totalDebitAmount = 0.0,
+                        totalCreditAmount = 0.0,
+                        scannedItems = emptyList(),
+                        accountGroups = emptyList()
+                    )
+                }
+
+                scanResultSuccess = resultSuccess
+                val allItemIds = resultSuccess.scannedItems.map { it.sourceEvent.sourceId }.toSet()
+                selectedTransactionIds = allItemIds
+                selectedGroupIds = resultSuccess.accountGroups.map { it.groupId }.toSet()
+                isScanning = false
+                showScanResult = true
             } catch (e: Exception) {
                 if (e is CancellationException) {
                     return@launch
                 }
-                settingsRepo.setSetupInProgress(false)
-                settingsRepo.setInitialOnboardingCompleted(true)
-                SmsPermissionHelper.setInitialImportCompleted(context, true)
-                onImportCompleted()
-            } finally {
+                val fallback = SmsScanResult.Success(
+                    startTimeMillis = startDateMillis,
+                    endTimeMillis = endDateMillis,
+                    messagesScanned = messagesScannedCount,
+                    financialMessages = 0,
+                    nonFinancialMessages = 0,
+                    noiseMessages = 0,
+                    transactionCandidatesCount = 0,
+                    newTransactionsCount = 0,
+                    duplicatesCount = 0,
+                    correlationsCount = 0,
+                    pendingReviewCount = 0,
+                    rejectedCount = 0,
+                    totalDebitAmount = 0.0,
+                    totalCreditAmount = 0.0,
+                    scannedItems = emptyList(),
+                    accountGroups = emptyList()
+                )
+                scanResultSuccess = fallback
+                selectedTransactionIds = emptySet()
+                selectedGroupIds = emptySet()
                 isScanning = false
+                showScanResult = true
             }
         }
     }
@@ -328,9 +417,38 @@ fun SmsSetupScreen(
         scanProgressFloat = 0f
     }
 
+    fun importSelectedTransactions() {
+        if (isImporting) return
+        isImporting = true
+        scope.launch {
+            try {
+                val res = scanResultSuccess
+                if (res != null && res.scannedItems.isNotEmpty()) {
+                    withContext(Dispatchers.IO) {
+                        importManager.importTransactions(
+                            scanResult = res,
+                            selectedGroupIds = selectedGroupIds,
+                            selectedItemIds = selectedTransactionIds
+                        )
+                    }
+                }
+            } catch (_: Exception) {}
+            settingsRepo.setSetupInProgress(false)
+            settingsRepo.setInitialOnboardingCompleted(true)
+            SmsPermissionHelper.setInitialImportCompleted(context, true)
+            onImportCompleted()
+        }
+    }
+
     LaunchedEffect(initialStartScanning) {
-        if (initialStartScanning && scanJob?.isActive != true) {
-            startScanAndImport()
+        if (initialStartScanning && scanJob?.isActive != true && !showScanResult) {
+            startScan()
+        }
+    }
+
+    LaunchedEffect(initialShowResult) {
+        if (initialShowResult && scanResultSuccess == null && scanJob?.isActive != true) {
+            startScan()
         }
     }
 
@@ -457,6 +575,36 @@ fun SmsSetupScreen(
                     financialMessagesCount = financialMessagesCount,
                     scanStatusText = scanStatusText,
                     onCancelScan = onCancelScan
+                )
+            } else if (showScanResult && scanResultSuccess != null) {
+                SmsScanResultContent(
+                    scanResult = scanResultSuccess!!,
+                    selectedGroupIds = selectedGroupIds,
+                    selectedTransactionIds = selectedTransactionIds,
+                    onToggleGroup = { groupId ->
+                        val group = scanResultSuccess?.accountGroups?.find { it.groupId == groupId }
+                        val groupItemIds = group?.transactions?.map { it.sourceEvent.sourceId }?.toSet() ?: emptySet()
+                        val isCurrentlySelected = selectedGroupIds.contains(groupId) ||
+                                (groupItemIds.isNotEmpty() && groupItemIds.any { selectedTransactionIds.contains(it) })
+
+                        if (isCurrentlySelected) {
+                            selectedGroupIds = selectedGroupIds - groupId
+                            selectedTransactionIds = selectedTransactionIds - groupItemIds
+                        } else {
+                            selectedGroupIds = selectedGroupIds + groupId
+                            selectedTransactionIds = selectedTransactionIds + groupItemIds
+                        }
+                    },
+                    onViewAccountTransactions = { group ->
+                        viewingAccountGroup = group
+                    },
+                    onImportSelected = {
+                        importSelectedTransactions()
+                    },
+                    onChangeDateRange = {
+                        showScanResult = false
+                        isScanning = false
+                    }
                 )
             } else {
                 // ----------------------------------------------------
@@ -673,7 +821,7 @@ fun SmsSetupScreen(
                                         )
                                     )
                                 } else {
-                                    startScanAndImport()
+                                    startScan()
                                 }
                             }
                         ),
@@ -735,6 +883,38 @@ fun SmsSetupScreen(
         }
     }
 }
+    if (viewingAccountGroup != null) {
+        val group = viewingAccountGroup!!
+        AccountTransactionsBottomSheet(
+            accountGroup = group,
+            selectedTransactionIds = selectedTransactionIds,
+            onToggleTransaction = { sourceId ->
+                selectedTransactionIds = if (selectedTransactionIds.contains(sourceId)) {
+                    selectedTransactionIds - sourceId
+                } else {
+                    selectedTransactionIds + sourceId
+                }
+                val hasAnyInGroup = group.transactions.any { selectedTransactionIds.contains(it.sourceEvent.sourceId) }
+                selectedGroupIds = if (hasAnyInGroup) {
+                    selectedGroupIds + group.groupId
+                } else {
+                    selectedGroupIds - group.groupId
+                }
+            },
+            onToggleAllInGroup = {
+                val allInGroup = group.transactions.map { it.sourceEvent.sourceId }.toSet()
+                val areAllSelected = allInGroup.all { selectedTransactionIds.contains(it) }
+                if (areAllSelected) {
+                    selectedTransactionIds = selectedTransactionIds - allInGroup
+                    selectedGroupIds = selectedGroupIds - group.groupId
+                } else {
+                    selectedTransactionIds = selectedTransactionIds + allInGroup
+                    selectedGroupIds = selectedGroupIds + group.groupId
+                }
+            },
+            onDismiss = { viewingAccountGroup = null }
+        )
+    }
 }
 }
 
@@ -875,7 +1055,7 @@ private fun SmsScanningContent(
                                     .background(StepPillText.copy(alpha = pulseAlpha))
                             )
                             Text(
-                                text = "AUDITING",
+                                text = if (financialMessagesCount > 0) "$financialMessagesCount FOUND" else "AUDITING",
                                 fontSize = 9.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = StepPillText,
@@ -971,13 +1151,31 @@ private fun SmsScanningContent(
                 ) {
                     Column {
                         Text(
-                            text = "Messages checked",
+                            text = "Checked",
                             fontSize = 11.sp,
                             color = BrandTextSecondary
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = if (totalMessagesEstimated > 0) "$messagesScannedCount of $totalMessagesEstimated" else "$messagesScannedCount",
+                            text = if (totalMessagesEstimated > 0) "$messagesScannedCount / $totalMessagesEstimated" else "$messagesScannedCount",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = BrandTextPrimary
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Remaining",
+                            fontSize = 11.sp,
+                            color = BrandTextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        val remaining = if (totalMessagesEstimated > 0) {
+                            (totalMessagesEstimated - messagesScannedCount).coerceAtLeast(0)
+                        } else 0
+                        Text(
+                            text = "$remaining",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = BrandTextPrimary
@@ -986,18 +1184,40 @@ private fun SmsScanningContent(
 
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = "Status",
+                            text = "Transactions",
                             fontSize = 11.sp,
                             color = BrandTextSecondary
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = scanStatusText,
+                            text = "$financialMessagesCount found",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = StepPillText
                         )
                     }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Status",
+                        fontSize = 11.sp,
+                        color = BrandTextSecondary
+                    )
+                    Text(
+                        text = scanStatusText,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = StepPillText,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
@@ -1198,4 +1418,949 @@ private fun SmsLookbackOptionCard(
             }
         }
     }
+}
+
+/**
+ * Dedicated Scan Result Screen matching Ui-Designs/InitialSetUp/SmsImportScanResult.png in Light Theme.
+ *
+ * Stage 2 of 3: Scan Result & Account Categorization Phase.
+ * - Header matches InitialPageScreen & LocalFirstSetupScreen (ArcTracker + version badge pill + Green status dot)
+ * - Stage Pill: "STAGE 2 OF 3" + "Sync Ready" indicator
+ * - Overview Card: Total new transactions found, duplicates skipped, detected financial accounts
+ * - Detected Accounts Section: Categorized by bank accounts and cards with selection checkboxes
+ * - Interactive Bank Cards: Tapping an account opens the scanned transactions bottom sheet
+ * - Info Card: Review queue advisory for unidentified senders
+ * - Primary Action: "Import Selected Transactions (X) →" (52.dp pill shape)
+ * - Secondary Action: "Change Date Range"
+ */
+@Composable
+private fun SmsScanResultContent(
+    scanResult: SmsScanResult.Success,
+    selectedGroupIds: Set<String>,
+    selectedTransactionIds: Set<String>,
+    onToggleGroup: (String) -> Unit,
+    onViewAccountTransactions: (FinancialAccountGroup) -> Unit,
+    onImportSelected: () -> Unit,
+    onChangeDateRange: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val totalSelectedTransactions = if (scanResult.scannedItems.isNotEmpty()) {
+        scanResult.scannedItems.count { selectedTransactionIds.contains(it.sourceEvent.sourceId) }
+    } else {
+        scanResult.accountGroups.filter { selectedGroupIds.contains(it.groupId) }.sumOf { it.transactionCount }
+    }
+
+    Column(
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // ----------------------------------------------------
+        // Stage Indicator & Sync Ready Badge
+        // ----------------------------------------------------
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left: STAGE 2 OF 3 pill
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(StepPillBg)
+                    .border(BorderStroke(1.dp, StepPillBorder), CircleShape)
+                    .padding(horizontal = 10.dp, vertical = 3.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(StepPillText)
+                    )
+                    Text(
+                        text = "STAGE 2 OF 3",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = StepPillText
+                    )
+                }
+            }
+
+            // Right: Sync Ready Pill
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Color(0xFFECFDF5))
+                    .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), CircleShape)
+                    .padding(horizontal = 9.dp, vertical = 3.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF10B981))
+                    )
+                    Text(
+                        text = "Sync Ready",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF047857)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // ----------------------------------------------------
+        // Scrollable Central Body
+        // ----------------------------------------------------
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Overview Card
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = CardBg,
+                border = BorderStroke(1.dp, CardBorderUnselected)
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp)
+                ) {
+                    val totalFound = if (scanResult.scannedItems.isNotEmpty()) scanResult.scannedItems.size else scanResult.newTransactionsCount + scanResult.duplicatesCount
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "$totalFound",
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = BrandTextPrimary,
+                            letterSpacing = (-0.5).sp
+                        )
+                        Text(
+                            text = "transactions found",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = BrandTextPrimary,
+                            modifier = Modifier.padding(bottom = 3.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "${scanResult.newTransactionsCount} new • ${scanResult.duplicatesCount} already imported",
+                        fontSize = 13.5.sp,
+                        color = BrandTextSecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Text(
+                        text = "From ${scanResult.accountGroups.size} detected financial accounts",
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF059669)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Section Header: DETECTED ACCOUNTS TO IMPORT
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "DETECTED ACCOUNTS TO IMPORT",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF64748B),
+                    letterSpacing = 0.5.sp
+                )
+                Text(
+                    text = "${selectedGroupIds.size} Selected",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF059669)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Detected Accounts Cards
+            scanResult.accountGroups.forEach { group ->
+                val selectedCountInGroup = if (group.transactions.isNotEmpty()) {
+                    group.transactions.count { selectedTransactionIds.contains(it.sourceEvent.sourceId) }
+                } else if (selectedGroupIds.contains(group.groupId)) {
+                    group.transactionCount
+                } else 0
+
+                val isSelected = selectedCountInGroup > 0 || selectedGroupIds.contains(group.groupId)
+                val isUnidentified = group.groupId == AccountIdentityExtractor.UNIDENTIFIED_GROUP_ID ||
+                        group.groupId.contains("unidentified", ignoreCase = true) ||
+                        (group.identity.accountSuffix.isNullOrBlank() && group.identity.cardSuffix.isNullOrBlank())
+
+                AccountGroupCard(
+                    group = group,
+                    isSelected = isSelected,
+                    selectedCountInGroup = selectedCountInGroup,
+                    isUnidentified = isUnidentified,
+                    onToggle = { onToggleGroup(group.groupId) },
+                    onClick = { onViewAccountTransactions(group) }
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Informational Notice for Review Queue
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFF1F5F9),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = null,
+                        tint = Color(0xFF64748B),
+                        modifier = Modifier
+                            .size(18.dp)
+                            .padding(top = 1.dp)
+                    )
+                    Text(
+                        text = "Unidentified transactions will be placed into your Review queue for deliberate confirmation.",
+                        fontSize = 12.5.sp,
+                        color = Color(0xFF475569),
+                        lineHeight = 17.5.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // ----------------------------------------------------
+        // Fixed Bottom Actions (Circle/Pill Format Matching Onboarding)
+        // ----------------------------------------------------
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Primary Action: Import Selected Transactions (X) ->
+        val canImport = totalSelectedTransactions > 0
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .shadow(
+                    elevation = if (canImport) 2.dp else 0.dp,
+                    shape = RoundedCornerShape(26.dp),
+                    ambientColor = Color(0x10000000),
+                    spotColor = Color(0x1A000000)
+                )
+                .clip(RoundedCornerShape(26.dp))
+                .clickable(
+                    enabled = canImport,
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = rememberRipple(color = Color.White.copy(alpha = 0.2f)),
+                    onClick = onImportSelected
+                ),
+            shape = RoundedCornerShape(26.dp),
+            color = if (canImport) PrimaryBtnBg else Color(0xFF94A3B8)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 22.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (canImport) {
+                        "Import Selected Transactions ($totalSelectedTransactions)"
+                    } else {
+                        "Select at least 1 transaction"
+                    },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = PrimaryBtnText
+                )
+
+                if (canImport) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Proceed to Import",
+                        tint = PrimaryBtnText,
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Secondary Action: Change Date Range
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = rememberRipple(color = Color.Black.copy(alpha = 0.06f)),
+                    onClick = onChangeDateRange
+                )
+                .padding(horizontal = 14.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Change Date Range",
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = BrandTextSecondary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+    }
+}
+
+/**
+ * Account Group item card matching the mockup.
+ * Entire card is clickable to view transactions, while checkbox toggles inclusion.
+ */
+@Composable
+private fun AccountGroupCard(
+    group: FinancialAccountGroup,
+    isSelected: Boolean,
+    selectedCountInGroup: Int,
+    isUnidentified: Boolean,
+    onToggle: () -> Unit,
+    onClick: () -> Unit
+) {
+    val borderColor = if (isSelected) Color(0xFFCBD5E1) else Color(0xFFE2E8F0)
+    val bgColor = if (isSelected) Color(0xFFFFFFFF) else Color(0xFFF8FAFC)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = rememberRipple(color = Color.Black.copy(alpha = 0.04f)),
+                onClick = onClick
+            ),
+        shape = RoundedCornerShape(14.dp),
+        color = bgColor,
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Leading Icon Box
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(
+                        if (isUnidentified) Color(0xFFFEF3C7) else Color(0xFFF1F5F9)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                val icon = when {
+                    isUnidentified -> Icons.Outlined.WarningAmber
+                    group.identity.instrumentType == InstrumentType.CARD -> Icons.Outlined.CreditCard
+                    else -> Icons.Outlined.AccountBalance
+                }
+                val iconTint = if (isUnidentified) Color(0xFFD97706) else Color(0xFF334155)
+
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Account Name & Subtitle
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val displayName = when {
+                        isUnidentified -> "Unidentified Sender / Suffix"
+                        !group.identity.accountSuffix.isNullOrBlank() ->
+                            "${group.identity.institutionName ?: "Bank"} ••${group.identity.accountSuffix}"
+                        !group.identity.cardSuffix.isNullOrBlank() ->
+                            "${group.identity.institutionName ?: "Card"} ••${group.identity.cardSuffix}"
+                        else -> group.identity.getDisplayName()
+                    }
+
+                    Text(
+                        text = displayName,
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = BrandTextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+
+                    if (isUnidentified) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFFFEF3C7))
+                                .border(BorderStroke(0.8.dp, Color(0xFFFDE68A)), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "Review",
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFB45309),
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                val subtitle = when {
+                    isUnidentified -> {
+                        if (group.transactionCount == selectedCountInGroup || selectedCountInGroup == 0) {
+                            "${group.transactionCount} transactions require review"
+                        } else {
+                            "$selectedCountInGroup of ${group.transactionCount} require review"
+                        }
+                    }
+                    group.identity.instrumentType == InstrumentType.CARD -> {
+                        if (group.transactionCount == selectedCountInGroup || selectedCountInGroup == 0) {
+                            "Credit Card • ${group.transactionCount} transactions"
+                        } else {
+                            "Credit Card • $selectedCountInGroup of ${group.transactionCount} selected"
+                        }
+                    }
+                    else -> {
+                        if (group.transactionCount == selectedCountInGroup || selectedCountInGroup == 0) {
+                            "Savings Account • ${group.transactionCount} transactions"
+                        } else {
+                            "Savings Account • $selectedCountInGroup of ${group.transactionCount} selected"
+                        }
+                    }
+                }
+
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = BrandTextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Selection Checkbox (Dedicated Click target)
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = rememberRipple(color = Color.Black.copy(alpha = 0.1f)),
+                        onClick = onToggle
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(CardBorderSelected),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Selected",
+                            tint = Color.White,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .border(BorderStroke(1.5.dp, Color(0xFFCBD5E1)), RoundedCornerShape(6.dp))
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Bottom sheet displaying the transactions scanned for a specific bank account or instrument.
+ * Users can individually select/deselect each transaction.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AccountTransactionsBottomSheet(
+    accountGroup: FinancialAccountGroup,
+    selectedTransactionIds: Set<String>,
+    onToggleTransaction: (String) -> Unit,
+    onToggleAllInGroup: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val dateFormat = remember { SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()) }
+
+    val selectedCount = accountGroup.transactions.count { selectedTransactionIds.contains(it.sourceEvent.sourceId) }
+    val allSelected = selectedCount == accountGroup.transactions.size && accountGroup.transactions.isNotEmpty()
+
+    val selectedItems = accountGroup.transactions.filter { selectedTransactionIds.contains(it.sourceEvent.sourceId) }
+    val totalDebit = selectedItems
+        .filter { it.candidate.candidate.direction == TransactionDirection.DEBIT }
+        .sumOf { it.candidate.candidate.amount ?: 0.0 }
+    val totalCredit = selectedItems
+        .filter { it.candidate.candidate.direction == TransactionDirection.CREDIT }
+        .sumOf { it.candidate.candidate.amount ?: 0.0 }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color.White,
+        tonalElevation = 6.dp,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp)
+        ) {
+            // Header: Account name & Dismiss X
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = accountGroup.identity.getDisplayName(),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BrandTextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "$selectedCount of ${accountGroup.transactions.size} transactions selected",
+                        fontSize = 12.5.sp,
+                        color = if (selectedCount > 0) Color(0xFF059669) else BrandTextSecondary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFF1F5F9))
+                        .clickable(onClick = onDismiss),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = BrandTextPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Summary Totals Row (Calculated for selected items)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFFF8FAFC))
+                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "Selected Debits",
+                        fontSize = 11.5.sp,
+                        color = BrandTextSecondary
+                    )
+                    Text(
+                        text = "₹${String.format(Locale.getDefault(), "%,.2f", totalDebit)}",
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFDC2626)
+                    )
+                }
+
+                if (totalCredit > 0 || accountGroup.totalCredit > 0) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "Selected Credits",
+                            fontSize = 11.5.sp,
+                            color = BrandTextSecondary
+                        )
+                        Text(
+                            text = "₹${String.format(Locale.getDefault(), "%,.2f", totalCredit)}",
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF059669)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Subheader with Select All / Deselect All toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "SCANNED TRANSACTIONS",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF64748B),
+                    letterSpacing = 0.5.sp
+                )
+
+                Text(
+                    text = if (allSelected) "Deselect All" else "Select All",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (allSelected) Color(0xFFDC2626) else Color(0xFF059669),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable(onClick = onToggleAllInGroup)
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Scrollable list of scanned transactions with checkboxes
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(340.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(accountGroup.transactions) { item ->
+                    val candidate = item.candidate.candidate
+                    val isCredit = candidate.direction == TransactionDirection.CREDIT
+                    val amount = candidate.amount ?: 0.0
+                    val merchant = candidate.merchant ?: candidate.counterparty ?: "Transaction"
+                    val timestamp = candidate.transactionTimestamp
+                    val isItemChecked = selectedTransactionIds.contains(item.sourceEvent.sourceId)
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable {
+                                onToggleTransaction(item.sourceEvent.sourceId)
+                            },
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isItemChecked) Color(0xFFFFFFFF) else Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, if (isItemChecked) Color(0xFFCBD5E1) else Color(0xFFE2E8F0))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = merchant,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = BrandTextPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = dateFormat.format(Date(timestamp)),
+                                        fontSize = 11.5.sp,
+                                        color = BrandTextSecondary
+                                    )
+                                    if (item.plannedDecision == DedupDecision.DUPLICATE) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(Color(0xFFF1F5F9))
+                                                .border(BorderStroke(0.8.dp, Color(0xFFCBD5E1)), RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                                        ) {
+                                            Text(
+                                                text = "Imported",
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = Color(0xFF64748B)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (item.sourceEvent.rawText.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = item.sourceEvent.rawText,
+                                        fontSize = 10.5.sp,
+                                        color = Color(0xFF64748B),
+                                        lineHeight = 14.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = if (isCredit) "+₹${String.format(Locale.getDefault(), "%,.2f", amount)}"
+                                    else "-₹${String.format(Locale.getDefault(), "%,.2f", amount)}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isCredit) Color(0xFF059669) else BrandTextPrimary
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // Item selection checkbox
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(5.dp))
+                                        .background(
+                                            if (isItemChecked) CardBorderSelected else Color.Transparent
+                                        )
+                                        .border(
+                                            BorderStroke(
+                                                1.5.dp,
+                                                if (isItemChecked) CardBorderSelected else Color(0xFFCBD5E1)
+                                            ),
+                                            RoundedCornerShape(5.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isItemChecked) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Done Button
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .clickable(onClick = onDismiss),
+                shape = RoundedCornerShape(24.dp),
+                color = PrimaryBtnBg
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Done ($selectedCount selected)",
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = PrimaryBtnText
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Creates high-fidelity sample account groups matching the mockup for zero-state or demo evaluation.
+ */
+private fun createSampleItem(
+    id: String,
+    sender: String,
+    rawText: String,
+    merchant: String,
+    amount: Double,
+    direction: TransactionDirection,
+    timeOffsetHours: Long,
+    accountIdentity: FinancialAccountIdentity,
+    isReview: Boolean = false
+): ScannedTransactionItem {
+    val timestamp = System.currentTimeMillis() - (timeOffsetHours * 3600_000L)
+    val structured = StructuredTransactionCandidate(
+        sourceNotificationKey = "sms_$id",
+        packageName = "com.google.android.apps.messaging",
+        postTime = timestamp,
+        transactionTimestamp = timestamp,
+        amount = amount,
+        currency = "INR",
+        merchant = merchant,
+        counterparty = merchant,
+        direction = direction,
+        accountSuffix = accountIdentity.accountSuffix,
+        cardSuffix = accountIdentity.cardSuffix
+    )
+    val validated = ValidatedTransactionCandidate(
+        candidate = structured,
+        validationState = if (isReview) ValidationState.NEEDS_REVIEW else ValidationState.ACCEPTABLE,
+        evidenceLevel = if (isReview) EvidenceLevel.MODERATE else EvidenceLevel.VERY_STRONG,
+        isStructurallyValid = true
+    )
+    val sourceEvent = TransactionSourceEvent(
+        sourceType = TransactionSourceType.SMS_HISTORY,
+        sourceId = id,
+        sender = sender,
+        rawText = rawText,
+        eventTimestamp = timestamp
+    )
+    return ScannedTransactionItem(
+        candidate = validated,
+        sourceEvent = sourceEvent,
+        plannedDecision = if (isReview) DedupDecision.NEEDS_REVIEW else DedupDecision.NEW_TRANSACTION,
+        matchStrategy = MatchStrategy.NONE,
+        reason = if (isReview) "Account suffix unconfirmed" else "Valid transaction",
+        accountIdentity = accountIdentity
+    )
+}
+
+internal fun createSampleAccountGroups(): List<FinancialAccountGroup> {
+    val hdfcIdentity = FinancialAccountIdentity(
+        institutionId = "hdfc",
+        institutionName = "HDFC Bank",
+        accountSuffix = "4092",
+        instrumentType = InstrumentType.BANK_ACCOUNT,
+        confidence = IdentityConfidence.HIGH
+    )
+    val iciciIdentity = FinancialAccountIdentity(
+        institutionId = "icici",
+        institutionName = "ICICI Coral Card",
+        cardSuffix = "8114",
+        instrumentType = InstrumentType.CARD,
+        confidence = IdentityConfidence.HIGH
+    )
+    val reviewIdentity = FinancialAccountIdentity(
+        institutionId = null,
+        institutionName = "Unidentified Sender / Suffix",
+        instrumentType = InstrumentType.UNKNOWN,
+        confidence = IdentityConfidence.UNKNOWN
+    )
+
+    val hdfcTxns = listOf(
+        createSampleItem("1", "HDFCBK", "Rs.420.00 debited from A/C **4092 to Swiggy on 12-Oct-25. UPI:987654321", "Swiggy", 420.0, TransactionDirection.DEBIT, 4, hdfcIdentity),
+        createSampleItem("2", "HDFCBK", "Rs.1,899.00 debited from A/C **4092 for Amazon India purchase on 11-Oct-25", "Amazon India", 1899.0, TransactionDirection.DEBIT, 28, hdfcIdentity),
+        createSampleItem("3", "HDFCBK", "Rs.45,000.00 credited to A/C **4092 by Monthly Salary Deposit", "Salary Deposit", 45000.0, TransactionDirection.CREDIT, 54, hdfcIdentity),
+        createSampleItem("4", "HDFCBK", "Rs.240.00 debited from A/C **4092 to Uber India on 09-Oct-25", "Uber India", 240.0, TransactionDirection.DEBIT, 80, hdfcIdentity),
+        createSampleItem("5", "HDFCBK", "Rs.380.00 debited from A/C **4092 to Starbucks Coffee", "Starbucks Coffee", 380.0, TransactionDirection.DEBIT, 102, hdfcIdentity)
+    )
+
+    val iciciTxns = listOf(
+        createSampleItem("6", "ICICIB", "Spent Rs.6,450.00 on ICICI Coral Card 8114 at MakeMyTrip on 12-Oct-25", "MakeMyTrip", 6450.0, TransactionDirection.DEBIT, 8, iciciIdentity),
+        createSampleItem("7", "ICICIB", "Spent Rs.649.00 on ICICI Coral Card 8114 for Netflix on 10-Oct-25", "Netflix Subscription", 649.0, TransactionDirection.DEBIT, 42, iciciIdentity),
+        createSampleItem("8", "ICICIB", "Spent Rs.2,100.00 on ICICI Coral Card 8114 at Shell Fuel on 08-Oct-25", "Shell Fuel Station", 2100.0, TransactionDirection.DEBIT, 90, iciciIdentity),
+        createSampleItem("9", "ICICIB", "Spent Rs.350.00 on ICICI Coral Card 8114 at Zomato on 06-Oct-25", "Zomato", 350.0, TransactionDirection.DEBIT, 120, iciciIdentity)
+    )
+
+    val reviewTxns = listOf(
+        createSampleItem("10", "PAYTM", "Sent Rs.150.00 from Wallet / VPA", "VP-PAYTM txn", 150.0, TransactionDirection.DEBIT, 12, reviewIdentity, isReview = true),
+        createSampleItem("11", "IMPS", "IMPS txn Rs.2,000.00 received", "IMPS Transfer", 2000.0, TransactionDirection.CREDIT, 36, reviewIdentity, isReview = true),
+        createSampleItem("12", "BK-ALERT", "Rs.500.00 payment completed to Merchant", "Unknown merchant", 500.0, TransactionDirection.DEBIT, 60, reviewIdentity, isReview = true)
+    )
+
+    return listOf(
+        FinancialAccountGroup(
+            groupId = "hdfc_4092",
+            identity = hdfcIdentity,
+            transactions = hdfcTxns,
+            transactionCount = 84,
+            totalDebit = 18450.0,
+            totalCredit = 45000.0
+        ),
+        FinancialAccountGroup(
+            groupId = "icici_8114",
+            identity = iciciIdentity,
+            transactions = iciciTxns,
+            transactionCount = 44,
+            totalDebit = 28370.0,
+            totalCredit = 0.0
+        ),
+        FinancialAccountGroup(
+            groupId = "unidentified_review",
+            identity = reviewIdentity,
+            transactions = reviewTxns,
+            transactionCount = 14,
+            totalDebit = 2650.0,
+            totalCredit = 2000.0
+        )
+    )
 }

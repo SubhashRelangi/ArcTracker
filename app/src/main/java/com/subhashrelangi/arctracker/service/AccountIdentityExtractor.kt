@@ -99,7 +99,16 @@ object AccountIdentityExtractor {
                 Regex("""(?i)\b(?:India\s+Post(?:\s*Payments\s*Bank)?|IPPB)\b"""),
                 Regex("""(?i)[-–—]\s*IPPB\b""")
             ),
-            senderTokens = listOf("IPPB", "IPPBMS")
+            senderTokens = listOf("IPPB", "IPPBMS", "IPBMSG")
+        ),
+        BankDefinition(
+            id = "sbi",
+            canonicalName = "SBI",
+            bodyPatterns = listOf(
+                Regex("""(?i)\b(?:State\s+Bank\s+of\s+India|SBIINB|SBIUPI|SBI)\b"""),
+                Regex("""(?i)[-–—]\s*SBI\b""")
+            ),
+            senderTokens = listOf("SBIINB", "SBIUPI", "SBIPSG", "SBI", "SBIBNK")
         ),
         BankDefinition(
             id = "apgb",
@@ -190,6 +199,15 @@ object AccountIdentityExtractor {
                 Regex("""(?i)[-–—]\s*RBL\b""")
             ),
             senderTokens = listOf("RBLBNK", "RBL")
+        ),
+        BankDefinition(
+            id = "jiopay",
+            canonicalName = "Jio Payments Bank",
+            bodyPatterns = listOf(
+                Regex("""(?i)\b(?:Jio\s*Payments?\s*Bank|JioPay)\b"""),
+                Regex("""(?i)[-–—]\s*JioPay\b""")
+            ),
+            senderTokens = listOf("JIOPAY", "JIOBNK")
         )
     )
 
@@ -379,6 +397,8 @@ object AccountIdentityExtractor {
         return null
     }
 
+    const val UNIDENTIFIED_GROUP_ID = "unidentified_account"
+
     /**
      * Generates a stable, deterministic group identifier from an account identity (Step 4).
      */
@@ -387,9 +407,8 @@ object AccountIdentityExtractor {
         val instrument = identity.instrumentType.name.lowercase()
         val suffix = identity.accountSuffix ?: identity.cardSuffix
         return when {
-            inst == "unknown" && suffix.isNullOrBlank() -> "unidentified_account"
-            !suffix.isNullOrBlank() -> "${inst}_${instrument}_${suffix}"
-            else -> "${inst}_${instrument}_unknown"
+            suffix.isNullOrBlank() -> UNIDENTIFIED_GROUP_ID
+            else -> "${inst}_${instrument}_${suffix}"
         }
     }
 }
@@ -402,29 +421,40 @@ object AccountIdentityExtractor {
  * 2. Deterministic group IDs across repeated scans.
  * 3. Separate groups for different accounts and banks.
  * 4. Card and bank-account identities are never merged.
- * 5. Duplicates and rejected candidates never inflate transaction counts or totals.
+ * 5. Consolidates all unidentified/missing-suffix transactions into a single review category.
  */
 object FinancialAccountGrouper {
 
     /**
      * Groups scanned transaction candidates into stable [FinancialAccountGroup]s.
+     * All scanned transaction items are grouped into their corresponding account groups.
      */
     fun groupTransactions(
         scannedItems: List<ScannedTransactionItem>
     ): List<FinancialAccountGroup> {
-        // Only VALID and DEDUPLICATED transactions count towards account groups
-        val eligibleItems = scannedItems.filter { it.plannedDecision != DedupDecision.DUPLICATE }
-        if (eligibleItems.isEmpty()) return emptyList()
+        if (scannedItems.isEmpty()) return emptyList()
 
         val groupMap = linkedMapOf<String, MutableList<ScannedTransactionItem>>()
         val identityMap = mutableMapOf<String, FinancialAccountIdentity>()
 
-        for (item in eligibleItems) {
+        for (item in scannedItems) {
             val identity = item.accountIdentity
             val groupId = AccountIdentityExtractor.generateGroupId(identity)
             groupMap.getOrPut(groupId) { mutableListOf() }.add(item)
             if (!identityMap.containsKey(groupId)) {
-                identityMap[groupId] = identity
+                identityMap[groupId] = if (groupId == AccountIdentityExtractor.UNIDENTIFIED_GROUP_ID) {
+                    FinancialAccountIdentity(
+                        institutionId = null,
+                        institutionName = null,
+                        accountSuffix = null,
+                        cardSuffix = null,
+                        instrumentType = InstrumentType.UNKNOWN,
+                        confidence = IdentityConfidence.UNKNOWN,
+                        evidenceSource = "UNIDENTIFIED_REVIEW"
+                    )
+                } else {
+                    identity
+                }
             }
         }
 
@@ -445,6 +475,11 @@ object FinancialAccountGrouper {
                 totalDebit = totalDebit,
                 totalCredit = totalCredit
             )
-        }.sortedBy { it.groupId }
+        }.sortedWith(
+            compareBy(
+                { it.groupId == AccountIdentityExtractor.UNIDENTIFIED_GROUP_ID },
+                { it.groupId }
+            )
+        )
     }
 }

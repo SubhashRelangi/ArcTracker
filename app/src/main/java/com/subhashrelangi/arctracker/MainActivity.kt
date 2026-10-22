@@ -418,7 +418,7 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
-        containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan")) Color.White else if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
+        containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult")) Color.White else if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
 
         topBar = {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
@@ -446,6 +446,7 @@ fun ExpenseScreen() {
             } else if (
                 currentRoute != "SmsImport" &&
                 currentRoute != "SmsScan" &&
+                currentRoute != "SmsResult" &&
                 currentRoute != "InitialOnboarding" &&
                 currentRoute != "LocalFirstSetup" &&
                 currentRoute != "FinancialAccounts" &&
@@ -522,7 +523,7 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan")) 0.dp else padding.calculateTopPadding()
+            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult")) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
                     .padding(top = contentTopPadding)
@@ -624,10 +625,11 @@ fun ExpenseScreen() {
                     }
                 )
 
-            } else if (currentRoute == "SmsImport" || currentRoute == "SmsScan") {
+            } else if (currentRoute == "SmsImport" || currentRoute == "SmsScan" || currentRoute == "SmsResult") {
 
                 com.subhashrelangi.arctracker.ui.SmsSetupScreen(
                     initialStartScanning = (currentRoute == "SmsScan"),
+                    initialShowResult = (currentRoute == "SmsResult"),
                     onImportCompleted = {
                         settingsRepo.setSetupInProgress(false)
                         settingsRepo.setInitialOnboardingCompleted(true)
@@ -890,6 +892,7 @@ fun ExpenseScreen() {
             "ClearAllData",
             "SmsImport",
             "SmsScan",
+            "SmsResult",
             "BackupRestore",
             "SupportedApps",
             "CategoryManagement",
@@ -1305,7 +1308,7 @@ fun ExpenseScreen() {
             )
         }
 
-        if (currentRoute != "InitialOnboarding" && currentRoute != "LocalFirstSetup" && currentRoute != "SmsImport" && currentRoute != "SmsScan") {
+        if (currentRoute != "InitialOnboarding" && currentRoute != "LocalFirstSetup" && currentRoute != "SmsImport" && currentRoute != "SmsScan" && currentRoute != "SmsResult") {
             if (!isNotificationAccessGranted && !hasDismissedNotificationPermissionDialog) {
                 NotificationPermissionDialog(
                     onGrantClick = {

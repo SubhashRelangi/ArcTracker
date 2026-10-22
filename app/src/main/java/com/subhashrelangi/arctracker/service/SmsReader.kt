@@ -105,6 +105,15 @@ interface SmsReader {
         return result
     }
 
+    /**
+     * Quickly queries and returns the count of SMS messages within the bounded time range.
+     * Returns null if permission is not granted or query fails.
+     */
+    fun getMessageCount(
+        startTimeMillis: Long,
+        endTimeMillis: Long
+    ): Int? = null
+
     companion object {
         fun create(context: Context): SmsReader = AndroidSmsReader(context)
 
@@ -268,6 +277,24 @@ class AndroidSmsReader(
         return SmsReadResult.Success(totalRead)
     }
 
+    override fun getMessageCount(
+        startTimeMillis: Long,
+        endTimeMillis: Long
+    ): Int? {
+        if (!permissionChecker(context)) return null
+        if (startTimeMillis > endTimeMillis) return 0
+        val inboxUri = getInboxUri() ?: return null
+        val selection = "${Telephony.Sms.DATE} >= ? AND ${Telephony.Sms.DATE} <= ?"
+        val selectionArgs = arrayOf(startTimeMillis.toString(), endTimeMillis.toString())
+        return try {
+            queryExecutor(inboxUri, arrayOf(Telephony.Sms._ID), selection, selectionArgs, null)?.use {
+                it.count
+            }
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
     companion object {
         private const val TAG = "ArcTracker:SmsReader"
         const val INBOX_URI_STRING = "content://sms/inbox"
@@ -330,5 +357,14 @@ class InMemorySmsReader(
             if (!onRecord(r)) break
         }
         return SmsReadResult.Success(count)
+    }
+
+    override fun getMessageCount(
+        startTimeMillis: Long,
+        endTimeMillis: Long
+    ): Int? {
+        if (!hasPermission || shouldThrowSecurityExceptionOnQuery || shouldFailWithNullCursor) return null
+        if (startTimeMillis > endTimeMillis) return 0
+        return records.count { it.dateMillis in startTimeMillis..endTimeMillis }
     }
 }

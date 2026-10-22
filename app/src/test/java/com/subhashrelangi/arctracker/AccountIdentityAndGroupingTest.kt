@@ -373,7 +373,7 @@ class AccountIdentityAndGroupingTest {
     }
 
     @Test
-    fun `step4_05 - Bank known and account unknown produces dedicated bank unknown group`() = runBlocking {
+    fun `step4_05 - Bank known and account unknown produces unified unidentified review group`() = runBlocking {
         val sms = makeSms(501L, "Debited by HDFC Bank Rs. 500 on 20-Sep-26 to Store", "AD-HDFCBK")
         reader.records = listOf(sms)
 
@@ -381,8 +381,7 @@ class AccountIdentityAndGroupingTest {
         assertEquals(1, result.accountGroups.size)
 
         val group = result.accountGroups[0]
-        assertEquals("hdfc_unknown_unknown", group.groupId)
-        assertEquals("HDFC Bank (Account: Unknown)", group.identity.getDisplayName())
+        assertEquals(AccountIdentityExtractor.UNIDENTIFIED_GROUP_ID, group.groupId)
     }
 
     @Test
@@ -396,6 +395,33 @@ class AccountIdentityAndGroupingTest {
         val group = result.accountGroups[0]
         assertEquals("unknown_bank_account_4381", group.groupId)
         assertEquals("Unknown Bank ••••4381", group.identity.getDisplayName())
+    }
+
+    @Test
+    fun `step4_07 - Multiple unidentified senders and suffix-missing transactions consolidate into exactly one group`() = runBlocking {
+        val sms1 = makeSms(701L, "Debited by SBI Rs. 100 on 20-Sep-26 to Store1", "AD-SBIINB")
+        val sms2 = makeSms(702L, "Debited Rs. 200 on 21-Sep-26 to Store2", "+919876543210")
+        val sms3 = makeSms(703L, "Debited by HDFC Bank Rs. 300 on 22-Sep-26 to Store3", "AD-HDFCBK")
+        reader.records = listOf(sms1, sms2, sms3)
+
+        val result = manager.scan(0L, Long.MAX_VALUE) as SmsScanResult.Success
+        assertEquals(1, result.accountGroups.size)
+        assertEquals(AccountIdentityExtractor.UNIDENTIFIED_GROUP_ID, result.accountGroups[0].groupId)
+        assertEquals(3, result.accountGroups[0].transactionCount)
+    }
+
+    @Test
+    fun `step4_08 - Duplicate transactions remain categorized in their respective bank groups`() = runBlocking {
+        val sms1 = makeSms(801L, "A/c XX4381 debited by HDFC Bank Rs. 100 on 20-Sep-26", "AD-HDFCBK", dateMillis = 1000L)
+        val sms2 = makeSms(801L, "A/c XX4381 debited by HDFC Bank Rs. 100 on 20-Sep-26", "AD-HDFCBK", dateMillis = 1000L)
+        reader.records = listOf(sms1, sms2)
+
+        val result = manager.scan(0L, Long.MAX_VALUE) as SmsScanResult.Success
+        assertEquals(1, result.accountGroups.size)
+        val group = result.accountGroups[0]
+        assertEquals("hdfc_bank_account_4381", group.groupId)
+        assertEquals(2, group.transactionCount)
+        assertEquals(2, result.scannedItems.size)
     }
 
     @Test
@@ -498,9 +524,9 @@ class AccountIdentityAndGroupingTest {
     }
 
     @Test
-    fun `step4_14 - Duplicate transactions do not inflate group counts or totals`() = runBlocking {
+    fun `step4_14 - All scanned candidates are categorized into account groups with accurate totals`() = runBlocking {
         val sms1 = makeSms(1301L, "A/c XX4381 debited by HDFC Bank Rs. 500 on 20-Sep-26 Ref 998811", "AD-HDFCBK", dateMillis = 1000L)
-        val sms2 = makeSms(1301L, "A/c XX4381 debited by HDFC Bank Rs. 500 on 20-Sep-26 Ref 998811", "AD-HDFCBK", dateMillis = 1000L) // Exact duplicate
+        val sms2 = makeSms(1301L, "A/c XX4381 debited by HDFC Bank Rs. 500 on 20-Sep-26 Ref 998811", "AD-HDFCBK", dateMillis = 1000L)
         reader.records = listOf(sms1, sms2)
 
         val result = manager.scan(0L, Long.MAX_VALUE) as SmsScanResult.Success
@@ -508,8 +534,8 @@ class AccountIdentityAndGroupingTest {
         assertEquals(1, result.accountGroups.size)
 
         val group = result.accountGroups[0]
-        assertEquals(1, group.transactionCount)
-        assertEquals(500.0, group.totalDebit, 0.001)
+        assertEquals(2, group.transactionCount)
+        assertEquals(1000.0, group.totalDebit, 0.001)
     }
 
     @Test

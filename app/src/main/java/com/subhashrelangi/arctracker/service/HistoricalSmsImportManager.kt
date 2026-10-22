@@ -188,6 +188,8 @@ class HistoricalSmsImportManager(
         val claimedRecordIds = mutableSetOf<String>()
         val inScanSeenRecords = mutableListOf<TransactionRecord>()
         val tombstonedKeys = dao.getAllTombstonedSmsSourceKeys().toSet()
+        val totalEstimatedMessages = smsReader.getMessageCount(startTimeMillis, endTimeMillis)
+        dispatchScanProgress(0, totalEstimatedMessages, 0, 0, 0, progressCallback)
 
         val readResult = smsReader.readSms(startTimeMillis, endTimeMillis) { smsRecord ->
             messagesScanned++
@@ -200,7 +202,7 @@ class HistoricalSmsImportManager(
             val normalized = NotificationNormalizer.normalize(captured)
             if (normalized == null) {
                 nonFinancialMessages++
-                val cont = dispatchScanProgress(messagesScanned, financialMessages, noiseMessages, duplicatesCount, progressCallback)
+                val cont = dispatchScanProgress(messagesScanned, totalEstimatedMessages, financialMessages, noiseMessages, duplicatesCount, progressCallback)
                 if (!cont) isCancelled = true
                 return@readSms cont
             }
@@ -209,14 +211,14 @@ class HistoricalSmsImportManager(
             val classification = FinancialClassifier.classify(normalized)
             if (classification.isNoise) {
                 noiseMessages++
-                val cont = dispatchScanProgress(messagesScanned, financialMessages, noiseMessages, duplicatesCount, progressCallback)
+                val cont = dispatchScanProgress(messagesScanned, totalEstimatedMessages, financialMessages, noiseMessages, duplicatesCount, progressCallback)
                 if (!cont) isCancelled = true
                 return@readSms cont
             }
 
             if (classification.financialRelevance == FinancialRelevance.NON_FINANCIAL) {
                 nonFinancialMessages++
-                val cont = dispatchScanProgress(messagesScanned, financialMessages, noiseMessages, duplicatesCount, progressCallback)
+                val cont = dispatchScanProgress(messagesScanned, totalEstimatedMessages, financialMessages, noiseMessages, duplicatesCount, progressCallback)
                 if (!cont) isCancelled = true
                 return@readSms cont
             }
@@ -225,7 +227,7 @@ class HistoricalSmsImportManager(
             val candidates = StructuredTransactionExtractor.extractAll(classification)
             if (candidates.isEmpty()) {
                 nonFinancialMessages++
-                val cont = dispatchScanProgress(messagesScanned, financialMessages, noiseMessages, duplicatesCount, progressCallback)
+                val cont = dispatchScanProgress(messagesScanned, totalEstimatedMessages, financialMessages, noiseMessages, duplicatesCount, progressCallback)
                 if (!cont) isCancelled = true
                 return@readSms cont
             }
@@ -334,7 +336,7 @@ class HistoricalSmsImportManager(
                 )
             }
 
-            val cont = dispatchScanProgress(messagesScanned, financialMessages, noiseMessages, duplicatesCount, progressCallback)
+            val cont = dispatchScanProgress(messagesScanned, totalEstimatedMessages, financialMessages, noiseMessages, duplicatesCount, progressCallback)
             if (!cont) isCancelled = true
             cont
         }
@@ -402,15 +404,24 @@ class HistoricalSmsImportManager(
         scanResult: SmsScanResult.Success,
         selectedGroupIds: Set<String>? = null,
         progressCallback: ((SmsImportProgress) -> Boolean)? = null
+    ): SmsImportResult = importTransactions(scanResult, selectedGroupIds, null, progressCallback)
+
+    suspend fun importTransactions(
+        scanResult: SmsScanResult.Success,
+        selectedGroupIds: Set<String>?,
+        selectedItemIds: Set<String>?,
+        progressCallback: ((SmsImportProgress) -> Boolean)? = null
     ): SmsImportResult = executionMutex.withLock {
-        // Step 6: Filter items to only include those belonging to selected group IDs
-        val items = if (selectedGroupIds != null) {
-            scanResult.scannedItems.filter { item ->
+        // Step 6: Filter items to only include those belonging to selected group IDs and selected item IDs
+        val items = scanResult.scannedItems.filter { item ->
+            val groupMatch = if (selectedGroupIds != null) {
                 val groupId = AccountIdentityExtractor.generateGroupId(item.accountIdentity)
                 selectedGroupIds.contains(groupId)
-            }
-        } else {
-            scanResult.scannedItems
+            } else true
+            val itemMatch = if (selectedItemIds != null) {
+                selectedItemIds.contains(item.sourceEvent.sourceId)
+            } else true
+            groupMatch && itemMatch
         }
 
         SecureLogger.i(TAG, "Starting persistence reconciliation for ${items.size} candidates (selectedGroupIds: ${selectedGroupIds?.size ?: "ALL"})")
@@ -605,7 +616,7 @@ class HistoricalSmsImportManager(
     suspend fun importTransactions(
         scanResult: SmsScanResult.Success,
         progressCallback: ((SmsImportProgress) -> Boolean)?
-    ): SmsImportResult = importTransactions(scanResult, null, progressCallback)
+    ): SmsImportResult = importTransactions(scanResult, null, null, progressCallback)
 
     /**
      * Convenience method combining non-destructive SCAN followed immediately by IMPORT.
@@ -636,6 +647,7 @@ class HistoricalSmsImportManager(
 
     private fun dispatchScanProgress(
         processed: Int,
+        total: Int?,
         financial: Int,
         noise: Int,
         duplicates: Int,
@@ -643,6 +655,7 @@ class HistoricalSmsImportManager(
     ): Boolean {
         val progress = SmsScanProgress(
             recordsProcessed = processed,
+            totalEstimated = total,
             financialDetected = financial,
             noiseDetected = noise,
             duplicatesDetected = duplicates,
