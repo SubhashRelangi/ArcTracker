@@ -5,7 +5,16 @@ import android.app.Activity
 import android.app.DatePickerDialog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,20 +42,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -58,12 +72,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -77,7 +96,10 @@ import com.subhashrelangi.arctracker.service.SmsPermissionHelper
 import com.subhashrelangi.arctracker.service.SmsScanProgress
 import com.subhashrelangi.arctracker.service.SmsScanResult
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -102,6 +124,8 @@ private val StepPillText = Color(0xFF059669)
 
 // Card Tokens
 private val CardBg = Color(0xFFFFFFFF)
+private val CardSurface = Color(0xFFF8FAFC)
+private val CardBorder = Color(0xFFE2E8F0)
 private val CardBorderUnselected = Color(0xFFE2E8F0)
 private val CardBorderSelected = Color(0xFF10B981)
 private val CardBgSelected = Color(0xFFF8FAFC)
@@ -127,7 +151,8 @@ fun SmsSetupScreen(
     onImportCompleted: () -> Unit,
     onSkipClick: () -> Unit,
     onBackClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    initialStartScanning: Boolean = false
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -184,9 +209,14 @@ fun SmsSetupScreen(
     var startDateMillis by rememberSaveable { mutableLongStateOf(defaultThreeMonthsAgo) }
     var endDateMillis by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
 
-    // Scan/Import execution state
-    var isScanning by remember { mutableStateOf(false) }
-    var scanMessage by remember { mutableStateOf("Scanning SMS messages...") }
+    // Dedicated Scan Screen execution & animation states
+    var isScanning by rememberSaveable { mutableStateOf(initialStartScanning) }
+    var scanProgressFloat by remember { mutableFloatStateOf(if (initialStartScanning) 0.05f else 0f) }
+    var messagesScannedCount by remember { mutableIntStateOf(0) }
+    var totalMessagesEstimated by remember { mutableIntStateOf(400) }
+    var financialMessagesCount by remember { mutableIntStateOf(0) }
+    var scanStatusText by remember { mutableStateOf("Initializing scanner...") }
+    var scanJob by remember { mutableStateOf<Job?>(null) }
 
     // Helper to update date range when option selected
     fun selectOption(index: Int) {
@@ -218,37 +248,69 @@ fun SmsSetupScreen(
 
     // Helper function to execute scan & auto-import
     fun startScanAndImport() {
-        if (isScanning) return
+        if (scanJob?.isActive == true) return
         isScanning = true
-        scanMessage = "Scanning transaction SMS..."
+        scanProgressFloat = 0.05f
+        scanStatusText = "Reading SMS inbox..."
+        messagesScannedCount = 0
+        financialMessagesCount = 0
+        totalMessagesEstimated = 400
 
-        scope.launch {
+        scanJob = scope.launch {
             try {
+                delay(200)
+                if (scanProgressFloat < 0.15f) scanProgressFloat = 0.15f
+
                 val importResult = withContext(Dispatchers.IO) {
                     importManager.scanAndImport(
                         startTimeMillis = startDateMillis,
                         endTimeMillis = endDateMillis,
                         scanProgress = { progress: SmsScanProgress ->
-                            if (progress.recordsProcessed > 0) {
-                                scanMessage = "Scanned ${progress.recordsProcessed} messages..."
+                            messagesScannedCount = progress.recordsProcessed
+                            val est = progress.totalEstimated?.takeIf { it > 0 } ?: maxOf(400, progress.recordsProcessed + 40)
+                            totalMessagesEstimated = est
+                            val ratio = (progress.recordsProcessed.toFloat() / est).coerceIn(0.15f, 0.75f)
+                            scanProgressFloat = ratio
+                            financialMessagesCount = progress.financialDetected
+                            scanStatusText = if (progress.financialDetected > 0) {
+                                "${progress.financialDetected} txns detected"
+                            } else {
+                                "Scanning messages..."
                             }
                             true
                         },
                         importProgress = { progress ->
-                            if (progress.itemsProcessed > 0) {
-                                scanMessage = "Importing ${progress.itemsProcessed} of ${progress.totalToImport}..."
+                            val ratio = if (progress.totalToImport > 0) {
+                                0.75f + 0.25f * (progress.itemsProcessed.toFloat() / progress.totalToImport)
+                            } else {
+                                0.95f
                             }
+                            scanProgressFloat = ratio.coerceIn(0.75f, 1.0f)
+                            scanStatusText = "Importing ${progress.itemsProcessed} of ${progress.totalToImport}..."
                             true
                         }
                     )
                 }
 
+                // If scan completed with zero messages (e.g. fresh environment), give a smooth visual ramp
+                if (messagesScannedCount == 0 && scanProgressFloat < 0.9f) {
+                    scanProgressFloat = 0.5f
+                    delay(300)
+                }
+
+                // Smoothly finish at 100%
+                scanProgressFloat = 1.0f
+                scanStatusText = if (financialMessagesCount > 0) "$financialMessagesCount txns imported" else "Scan complete"
+                delay(800)
+
                 settingsRepo.setSetupInProgress(false)
                 settingsRepo.setInitialOnboardingCompleted(true)
                 SmsPermissionHelper.setInitialImportCompleted(context, true)
                 onImportCompleted()
-            } catch (_: Exception) {
-                // In case of error, still proceed to dashboard
+            } catch (e: Exception) {
+                if (e is CancellationException) {
+                    return@launch
+                }
                 settingsRepo.setSetupInProgress(false)
                 settingsRepo.setInitialOnboardingCompleted(true)
                 SmsPermissionHelper.setInitialImportCompleted(context, true)
@@ -256,6 +318,19 @@ fun SmsSetupScreen(
             } finally {
                 isScanning = false
             }
+        }
+    }
+
+    val onCancelScan: () -> Unit = {
+        scanJob?.cancel()
+        scanJob = null
+        isScanning = false
+        scanProgressFloat = 0f
+    }
+
+    LaunchedEffect(initialStartScanning) {
+        if (initialStartScanning && scanJob?.isActive != true) {
+            startScanAndImport()
         }
     }
 
@@ -374,9 +449,19 @@ fun SmsSetupScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ----------------------------------------------------
-            // 2. Stepper & Headline
-            // ----------------------------------------------------
+            if (isScanning) {
+                SmsScanningContent(
+                    scanProgressFloat = scanProgressFloat,
+                    messagesScannedCount = messagesScannedCount,
+                    totalMessagesEstimated = totalMessagesEstimated,
+                    financialMessagesCount = financialMessagesCount,
+                    scanStatusText = scanStatusText,
+                    onCancelScan = onCancelScan
+                )
+            } else {
+                // ----------------------------------------------------
+                // 2. Stepper & Headline
+                // ----------------------------------------------------
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
@@ -507,30 +592,6 @@ fun SmsSetupScreen(
                     color = BrandTextSecondary,
                     lineHeight = 16.sp
                 )
-            }
-
-            // Scanning indicator if currently processing
-            if (isScanning) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = StepPillText
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = scanMessage,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = StepPillText
-                    )
-                }
             }
         }
 
@@ -674,6 +735,352 @@ fun SmsSetupScreen(
         }
     }
 }
+}
+}
+
+/**
+ * Dedicated Scanning Screen matching Ui-Designs/InitialSetUp/SmsImportScan.png in Light Theme.
+ *
+ * Stage 1 of 3: SMS Scan Phase.
+ * - Same Header as previous screens (Title + GitHub version badge pill + Green status dot)
+ * - Stage Pill: "AUTOMATED INGESTION • STAGE 1 OF 3" (without icon beside it per instructions)
+ * - Perfectly scaled Circular Gauge with dynamic percentage & pulsing "AUDITING" badge
+ * - Essential Real-time Scanning Reports Card (Progress bar, Messages checked, Status)
+ * - Local isolated sandbox privacy card
+ * - Red pill-styled "Cancel Scan" button without bottom text
+ */
+@Composable
+private fun SmsScanningContent(
+    scanProgressFloat: Float,
+    messagesScannedCount: Int,
+    totalMessagesEstimated: Int,
+    financialMessagesCount: Int,
+    scanStatusText: String,
+    onCancelScan: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = scanProgressFloat,
+        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+        label = "scanProgress"
+    )
+
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(750, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
+
+    val displayPercent = (animatedProgress * 100).toInt().coerceIn(0, 100)
+
+    Column(
+        modifier = modifier.fillMaxSize()
+    ) {
+        // ----------------------------------------------------
+        // Stage Pill (Removed icon beside AUTOMATED INGESTION per instruction)
+        // ----------------------------------------------------
+        Box(
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(StepPillBg)
+                .border(BorderStroke(1.dp, StepPillBorder), CircleShape)
+                .padding(horizontal = 11.dp, vertical = 3.5.dp)
+        ) {
+            Text(
+                text = "AUTOMATED INGESTION  •  STAGE 1 OF 3",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = StepPillText,
+                letterSpacing = 0.5.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // ----------------------------------------------------
+        // Central Animated Circular Gauge (Proportionately scaled)
+        // ----------------------------------------------------
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier.size(128.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val strokeWidth = 6.5.dp.toPx()
+                    val diameter = size.minDimension - strokeWidth
+                    val topLeft = Offset(strokeWidth / 2, strokeWidth / 2)
+                    val arcSize = Size(diameter, diameter)
+
+                    // Background Track
+                    drawArc(
+                        color = Color(0xFFF1F5F9),
+                        startAngle = -90f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    )
+
+                    // Foreground Animated Emerald Arc
+                    drawArc(
+                        color = Color(0xFF10B981),
+                        startAngle = -90f,
+                        sweepAngle = 360f * animatedProgress,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "$displayPercent%",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BrandTextPrimary,
+                        letterSpacing = (-0.5).sp
+                    )
+
+                    Spacer(modifier = Modifier.height(3.dp))
+
+                    // Auditing pill with pulsing indicator dot
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(StepPillBg)
+                            .border(BorderStroke(1.dp, StepPillBorder), CircleShape)
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(StepPillText.copy(alpha = pulseAlpha))
+                            )
+                            Text(
+                                text = "AUDITING",
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = StepPillText,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // ----------------------------------------------------
+        // Headline & Subtitle (Proportional sizing)
+        // ----------------------------------------------------
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Scanning messages on this device...",
+                fontSize = 18.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = BrandTextPrimary,
+                textAlign = TextAlign.Center,
+                lineHeight = 24.sp,
+                letterSpacing = (-0.3).sp
+            )
+
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                text = "Reading SMS inbox and matching verified bank alert signatures.",
+                fontSize = 12.5.sp,
+                color = BrandTextSecondary,
+                textAlign = TextAlign.Center,
+                lineHeight = 17.5.sp,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // ----------------------------------------------------
+        // Real-Time Scanning Reports Card
+        // ----------------------------------------------------
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = CardSurface,
+            border = BorderStroke(1.dp, CardBorder)
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Progress",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = BrandTextSecondary
+                    )
+                    Text(
+                        text = "$displayPercent%",
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BrandTextPrimary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                LinearProgressIndicator(
+                    progress = { animatedProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.5.dp)
+                        .clip(RoundedCornerShape(3.5.dp)),
+                    color = Color(0xFF10B981),
+                    trackColor = Color(0xFFE2E8F0)
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "Messages checked",
+                            fontSize = 11.sp,
+                            color = BrandTextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (totalMessagesEstimated > 0) "$messagesScannedCount of $totalMessagesEstimated" else "$messagesScannedCount",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = BrandTextPrimary
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "Status",
+                            fontSize = 11.sp,
+                            color = BrandTextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = scanStatusText,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = StepPillText
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // ----------------------------------------------------
+        // Privacy Sandbox Guarantee
+        // ----------------------------------------------------
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            color = CardSurface,
+            border = BorderStroke(1.dp, CardBorder)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Lock,
+                    contentDescription = "Isolated Sandbox",
+                    tint = StepPillText,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Parsing occurs locally in an isolated sandbox. Zero data transmission.",
+                    fontSize = 11.5.sp,
+                    color = BrandTextSecondary,
+                    lineHeight = 16.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        // ----------------------------------------------------
+        // Bottom Action: Soft Rose/Crimson Cancel Scan Button
+        // ----------------------------------------------------
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .shadow(
+                    elevation = 1.dp,
+                    shape = RoundedCornerShape(26.dp),
+                    ambientColor = Color(0x0ADC2626),
+                    spotColor = Color(0x18DC2626)
+                )
+                .clip(RoundedCornerShape(26.dp))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = rememberRipple(color = Color(0xFFDC2626).copy(alpha = 0.12f)),
+                    onClick = onCancelScan
+                ),
+            shape = RoundedCornerShape(26.dp),
+            color = Color(0xFFFEF2F2),
+            border = BorderStroke(1.dp, Color(0xFFFECACA))
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Cancel Scan",
+                    tint = Color(0xFFDC2626),
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Cancel Scan",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFFDC2626)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+    }
 }
 
 private enum class OptionTrailingType {

@@ -418,7 +418,7 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
-        containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport")) Color.White else if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
+        containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan")) Color.White else if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
 
         topBar = {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
@@ -445,6 +445,7 @@ fun ExpenseScreen() {
                 )
             } else if (
                 currentRoute != "SmsImport" &&
+                currentRoute != "SmsScan" &&
                 currentRoute != "InitialOnboarding" &&
                 currentRoute != "LocalFirstSetup" &&
                 currentRoute != "FinancialAccounts" &&
@@ -521,7 +522,7 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport")) 0.dp else padding.calculateTopPadding()
+            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan")) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
                     .padding(top = contentTopPadding)
@@ -623,9 +624,10 @@ fun ExpenseScreen() {
                     }
                 )
 
-            } else if (currentRoute == "SmsImport") {
+            } else if (currentRoute == "SmsImport" || currentRoute == "SmsScan") {
 
                 com.subhashrelangi.arctracker.ui.SmsSetupScreen(
+                    initialStartScanning = (currentRoute == "SmsScan"),
                     onImportCompleted = {
                         settingsRepo.setSetupInProgress(false)
                         settingsRepo.setInitialOnboardingCompleted(true)
@@ -887,6 +889,7 @@ fun ExpenseScreen() {
             "LocalFirstSetup",
             "ClearAllData",
             "SmsImport",
+            "SmsScan",
             "BackupRestore",
             "SupportedApps",
             "CategoryManagement",
@@ -1302,7 +1305,7 @@ fun ExpenseScreen() {
             )
         }
 
-        if (currentRoute != "InitialOnboarding" && currentRoute != "LocalFirstSetup" && currentRoute != "SmsImport") {
+        if (currentRoute != "InitialOnboarding" && currentRoute != "LocalFirstSetup" && currentRoute != "SmsImport" && currentRoute != "SmsScan") {
             if (!isNotificationAccessGranted && !hasDismissedNotificationPermissionDialog) {
                 NotificationPermissionDialog(
                     onGrantClick = {
