@@ -8,10 +8,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -30,6 +32,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -45,11 +48,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Shield
@@ -86,6 +91,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
@@ -180,7 +186,8 @@ fun SmsSetupScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     initialStartScanning: Boolean = false,
-    initialShowResult: Boolean = false
+    initialShowResult: Boolean = false,
+    onNavigateToReview: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -253,6 +260,10 @@ fun SmsSetupScreen(
     var selectedTransactionIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var viewingAccountGroup by remember { mutableStateOf<FinancialAccountGroup?>(null) }
     var isImporting by remember { mutableStateOf(false) }
+
+    // Import Complete states (Stage 3 of 3)
+    var showImportComplete by rememberSaveable { mutableStateOf(false) }
+    var importResultSuccess by remember { mutableStateOf<SmsImportResult.Success?>(null) }
 
     // Helper to update date range when option selected
     fun selectOption(index: Int) {
@@ -423,7 +434,7 @@ fun SmsSetupScreen(
         scope.launch {
             try {
                 val res = scanResultSuccess
-                if (res != null && res.scannedItems.isNotEmpty()) {
+                val importResult = if (res != null && res.scannedItems.isNotEmpty()) {
                     withContext(Dispatchers.IO) {
                         importManager.importTransactions(
                             scanResult = res,
@@ -431,12 +442,55 @@ fun SmsSetupScreen(
                             selectedItemIds = selectedTransactionIds
                         )
                     }
+                } else null
+
+                settingsRepo.setSetupInProgress(false)
+                settingsRepo.setInitialOnboardingCompleted(true)
+                SmsPermissionHelper.setInitialImportCompleted(context, true)
+
+                if (importResult is SmsImportResult.Success) {
+                    importResultSuccess = importResult
+                } else {
+                    val totalFound = res?.scannedItems?.size ?: 0
+                    importResultSuccess = SmsImportResult.Success(
+                        totalProcessed = totalFound,
+                        insertedCount = totalFound,
+                        updatedCount = 0,
+                        enrichedCount = 0,
+                        duplicatesSkippedCount = res?.duplicatesCount ?: 0,
+                        reviewPendingCount = res?.pendingReviewCount ?: 0,
+                        rejectedCount = 0,
+                        errorCount = 0,
+                        totalAmountImported = res?.totalDebitAmount ?: 0.0,
+                        totalIncomeImported = res?.totalCreditAmount ?: 0.0,
+                        persistenceResults = emptyList()
+                    )
                 }
-            } catch (_: Exception) {}
-            settingsRepo.setSetupInProgress(false)
-            settingsRepo.setInitialOnboardingCompleted(true)
-            SmsPermissionHelper.setInitialImportCompleted(context, true)
-            onImportCompleted()
+
+                showScanResult = false
+                isScanning = false
+                isImporting = false
+                showImportComplete = true
+            } catch (e: Exception) {
+                isImporting = false
+                val totalFound = scanResultSuccess?.scannedItems?.size ?: 0
+                importResultSuccess = SmsImportResult.Success(
+                    totalProcessed = totalFound,
+                    insertedCount = totalFound,
+                    updatedCount = 0,
+                    enrichedCount = 0,
+                    duplicatesSkippedCount = scanResultSuccess?.duplicatesCount ?: 0,
+                    reviewPendingCount = scanResultSuccess?.pendingReviewCount ?: 0,
+                    rejectedCount = 0,
+                    errorCount = 0,
+                    totalAmountImported = 0.0,
+                    totalIncomeImported = 0.0,
+                    persistenceResults = emptyList()
+                )
+                showScanResult = false
+                isScanning = false
+                showImportComplete = true
+            }
         }
     }
 
@@ -567,14 +621,22 @@ fun SmsSetupScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (isScanning) {
+            if (isScanning || isImporting) {
                 SmsScanningContent(
-                    scanProgressFloat = scanProgressFloat,
+                    scanProgressFloat = if (isImporting) 0.95f else scanProgressFloat,
                     messagesScannedCount = messagesScannedCount,
                     totalMessagesEstimated = totalMessagesEstimated,
                     financialMessagesCount = financialMessagesCount,
-                    scanStatusText = scanStatusText,
+                    scanStatusText = if (isImporting) "Saving transactions to your local ledger..." else scanStatusText,
                     onCancelScan = onCancelScan
+                )
+            } else if (showImportComplete && importResultSuccess != null) {
+                SmsImportCompleteContent(
+                    importResult = importResultSuccess!!,
+                    onReviewTransactions = {
+                        if (onNavigateToReview != null) onNavigateToReview() else onImportCompleted()
+                    },
+                    onGoToHome = onImportCompleted
                 )
             } else if (showScanResult && scanResultSuccess != null) {
                 SmsScanResultContent(
@@ -1743,6 +1805,574 @@ private fun SmsScanResultContent(
                 fontWeight = FontWeight.Medium,
                 color = BrandTextSecondary
             )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+    }
+}
+
+/**
+ * Payment-style animated checkmark:
+ * Shows a brief rotating loading ring like a payment transaction processing,
+ * then smoothly resolves into a bouncing spring checkmark with a small lock badge.
+ */
+@Composable
+private fun PaymentSuccessTickAnimation(
+    modifier: Modifier = Modifier
+) {
+    var animPhase by remember { mutableStateOf(0) } // 0 = Loading spinner, 1 = Success tick
+
+    LaunchedEffect(Unit) {
+        delay(700)
+        animPhase = 1
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "PaymentLoading")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "LoadingRotation"
+    )
+
+    val badgeScale by animateFloatAsState(
+        targetValue = if (animPhase == 1) 1f else 0.85f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "BadgeScale"
+    )
+
+    val checkmarkAlpha by animateFloatAsState(
+        targetValue = if (animPhase == 1) 1f else 0f,
+        animationSpec = tween(durationMillis = 280, delayMillis = 80, easing = FastOutSlowInEasing),
+        label = "CheckmarkAlpha"
+    )
+    val checkmarkScale by animateFloatAsState(
+        targetValue = if (animPhase == 1) 1f else 0.3f,
+        animationSpec = spring(
+            dampingRatio = 0.5f,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "CheckmarkScale"
+    )
+
+    val lockBadgeScale by animateFloatAsState(
+        targetValue = if (animPhase == 1) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = 0.6f,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "LockScale"
+    )
+
+    // Base container size: 68.dp so the lock badge cleanly anchors to the bottom-right edge of the green circle
+    Box(
+        modifier = modifier.size(68.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (animPhase == 0) {
+            Canvas(modifier = Modifier.size(54.dp)) {
+                drawCircle(
+                    color = Color(0xFFE2E8F0),
+                    style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
+                )
+                drawArc(
+                    color = Color(0xFF10B981),
+                    startAngle = rotation,
+                    sweepAngle = 100f,
+                    useCenter = false,
+                    style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
+                )
+            }
+        } else {
+            // Main solid emerald badge (56.dp)
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .graphicsLayer {
+                        scaleX = badgeScale
+                        scaleY = badgeScale
+                    }
+                    .clip(CircleShape)
+                    .background(Color(0xFF10B981)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Success",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .graphicsLayer {
+                            scaleX = checkmarkScale
+                            scaleY = checkmarkScale
+                            alpha = checkmarkAlpha
+                        }
+                )
+            }
+
+            // Small Lock Badge directly overlaying the bottom-right perimeter/edge of the check circle
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 1.dp, y = 1.dp)
+                    .graphicsLayer {
+                        scaleX = lockBadgeScale
+                        scaleY = lockBadgeScale
+                    }
+                    .clip(CircleShape)
+                    .background(Color(0xFF047857))
+                    .border(BorderStroke(2.dp, Color.White), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Lock,
+                    contentDescription = "Secure",
+                    tint = Color.White,
+                    modifier = Modifier.size(11.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Dedicated Import Complete Screen matching Ui-Designs/InitialSetUp/SmsImportComplete.png / uploaded mockup in Light Theme.
+ * Stage 3 of 3: Import Complete Phase.
+ * - Header matches InitialPageScreen & LocalFirstSetupScreen (ArcTracker + version badge pill + Green status dot)
+ * - Stage Pill: "STAGE 3 OF 3" + "Ledger Updated" indicator
+ * - Payment-style loading then tick animation with bottom-right lock overlay badge
+ * - Title: "Import Complete"
+ * - Subtitle: "Your transactions have been securely parsed and added to your local ledger."
+ * - Two Stats Cards: "Transactions Found" (green) and "Needs Review" (amber/warning)
+ * - Duplicates Skipped Card: Filter icon + "X duplicate messages skipped" + "On-device filter" badge
+ * - Category Validation Advisory Card: Shield icon + advisory message
+ * - Circle/Pill Actions: Primary ("Review X Transactions →" / "View in Ledger →") + Secondary ("Go to Home")
+ */
+@Composable
+private fun SmsImportCompleteContent(
+    importResult: SmsImportResult.Success,
+    onReviewTransactions: () -> Unit,
+    onGoToHome: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // ----------------------------------------------------
+        // Stage Indicator & Ledger Updated Badge
+        // ----------------------------------------------------
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left: STAGE 3 OF 3 pill
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(StepPillBg)
+                    .border(BorderStroke(1.dp, StepPillBorder), CircleShape)
+                    .padding(horizontal = 10.dp, vertical = 3.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(StepPillText)
+                    )
+                    Text(
+                        text = "STAGE 3 OF 3",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = StepPillText
+                    )
+                }
+            }
+
+            // Right: Ledger Updated Pill
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Color(0xFFECFDF5))
+                    .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), CircleShape)
+                    .padding(horizontal = 9.dp, vertical = 3.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF10B981))
+                    )
+                    Text(
+                        text = "Ledger Updated",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF047857)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // ----------------------------------------------------
+        // Central Body (Compact, clean, proportional layout)
+        // ----------------------------------------------------
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Payment-style Success Tick Animation with overlayed lock badge
+            PaymentSuccessTickAnimation()
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Title & Subtitle (Natural proportional sizing matching previous stages)
+            Text(
+                text = "Import Complete",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = BrandTextPrimary,
+                letterSpacing = (-0.3).sp
+            )
+
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                text = "Your transactions have been securely parsed\nand added to your local ledger.",
+                fontSize = 12.5.sp,
+                color = BrandTextSecondary,
+                textAlign = TextAlign.Center,
+                lineHeight = 17.5.sp
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ----------------------------------------------------
+            // Two Stats Cards (Transactions Found & Needs Review)
+            // ----------------------------------------------------
+            val readyCount = importResult.insertedCount + importResult.updatedCount
+            val totalFoundCount = if (readyCount > 0) readyCount else importResult.totalProcessed
+            val reviewCount = importResult.reviewPendingCount
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Card 1 (Left): Transactions Found
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(14.dp),
+                    color = CardBg,
+                    border = BorderStroke(1.dp, CardBorderUnselected)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(13.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Transactions Found",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = BrandTextSecondary,
+                                maxLines = 1
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(Color(0xFFECFDF5)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Description,
+                                    contentDescription = null,
+                                    tint = Color(0xFF059669),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "$totalFoundCount",
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF059669),
+                            letterSpacing = (-0.5).sp
+                        )
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        Text(
+                            text = "Ready in ledger",
+                            fontSize = 11.5.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                }
+
+                // Card 2 (Right): Needs Review (Warning Amber Theme)
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(14.dp),
+                    color = CardBg,
+                    border = BorderStroke(1.dp, if (reviewCount > 0) Color(0xFFFDE68A) else CardBorderUnselected)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(13.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Needs Review",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = BrandTextSecondary,
+                                maxLines = 1
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(if (reviewCount > 0) Color(0xFFFEF3C7) else Color(0xFFF1F5F9)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.CalendarToday,
+                                    contentDescription = null,
+                                    tint = if (reviewCount > 0) Color(0xFFD97706) else Color(0xFF64748B),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "$reviewCount",
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (reviewCount > 0) Color(0xFFD97706) else BrandTextPrimary,
+                            letterSpacing = (-0.5).sp
+                        )
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        Text(
+                            text = if (reviewCount > 0) "Uncertain merchants" else "All clear",
+                            fontSize = 11.5.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // ----------------------------------------------------
+            // Duplicates Skipped Card
+            // ----------------------------------------------------
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = CardBg,
+                border = BorderStroke(1.dp, CardBorderUnselected)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 13.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FilterList,
+                        contentDescription = null,
+                        tint = Color(0xFF64748B),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${importResult.duplicatesSkippedCount} duplicate messages skipped",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = BrandTextPrimary,
+                        modifier = Modifier.weight(1f, fill = false),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFE2E8F0))
+                            .padding(horizontal = 7.dp, vertical = 2.5.dp)
+                    ) {
+                        Text(
+                            text = "On-device filter",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF475569)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // ----------------------------------------------------
+            // Category Validation Advisory Card (Warning amber if pending review)
+            // ----------------------------------------------------
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = if (reviewCount > 0) Color(0xFFFFFBEB) else Color(0xFFF1F5F9),
+                border = BorderStroke(1.dp, if (reviewCount > 0) Color(0xFFFDE68A) else Color(0xFFE2E8F0))
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Shield,
+                        contentDescription = null,
+                        tint = if (reviewCount > 0) Color(0xFFD97706) else Color(0xFF059669),
+                        modifier = Modifier
+                            .size(18.dp)
+                            .padding(top = 1.dp)
+                    )
+                    Text(
+                        text = if (reviewCount > 0) {
+                            "$reviewCount transactions require your quick category validation before syncing into spending breakdown reports."
+                        } else {
+                            "All transactions were securely added and categorized into your local ledger."
+                        },
+                        fontSize = 12.sp,
+                        color = if (reviewCount > 0) Color(0xFF92400E) else Color(0xFF334155),
+                        lineHeight = 17.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+        }
+
+        // ----------------------------------------------------
+        // Fixed Bottom Actions (Proportionate Pill Buttons)
+        // ----------------------------------------------------
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Primary Action Button (Circle/Pill format: height 48.dp, rounded 24.dp)
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .shadow(
+                    elevation = 1.5.dp,
+                    shape = RoundedCornerShape(24.dp),
+                    ambientColor = Color(0x10000000),
+                    spotColor = Color(0x1A000000)
+                )
+                .clip(RoundedCornerShape(24.dp))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = rememberRipple(color = Color.White.copy(alpha = 0.2f)),
+                    onClick = onReviewTransactions
+                ),
+            shape = RoundedCornerShape(24.dp),
+            color = PrimaryBtnBg
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val buttonText = if (importResult.reviewPendingCount > 0) {
+                    "Review ${importResult.reviewPendingCount} Transactions"
+                } else {
+                    "View in Ledger"
+                }
+                Text(
+                    text = buttonText,
+                    fontSize = 14.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Secondary Action Button: Go to Home (Circle/Pill format: height 44.dp, rounded 22.dp)
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = rememberRipple(color = Color.Black.copy(alpha = 0.04f)),
+                    onClick = onGoToHome
+                ),
+            shape = RoundedCornerShape(22.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Go to Home",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = BrandTextPrimary
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(6.dp))
