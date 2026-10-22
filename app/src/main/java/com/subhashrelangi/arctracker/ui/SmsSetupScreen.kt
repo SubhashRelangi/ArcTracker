@@ -594,30 +594,33 @@ fun SmsSetupScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left: Back Arrow + Title starts first, followed by GitHub version pill
+                // Left: Back Arrow (hidden on Scan Result page per design) + Title + GitHub version pill
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = rememberRipple(bounded = false, radius = 18.dp),
-                                onClick = handleBack
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = BrandTextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                    val showHeaderBackArrow = showImportComplete
+                    if (showHeaderBackArrow) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = rememberRipple(bounded = false, radius = 18.dp),
+                                    onClick = handleBack
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = BrandTextPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
 
                     Text(
                         text = "ArcTracker",
