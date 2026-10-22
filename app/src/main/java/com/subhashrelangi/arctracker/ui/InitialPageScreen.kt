@@ -322,20 +322,20 @@ fun InitialPageScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
+                        .height(52.dp)
                         .shadow(
                             elevation = 2.dp,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = CircleShape,
                             ambientColor = Color(0x10000000),
                             spotColor = Color(0x1A000000)
                         )
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(CircleShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = rememberRipple(color = Color.White.copy(alpha = 0.2f)),
                             onClick = onStartSetupClick
                         ),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = CircleShape,
                     color = PrimaryBtnBg
                 ) {
                     Row(
@@ -365,14 +365,14 @@ fun InitialPageScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
-                        .clip(RoundedCornerShape(14.dp))
+                        .height(52.dp)
+                        .clip(CircleShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = rememberRipple(color = Color.Black.copy(alpha = 0.06f)),
                             onClick = onSkipToDashboardClick
                         ),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = CircleShape,
                     color = SecondaryBtnBg,
                     border = BorderStroke(1.dp, SecondaryBtnBorder)
                 ) {

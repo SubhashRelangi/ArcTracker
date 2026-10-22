@@ -1,15 +1,10 @@
 package com.subhashrelangi.arctracker.ui
 
-import android.Manifest
+import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,36 +23,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Memory
-import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material.icons.outlined.Security
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,73 +48,88 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.subhashrelangi.arctracker.BuildConfig
+import com.subhashrelangi.arctracker.R
 import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
-import com.subhashrelangi.arctracker.service.SmsPermissionHelper
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
-import com.subhashrelangi.arctracker.ui.theme.ArcColors
 
 // ==========================================
-// Color Tokens matching Ui-Designs/SetUpPage.png
+// Light Theme Color Tokens
 // ==========================================
-private val SetupBgColor = ArcColors.Background // #090C10
-private val CardSurface = Color(0xFF12151D)
-private val CardBorder = Color(0xFF222836)
+private val SetupLightBackground = Color(0xFFFFFFFF)
+private val BrandTextPrimary = Color(0xFF0F172A)
+private val BrandTextSecondary = Color(0xFF64748B)
 
-// Shield & Security
-private val ShieldPillBg = Color(0xFF0D251A)
-private val ShieldPillBorder = Color(0xFF164E35)
-private val EmeraldAccent = Color(0xFF00E676)
-private val GreenActive = Color(0xFF10B981)
+// Step badge
+private val StepPillBg = Color(0xFFECFDF5)
+private val StepPillBorder = Color(0xFFA7F3D0)
+private val StepPillText = Color(0xFF059669)
 
-// Amber / Priority / Warning
-private val AmberAccent = Color(0xFFF59E0B)
-private val AmberIconBg = Color(0xFF261D0C)
-private val AmberIconBorder = Color(0xFF453314)
-private val AmberPillBg = Color(0xFF2B200C)
-private val AmberPillBorder = Color(0xFF4A3614)
-private val AmberWarnBg = Color(0xFF1A1409)
-private val AmberWarnBorder = Color(0xFF382A0F)
+// Cards
+private val CardSurface = Color(0xFFF8FAFC)
+private val CardBorder = Color(0xFFE2E8F0)
+private val IconBoxBg = Color(0xFFF1F5F9)
 
-// Indigo / SMS Backfill
-private val BackfillPillBg = Color(0xFF1C2230)
-private val BackfillPillBorder = Color(0xFF2D374D)
-private val BackfillText = Color(0xFF818CF8)
+// Status pills
+private val StatusEnabledBg = Color(0xFFECFDF5)
+private val StatusEnabledBorder = Color(0xFFA7F3D0)
+private val StatusEnabledText = Color(0xFF059669)
 
-// Typography colors
-private val TextWhite = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFF94A3B8)
-private val TextMuted = Color(0xFF64748B)
+private val StatusDisabledBg = Color(0xFFFEF2F2)
+private val StatusDisabledBorder = Color(0xFFFECACA)
+private val StatusDisabledText = Color(0xFFDC2626)
+
+// Buttons
+private val PrimaryBtnBg = Color(0xFF0F172A)
+private val PrimaryBtnText = Color(0xFFFFFFFF)
+private val BackBtnBg = Color(0xFFF8FAFC)
+private val BackBtnBorder = Color(0xFFE2E8F0)
 
 /**
- * ArcTracker Local-first Setup Screen matching Ui-Designs/SetUpPage.png exactly.
- *
- * Provides permission explanations and triggers for:
- * 1. Notification Listener Access (real-time UPI alerts)
- * 2. SMS Inbox Telephony Access (historical transaction backfill)
- *
- * Integrated with real system permission checkers and settings recovery across process death.
+ * Clean & essential Notification Permission Setup screen matching Light Theme:
+ * 1. Top Bar: "ArcTracker" prominent title + "/ Onboarding" normal text on the left, Light theme brand logo on the right
+ * 2. Status Row: "• STEP 1 OF 2" emerald pill badge
+ * 3. Headline: "Capture transactions automatically"
+ * 4. Subtitle: Clear on-device privacy explanation
+ * 5. Essential Cards:
+ *    - Notification Listener service status (Disabled / Enabled dynamic badge)
+ *    - Android permission instructions info card
+ * 6. Bottom Navigation Actions:
+ *    - Left: Circular back button with left arrow
+ *    - Right: Rounded pill continue/enable button with text & right arrow
+ *    - Context-based secondary action: "Continue without access" if disabled, privacy assurance note if enabled
  */
 @Composable
 fun LocalFirstSetupScreen(
-    onSetupCompleted: (autoScanSms: Boolean) -> Unit,
-    onSkipToDemoClick: () -> Unit,
+    onSetupCompleted: (autoScanSms: Boolean) -> Unit = {},
+    onSkipToDemoClick: () -> Unit = {},
+    onBackClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val view = LocalView.current
+
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window
+            if (window != null) {
+                val insetsController = WindowCompat.getInsetsController(window, view)
+                insetsController.isAppearanceLightStatusBars = true
+                insetsController.isAppearanceLightNavigationBars = true
+            }
+        }
+    }
 
     val settingsRepo = remember {
         MonitoringSettingsRepository.getInstance(context)
@@ -142,50 +139,13 @@ fun LocalFirstSetupScreen(
         mutableStateOf(NotificationPermissionHelper.isNotificationAccessGranted(context))
     }
 
-    var isSmsGranted by remember {
-        mutableStateOf(SmsPermissionHelper.isSmsPermissionGranted(context))
-    }
-
-    var autoScanSmsArchive by remember {
-        mutableStateOf(settingsRepo.isAutoSmsScanArchiveEnabled())
-    }
-
-    var isWhyRequiredExpanded by remember {
-        mutableStateOf(false)
-    }
-
-    var showHelpDialog by remember {
-        mutableStateOf(false)
-    }
-
-    // Dynamic permission launcher for Android SMS
-    val smsPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        isSmsGranted = granted
-        if (granted) {
-            SmsPermissionHelper.setInitialImportCompleted(context, true)
-        }
-    }
-
-    // Dynamic intent launcher for Notification Listener settings
-    val notificationSettingsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) {
-        val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
-        isNotificationGranted = granted
-    }
-
-    // Observe lifecycle ON_RESUME so when the user returns from Android Settings,
-    // permission states update immediately and accurately.
+    // Refresh permission status on resume (when returning from Android settings)
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                isNotificationGranted = NotificationPermissionHelper.isNotificationAccessGranted(context)
-                val smsNow = SmsPermissionHelper.isSmsPermissionGranted(context)
-                isSmsGranted = smsNow
-                if (smsNow) {
-                    SmsPermissionHelper.setInitialImportCompleted(context, true)
+                val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
+                if (isNotificationGranted != granted) {
+                    isNotificationGranted = granted
                 }
             }
         }
@@ -195,864 +155,413 @@ fun LocalFirstSetupScreen(
         }
     }
 
-    val scrollState = rememberScrollState()
+    val settingsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        isNotificationGranted = NotificationPermissionHelper.isNotificationAccessGranted(context)
+    }
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(SetupBgColor)
-            .statusBarsPadding()
+            .background(SetupLightBackground)
     ) {
-        // ----------------------------------------------------
-        // 1. Static Header: Logo, Name, Version & Help Button
-        // ----------------------------------------------------
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // ArcTracker Squircle Logo
-                SetupBrandLogo(modifier = Modifier.size(38.dp))
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "ArcTracker",
-                            color = TextWhite,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-0.3).sp
-                        )
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        // Version Badge pill (e.g. "v2.4 LOCAL")
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0xFF1E232E))
-                                .border(BorderStroke(1.dp, Color(0xFF2C3240)), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "v${BuildConfig.VERSION_NAME} LOCAL",
-                                color = TextSecondary,
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Text(
-                        text = "Local-first Setup",
-                        color = TextMuted,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Normal
-                    )
-                }
-            }
-
-            // Help Button (?)
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF141722))
-                    .border(BorderStroke(1.dp, Color(0xFF222836)), CircleShape)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = rememberRipple(bounded = true, color = Color.White.copy(alpha = 0.2f)),
-                        onClick = { showHelpDialog = true }
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.HelpOutline,
-                    contentDescription = "Help & Architecture",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-
-        // ----------------------------------------------------
-        // Scrollable Body Content
-        // ----------------------------------------------------
         Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
+                .fillMaxSize()
+                .statusBarsPadding()
                 .navigationBarsPadding()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 20.dp, vertical = 4.dp)
+                .padding(horizontal = 24.dp, vertical = 12.dp)
         ) {
-            Spacer(modifier = Modifier.height(10.dp))
-
             // ----------------------------------------------------
-            // 2. Encrypted Telemetry Shield Badge Pill
+            // 1. Top Bar Header
             // ----------------------------------------------------
-            Box(
+            Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(ShieldPillBg)
-                    .border(BorderStroke(1.dp, ShieldPillBorder), RoundedCornerShape(50))
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Lock,
-                        contentDescription = null,
-                        tint = EmeraldAccent,
-                        modifier = Modifier.size(12.dp)
+                    Text(
+                        text = "ArcTracker",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BrandTextPrimary,
+                        letterSpacing = (-0.3).sp
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "ENCRYPTED TELEMETRY SHIELD",
-                        color = EmeraldAccent,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 1.sp
+                        text = "/ Onboarding",
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = BrandTextSecondary
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // ----------------------------------------------------
-            // 3. Setup Headline
-            // ----------------------------------------------------
-            Text(
-                text = "Zero-Cloud Ingestion.\n100% On-Device Privacy.",
-                color = TextWhite,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                lineHeight = 30.sp,
-                letterSpacing = (-0.4).sp
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // ----------------------------------------------------
-            // 4. Explanatory Paragraph
-            // ----------------------------------------------------
-            Text(
-                text = "ArcTracker extracts financial evidence directly from your device's banking SMS alerts and UPI push notifications without bank logins, external servers, or cloud credentials.",
-                color = TextSecondary,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-                fontWeight = FontWeight.Normal
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ----------------------------------------------------
-            // 5. Card 1: Notification Listener Service
-            // ----------------------------------------------------
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = CardSurface,
-                border = BorderStroke(1.dp, CardBorder)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    // Header Row: Icon, Title & Priority Badge
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        // Amber Icon Container with sub-badge
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(AmberIconBg)
-                                .border(BorderStroke(1.dp, AmberIconBorder), RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (isNotificationGranted) Icons.Outlined.NotificationsActive else Icons.Outlined.NotificationsNone,
-                                contentDescription = null,
-                                tint = AmberAccent,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        // Title & Status
-                        Column(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = "Notification Listener\nService",
-                                color = TextWhite,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                lineHeight = 19.sp
-                            )
-
-                            Spacer(modifier = Modifier.height(3.dp))
-
-                            Text(
-                                text = if (isNotificationGranted) "Status: Active" else "Status: Action Required",
-                                color = if (isNotificationGranted) GreenActive else AmberAccent,
-                                fontSize = 11.5.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-
-                        // Priority Tag
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(if (isNotificationGranted) ShieldPillBg else AmberPillBg)
-                                .border(
-                                    BorderStroke(1.dp, if (isNotificationGranted) ShieldPillBorder else AmberPillBorder),
-                                    RoundedCornerShape(6.dp)
-                                )
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Text(
-                                text = if (isNotificationGranted) "ACTIVE" else "PRIORITY",
-                                color = if (isNotificationGranted) GreenActive else AmberAccent,
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = "Captures instant debit/credit alerts from Google Pay, PhonePe, Paytm, CRED, and official banking apps the moment you tap to pay.",
-                        color = TextSecondary,
-                        fontSize = 12.5.sp,
-                        lineHeight = 17.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Technical panel
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFF161922),
-                        border = BorderStroke(1.dp, Color(0xFF232836)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Memory,
-                                contentDescription = null,
-                                tint = Color(0xFF818CF8),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Runs as Android NotificationListenerService • No Internet Permission Required",
-                                color = TextSecondary,
-                                fontSize = 10.5.sp,
-                                lineHeight = 14.5.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Grant Notification Access Button
-                    if (!isNotificationGranted) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(46.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = rememberRipple(color = Color.Black.copy(alpha = 0.2f))
-                                ) {
-                                    val intent = NotificationPermissionHelper.createNotificationAccessSettingsIntent()
-                                    try {
-                                        notificationSettingsLauncher.launch(intent)
-                                    } catch (_: Exception) {
-                                        NotificationPermissionHelper.openNotificationAccessSettings(context)
-                                    }
-                                },
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color.White
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Settings,
-                                    contentDescription = null,
-                                    tint = Color(0xFF0B0E14),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Grant Notification Access",
-                                    color = Color(0xFF0B0E14),
-                                    fontSize = 13.5.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    } else {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(46.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF0F261D),
-                            border = BorderStroke(1.dp, Color(0xFF1B5539))
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.CheckCircle,
-                                    contentDescription = null,
-                                    tint = GreenActive,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Notification Access Granted",
-                                    color = GreenActive,
-                                    fontSize = 13.5.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Expandable "Why is this required?"
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(6.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { isWhyRequiredExpanded = !isWhyRequiredExpanded }
-                            )
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Why is this required?",
-                            color = TextMuted,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = if (isWhyRequiredExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = TextMuted,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-
-                    AnimatedVisibility(
-                        visible = isWhyRequiredExpanded,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically()
-                    ) {
-                        Text(
-                            text = "Android's NotificationListenerService allows ArcTracker to observe system push notifications emitted by UPI and banking apps the moment transactions occur. Raw notifications are parsed locally and discarded immediately.",
-                            color = TextSecondary,
-                            fontSize = 11.5.sp,
-                            lineHeight = 16.sp,
-                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // ----------------------------------------------------
-            // 6. Card 2: SMS Inbox Telephony Access
-            // ----------------------------------------------------
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = CardSurface,
-                border = BorderStroke(1.dp, CardBorder)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    // Header Row: Icon, Title & Backfill Badge
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        // SMS Icon Container
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF191E2B))
-                                .border(BorderStroke(1.dp, Color(0xFF283144)), RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.ChatBubbleOutline,
-                                contentDescription = null,
-                                tint = TextSecondary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        // Title & Status
-                        Column(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = "SMS Inbox Telephony\nAccess",
-                                color = TextWhite,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                lineHeight = 19.sp
-                            )
-
-                            Spacer(modifier = Modifier.height(3.dp))
-
-                            Text(
-                                text = if (isSmsGranted) "Status: Ready" else "Status: Pending Step 2",
-                                color = if (isSmsGranted) GreenActive else TextMuted,
-                                fontSize = 11.5.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-
-                        // Backfill Tag
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(if (isSmsGranted) ShieldPillBg else BackfillPillBg)
-                                .border(
-                                    BorderStroke(1.dp, if (isSmsGranted) ShieldPillBorder else BackfillPillBorder),
-                                    RoundedCornerShape(6.dp)
-                                )
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Text(
-                                text = if (isSmsGranted) "READY" else "BACKFILL",
-                                color = if (isSmsGranted) GreenActive else BackfillText,
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = "Scans past 3–12 months of transactional SMS from financial institutions (HDFC, SBI, ICICI, Axis) to backfill historical balances and build your initial ledger.",
-                        color = TextSecondary,
-                        fontSize = 12.5.sp,
-                        lineHeight = 17.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Green Security Panel
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFF0C1F17),
-                        border = BorderStroke(1.dp, Color(0xFF164834)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Shield,
-                                contentDescription = null,
-                                tint = GreenActive,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Local Regex Parsing • OTPs & Personal Messages Suppressed",
-                                color = GreenActive,
-                                fontSize = 10.5.sp,
-                                lineHeight = 14.5.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Auto-Scan SMS Archive Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = "Auto-Scan SMS Archive",
-                                color = TextWhite,
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Discovers last 90 days passes",
-                                color = TextMuted,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-
-                        Switch(
-                            checked = autoScanSmsArchive,
-                            onCheckedChange = {
-                                autoScanSmsArchive = it
-                                settingsRepo.setAutoSmsScanArchiveEnabled(it)
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = GreenActive,
-                                uncheckedThumbColor = Color(0xFF94A3B8),
-                                uncheckedTrackColor = Color(0xFF262C3D),
-                                uncheckedBorderColor = Color(0xFF384156)
-                            )
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Request SMS Permission Button
-                    if (!isSmsGranted) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(46.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = rememberRipple(color = Color.White.copy(alpha = 0.1f))
-                                ) {
-                                    smsPermissionLauncher.launch(Manifest.permission.READ_SMS)
-                                },
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF181C26),
-                            border = BorderStroke(1.dp, Color(0xFF2C3242))
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.ChatBubbleOutline,
-                                    contentDescription = null,
-                                    tint = TextWhite,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Request SMS Permission",
-                                    color = TextWhite,
-                                    fontSize = 13.5.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    } else {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(46.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF0F261D),
-                            border = BorderStroke(1.dp, Color(0xFF1B5539))
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.CheckCircle,
-                                    contentDescription = null,
-                                    tint = GreenActive,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "SMS Telephony Granted",
-                                    color = GreenActive,
-                                    fontSize = 13.5.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // ----------------------------------------------------
-            // 7. Android OS Process Note
-            // ----------------------------------------------------
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = AmberWarnBg,
-                border = BorderStroke(1.dp, AmberWarnBorder)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Warning,
-                        contentDescription = null,
-                        tint = AmberAccent,
-                        modifier = Modifier.size(18.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Column {
-                        Text(
-                            text = "ANDROID OS PROCESS NOTE",
-                            color = AmberAccent,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 0.5.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = "Android terminates apps when toggling system settings; ArcTracker automatically recovers your setup state on return.",
-                            color = Color(0xFFD1D5DB),
-                            fontSize = 11.5.sp,
-                            lineHeight = 16.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // ----------------------------------------------------
-            // 8. Primary Setup Action Button (Inline, visible when scrolled to end)
-            // ----------------------------------------------------
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .shadow(
-                        elevation = 8.dp,
-                        shape = RoundedCornerShape(14.dp),
-                        spotColor = Color(0x66000000),
-                        ambientColor = Color(0x33000000)
-                    )
-                    .clip(RoundedCornerShape(14.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = rememberRipple(color = Color.Black.copy(alpha = 0.2f))
-                    ) {
-                        if (!isNotificationGranted) {
-                            val intent = NotificationPermissionHelper.createNotificationAccessSettingsIntent()
-                            try {
-                                notificationSettingsLauncher.launch(intent)
-                            } catch (_: Exception) {
-                                NotificationPermissionHelper.openNotificationAccessSettings(context)
-                            }
-                        } else if (!isSmsGranted) {
-                            smsPermissionLauncher.launch(Manifest.permission.READ_SMS)
-                        } else {
-                            // Both permissions granted: complete setup and continue!
-                            settingsRepo.setAutoSmsScanArchiveEnabled(autoScanSmsArchive)
-                            settingsRepo.setSetupInProgress(false)
-                            settingsRepo.setInitialOnboardingCompleted(true)
-                            settingsRepo.setGlobalEnabled(true)
-                            settingsRepo.setNotificationTrackingEnabled(true)
-                            settingsRepo.setSmsTrackingEnabled(true)
-                            onSetupCompleted(autoScanSmsArchive)
-                        }
-                    },
-                shape = RoundedCornerShape(14.dp),
-                color = Color.White
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isNotificationGranted && isSmsGranted) {
-                            if (autoScanSmsArchive) "Continue to SMS Import Wizard" else "Complete Setup & Continue"
-                        } else {
-                            "Enable Permissions & Start Setup"
-                        },
-                        color = Color(0xFF090C10),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.1.sp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = Color(0xFF090C10),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Secondary Action: Skip setup and explore demo mode
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = rememberRipple(color = Color.White.copy(alpha = 0.1f)),
-                        onClick = onSkipToDemoClick
-                    )
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Skip setup and explore demo mode",
-                    color = TextSecondary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center
+                // Top Right: Light Theme Logo
+                Image(
+                    painter = painterResource(id = R.drawable.ic_logo_light),
+                    contentDescription = "ArcTracker Light Theme Logo",
+                    modifier = Modifier.size(32.dp)
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-        }
-    }
 
-    // Help & Architecture Dialog
-    if (showHelpDialog) {
-        AlertDialog(
-            onDismissRequest = { showHelpDialog = false },
-            containerColor = Color(0xFF141722),
-            title = {
-                Text(
-                    text = "Local-First Architecture",
-                    color = TextWhite,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                )
-            },
-            text = {
-                Column {
-                    Text(
-                        text = "ArcTracker processes all financial transactions entirely on your phone.\n\n" +
-                                "• Zero cloud servers: Database resides in your device's protected internal storage.\n" +
-                                "• Telemetry Shield: No network connections or sockets opened for financial data.\n" +
-                                "• OTP Filter: All one-time-passwords and non-financial messages are ignored instantly.",
-                        color = TextSecondary,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showHelpDialog = false }) {
-                    Text("Got it", color = Color.White, fontWeight = FontWeight.Bold)
+            // ----------------------------------------------------
+            // 2. Stepper Status Row
+            // ----------------------------------------------------
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // "• STEP 1 OF 2" pill
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(StepPillBg)
+                        .border(BorderStroke(1.dp, StepPillBorder), RoundedCornerShape(50))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(StepPillText)
+                        )
+                        Text(
+                            text = "STEP 1 OF 2",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.6.sp,
+                            color = StepPillText
+                        )
+                    }
                 }
             }
-        )
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            // ----------------------------------------------------
+            // 3. Headline & Description
+            // ----------------------------------------------------
+            Text(
+                text = "Capture transactions\nautomatically",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                lineHeight = 35.sp,
+                letterSpacing = (-0.4).sp,
+                color = BrandTextPrimary
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "ArcTracker listens for supported banking and payment notifications locally, recording logs instantly without cloud routing.",
+                fontSize = 14.5.sp,
+                fontWeight = FontWeight.Normal,
+                lineHeight = 21.sp,
+                color = BrandTextSecondary
+            )
+
+            Spacer(modifier = Modifier.height(26.dp))
+
+            // ----------------------------------------------------
+            // 4. Essential Permission Cards
+            // ----------------------------------------------------
+
+            // Card 1: Notification Listener Service Status Card
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = CardSurface,
+                border = BorderStroke(1.dp, CardBorder)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Bell Icon in rounded box
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(IconBoxBg),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.NotificationsNone,
+                                contentDescription = null,
+                                tint = if (isNotificationGranted) StepPillText else BrandTextPrimary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column {
+                            Text(
+                                text = "Notification Listener",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = BrandTextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Android System Service",
+                                fontSize = 12.sp,
+                                color = BrandTextSecondary
+                            )
+                        }
+                    }
+
+                    // Status Pill (Disabled / Enabled)
+                    val statusBg = if (isNotificationGranted) StatusEnabledBg else StatusDisabledBg
+                    val statusBorder = if (isNotificationGranted) StatusEnabledBorder else StatusDisabledBorder
+                    val statusText = if (isNotificationGranted) StatusEnabledText else StatusDisabledText
+                    val statusLabel = if (isNotificationGranted) "Enabled" else "Disabled"
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(statusBg)
+                            .border(BorderStroke(1.dp, statusBorder), RoundedCornerShape(50))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(statusText)
+                            )
+                            Text(
+                                text = statusLabel,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = statusText
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Card 2: Essential Explanation / Info Card
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = CardSurface,
+                border = BorderStroke(1.dp, CardBorder)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = null,
+                        tint = BrandTextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Text(
+                        text = "Android isolates financial alert listeners. Tapping enable will direct you directly to Android's Device & App Notifications manager where ArcTracker can be authorized.",
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                        color = BrandTextSecondary
+                    )
+                }
+            }
+
+            // Flexible dynamic spacer absorbing viewport height
+            Spacer(modifier = Modifier.weight(1f))
+
+            // ----------------------------------------------------
+            // 5. Bottom Navigation Actions
+            // ----------------------------------------------------
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Navigation Action Row: Circular Back Button on Left + Compact Action Button on Right
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Left: Circular Back Button with Left Arrow
+                    Surface(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .shadow(
+                                elevation = 1.dp,
+                                shape = CircleShape,
+                                ambientColor = Color(0x08000000),
+                                spotColor = Color(0x10000000)
+                            )
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = rememberRipple(color = Color.Black.copy(alpha = 0.1f)),
+                                onClick = {
+                                    onBackClick?.invoke()
+                                }
+                            ),
+                        shape = CircleShape,
+                        color = BackBtnBg,
+                        border = BorderStroke(1.dp, BackBtnBorder)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back to Previous Screen",
+                                tint = BrandTextPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    // Right: Primary Next/Enable Action Button
+                    Surface(
+                        modifier = Modifier
+                            .height(52.dp)
+                            .shadow(
+                                elevation = 2.dp,
+                                shape = RoundedCornerShape(26.dp),
+                                ambientColor = Color(0x10000000),
+                                spotColor = Color(0x1A000000)
+                            )
+                            .clip(RoundedCornerShape(26.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = rememberRipple(color = Color.White.copy(alpha = 0.2f)),
+                                onClick = {
+                                    if (isNotificationGranted) {
+                                        settingsRepo.setNotificationTrackingEnabled(true)
+                                        settingsRepo.setGlobalEnabled(true)
+                                        onSetupCompleted(true)
+                                    } else {
+                                        val intent = NotificationPermissionHelper.createNotificationAccessSettingsIntent()
+                                        try {
+                                            settingsLauncher.launch(intent)
+                                        } catch (_: Exception) {
+                                            context.startActivity(intent)
+                                        }
+                                    }
+                                }
+                            ),
+                        shape = RoundedCornerShape(26.dp),
+                        color = PrimaryBtnBg
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .padding(horizontal = 24.dp)
+                                .fillMaxHeight(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (isNotificationGranted) "Continue" else "Enable Access",
+                                color = PrimaryBtnText,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = PrimaryBtnText,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Context-based Secondary Action / Reassurance
+                if (!isNotificationGranted) {
+                    // When disabled: offer skip without feeling trapped
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = rememberRipple(color = Color.Black.copy(alpha = 0.06f)),
+                                onClick = {
+                                    onSetupCompleted(false)
+                                }
+                            )
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Continue without access",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = BrandTextSecondary
+                        )
+                    }
+                } else {
+                    // When enabled: show positive privacy note
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Lock,
+                            contentDescription = null,
+                            tint = StepPillText,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = "Access active • 100% private on-device",
+                            color = BrandTextSecondary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
     }
 }
 
-/**
- * Compact ArcTracker brand mark for setup header matching the reference visual design.
- */
+@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
 @Composable
-private fun SetupBrandLogo(
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF141720))
-            .border(BorderStroke(1.dp, Color(0xFF262C3D)), RoundedCornerShape(12.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        // Inner white squircle
-        Box(
-            modifier = Modifier
-                .size(28.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color.White),
-            contentAlignment = Alignment.Center
-        ) {
-            androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(id = com.subhashrelangi.arctracker.R.drawable.ic_launcher_foreground),
-                contentDescription = "ArcTracker App Icon",
-                modifier = Modifier.size(26.dp)
-            )
-        }
+fun LocalFirstSetupScreenPreview() {
+    MaterialTheme {
+        LocalFirstSetupScreen()
     }
 }

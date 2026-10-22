@@ -295,9 +295,16 @@ fun ExpenseScreen() {
         settingsRepo.isSetupInProgress()
     }
 
+    val activityIntent = (context as? android.app.Activity)?.intent
+    val targetRouteFromIntent = remember(activityIntent) {
+        activityIntent?.getStringExtra("route")
+    }
+
     var backStack by rememberSaveable {
         mutableStateOf(
-            if (isOnboardingCompleted) {
+            if (!targetRouteFromIntent.isNullOrEmpty()) {
+                listOf("InitialOnboarding", targetRouteFromIntent)
+            } else if (isOnboardingCompleted) {
                 listOf("Home")
             } else if (isSetupInProgress) {
                 listOf("InitialOnboarding", "LocalFirstSetup")
@@ -310,8 +317,10 @@ fun ExpenseScreen() {
 
     // If onboarding was not permanently completed (e.g. user was in demo mode),
     // any app restart / relaunch MUST return to the Initial Welcome Screen or recover setup in progress.
-    LaunchedEffect(Unit) {
-        if (!settingsRepo.isInitialOnboardingCompleted()) {
+    LaunchedEffect(targetRouteFromIntent) {
+        if (!targetRouteFromIntent.isNullOrEmpty()) {
+            backStack = listOf("InitialOnboarding", targetRouteFromIntent)
+        } else if (!settingsRepo.isInitialOnboardingCompleted()) {
             if (settingsRepo.isSetupInProgress()) {
                 if (backStack.lastOrNull() != "LocalFirstSetup") {
                     backStack = listOf("InitialOnboarding", "LocalFirstSetup")
@@ -409,7 +418,7 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
-        containerColor = if (currentRoute == "InitialOnboarding") Color.White else if (currentRoute in listOf("Home", "LocalFirstSetup", "SmsImport", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
+        containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup")) Color.White else if (currentRoute in listOf("Home", "SmsImport", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
 
         topBar = {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
@@ -807,6 +816,13 @@ fun ExpenseScreen() {
                         hasDismissedInitialSmsImportDialog = true
                         navigateTo("Home")
                         Toast.makeText(context, "Demo mode active with sample data", Toast.LENGTH_SHORT).show()
+                    },
+                    onBackClick = {
+                        if (backStack.size > 1) {
+                            backStack = backStack.dropLast(1)
+                        } else {
+                            navigateTo("InitialOnboarding")
+                        }
                     }
                 )
 
