@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
@@ -44,6 +45,7 @@ fun ArcTrackerHeader(
     title: String = "ArcTracker",
     subtitle: String? = null,
     showSearch: Boolean = false,
+    isSearchActive: Boolean = false,
     showAdd: Boolean = false,
     showProfile: Boolean = false,
     onSearchClick: () -> Unit = {},
@@ -135,19 +137,22 @@ fun ArcTrackerHeader(
                 actions()
             } else {
                 if (showSearch) {
+                    val searchBg = if (isSearchActive) Color(0xFF0F172A) else Color.White
+                    val searchTint = if (isSearchActive) Color.White else Color(0xFF0F172A)
+                    val searchBorder = if (isSearchActive) Color(0xFF0F172A) else Color(0xFFE2E8F0)
                     Box(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(Color.White)
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .background(searchBg)
+                            .border(BorderStroke(1.dp, searchBorder), CircleShape)
                             .clickable(onClick = onSearchClick),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Search,
-                            contentDescription = "Search",
-                            tint = Color(0xFF0F172A),
+                            imageVector = if (isSearchActive) Icons.Outlined.Close else Icons.Outlined.Search,
+                            contentDescription = if (isSearchActive) "Close Search" else "Search",
+                            tint = searchTint,
                             modifier = Modifier.size(19.dp)
                         )
                     }

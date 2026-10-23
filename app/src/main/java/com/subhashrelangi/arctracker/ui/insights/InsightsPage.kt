@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -137,57 +139,26 @@ fun InsightsPage(
         }
     }
 
-    Scaffold(
-        containerColor = InsightsTheme.LightBackground,
-        topBar = {
-            if (showHeader) {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "Analytics & Insights",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
-                            color = InsightsTheme.LightTextPrimary
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = InsightsTheme.LightTextPrimary
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = InsightsTheme.LightBackground
-                    )
-                )
-            }
-        }
-    ) { innerPadding ->
+    val content: @Composable (PaddingValues) -> Unit = { innerPadding ->
         Box(
             modifier = modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 120.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = 4.dp, bottom = 120.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 1. Time Filter Horizontal Scroll Row
+                // 1. Time Filter Horizontal Scroll Row (Edge-to-Edge with 16dp content padding)
                 item(key = "time_filter_row") {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        timeFilterPills.forEach { pillLabel ->
+                        items(timeFilterPills) { pillLabel ->
                             val isSelected = selectedPill == pillLabel
                             Box(
                                 modifier = Modifier
@@ -215,6 +186,9 @@ fun InsightsPage(
                 // 2. Main Outflow & Weekly Pace Card
                 item(key = "card_monthly_outflow_pace") {
                     MonthlyOutflowPaceCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
                         totalOutflow = velocityData.totalOutflow,
                         budgetCap = 75000.0,
                         previousMonthName = "Sept",
@@ -225,6 +199,9 @@ fun InsightsPage(
                 // 3. Net Savings & Daily Burn Row
                 item(key = "card_net_savings_daily_burn") {
                     NetSavingsDailyBurnRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
                         netSavings = velocityData.netAmount,
                         savingsRatePercent = velocityData.savingsRate,
                         dailyBurn = velocityData.dailyRunRate,
@@ -235,6 +212,9 @@ fun InsightsPage(
                 // 4. Category Allocation Card
                 item(key = "card_category_allocation") {
                     CategoryAllocationCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
                         data = allocationData,
                         currencyFormatter = currencyFormatter,
                         onAllCategoriesClick = onAllCategoriesClick
@@ -244,13 +224,20 @@ fun InsightsPage(
                 // 5. Arc Engine Intelligence Card
                 item(key = "card_arc_engine_intelligence") {
                     ArcEngineIntelligenceCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
                         onManageRulesClick = onManageRulesClick
                     )
                 }
 
                 // 6. Zero-Telemetry Environment Privacy Footer
                 item(key = "card_zero_telemetry_footer") {
-                    ZeroTelemetryFooter()
+                    ZeroTelemetryFooter(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }
@@ -287,5 +274,40 @@ fun InsightsPage(
                 }
             }
         }
+    }
+
+    if (showHeader) {
+        Scaffold(
+            containerColor = InsightsTheme.LightBackground,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "Analytics & Insights",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = InsightsTheme.LightTextPrimary
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = InsightsTheme.LightTextPrimary
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = InsightsTheme.LightBackground
+                    )
+                )
+            }
+        ) { innerPadding ->
+            content(innerPadding)
+        }
+    } else {
+        content(PaddingValues(0.dp))
     }
 }

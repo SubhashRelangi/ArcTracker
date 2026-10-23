@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +39,9 @@ fun LedgerSearchBar(
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester? = null,
     placeholderText: String = "Search merchant, tag, amount...",
+    backgroundColor: Color = LedgerColors.SearchBg,
+    borderColor: Color = LedgerColors.SearchBorder,
+    onCloseClick: (() -> Unit)? = null,
     onSearchTriggered: () -> Unit = {}
 ) {
     val shape = RoundedCornerShape(14.dp)
@@ -46,8 +50,8 @@ fun LedgerSearchBar(
             .fillMaxWidth()
             .height(42.dp)
             .clip(shape)
-            .background(LedgerColors.SearchBg)
-            .border(1.dp, LedgerColors.SearchBorder, shape)
+            .background(backgroundColor)
+            .border(1.dp, borderColor, shape)
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.CenterStart
     ) {
@@ -109,6 +113,18 @@ fun LedgerSearchBar(
                     Icon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = "Clear search",
+                        tint = LedgerColors.TextMuted,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            } else if (onCloseClick != null) {
+                IconButton(
+                    onClick = onCloseClick,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "Close search",
                         tint = LedgerColors.TextMuted,
                         modifier = Modifier.size(16.dp)
                     )

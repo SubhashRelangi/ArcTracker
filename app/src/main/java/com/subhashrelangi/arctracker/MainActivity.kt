@@ -5,6 +5,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -457,21 +461,56 @@ fun ExpenseScreen() {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
                 val showSearch = (currentRoute == "Home" || currentRoute == "Insights" || currentRoute == "Analytics")
                 val showProfile = currentRoute != "Settings"
-                com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
+                Column(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .background(Color(0xFFF8FAFC))
-                        .statusBarsPadding(),
-                    title = "ArcTracker",
-                    showSearch = showSearch,
-                    showProfile = showProfile,
-                    onSearchClick = {
-                        isSearching = !isSearching
-                        if (!isSearching) searchQuery = ""
-                    },
-                    onProfileClick = {
-                        navigateTo("FinancialAccounts")
+                        .statusBarsPadding()
+                ) {
+                    com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
+                        title = "ArcTracker",
+                        showSearch = showSearch,
+                        isSearchActive = isSearching,
+                        showProfile = showProfile,
+                        onSearchClick = {
+                            isSearching = !isSearching
+                            if (!isSearching) searchQuery = ""
+                        },
+                        onProfileClick = {
+                            navigateTo("FinancialAccounts")
+                        }
+                    )
+
+                    AnimatedVisibility(
+                        visible = isSearching && showSearch,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .padding(top = 2.dp, bottom = 8.dp)
+                        ) {
+                            com.subhashrelangi.arctracker.ui.ledger.LedgerSearchBar(
+                                query = searchQuery,
+                                onQueryChange = { searchQuery = it },
+                                focusRequester = homeSearchFocusRequester,
+                                backgroundColor = Color.White,
+                                borderColor = Color(0xFFE2E8F0),
+                                placeholderText = if (currentRoute == "Insights" || currentRoute == "Analytics") {
+                                    "Search analytics by category, merchant..."
+                                } else {
+                                    "Search transactions, merchants, accounts..."
+                                },
+                                onCloseClick = {
+                                    isSearching = false
+                                    searchQuery = ""
+                                }
+                            )
+                        }
                     }
-                )
+                }
             } else if (
                 currentRoute != "SmsImport" &&
                 currentRoute != "SmsScan" &&
@@ -566,21 +605,6 @@ fun ExpenseScreen() {
                     .padding(top = contentTopPadding)
                     .fillMaxSize()
             ) {
-
-            AnimatedVisibility(
-                visible = isSearching && (currentRoute == "Home" || currentRoute == "Insights" || currentRoute == "Analytics")
-            ) {
-                com.subhashrelangi.arctracker.ui.ledger.LedgerSearchBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    focusRequester = homeSearchFocusRequester,
-                    placeholderText = if (currentRoute == "Insights" || currentRoute == "Analytics") {
-                        "Search analytics by merchant or category..."
-                    } else {
-                        "Search transactions, merchants, accounts..."
-                    }
-                )
-            }
 
             if (currentRoute == "Transactions") {
 
