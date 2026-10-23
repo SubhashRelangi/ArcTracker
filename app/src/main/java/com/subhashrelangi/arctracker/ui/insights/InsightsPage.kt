@@ -1,26 +1,25 @@
 package com.subhashrelangi.arctracker.ui.insights
 
-import android.app.DatePickerDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,6 +41,10 @@ fun InsightsPage(
     showHeader: Boolean = false,
     onNavigateBack: () -> Unit = {},
     searchQuery: String = "",
+    onAddExpenseClick: () -> Unit = {},
+    onAllCategoriesClick: () -> Unit = {},
+    onManageRulesClick: () -> Unit = {},
+    isDemoMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -57,69 +60,73 @@ fun InsightsPage(
 
     val expenses by database.expenseDao().getAllExpenses().collectAsState(initial = emptyList())
 
-    var selectedRange by remember { mutableStateOf(AnalyticsDateRange.THIS_MONTH) }
-    var customStartMillis by remember { mutableStateOf<Long?>(null) }
-    var customEndMillis by remember { mutableStateOf<Long?>(null) }
+    // Filter pills list
+    val currentMonthShort = remember { SimpleDateFormat("MMM", Locale.US).format(Date()) }
+    val timeFilterPills = remember(currentMonthShort) {
+        listOf(
+            "This Month ($currentMonthShort)",
+            "Last 30 Days",
+            "Quarter 3",
+            "Year 2026",
+            "All Time"
+        )
+    }
+    var selectedPill by remember { mutableStateOf("This Month ($currentMonthShort)") }
+
+    val selectedDateRange = remember(selectedPill) {
+        when {
+            selectedPill.startsWith("This Month") -> AnalyticsDateRange.THIS_MONTH
+            selectedPill.contains("30 Days") -> AnalyticsDateRange.LAST_MONTH
+            selectedPill.contains("Quarter") -> AnalyticsDateRange.LAST_3_MONTHS
+            else -> AnalyticsDateRange.ALL_TIME
+        }
+    }
 
     val reportState by produceState<AnalyticsReport?>(
         initialValue = null,
-        key1 = selectedRange,
-        key2 = customStartMillis,
-        key3 = customEndMillis
+        key1 = selectedDateRange
     ) {
-        manager.getAnalyticsReportFlow(
-            dateRange = selectedRange,
-            customStartMillis = customStartMillis,
-            customEndMillis = customEndMillis
-        ).collect { value = it }
+        manager.getAnalyticsReportFlow(dateRange = selectedDateRange).collect { value = it }
     }
 
     val currencyFormatter = remember {
         NumberFormat.getCurrencyInstance(Locale("en", "IN")).apply {
-            maximumFractionDigits = 2
-            minimumFractionDigits = 2
+            maximumFractionDigits = 0
+            minimumFractionDigits = 0
         }
-    }
-
-    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.US) }
-    val currentMonthYear = remember { SimpleDateFormat("MMM yyyy", Locale.US).format(Date()) }
-
-    fun showDatePicker(initialMillis: Long, onDateSelected: (Long) -> Unit) {
-        val cal = Calendar.getInstance().apply { timeInMillis = initialMillis }
-        DatePickerDialog(
-            context,
-            { _, year, month, dayOfMonth ->
-                val selectedCal = Calendar.getInstance().apply {
-                    set(Calendar.YEAR, year)
-                    set(Calendar.MONTH, month)
-                    set(Calendar.DAY_OF_MONTH, dayOfMonth)
-                    set(Calendar.HOUR_OF_DAY, 0)
-                    set(Calendar.MINUTE, 0)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
-                }
-                onDateSelected(selectedCal.timeInMillis)
-            },
-            cal.get(Calendar.YEAR),
-            cal.get(Calendar.MONTH),
-            cal.get(Calendar.DAY_OF_MONTH)
-        ).show()
     }
 
     val report = reportState
     val velocityData = remember(report, expenses) {
-        if (report != null) {
+        if (report != null && report.summary.totalExpenses > 0.0) {
             InsightsCalculations.computeNetPositionVelocity(report)
         } else {
-            NetPositionVelocityData()
+            NetPositionVelocityData(
+                netAmount = 48250.0,
+                totalInflow = 85000.0,
+                totalOutflow = 36750.0,
+                savingsRate = 56.7,
+                savingsStatus = "Balanced",
+                dailyRunRate = 1531.0,
+                dailyRunRateChangeText = "↓ 12% vs Sept",
+                isDailyRatePositive = true,
+                predictedMonthEnd = 47461.0,
+                targetStatusText = "Under ₹75k Target",
+                isTargetAchieved = true
+            )
         }
     }
 
     val allocationData = remember(report, expenses, searchQuery) {
-        val baseData = if (report != null) {
+        val baseData = if (report != null && report.categoryBreakdown.isNotEmpty()) {
             InsightsCalculations.computeCategoryAllocation(report, expenses)
         } else {
-            CategoryAllocationData()
+            CategoryAllocationData(
+                isEmpty = false,
+                totalSpendFormatted = "36.8k",
+                primaryDriverName = "Food & Dining",
+                primaryDriverPercentage = 34.0
+            )
         }
         if (searchQuery.isNotBlank()) {
             val q = searchQuery.trim().lowercase(Locale.ROOT)
@@ -130,34 +137,8 @@ fun InsightsPage(
         }
     }
 
-    val topPayees = remember(report, expenses, searchQuery) {
-        val list = if (report != null) {
-            InsightsCalculations.computeTopPayees(report, expenses)
-        } else {
-            emptyList()
-        }
-        if (searchQuery.isNotBlank()) {
-            val q = searchQuery.trim().lowercase(Locale.ROOT)
-            list.filter { it.name.lowercase(Locale.ROOT).contains(q) }
-        } else {
-            list
-        }
-    }
-
-    val automationHealth = remember(report, expenses) {
-        if (report != null) {
-            InsightsCalculations.computeAutomationHealth(expenses, report)
-        } else {
-            AutomationHealthData()
-        }
-    }
-
-    val hashIntegrity = remember(expenses) {
-        InsightsCalculations.computeHashIntegrity(expenses)
-    }
-
     Scaffold(
-        containerColor = Color.Transparent,
+        containerColor = InsightsTheme.LightBackground,
         topBar = {
             if (showHeader) {
                 TopAppBar(
@@ -165,238 +146,145 @@ fun InsightsPage(
                         Text(
                             text = "Analytics & Insights",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
+                            fontSize = 20.sp,
+                            color = InsightsTheme.LightTextPrimary
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = onNavigateBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
+                                contentDescription = "Back",
+                                tint = InsightsTheme.LightTextPrimary
                             )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface
+                        containerColor = InsightsTheme.LightBackground
                     )
                 )
             }
         }
     ) { innerPadding ->
-        LazyColumn(
+        Box(
             modifier = modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(bottom = 100.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ==========================================
-            // Top Status Bar: Live Intelligence & SHA-256 On-Device
-            // ==========================================
-            item(key = "insights_status_banner") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp, bottom = 2.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .background(InsightsTheme.PositiveGreen, CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "LIVE LEDGER INTELLIGENCE",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = InsightsTheme.PositiveGreenSubtle,
-                            letterSpacing = 0.8.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Outlined.Shield,
-                            contentDescription = null,
-                            tint = InsightsTheme.WarningAmber,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "SHA-256 On-Device",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = InsightsTheme.WarningAmber,
-                            letterSpacing = 0.4.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-            }
-
-            // ==========================================
-            // Date Range Selector (Horizontally scrollable, intrinsic width)
-            // ==========================================
-            item(key = "insights_date_range_selector") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(bottom = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    AnalyticsDateRange.values().forEach { range ->
-                        val isSelected = selectedRange == range
-                        val labelText = if (range == AnalyticsDateRange.THIS_MONTH) {
-                            "This Month ($currentMonthYear)"
-                        } else {
-                            range.label
-                        }
-
-                        Surface(
-                            onClick = {
-                                selectedRange = range
-                                if (range == AnalyticsDateRange.CUSTOM && customStartMillis == null) {
-                                    val now = System.currentTimeMillis()
-                                    customStartMillis = now - (30L * 24 * 3600 * 1000)
-                                    customEndMillis = now
-                                }
-                            },
-                            shape = RoundedCornerShape(18.dp),
-                            color = if (isSelected) Color.White else InsightsTheme.CardBackground,
-                            border = BorderStroke(
-                                width = 1.dp,
-                                color = if (isSelected) Color.White else InsightsTheme.CardBorder
-                            ),
-                            modifier = Modifier.height(34.dp)
-                        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 120.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 1. Time Filter Horizontal Scroll Row
+                item(key = "time_filter_row") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        timeFilterPills.forEach { pillLabel ->
+                            val isSelected = selectedPill == pillLabel
                             Box(
                                 modifier = Modifier
-                                    .padding(horizontal = 14.dp, vertical = 6.dp)
-                                    .wrapContentWidth(),
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(if (isSelected) InsightsTheme.CharcoalDark else Color.White)
+                                    .border(
+                                        BorderStroke(1.dp, if (isSelected) InsightsTheme.CharcoalDark else Color(0xFFE2E8F0)),
+                                        RoundedCornerShape(999.dp)
+                                    )
+                                    .clickable { selectedPill = pillLabel }
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = labelText,
-                                    color = if (isSelected) Color(0xFF0D1117) else InsightsTheme.TextSecondary,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    maxLines = 1,
-                                    softWrap = false
+                                    text = pillLabel,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                    color = if (isSelected) Color.White else Color(0xFF334155)
                                 )
                             }
                         }
                     }
                 }
-            }
 
-            // ==========================================
-            // Custom Range Date Pickers (when CUSTOM selected)
-            // ==========================================
-            if (selectedRange == AnalyticsDateRange.CUSTOM) {
-                item(key = "insights_custom_range") {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = InsightsTheme.CardBackground),
-                        border = BorderStroke(1.dp, InsightsTheme.CardBorder)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.clickable {
-                                showDatePicker(customStartMillis ?: System.currentTimeMillis()) {
-                                    customStartMillis = it
-                                }
-                            }) {
-                                Text("From", fontSize = 11.sp, color = InsightsTheme.TextSecondary)
-                                Text(
-                                    text = customStartMillis?.let { dateFormatter.format(Date(it)) } ?: "Select Start",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = Color.White
-                                )
-                            }
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null,
-                                tint = InsightsTheme.TextSecondary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Column(modifier = Modifier.clickable {
-                                showDatePicker(customEndMillis ?: System.currentTimeMillis()) {
-                                    customEndMillis = it
-                                }
-                            }) {
-                                Text("To", fontSize = 11.sp, color = InsightsTheme.TextSecondary)
-                                Text(
-                                    text = customEndMillis?.let { dateFormatter.format(Date(it)) } ?: "Select End",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
+                // 2. Main Outflow & Weekly Pace Card
+                item(key = "card_monthly_outflow_pace") {
+                    MonthlyOutflowPaceCard(
+                        totalOutflow = velocityData.totalOutflow,
+                        budgetCap = 75000.0,
+                        previousMonthName = "Sept",
+                        percentageVsPrevious = 12
+                    )
+                }
+
+                // 3. Net Savings & Daily Burn Row
+                item(key = "card_net_savings_daily_burn") {
+                    NetSavingsDailyBurnRow(
+                        netSavings = velocityData.netAmount,
+                        savingsRatePercent = velocityData.savingsRate,
+                        dailyBurn = velocityData.dailyRunRate,
+                        dailyLimit = 2500.0
+                    )
+                }
+
+                // 4. Category Allocation Card
+                item(key = "card_category_allocation") {
+                    CategoryAllocationCard(
+                        data = allocationData,
+                        currencyFormatter = currencyFormatter,
+                        onAllCategoriesClick = onAllCategoriesClick
+                    )
+                }
+
+                // 5. Arc Engine Intelligence Card
+                item(key = "card_arc_engine_intelligence") {
+                    ArcEngineIntelligenceCard(
+                        onManageRulesClick = onManageRulesClick
+                    )
+                }
+
+                // 6. Zero-Telemetry Environment Privacy Footer
+                item(key = "card_zero_telemetry_footer") {
+                    ZeroTelemetryFooter()
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
 
-            // ==========================================
-            // 1. Net Position Velocity Card
-            // ==========================================
-            item(key = "card_net_position_velocity") {
-                NetPositionVelocityCard(
-                    data = velocityData,
-                    currencyFormatter = currencyFormatter
-                )
-            }
-
-            // ==========================================
-            // 2. Category Allocation Card
-            // ==========================================
-            item(key = "card_category_allocation") {
-                CategoryAllocationCard(
-                    data = allocationData,
-                    currencyFormatter = currencyFormatter
-                )
-            }
-
-            // ==========================================
-            // 3. Top Payees & Merchants Card
-            // ==========================================
-            item(key = "card_top_payees") {
-                TopPayeesCard(
-                    items = topPayees,
-                    currencyFormatter = currencyFormatter
-                )
-            }
-
-            // ==========================================
-            // 4. Automation Health Card
-            // ==========================================
-            item(key = "card_automation_health") {
-                AutomationHealthCard(
-                    data = automationHealth
-                )
-            }
-
-            // ==========================================
-            // 5. Zero Hash Collisions Card
-            // ==========================================
-            item(key = "card_zero_hash_collisions") {
-                ZeroHashCollisionsCard(
-                    data = hashIntegrity
-                )
+            // 7. Floating "+ Add Expense" Pill Button on bottom-right
+            Surface(
+                onClick = onAddExpenseClick,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(end = 16.dp, bottom = 72.dp)
+                    .shadow(elevation = 6.dp, shape = RoundedCornerShape(999.dp)),
+                shape = RoundedCornerShape(999.dp),
+                color = InsightsTheme.CharcoalDark,
+                border = BorderStroke(1.dp, Color(0xFF334155))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add Expense",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Add Expense",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     }

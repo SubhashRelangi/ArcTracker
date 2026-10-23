@@ -793,7 +793,11 @@ fun ExpenseScreen() {
                 com.subhashrelangi.arctracker.ui.AnalyticsScreen(
                     onNavigateBack = { navigateBack() },
                     showInternalHeader = (currentRoute == "Analytics"),
-                    searchQuery = searchQuery
+                    searchQuery = searchQuery,
+                    onAddExpenseClick = { showAddDialog = true },
+                    onAllCategoriesClick = { navigateTo("CategoryManagement") },
+                    onManageRulesClick = { navigateTo("CategoryRules") },
+                    isDemoMode = settingsRepo.isDemoMode()
                 )
             } else if (currentRoute == "Budgets") {
                 com.subhashrelangi.arctracker.ui.BudgetsScreen(

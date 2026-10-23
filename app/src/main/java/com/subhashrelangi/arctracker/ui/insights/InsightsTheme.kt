@@ -9,7 +9,29 @@ import com.subhashrelangi.arctracker.data.CategoryVisuals
  */
 object InsightsTheme {
 
-    // Surfaces & Containers
+    // Light Theme Surfaces & Containers (Reference Mockup)
+    val LightBackground = Color(0xFFF8FAFC)
+    val LightCardBackground = Color(0xFFFFFFFF)
+    val LightCardBorder = Color(0xFFE2E8F0)
+    val LightSubCardBackground = Color(0xFFF1F5F9)
+    val LightSubCardBorder = Color(0xFFE2E8F0)
+
+    // Typography
+    val LightTextPrimary = Color(0xFF0F172A)
+    val LightTextSecondary = Color(0xFF64748B)
+    val LightTextMuted = Color(0xFF94A3B8)
+
+    // Accent Colors
+    val EmeraldGreen = Color(0xFF15803D)
+    val EmeraldGreenDark = Color(0xFF047857)
+    val EmeraldGreenBadge = Color(0xFFECFDF5)
+    val EmeraldGreenBadgeBorder = Color(0xFFA7F3D0)
+    val AmberBrown = Color(0xFF92400E)
+    val AmberOrange = Color(0xFFD97706)
+    val AmberBadge = Color(0xFFFEF3C7)
+    val CharcoalDark = Color(0xFF0F172A)
+
+    // Surfaces & Containers (Legacy / Dark)
     val Background = Color(0xFF090C10)
     val CardBackground = Color(0xFF161B22)
     val CardBorder = Color(0xFF30363D)
