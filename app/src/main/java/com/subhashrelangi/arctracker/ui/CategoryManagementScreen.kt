@@ -2,6 +2,7 @@ package com.subhashrelangi.arctracker.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -92,62 +94,77 @@ fun CategoryManagementScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "Categories",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Manage system & custom categories",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = subtitleColor
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
+            com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
+                title = "Categories",
+                subtitle = "Manage system & custom categories",
+                onBackClick = onNavigateBack,
+                modifier = Modifier.background(Color.White).statusBarsPadding(),
                 actions = {
-                    IconButton(onClick = onNavigateToApplyRules) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .clickable(onClick = onNavigateToApplyRules),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             imageVector = Icons.Filled.AutoFixHigh,
                             contentDescription = "Apply Rules",
-                            tint = purpleColor
+                            tint = Color(0xFF0F172A),
+                            modifier = Modifier.size(19.dp)
                         )
                     }
-                    IconButton(onClick = onNavigateToRules) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .clickable(onClick = onNavigateToRules),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             imageVector = Icons.Filled.Rule,
                             contentDescription = "Category Rules",
-                            tint = purpleColor
+                            tint = Color(0xFF0F172A),
+                            modifier = Modifier.size(19.dp)
                         )
                     }
-                    IconButton(onClick = onNavigateToAliases) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .clickable(onClick = onNavigateToAliases),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             imageVector = Icons.Filled.Storefront,
                             contentDescription = "Merchant Aliases",
-                            tint = purpleColor
+                            tint = Color(0xFF0F172A),
+                            modifier = Modifier.size(19.dp)
                         )
                     }
-                    IconButton(onClick = { showAddDialog = true }) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .clickable { showAddDialog = true },
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             imageVector = Icons.Filled.Add,
                             contentDescription = "Add Category",
-                            tint = purpleColor
+                            tint = Color(0xFF0F172A),
+                            modifier = Modifier.size(19.dp)
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
-                )
+                }
             )
         }
     ) { innerPadding ->

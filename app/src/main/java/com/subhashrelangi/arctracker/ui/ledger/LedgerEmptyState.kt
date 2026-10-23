@@ -4,10 +4,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FilterListOff
 import androidx.compose.material.icons.filled.SearchOff
-import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -40,7 +40,7 @@ fun LedgerEmptyState(
             val icon = when {
                 isSearching -> Icons.Default.SearchOff
                 isFilterActive -> Icons.Default.FilterListOff
-                else -> Icons.Outlined.ReceiptLong
+                else -> Icons.AutoMirrored.Outlined.ReceiptLong
             }
 
             Icon(

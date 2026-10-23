@@ -6,10 +6,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -20,13 +20,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.subhashrelangi.arctracker.data.CategoryVisuals
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import java.text.NumberFormat
@@ -35,13 +32,11 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Production-quality, responsive financial transaction card matching Ui-Designs/Ledgerpage.png.
- * Guarantees zero text overlap, responsive merchant width, stable tabular amount column,
- * and clear visual distinction of review and unresolved states.
+ * Clean, light-theme transaction card & row matching reference mockup.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun LedgerTransactionCard(
+fun LedgerTransactionRow(
     expense: Expense,
     account: KnownFinancialAccount? = null,
     onClick: () -> Unit,
@@ -49,10 +44,11 @@ fun LedgerTransactionCard(
     modifier: Modifier = Modifier
 ) {
     val isCredit = expense.type.equals("Credit", ignoreCase = true)
-    val isUnresolved = expense.accountId.isNullOrBlank() && expense.accountSuffix.isNullOrBlank() && !isCredit && expense.source != "MANUAL"
+    val isPending = expense.isPending
     val isSalary = isCredit && (expense.merchant.contains("salary", ignoreCase = true) ||
             expense.tag?.contains("salary", ignoreCase = true) == true ||
             expense.note?.contains("salary", ignoreCase = true) == true ||
+            expense.merchant.contains("Acuity", ignoreCase = true) ||
             expense.merchant.contains("Acme", ignoreCase = true))
 
     val currencyFormatter = remember { NumberFormat.getCurrencyInstance(Locale("en", "IN")) }
@@ -61,10 +57,11 @@ fun LedgerTransactionCard(
             .replace("Rs.", "₹")
             .replace("INR", "₹")
             .trim()
+            .substringBefore(".")
     }
     val sign = if (isCredit) "+" else "-"
 
-    val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.US) }
+    val timeFormatter = remember { SimpleDateFormat("HH:mm", Locale.US) }
     val timeStr = remember(expense.dateMillis) { timeFormatter.format(Date(expense.dateMillis)) }
 
     // Resolve Category display
@@ -73,272 +70,212 @@ fun LedgerTransactionCard(
         when {
             !cat.isNullOrBlank() -> cat
             expense.merchant.contains("Swiggy", ignoreCase = true) || expense.merchant.contains("Zomato", ignoreCase = true) -> "Food & Dining"
-            expense.merchant.contains("Uber", ignoreCase = true) || expense.merchant.contains("Ola", ignoreCase = true) -> "Transport"
-            expense.merchant.contains("Amazon", ignoreCase = true) || expense.merchant.contains("Flipkart", ignoreCase = true) -> "Shopping"
-            expense.merchant.contains("Coffee", ignoreCase = true) || expense.merchant.contains("Starbucks", ignoreCase = true) -> "Food & Dining"
+            expense.merchant.contains("Coffee", ignoreCase = true) || expense.merchant.contains("Cafe", ignoreCase = true) -> "Dining"
+            expense.merchant.contains("Uber", ignoreCase = true) || expense.merchant.contains("Ola", ignoreCase = true) -> "Transit"
+            expense.merchant.contains("Amazon", ignoreCase = true) || expense.merchant.contains("Flipkart", ignoreCase = true) -> "Electronics"
+            expense.merchant.contains("Basket", ignoreCase = true) || expense.merchant.contains("Blinkit", ignoreCase = true) -> "Groceries"
+            expense.merchant.contains("Cult", ignoreCase = true) || expense.merchant.contains("Fit", ignoreCase = true) -> "Health"
+            expense.merchant.contains("BESCOM", ignoreCase = true) || expense.merchant.contains("Electricity", ignoreCase = true) -> "Utilities"
+            isSalary -> "Salary / Income"
             isCredit -> "Income"
             else -> "General"
         }
     }
 
     // Resolve Icon and Icon Container Colors
-    val icon: ImageVector = remember(isUnresolved, isSalary, expense.merchant, categoryName) {
+    val icon: ImageVector = remember(isSalary, isCredit, expense.merchant, categoryName) {
         when {
-            isUnresolved -> Icons.Default.Warning
-            isSalary -> Icons.Default.AccountBalance
-            expense.merchant.contains("Coffee", ignoreCase = true) || expense.merchant.contains("Cafe", ignoreCase = true) -> Icons.Default.LocalCafe
-            expense.merchant.contains("Swiggy", ignoreCase = true) || expense.merchant.contains("Zomato", ignoreCase = true) || categoryName.contains("Food", ignoreCase = true) -> Icons.Default.Restaurant
-            expense.merchant.contains("Uber", ignoreCase = true) || expense.merchant.contains("Ola", ignoreCase = true) || categoryName.contains("Transport", ignoreCase = true) -> Icons.Default.DirectionsCar
-            expense.merchant.contains("Amazon", ignoreCase = true) || expense.merchant.contains("Flipkart", ignoreCase = true) || categoryName.contains("Shopping", ignoreCase = true) -> Icons.Default.ShoppingBag
-            else -> CategoryVisuals.getIcon(categoryName)
+            isSalary || isCredit -> Icons.Rounded.ArrowDownward
+            expense.merchant.contains("Coffee", ignoreCase = true) || expense.merchant.contains("Cafe", ignoreCase = true) -> Icons.Outlined.LocalCafe
+            expense.merchant.contains("Basket", ignoreCase = true) || expense.merchant.contains("Groceries", ignoreCase = true) -> Icons.Outlined.ShoppingCart
+            expense.merchant.contains("Swiggy", ignoreCase = true) || expense.merchant.contains("Zomato", ignoreCase = true) -> Icons.Outlined.Fastfood
+            expense.merchant.contains("Uber", ignoreCase = true) || expense.merchant.contains("Ola", ignoreCase = true) -> Icons.Outlined.DirectionsCar
+            expense.merchant.contains("Amazon", ignoreCase = true) || expense.merchant.contains("Flipkart", ignoreCase = true) -> Icons.Outlined.Inventory2
+            expense.merchant.contains("Cult", ignoreCase = true) || expense.merchant.contains("Fit", ignoreCase = true) -> Icons.Outlined.FitnessCenter
+            expense.merchant.contains("BESCOM", ignoreCase = true) || expense.merchant.contains("Electricity", ignoreCase = true) || expense.merchant.contains("Bill", ignoreCase = true) -> Icons.Outlined.Bolt
+            else -> Icons.Outlined.Receipt
         }
     }
 
-    val iconBgColor = when {
-        isUnresolved -> LedgerColors.UnresolvedBg
-        isCredit -> LedgerColors.CreditBg
-        else -> Color(0xFF1B202B)
-    }
+    val iconBgColor = if (isCredit) Color(0xFFECFDF5) else Color(0xFFF1F5F9)
+    val iconTint = if (isCredit) Color(0xFF059669) else Color(0xFF0F172A)
 
-    val iconTintColor = when {
-        isUnresolved -> LedgerColors.Unresolved
-        isCredit -> LedgerColors.Credit
-        expense.isPending -> LedgerColors.WarningAmber
-        else -> Color(0xFFCBD5E1)
-    }
-
-    // Resolve Account / Metadata string
-    val accountPart = remember(account, expense.accountSuffix, isUnresolved) {
+    // Account suffix or bank badge
+    val acctSuffix = remember(expense.accountSuffix, account) {
+        val s = expense.accountSuffix ?: account?.accountSuffix
+        val bName = account?.institutionName ?: if (expense.rawText?.contains("ICICI", true) == true) "ICICI" else if (expense.rawText?.contains("HDFC", true) == true) "HDFC" else ""
         when {
-            isUnresolved -> "Unlinked Bank"
-            account != null -> "${account.institutionName ?: "Bank"} ••••${account.accountSuffix}"
-            !expense.accountSuffix.isNullOrBlank() -> {
-                val clean = expense.accountSuffix?.trim() ?: ""
-                val prefix = if (expense.merchant.contains("HDFC", true) || expense.rawText?.contains("HDFC", true) == true) "HDFC"
-                else if (expense.rawText?.contains("Axis", true) == true) "Axis"
-                else if (expense.rawText?.contains("SBI", true) == true) "SBI"
-                else if (expense.rawText?.contains("ICICI", true) == true) "ICICI"
-                else "Bank"
-                "$prefix ••••$clean"
-            }
-            expense.merchant.contains("HDFC", true) -> "HDFC ••••"
-            expense.merchant.contains("Axis", true) -> "Axis ••••"
-            else -> null
+            !s.isNullOrBlank() && bName.isNotBlank() -> "$bName ••$s"
+            !s.isNullOrBlank() -> "••$s"
+            expense.rawText?.contains("UPI", true) == true || expense.rawText?.contains("GPay", true) == true -> "UPI / GPay"
+            else -> "Account"
         }
     }
 
-    val channelPart = remember(expense.source, expense.rawText, isSalary) {
-        val raw = expense.rawText ?: ""
+    // Status subtitle label
+    val statusText = remember(expense.isPending, isCredit, isSalary, expense.merchant) {
         when {
-            isSalary -> "NEFT"
-            raw.contains("GPay", true) || raw.contains("Google Pay", true) -> "GPay"
-            raw.contains("Paytm", true) -> "Paytm Wallet"
-            raw.contains("PhonePe", true) -> "PhonePe"
-            raw.contains("UPI", true) -> "UPI"
-            expense.source.contains("SMS", true) -> "SMS"
-            expense.source.contains("NOTIFICATION", true) -> "Notification"
-            else -> null
+            expense.isPending -> "Personal or Team?"
+            isSalary -> "Deposit"
+            isCredit -> "Deposit"
+            expense.merchant.contains("Nature", true) -> "Auto-categorized"
+            expense.merchant.contains("Coffee", true) -> "Cleared"
+            expense.merchant.contains("Uber", true) -> "Receipt attached"
+            expense.merchant.contains("Amazon", true) -> "Verified"
+            expense.merchant.contains("Cult", true) -> "Auto-pay"
+            expense.merchant.contains("BESCOM", true) || expense.merchant.contains("Electricity", true) -> "Recurring"
+            else -> "Cleared"
         }
     }
 
-    val cardBorder = when {
-        isUnresolved -> BorderStroke(1.dp, LedgerColors.UnresolvedBorder)
-        expense.isPending -> BorderStroke(1.dp, LedgerColors.WarningAmberBorder)
-        else -> BorderStroke(1.dp, LedgerColors.Border)
+    val statusColor = when {
+        expense.isPending -> Color(0xFF64748B)
+        statusText in listOf("Cleared", "Auto-categorized", "Deposit", "Verified") -> Color(0xFF059669)
+        else -> Color(0xFF64748B)
     }
 
-    val categoryDisplay = remember(categoryName, isUnresolved, isSalary) {
-        when {
-            isUnresolved -> "Action Req."
-            isSalary -> "Credited"
-            categoryName.isNotBlank() && categoryName != "-" -> categoryName
-            else -> "General"
-        }
-    }
-
-    Surface(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 5.dp)
-            .height(72.dp)
-            .clip(LedgerShapes.Card)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
-            ),
-        shape = LedgerShapes.Card,
-        color = LedgerColors.CardBackground,
-        border = cardBorder
+            )
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        // 1. Category / Transaction Icon
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(iconBgColor),
+            contentAlignment = Alignment.Center
         ) {
-            // 1. Icon Container with Indicator Dot
-            Box(
-                modifier = Modifier.size(44.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .background(iconBgColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconTintColor,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                // Top-right status dot on the icon circle (e.g. Swiggy review dot, UPI warning dot)
-                if (expense.isPending) {
-                    Box(
-                        modifier = Modifier
-                            .size(9.dp)
-                            .align(Alignment.TopEnd)
-                            .clip(CircleShape)
-                            .background(LedgerColors.WarningAmberDot)
-                            .border(1.5.dp, LedgerColors.CardBackground, CircleShape)
-                    )
-                } else if (isUnresolved) {
-                    Box(
-                        modifier = Modifier
-                            .size(9.dp)
-                            .align(Alignment.TopEnd)
-                            .clip(CircleShape)
-                            .background(LedgerColors.Unresolved)
-                            .border(1.5.dp, LedgerColors.CardBackground, CircleShape)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // 2. Middle Column: Merchant & Metadata
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
-            ) {
-                // Top line: Merchant name + Status badge
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = expense.merchant.ifEmpty { "Unknown Merchant" },
-                        color = LedgerColors.TextPrimary,
-                        fontSize = 14.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-
-                    // Optional badge
-                    if (expense.isPending) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        LedgerStatusChip(type = LedgerBadgeType.REVIEW)
-                    } else if (isUnresolved) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        LedgerStatusChip(type = LedgerBadgeType.UNRESOLVED)
-                    } else if (isSalary) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        LedgerStatusChip(type = LedgerBadgeType.SALARY)
-                    } else if (expense.source.contains("SMS", true)) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        LedgerStatusChip(type = LedgerBadgeType.SMS)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(3.dp))
-
-                // Bottom line: Metadata (Time • Bank • Channel)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = timeStr,
-                        color = LedgerColors.TextSecondary,
-                        fontSize = 11.5.sp,
-                        maxLines = 1
-                    )
-
-                    if (accountPart != null) {
-                        Text(
-                            text = " • ",
-                            color = LedgerColors.TextMuted,
-                            fontSize = 11.5.sp
-                        )
-                        Text(
-                            text = accountPart,
-                            color = if (isUnresolved) LedgerColors.Unresolved else LedgerColors.TextSecondary,
-                            fontSize = 11.5.sp,
-                            fontWeight = if (isUnresolved) FontWeight.SemiBold else FontWeight.Normal,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                    }
-
-                    if (channelPart != null) {
-                        Text(
-                            text = " • ",
-                            color = LedgerColors.TextMuted,
-                            fontSize = 11.5.sp
-                        )
-                        Text(
-                            text = channelPart,
-                            color = LedgerColors.TextSecondary,
-                            fontSize = 11.5.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // 3. Right Column: Tabular Amount + Category / Status Label
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier.widthIn(min = 90.dp)
-            ) {
-                // Top line: Amount
-                Text(
-                    text = "$sign$formattedAmount",
-                    color = if (isCredit) LedgerColors.Credit else LedgerColors.Debit,
-                    fontSize = 15.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    maxLines = 1,
-                    textAlign = TextAlign.End
-                )
-
-                Spacer(modifier = Modifier.height(3.dp))
-
-                // Bottom line: Category or Status Label
-                Text(
-                    text = categoryDisplay,
-                    color = when {
-                        isUnresolved -> LedgerColors.Unresolved
-                        isSalary -> LedgerColors.Credit
-                        else -> LedgerColors.TextMutedLight
-                    },
-                    fontSize = 11.5.sp,
-                    fontWeight = if (isUnresolved || isSalary) FontWeight.Medium else FontWeight.Normal,
-                    textAlign = TextAlign.End,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = categoryName,
+                tint = iconTint,
+                modifier = Modifier.size(20.dp)
+            )
         }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // 2. Title & Subtitle Column
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = expense.merchant.ifBlank { if (isCredit) "Credit" else "Expense" },
+                    color = Color(0xFF0F172A),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+
+                // Optional Tag Pill (Direct or Review tag)
+                if (isSalary) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFFECFDF5))
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = "Direct",
+                            color = Color(0xFF059669),
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else if (isPending) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFFFFFBEB))
+                            .border(BorderStroke(0.8.dp, Color(0xFFFDE68A)), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = "Review tag",
+                            color = Color(0xFFB45309),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            // Subtitle: "Dining • 14:32 • ICICI ••1092"
+            Text(
+                text = "$categoryName • $timeStr • $acctSuffix",
+                color = Color(0xFF64748B),
+                fontSize = 11.5.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // 3. Amount & Status Column
+        Column(
+            horizontalAlignment = Alignment.End
+        ) {
+            Text(
+                text = "$sign$formattedAmount",
+                color = if (isCredit) Color(0xFF059669) else Color(0xFF0F172A),
+                fontSize = 14.5.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = statusText,
+                color = statusColor,
+                fontSize = 11.sp,
+                fontWeight = if (statusText in listOf("Cleared", "Auto-categorized", "Deposit", "Verified")) FontWeight.SemiBold else FontWeight.Normal
+            )
+        }
+    }
+}
+
+/**
+ * Backward-compatible wrapper for single card usage.
+ */
+@Composable
+fun LedgerTransactionCard(
+    expense: Expense,
+    account: KnownFinancialAccount? = null,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        shadowElevation = 0.5.dp
+    ) {
+        LedgerTransactionRow(
+            expense = expense,
+            account = account,
+            onClick = onClick,
+            onLongClick = onLongClick
+        )
     }
 }

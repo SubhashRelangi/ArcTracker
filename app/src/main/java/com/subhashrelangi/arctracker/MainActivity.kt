@@ -42,6 +42,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -89,7 +90,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 privacyManager.screenSecurityFlow.collect { enabled ->
-                    if (enabled) {
+                    if (enabled && !BuildConfig.DEBUG) {
                         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
                     } else {
                         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
@@ -450,32 +451,26 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
-        containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult")) Color.White else if (currentRoute == "Home") Color(0xFFF8FAFC) else if (currentRoute in listOf("Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
+        containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult")) Color.White else if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) Color(0xFFF8FAFC) else MaterialTheme.colorScheme.background,
 
         topBar = {
-            if (currentRoute in listOf("Transactions", "Pending", "Review", "Insights", "Settings")) {
+            if (currentRoute in listOf("Pending", "Review", "Insights", "Settings")) {
                 val isReviewOrSettings = currentRoute in listOf("Pending", "Review", "Settings")
                 com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
                     modifier = Modifier.statusBarsPadding(),
                     title = "ArcTracker",
-                    showBadge = true,
-                    badgeText = "UPI",
-                    statusText = "Automated  •  Local-first",
                     showSearch = !isReviewOrSettings,
-                    showAdd = !isReviewOrSettings,
+                    showProfile = true,
                     onSearchClick = {
-                        if (currentRoute == "Transactions") {
-                            ledgerSearchFocusTrigger++
-                        } else {
-                            isSearching = !isSearching
-                            if (!isSearching) searchQuery = ""
-                        }
+                        isSearching = !isSearching
+                        if (!isSearching) searchQuery = ""
                     },
-                    onAddClick = {
-                        showAddDialog = true
+                    onProfileClick = {
+                        navigateTo("FinancialAccounts")
                     }
                 )
             } else if (
+                currentRoute != "Transactions" &&
                 currentRoute != "Home" &&
                 currentRoute != "SmsImport" &&
                 currentRoute != "SmsScan" &&
@@ -526,8 +521,16 @@ fun ExpenseScreen() {
                     onBackClick = onBackClick,
                     actions = {
                         if (currentRoute == "RegexPatterns") {
-                            IconButton(onClick = { /* TODO */ }) {
-                                Icon(Icons.Outlined.HelpOutline, contentDescription = "Help", tint = Color(0xFF3F51B5))
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                    .clickable { /* TODO */ },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Outlined.HelpOutline, contentDescription = "Help", tint = Color(0xFF0F172A), modifier = Modifier.size(19.dp))
                             }
                         } else if (currentRoute == "EditRegexPattern") {
                             if (editingRegexRuleId != null) {
@@ -536,9 +539,9 @@ fun ExpenseScreen() {
                                     RegexPatternsManager.resetSystemRule(context, editingRegexRuleId!!)
                                     navigateBack()
                                 }) {
-                                    Icon(Icons.Filled.Refresh, contentDescription = "Reset", tint = Color(0xFF3F51B5), modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Filled.Refresh, contentDescription = "Reset", tint = Color(0xFF0F172A), modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Reset", color = Color(0xFF3F51B5), fontWeight = FontWeight.Medium)
+                                    Text("Reset", color = Color(0xFF0F172A), fontWeight = FontWeight.Medium)
                                 }
                             }
                         }
@@ -556,7 +559,7 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "Home")) 0.dp else padding.calculateTopPadding()
+            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "Home", "Transactions")) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
                     .padding(top = contentTopPadding)
@@ -582,7 +585,11 @@ fun ExpenseScreen() {
 
                 com.subhashrelangi.arctracker.ui.ledger.LedgerPage(
                     expenses = expenses,
-                    showHeader = false,
+                    isDemoMode = settingsRepo.isDemoMode(),
+                    showHeader = true,
+                    onProfileClick = {
+                        navigateTo("FinancialAccounts")
+                    },
                     searchFocusTrigger = ledgerSearchFocusTrigger,
                     onExpenseClick = { expense ->
                         if (expense.isPending) {
