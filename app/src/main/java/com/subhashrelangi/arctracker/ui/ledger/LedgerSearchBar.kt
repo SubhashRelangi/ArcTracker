@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -43,7 +44,7 @@ fun LedgerSearchBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .height(42.dp)
             .clip(shape)
             .background(LedgerColors.SearchBg)
             .border(1.dp, LedgerColors.SearchBorder, shape)
@@ -71,9 +72,10 @@ fun LedgerSearchBar(
                     Text(
                         text = placeholderText,
                         color = LedgerColors.TextMutedLight,
-                        fontSize = 13.5.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Normal,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 

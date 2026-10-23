@@ -454,13 +454,16 @@ fun ExpenseScreen() {
         containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult")) Color.White else if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) Color(0xFFF8FAFC) else MaterialTheme.colorScheme.background,
 
         topBar = {
-            if (currentRoute in listOf("Pending", "Review", "Insights", "Settings")) {
-                val isReviewOrSettings = currentRoute in listOf("Pending", "Review", "Settings")
+            if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
+                val showSearch = (currentRoute == "Home" || currentRoute == "Insights" || currentRoute == "Analytics")
+                val showProfile = currentRoute != "Settings"
                 com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
-                    modifier = Modifier.statusBarsPadding(),
+                    modifier = Modifier
+                        .background(Color(0xFFF8FAFC))
+                        .statusBarsPadding(),
                     title = "ArcTracker",
-                    showSearch = !isReviewOrSettings,
-                    showProfile = true,
+                    showSearch = showSearch,
+                    showProfile = showProfile,
                     onSearchClick = {
                         isSearching = !isSearching
                         if (!isSearching) searchQuery = ""
@@ -470,8 +473,6 @@ fun ExpenseScreen() {
                     }
                 )
             } else if (
-                currentRoute != "Transactions" &&
-                currentRoute != "Home" &&
                 currentRoute != "SmsImport" &&
                 currentRoute != "SmsScan" &&
                 currentRoute != "SmsResult" &&
@@ -559,7 +560,7 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "Home", "Transactions")) 0.dp else padding.calculateTopPadding()
+            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult")) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
                     .padding(top = contentTopPadding)
@@ -904,7 +905,7 @@ fun ExpenseScreen() {
                     expenses = displayedExpenses,
                     isDemoMode = settingsRepo.isDemoMode(),
                     knownAccounts = knownAccounts,
-                    showHeader = true,
+                    showHeader = false,
                     onSearchClick = {
                         isSearching = !isSearching
                     },

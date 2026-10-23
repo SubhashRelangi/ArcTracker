@@ -5,16 +5,22 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
@@ -281,39 +287,69 @@ fun LedgerPage(
     ) {
         LazyColumn(
             state = listState,
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (showHeader) Modifier.statusBarsPadding() else Modifier),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 120.dp)
         ) {
-            // 1. Top Header: Logo + ArcTracker + Profile & "Ledger • Local Vault" Title
-            if (showHeader) {
-                item(key = "header_section") {
-                    LedgerHeader(
-                        monthSubtitle = periodLabel,
-                        onProfileClick = onProfileClick,
-                        onFilterClick = {
-                            if (availableMonths.isNotEmpty()) {
-                                showMonthDialog = true
-                            }
-                        },
-                        onExportClick = {
-                            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-                            csvExportLauncher.launch("ArcTracker_Transactions_$timestamp.csv")
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                }
-            }
-
-            // 2. Search Field
-            item(key = "search_field") {
-                Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+            // Shrunk Search Bar with Filter (Tune) and Export action buttons beside it
+            item(key = "search_and_actions") {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Shrunk Search Bar taking remaining width
                     LedgerSearchBar(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
-                        focusRequester = searchFocusRequester
+                        focusRequester = searchFocusRequester,
+                        modifier = Modifier.weight(1f)
                     )
+
+                    // Month Filter / Tune Button
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .clickable {
+                                if (availableMonths.isNotEmpty()) {
+                                    showMonthDialog = true
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Tune,
+                            contentDescription = "Filter / Month",
+                            tint = Color(0xFF0F172A),
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+
+                    // Export CSV Button
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .clickable {
+                                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                                csvExportLauncher.launch("ArcTracker_Transactions_$timestamp.csv")
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.FileUpload,
+                            contentDescription = "Export CSV",
+                            tint = Color(0xFF0F172A),
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }

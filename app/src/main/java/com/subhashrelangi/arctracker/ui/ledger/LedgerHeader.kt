@@ -20,14 +20,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
 
 /**
- * Top brand header & Ledger title section:
- * Row 1: Brand Header matching Home page: [ ArcTracker               (👤) ]
- *        (Search icon removed on Ledger per user request)
- * Row 2: [ Ledger • Local Vault               [⚙] [⤓] ]
- * Row 3: [ Encrypted on-device SQLite ledger • October 2026 ]
+ * Ledger Title & Actions Subheader section:
+ * Row 1: [ Ledger • Local Vault               [⚙] [⤓] ]
+ * Row 2: [ Encrypted on-device SQLite ledger • October 2026 ]
+ * (The top brand "ArcTracker" header is managed universally by the root Scaffold topBar)
  */
 @Composable
 fun LedgerHeader(
@@ -40,24 +38,12 @@ fun LedgerHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 10.dp, bottom = 4.dp)
+            .padding(horizontal = 16.dp)
+            .padding(top = 4.dp, bottom = 4.dp)
     ) {
-        // 1. Top Brand Header: Exact Home Page Header (ArcTracker + Profile, NO search icon)
-        ArcTrackerHeader(
-            title = "ArcTracker",
-            showSearch = false, // User requested: "dont need search icon so remove that in the ledger page"
-            showProfile = true,
-            onProfileClick = onProfileClick,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // 2. Ledger Title & Actions Row
+        // 1. Ledger Title & Actions Row
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -143,13 +129,12 @@ fun LedgerHeader(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // 3. Subtitle: "Encrypted on-device SQLite ledger • October 2026"
+        // 2. Subtitle: "Encrypted on-device SQLite ledger • October 2026"
         Text(
             text = "Encrypted on-device SQLite ledger • $monthSubtitle",
             color = Color(0xFF64748B),
             fontSize = 12.5.sp,
-            fontWeight = FontWeight.Normal,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            fontWeight = FontWeight.Normal
         )
     }
 }

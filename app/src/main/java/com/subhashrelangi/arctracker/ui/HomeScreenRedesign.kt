@@ -612,7 +612,9 @@ private fun HomeTopHeader(
         showProfile = true,
         onSearchClick = onSearchClick,
         onProfileClick = onProfileClick,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 0.dp)
+        horizontalPadding = 0.dp,
+        verticalPadding = 4.dp,
+        modifier = Modifier.fillMaxWidth()
     )
 }
 

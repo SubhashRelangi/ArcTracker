@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.sp
  *   Left: Clean "ArcTracker" brand text (22.sp, bold, #0F172A, -0.5.sp letter spacing)
  *   Right: Circular action buttons (38.dp, white, 1.dp border #E2E8F0, dark icon #0F172A)
  *          e.g. Search (optional), Add (optional), Profile (optional), or custom actions.
+ *   Height: Fixed 52.dp for exact baseline consistency across all tabs.
  *
  * Child / Secondary screens:
  *   Left: Circular back button (38.dp) + Title (20.sp, bold, #0F172A) + optional Subtitle (12.sp, #64748B)
@@ -48,6 +50,8 @@ fun ArcTrackerHeader(
     onAddClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onBackClick: (() -> Unit)? = null,
+    horizontalPadding: Dp = 16.dp,
+    verticalPadding: Dp = 0.dp,
     // Backward compatibility for existing callers
     showBadge: Boolean = false,
     badgeText: String = "UPI",
@@ -57,7 +61,8 @@ fun ArcTrackerHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .height(52.dp)
+            .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
