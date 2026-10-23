@@ -450,17 +450,17 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
-        containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult")) Color.White else if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
+        containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult")) Color.White else if (currentRoute == "Home") Color(0xFFF8FAFC) else if (currentRoute in listOf("Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
 
         topBar = {
-            if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
+            if (currentRoute in listOf("Transactions", "Pending", "Review", "Insights", "Settings")) {
                 val isReviewOrSettings = currentRoute in listOf("Pending", "Review", "Settings")
                 com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
                     modifier = Modifier.statusBarsPadding(),
                     title = "ArcTracker",
                     showBadge = true,
                     badgeText = "UPI",
-                    statusText = "Automated  â€¢  Local-first",
+                    statusText = "Automated  •  Local-first",
                     showSearch = !isReviewOrSettings,
                     showAdd = !isReviewOrSettings,
                     onSearchClick = {
@@ -476,6 +476,7 @@ fun ExpenseScreen() {
                     }
                 )
             } else if (
+                currentRoute != "Home" &&
                 currentRoute != "SmsImport" &&
                 currentRoute != "SmsScan" &&
                 currentRoute != "SmsResult" &&
@@ -555,7 +556,7 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult")) 0.dp else padding.calculateTopPadding()
+            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "Home")) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
                     .padding(top = contentTopPadding)
@@ -894,7 +895,9 @@ fun ExpenseScreen() {
 
                 com.subhashrelangi.arctracker.ui.HomeScreenRedesign(
                     expenses = displayedExpenses,
-                    showHeader = false,
+                    isDemoMode = settingsRepo.isDemoMode(),
+                    knownAccounts = knownAccounts,
+                    showHeader = true,
                     onSearchClick = {
                         isSearching = !isSearching
                     },
@@ -910,8 +913,8 @@ fun ExpenseScreen() {
                     onScanSmsClick = {
                         navigateTo("SmsImport")
                     },
-                    onAddCashClick = {
-                        showAddDialog = true
+                    onBudgetsClick = {
+                        navigateTo("Budgets")
                     },
                     onExportClick = {
                         navigateTo("Backup")
@@ -958,6 +961,8 @@ fun ExpenseScreen() {
                 modifier = Modifier.align(Alignment.BottomCenter),
                 currentDestination = destination,
                 reviewBadgeCount = pendingCount,
+                isStatic = true,
+                isLightMode = true,
                 onNavigate = { dest ->
                     navigateTo(dest.route)
                 }
