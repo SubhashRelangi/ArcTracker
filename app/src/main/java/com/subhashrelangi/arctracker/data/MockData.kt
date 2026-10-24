@@ -259,44 +259,47 @@ object MockData {
 
         val list = mutableListOf<Expense>()
 
-        // 1. Pending Transactions for Review Screen (Exactly 3 unverified items)
+        // 1. Pending Transactions for Review Screen (Exactly 3 unverified items matching mockup)
         list.add(
             Expense(
-                amount = 480.0,
-                merchant = "Swiggy",
-                dateMillis = timeOffset(0, 13, 42),
+                amount = 420.0,
+                merchant = "Swiggy Delivery",
+                dateMillis = timeOffset(1, 20, 45),
                 type = "Debit",
-                tag = "Food",
+                tag = "Food & Dining",
                 isPending = true,
-                note = "Order #84920412",
+                note = "Detected past 8 PM on a weekday. Is this personal evening food or tax-deductible team dinner?",
                 source = "DEMO",
-                accountSuffix = "4012"
+                accountSuffix = "4082",
+                rawText = "UPI / GPay"
             )
         )
         list.add(
             Expense(
-                amount = 1299.0,
-                merchant = "Amazon Pay",
-                dateMillis = timeOffset(0, 11, 15),
+                amount = 3490.0,
+                merchant = "Amazon India",
+                dateMillis = timeOffset(0, 14, 10),
                 type = "Debit",
-                tag = "Shopping",
+                tag = "Shopping & Tech",
                 isPending = true,
-                note = "Order 402-91823-11",
+                note = "Sub-category: Electronics vs Office / Gadgets",
                 source = "DEMO",
-                accountSuffix = "9821"
+                accountSuffix = "1092",
+                rawText = "ICICI Card spend"
             )
         )
         list.add(
             Expense(
-                amount = 350.0,
-                merchant = "Starbucks Coffee",
-                dateMillis = timeOffset(1, 16, 20),
+                amount = 1770.0,
+                merchant = "Uber Premier",
+                dateMillis = timeOffset(2, 9, 30),
                 type = "Debit",
-                tag = "Food",
+                tag = "Transport",
                 isPending = true,
-                note = "Frappuccino & muffin",
+                note = "Airport ride • Flag as Tax Deductible Commute?",
                 source = "DEMO",
-                accountSuffix = "4012"
+                accountSuffix = "1092",
+                rawText = "ICICI Card spend"
             )
         )
 

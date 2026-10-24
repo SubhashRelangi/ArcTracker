@@ -459,7 +459,7 @@ fun ExpenseScreen() {
 
         topBar = {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
-                val showSearch = currentRoute in listOf("Home", "Insights", "Analytics", "Settings")
+                val showSearch = currentRoute in listOf("Home", "Insights", "Analytics", "Settings", "Pending", "Review")
                 val showProfile = currentRoute != "Settings"
                 Column(
                     modifier = Modifier
@@ -501,6 +501,7 @@ fun ExpenseScreen() {
                                 placeholderText = when (currentRoute) {
                                     "Insights", "Analytics" -> "Search analytics by category, merchant..."
                                     "Settings" -> "Search settings, accounts, rules..."
+                                    "Pending", "Review" -> "Search unconfirmed transactions, merchants..."
                                     else -> "Search transactions, merchants, accounts..."
                                 },
                                 onCloseClick = {
@@ -840,6 +841,7 @@ fun ExpenseScreen() {
                 com.subhashrelangi.arctracker.ui.review.ReviewPage(
                     expenses = displayedExpenses,
                     showHeader = false,
+                    searchQuery = searchQuery,
                     onSearchClick = {
                         isSearching = !isSearching
                     },
