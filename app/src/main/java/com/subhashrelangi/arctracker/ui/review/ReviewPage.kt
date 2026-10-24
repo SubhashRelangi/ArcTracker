@@ -2,13 +2,13 @@ package com.subhashrelangi.arctracker.ui.review
 
 import android.widget.Toast
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,19 +27,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.data.Expense
-import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
-import com.subhashrelangi.arctracker.security.SecureLogger
 import com.subhashrelangi.arctracker.service.AccountReconciliationManager
 import com.subhashrelangi.arctracker.service.CategoryManager
 import com.subhashrelangi.arctracker.service.MerchantAliasManager
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -85,10 +82,13 @@ private data class ResolvedReviewItem(
 fun ReviewPage(
     expenses: List<Expense>,
     showHeader: Boolean = false,
+    isDemoMode: Boolean = false,
+    isSetupCompleted: Boolean = false,
     searchQuery: String = "",
     onSearchClick: () -> Unit = {},
     onAddExpenseClick: () -> Unit = {},
     onViewLedger: () -> Unit = {},
+    onStartSetup: () -> Unit = {},
     onEditExpense: (Expense) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -120,7 +120,7 @@ fun ReviewPage(
         expenses.filter { it.isPending }
     }
 
-    // Active review items state (synthesized from DB + baseline mockup items if DB has fewer)
+    // Baseline mock items used for demo mode
     val baselinePending = remember {
         listOf(
             PendingReviewItem(
@@ -164,76 +164,100 @@ fun ReviewPage(
         )
     }
 
-    // In-memory queue of pending items for active interaction
-    var queueItems by remember(dbPendingExpenses) {
-        if (dbPendingExpenses.isNotEmpty()) {
-            mutableStateOf(
-                dbPendingExpenses.mapIndexed { idx, exp ->
-                    val isSwiggy = exp.merchant.contains("Swiggy", ignoreCase = true)
-                    val isAmazon = exp.merchant.contains("Amazon", ignoreCase = true)
-                    val isUber = exp.merchant.contains("Uber", ignoreCase = true)
-                    val isDining = isSwiggy || exp.tag?.contains("Food", ignoreCase = true) == true || exp.merchant.contains("Coffee", ignoreCase = true)
+    // Determine initial queue items according to setup state
+    // Case 1: Without setup and not demo mode -> empty
+    // Case 2: Demo mode -> baseline mock items
+    // Case 3: Setup completed -> real DB pending items (if none, empty)
+    var queueItems by remember(dbPendingExpenses, isDemoMode, isSetupCompleted) {
+        when {
+            isDemoMode -> mutableStateOf(baselinePending)
+            !isSetupCompleted -> mutableStateOf(emptyList<PendingReviewItem>())
+            dbPendingExpenses.isNotEmpty() -> {
+                mutableStateOf(
+                    dbPendingExpenses.mapIndexed { idx, exp ->
+                        val isDining = exp.merchant.contains("Swiggy", ignoreCase = true) ||
+                            exp.merchant.contains("Zomato", ignoreCase = true) ||
+                            exp.merchant.contains("Coffee", ignoreCase = true) ||
+                            exp.tag?.contains("Food", ignoreCase = true) == true
 
-                    val icon = when {
-                        isDining -> Icons.Outlined.Restaurant
-                        isAmazon || exp.tag?.contains("Shop", ignoreCase = true) == true -> Icons.Outlined.ShoppingBag
-                        isUber || exp.tag?.contains("Transit", ignoreCase = true) == true -> Icons.Outlined.DirectionsCar
-                        else -> Icons.Outlined.ReceiptLong
+                        val isShopping = exp.merchant.contains("Amazon", ignoreCase = true) ||
+                            exp.merchant.contains("Flipkart", ignoreCase = true) ||
+                            exp.tag?.contains("Shop", ignoreCase = true) == true
+
+                        val isTransit = exp.merchant.contains("Uber", ignoreCase = true) ||
+                            exp.merchant.contains("Ola", ignoreCase = true) ||
+                            exp.tag?.contains("Transit", ignoreCase = true) == true
+
+                        val icon = when {
+                            isDining -> Icons.Outlined.Restaurant
+                            isShopping -> Icons.Outlined.ShoppingBag
+                            isTransit -> Icons.Outlined.DirectionsCar
+                            else -> Icons.Outlined.ReceiptLong
+                        }
+
+                        val dateFmt = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault()).format(Date(exp.dateMillis))
+
+                        PendingReviewItem(
+                            id = exp.id,
+                            merchant = exp.merchant,
+                            amount = exp.amount,
+                            accountInfo = if (!exp.accountSuffix.isNullOrBlank()) "Account ••${exp.accountSuffix}" else "Local Vault",
+                            dateInfo = dateFmt,
+                            icon = icon,
+                            badge = if (exp.rawText?.contains("UPI", ignoreCase = true) == true) "UPI" else null,
+                            ambiguityLabel = if (exp.tag.isNullOrBlank()) "Needs Review" else null,
+                            patternTitle = if (!exp.note.isNullOrBlank()) "Local Pattern Detected" else null,
+                            patternDescription = exp.note ?: "Detected new unconfirmed transaction waiting for review.",
+                            suggestedCategories = listOf("Food & Dining", "Shopping & Tech", "Transport", "Housing & Utilities"),
+                            hintText = if (isTransit) "Flag as Tax Deductible Commute?" else if (isShopping) "Sub-category: Electronics vs ..." else null,
+                            hintIcon = if (isTransit) Icons.Outlined.LocalOffer else if (isShopping) Icons.Outlined.HelpOutline else null,
+                            quickActions = if (isShopping) listOf("Office", "Gadgets") else emptyList(),
+                            acceptLabel = if (isTransit) "Accept" else null,
+                            defaultTag = exp.tag ?: "#verified"
+                        )
                     }
-
-                    val dateFmt = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault()).format(Date(exp.dateMillis))
-
-                    PendingReviewItem(
-                        id = exp.id,
-                        merchant = exp.merchant,
-                        amount = exp.amount,
-                        accountInfo = if (!exp.accountSuffix.isNullOrBlank()) "Account ••${exp.accountSuffix}" else "HDFC ••4082",
-                        dateInfo = dateFmt,
-                        icon = icon,
-                        badge = if (exp.rawText?.contains("UPI", ignoreCase = true) == true || isSwiggy) "UPI" else null,
-                        ambiguityLabel = if (idx == 0) "High Ambiguity" else if (isAmazon) "Card spend" else if (isUber) "Airport ride" else null,
-                        patternTitle = if (idx == 0) "Local Pattern Detected" else null,
-                        patternDescription = if (idx == 0) "Detected past 8 PM on a weekday. Is this personal evening food or tax-deductible team dinner?" else null,
-                        suggestedCategories = if (idx == 0) listOf("Food & Dining", "Team Meals", "Personal Outflow", "Tax Deductible") else emptyList(),
-                        hintText = if (isAmazon) "Sub-category: Electronics vs ..." else if (isUber) "Flag as Tax Deductible Commute?" else null,
-                        hintIcon = if (isAmazon) Icons.Outlined.HelpOutline else if (isUber) Icons.Outlined.LocalOffer else null,
-                        quickActions = if (isAmazon) listOf("Office", "Gadgets") else emptyList(),
-                        acceptLabel = if (isUber) "Accept" else null,
-                        defaultTag = if (idx == 0) "#reimbursable" else null
-                    )
-                }
-            )
-        } else {
-            mutableStateOf(baselinePending)
+                )
+            }
+            else -> mutableStateOf(emptyList<PendingReviewItem>())
         }
     }
 
     // Recently resolved items list
-    var resolvedItems by remember {
-        mutableStateOf(
-            listOf(
-                ResolvedReviewItem(
-                    id = 801,
-                    merchant = "Blue Tokai Coffee",
-                    amount = 280.0,
-                    subtitle = "Tagged: Food & Dining • Rule applied",
-                    icon = Icons.Outlined.LocalCafe
-                ),
-                ResolvedReviewItem(
-                    id = 802,
-                    merchant = "Airtel Broadband",
-                    amount = 1178.0,
-                    subtitle = "Tagged: Utilities • Auto-matched",
-                    icon = Icons.Outlined.Wifi
+    var resolvedItems by remember(isDemoMode, isSetupCompleted) {
+        if (isDemoMode) {
+            mutableStateOf(
+                listOf(
+                    ResolvedReviewItem(
+                        id = 801,
+                        merchant = "Blue Tokai Coffee",
+                        amount = 280.0,
+                        subtitle = "Tagged: Food & Dining • Rule applied",
+                        icon = Icons.Outlined.LocalCafe
+                    ),
+                    ResolvedReviewItem(
+                        id = 802,
+                        merchant = "Airtel Broadband",
+                        amount = 1178.0,
+                        subtitle = "Tagged: Utilities • Auto-matched",
+                        icon = Icons.Outlined.Wifi
+                    )
                 )
             )
-        )
+        } else {
+            mutableStateOf(emptyList<ResolvedReviewItem>())
+        }
+    }
+
+    // Track total sessions items so progress bar calculates accurately
+    val initialTotalCount = remember(isDemoMode, isSetupCompleted, dbPendingExpenses.size) {
+        if (isDemoMode) 5 // 3 pending + 2 resolved = 5 total
+        else if (!isSetupCompleted) 0
+        else maxOf(dbPendingExpenses.size, 1)
     }
 
     var showResolved by remember { mutableStateOf(true) }
     var selectedCategoryIndex by remember { mutableIntStateOf(0) }
     var attachTagEnabled by remember { mutableStateOf(true) }
-    var rememberRuleEnabled by remember { mutableStateOf(true) }
     var showRuleLogsDialog by remember { mutableStateOf(false) }
 
     // Live search query filtering
@@ -257,9 +281,10 @@ fun ReviewPage(
     }
 
     val pendingCount = queueItems.size
-    val resolvedTodayCount = resolvedItems.size
-    val totalTodayCount = pendingCount + resolvedTodayCount
-    val progressFraction = if (totalTodayCount > 0) resolvedTodayCount.toFloat() / totalTodayCount.toFloat() else 0.40f
+    val resolvedCount = resolvedItems.size
+    val totalCount = maxOf(pendingCount + resolvedCount, initialTotalCount)
+    val targetProgressFraction = if (totalCount > 0) resolvedCount.toFloat() / totalCount.toFloat() else 0f
+    val animatedProgress by animateFloatAsState(targetValue = targetProgressFraction.coerceIn(0f, 1f), label = "review_progress")
 
     Box(
         modifier = Modifier
@@ -270,205 +295,177 @@ fun ReviewPage(
             modifier = Modifier
                 .fillMaxSize()
                 .then(if (showHeader) Modifier.statusBarsPadding() else Modifier),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = if (showHeader) 8.dp else 4.dp, bottom = 100.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = if (showHeader) 8.dp else 12.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Header Title & Status Row
-            item(key = "title_section") {
-                Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+            // 1. Progress / Rule Engine Card (shown when there are reviews or in demo mode)
+            if (isDemoMode || (isSetupCompleted && (pendingCount > 0 || resolvedCount > 0))) {
+                item(key = "progress_card") {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color.White,
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Review Queue",
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A),
-                                letterSpacing = (-0.5).sp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            // Pending Count Badge
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFFFEF3C7)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .background(Color(0xFFF59E0B), CircleShape)
-                                    )
-                                    Spacer(modifier = Modifier.width(5.dp))
-                                    Text(
-                                        text = "$pendingCount PENDING",
-                                        color = Color(0xFFB45309),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-
-                        // Auto-match action
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    if (queueItems.isNotEmpty()) {
-                                        val count = queueItems.size
-                                        // Auto-match and approve
-                                        val newlyResolved = queueItems.map {
-                                            ResolvedReviewItem(
-                                                id = it.id,
-                                                merchant = it.merchant,
-                                                amount = it.amount,
-                                                subtitle = "Tagged: Auto-classified • Rule applied",
-                                                icon = it.icon
-                                            )
-                                        }
-                                        resolvedItems = newlyResolved + resolvedItems
-                                        queueItems = emptyList()
-
-                                        scope.launch {
-                                            withContext(Dispatchers.IO) {
-                                                try {
-                                                    val ids = dbPendingExpenses.map { it.id }
-                                                    if (ids.isNotEmpty()) {
-                                                        expenseDao.approvePendingTransactions(ids)
-                                                    }
-                                                } catch (_: Exception) {}
-                                            }
-                                        }
-                                        Toast.makeText(context, "Auto-matched $count transactions against vault rules", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "All items already matched", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                                .padding(horizontal = 6.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.AutoAwesome,
-                                contentDescription = "Auto-match",
-                                tint = Color(0xFF047857),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Auto-match",
-                                color = Color(0xFF047857),
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = "Unconfirmed SMS & notification entries waiting for local vault verification.",
-                        fontSize = 12.5.sp,
-                        color = Color(0xFF64748B),
-                        lineHeight = 17.sp
-                    )
-                }
-            }
-
-            // 2. Progress / Rule Engine Card
-            item(key = "progress_card") {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        // Top row: Resolved count & percentage
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Outlined.CheckCircle,
-                                    contentDescription = null,
-                                    tint = Color(0xFF047857),
-                                    modifier = Modifier.size(17.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "$resolvedTodayCount of $totalTodayCount resolved today",
-                                    fontSize = 13.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
-                                )
-                            }
-                            Text(
-                                text = "${(progressFraction * 100).toInt()}%",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF64748B)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Linear progress bar
-                        LinearProgressIndicator(
-                            progress = { progressFraction.coerceIn(0f, 1f) },
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(6.dp)
-                                .clip(RoundedCornerShape(3.dp)),
-                            color = Color(0xFF047857),
-                            trackColor = Color(0xFFF1F5F9)
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Bottom row: Rule engine count & View rule logs
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(16.dp)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Tune,
-                                    contentDescription = null,
-                                    tint = Color(0xFF64748B),
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
+                            // Top row: Resolved count & percentage
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.CheckCircle,
+                                        contentDescription = null,
+                                        tint = Color(0xFF047857),
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "$resolvedCount of $totalCount resolved today",
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                }
                                 Text(
-                                    text = "Rule engine: 4 suggested",
-                                    fontSize = 12.sp,
+                                    text = "${(targetProgressFraction * 100).toInt()}%",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
                                     color = Color(0xFF64748B)
                                 )
                             }
 
-                            Text(
-                                text = "View rule logs",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF047857),
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Linear progress bar
+                            LinearProgressIndicator(
+                                progress = { animatedProgress },
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .clickable { showRuleLogsDialog = true }
-                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
+                                color = Color(0xFF047857),
+                                trackColor = Color(0xFFF1F5F9)
                             )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Bottom row: Rule engine count & View rule logs
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Tune,
+                                        contentDescription = null,
+                                        tint = Color(0xFF64748B),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Rule engine: ${maxOf(1, totalCount)} suggested",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+
+                                Text(
+                                    text = "View rule logs",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF047857),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable { showRuleLogsDialog = true }
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Empty State (When no setup has been completed OR setup completed but no reviews)
+            if (activeItem == null && nextInLineItems.isEmpty()) {
+                item(key = "empty_state") {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color.White,
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 36.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFECFDF5))
+                                    .border(1.5.dp, Color(0xFFA7F3D0), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (!isSetupCompleted && !isDemoMode) Icons.Outlined.ReceiptLong else Icons.Outlined.CheckCircle,
+                                    contentDescription = "No Reviews",
+                                    tint = Color(0xFF047857),
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(18.dp))
+
+                            Text(
+                                text = if (!isSetupCompleted && !isDemoMode) "No Transactions to Review" else "All Caught Up",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Text(
+                                text = if (!isSetupCompleted && !isDemoMode) {
+                                    "Setup has not been completed. Sync your SMS or banking notifications to automatically detect transactions."
+                                } else {
+                                    "There are no unconfirmed transactions waiting for review. All items are confirmed and synced to your private vault."
+                                },
+                                fontSize = 13.sp,
+                                color = Color(0xFF64748B),
+                                textAlign = TextAlign.Center,
+                                lineHeight = 19.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(22.dp))
+
+                            Button(
+                                onClick = {
+                                    if (!isSetupCompleted && !isDemoMode) onStartSetup()
+                                    else onViewLedger()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                            ) {
+                                Text(
+                                    text = if (!isSetupCompleted && !isDemoMode) "Start Setup" else "View Ledger",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -735,13 +732,14 @@ fun ReviewPage(
                                     }
                                 }
 
-                                // Action Buttons
+                                // Action Buttons: Confirm & Decline / Skip
                                 Spacer(modifier = Modifier.height(16.dp))
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
+                                    // Confirm Category (Primary)
                                     Button(
                                         onClick = {
                                             val resolvedCat = categories.getOrNull(selectedCategoryIndex) ?: "Food & Dining"
@@ -796,9 +794,51 @@ fun ReviewPage(
                                         )
                                     }
 
+                                    // Decline / Dismiss Button (Increments progress & removes)
                                     Button(
                                         onClick = {
-                                            // Skip pushes active item to end of queue
+                                            val newlyResolved = ResolvedReviewItem(
+                                                id = activeItem.id,
+                                                merchant = activeItem.merchant,
+                                                amount = activeItem.amount,
+                                                subtitle = "Declined • Dismissed",
+                                                icon = activeItem.icon
+                                            )
+                                            resolvedItems = listOf(newlyResolved) + resolvedItems
+                                            queueItems = queueItems.filter { it.id != activeItem.id }
+
+                                            scope.launch {
+                                                withContext(Dispatchers.IO) {
+                                                    try {
+                                                        val dbExp = dbPendingExpenses.find { it.id == activeItem.id }
+                                                        if (dbExp != null) {
+                                                            expenseDao.update(dbExp.copy(isPending = false))
+                                                        }
+                                                    } catch (_: Exception) {}
+                                                }
+                                            }
+
+                                            Toast.makeText(context, "Declined ${activeItem.merchant}", Toast.LENGTH_SHORT).show()
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFFFEE2E2),
+                                            contentColor = Color(0xFF991B1B)
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.height(46.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp)
+                                    ) {
+                                        Text(
+                                            text = "Decline",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = Color(0xFF991B1B)
+                                        )
+                                    }
+
+                                    // Skip Button (Cycles to next item without resolving)
+                                    Button(
+                                        onClick = {
                                             queueItems = queueItems.drop(1) + activeItem
                                             Toast.makeText(context, "Skipped to next item", Toast.LENGTH_SHORT).show()
                                         },
@@ -808,12 +848,12 @@ fun ReviewPage(
                                         ),
                                         shape = RoundedCornerShape(12.dp),
                                         modifier = Modifier.height(46.dp),
-                                        contentPadding = PaddingValues(horizontal = 20.dp)
+                                        contentPadding = PaddingValues(horizontal = 14.dp)
                                     ) {
                                         Text(
                                             text = "Skip",
                                             fontWeight = FontWeight.SemiBold,
-                                            fontSize = 13.5.sp,
+                                            fontSize = 13.sp,
                                             color = Color(0xFF1E293B)
                                         )
                                     }
@@ -974,6 +1014,17 @@ fun ReviewPage(
                                                                         )
                                                                         resolvedItems = listOf(resolved) + resolvedItems
                                                                         queueItems = queueItems.filter { it.id != nextItem.id }
+
+                                                                        scope.launch {
+                                                                            withContext(Dispatchers.IO) {
+                                                                                try {
+                                                                                    val dbExp = dbPendingExpenses.find { it.id == nextItem.id }
+                                                                                    if (dbExp != null) {
+                                                                                        expenseDao.update(dbExp.copy(categoryId = action, tag = action, isPending = false))
+                                                                                    }
+                                                                                } catch (_: Exception) {}
+                                                                            }
+                                                                        }
                                                                         Toast.makeText(context, "Assigned to $action", Toast.LENGTH_SHORT).show()
                                                                     }
                                                             ) {
@@ -1004,6 +1055,17 @@ fun ReviewPage(
                                                                 )
                                                                 resolvedItems = listOf(resolved) + resolvedItems
                                                                 queueItems = queueItems.filter { it.id != nextItem.id }
+
+                                                                scope.launch {
+                                                                    withContext(Dispatchers.IO) {
+                                                                        try {
+                                                                            val dbExp = dbPendingExpenses.find { it.id == nextItem.id }
+                                                                            if (dbExp != null) {
+                                                                                expenseDao.update(dbExp.copy(isPending = false))
+                                                                            }
+                                                                        } catch (_: Exception) {}
+                                                                    }
+                                                                }
                                                                 Toast.makeText(context, "Accepted Tax Deductible Commute", Toast.LENGTH_SHORT).show()
                                                             }
                                                     ) {
@@ -1031,112 +1093,114 @@ fun ReviewPage(
             }
 
             // 5. Recently Resolved Today Section
-            item(key = "recently_resolved_section") {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Outlined.CheckCircle,
-                                contentDescription = null,
-                                tint = Color(0xFF047857),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
+            if (resolvedItems.isNotEmpty()) {
+                item(key = "recently_resolved_section") {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Outlined.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Color(0xFF047857),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Recently Resolved Today (${resolvedItems.size} items)",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F172A)
+                                )
+                            }
+
                             Text(
-                                text = "Recently Resolved Today (${resolvedItems.size} items)",
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                text = if (showResolved) "Hide" else "Show",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF047857),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .clickable { showResolved = !showResolved }
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
                             )
                         }
 
-                        Text(
-                            text = if (showResolved) "Hide" else "Show",
-                            fontSize = 12.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF047857),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable { showResolved = !showResolved }
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                        )
-                    }
-
-                    if (showResolved && resolvedItems.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                resolvedItems.take(5).forEachIndexed { idx, item ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(
+                        if (showResolved) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color.White,
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    resolvedItems.take(5).forEachIndexed { idx, item ->
+                                        Row(
                                             modifier = Modifier
-                                                .size(36.dp)
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .background(Color(0xFFECFDF5)),
-                                            contentAlignment = Alignment.Center
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(
-                                                imageVector = item.icon,
-                                                contentDescription = item.merchant,
-                                                tint = Color(0xFF047857),
-                                                modifier = Modifier.size(18.dp)
-                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(Color(0xFFECFDF5)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = item.icon,
+                                                    contentDescription = item.merchant,
+                                                    tint = Color(0xFF047857),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.width(12.dp))
+
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = item.merchant,
+                                                    fontSize = 13.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF0F172A)
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = item.subtitle,
+                                                    fontSize = 11.5.sp,
+                                                    color = Color(0xFF64748B)
+                                                )
+                                            }
+
+                                            Column(horizontalAlignment = Alignment.End) {
+                                                Text(
+                                                    text = "- ₹${formatAmount(item.amount)}",
+                                                    fontSize = 13.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF0F172A)
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = "✓ Vaulted",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF047857)
+                                                )
+                                            }
                                         }
 
-                                        Spacer(modifier = Modifier.width(12.dp))
-
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = item.merchant,
-                                                fontSize = 13.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F172A)
-                                            )
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Text(
-                                                text = item.subtitle,
-                                                fontSize = 11.5.sp,
-                                                color = Color(0xFF64748B)
+                                        if (idx < resolvedItems.take(5).size - 1) {
+                                            HorizontalDivider(
+                                                color = Color(0xFFF1F5F9),
+                                                thickness = 1.dp,
+                                                modifier = Modifier.padding(horizontal = 14.dp)
                                             )
                                         }
-
-                                        Column(horizontalAlignment = Alignment.End) {
-                                            Text(
-                                                text = "- ₹${formatAmount(item.amount)}",
-                                                fontSize = 13.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F172A)
-                                            )
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Text(
-                                                text = "✓ Vaulted",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF047857)
-                                            )
-                                        }
-                                    }
-
-                                    if (idx < resolvedItems.take(5).size - 1) {
-                                        HorizontalDivider(
-                                            color = Color(0xFFF1F5F9),
-                                            thickness = 1.dp,
-                                            modifier = Modifier.padding(horizontal = 14.dp)
-                                        )
                                     }
                                 }
                             }

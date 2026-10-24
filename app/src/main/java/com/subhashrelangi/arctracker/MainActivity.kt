@@ -841,6 +841,8 @@ fun ExpenseScreen() {
                 com.subhashrelangi.arctracker.ui.review.ReviewPage(
                     expenses = displayedExpenses,
                     showHeader = false,
+                    isDemoMode = settingsRepo.isDemoMode(),
+                    isSetupCompleted = settingsRepo.isInitialOnboardingCompleted() || settingsRepo.isInitialSmsImportCompleted(),
                     searchQuery = searchQuery,
                     onSearchClick = {
                         isSearching = !isSearching
@@ -850,6 +852,9 @@ fun ExpenseScreen() {
                     },
                     onViewLedger = {
                         navigateTo("Transactions")
+                    },
+                    onStartSetup = {
+                        navigateTo("InitialOnboarding")
                     },
                     onEditExpense = {
                         editExpense = it
