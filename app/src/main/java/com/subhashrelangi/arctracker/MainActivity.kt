@@ -459,7 +459,7 @@ fun ExpenseScreen() {
 
         topBar = {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
-                val showSearch = (currentRoute == "Home" || currentRoute == "Insights" || currentRoute == "Analytics")
+                val showSearch = currentRoute in listOf("Home", "Insights", "Analytics", "Settings")
                 val showProfile = currentRoute != "Settings"
                 Column(
                     modifier = Modifier
@@ -498,10 +498,10 @@ fun ExpenseScreen() {
                                 focusRequester = homeSearchFocusRequester,
                                 backgroundColor = Color.White,
                                 borderColor = Color(0xFFE2E8F0),
-                                placeholderText = if (currentRoute == "Insights" || currentRoute == "Analytics") {
-                                    "Search analytics by category, merchant..."
-                                } else {
-                                    "Search transactions, merchants, accounts..."
+                                placeholderText = when (currentRoute) {
+                                    "Insights", "Analytics" -> "Search analytics by category, merchant..."
+                                    "Settings" -> "Search settings, accounts, rules..."
+                                    else -> "Search transactions, merchants, accounts..."
                                 },
                                 onCloseClick = {
                                     isSearching = false
@@ -662,7 +662,11 @@ fun ExpenseScreen() {
                         navigateTo(it)
                     },
                     todayCount = todayTxnCount,
-                    thisMonthCount = thisMonthTxnCount
+                    thisMonthCount = thisMonthTxnCount,
+                    searchQuery = searchQuery,
+                    onAddExpenseClick = {
+                        showAddDialog = true
+                    }
                 )
 
             } else if (currentRoute == "ClearAllData") {
