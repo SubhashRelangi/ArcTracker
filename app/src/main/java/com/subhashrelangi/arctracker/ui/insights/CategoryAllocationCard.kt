@@ -34,14 +34,15 @@ import kotlin.math.roundToInt
 fun CategoryAllocationCard(
     data: CategoryAllocationData,
     currencyFormatter: NumberFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN")),
+    isDemoMode: Boolean = false,
     onInsightsClick: () -> Unit = {},
     onAllCategoriesClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    // Default categories from the reference mockup if no user categories yet
+    // Default categories from the reference mockup if in demo mode or no user categories yet
     val displayCategories = if (data.categories.isNotEmpty()) {
         data.categories
-    } else {
+    } else if (isDemoMode) {
         listOf(
             CategoryAllocationItem(
                 id = "food",
@@ -89,6 +90,8 @@ fun CategoryAllocationCard(
                 transactionCount = 1
             )
         )
+    } else {
+        emptyList()
     }
 
     Card(
@@ -148,15 +151,30 @@ fun CategoryAllocationCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Category Items List
-            displayCategories.forEachIndexed { index, item ->
-                CategoryRowItem(
-                    item = item,
-                    index = index,
-                    currencyFormatter = currencyFormatter
-                )
-                if (index < displayCategories.size - 1) {
-                    Spacer(modifier = Modifier.height(14.dp))
+            if (displayCategories.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No category spending recorded for this period.",
+                        fontSize = 12.5.sp,
+                        color = InsightsTheme.LightTextSecondary
+                    )
+                }
+            } else {
+                // Category Items List
+                displayCategories.forEachIndexed { index, item ->
+                    CategoryRowItem(
+                        item = item,
+                        index = index,
+                        currencyFormatter = currencyFormatter
+                    )
+                    if (index < displayCategories.size - 1) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                    }
                 }
             }
         }

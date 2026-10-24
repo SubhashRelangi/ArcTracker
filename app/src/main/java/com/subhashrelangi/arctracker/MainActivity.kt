@@ -826,7 +826,10 @@ fun ExpenseScreen() {
                     onAddExpenseClick = { showAddDialog = true },
                     onAllCategoriesClick = { navigateTo("CategoryManagement") },
                     onManageRulesClick = { navigateTo("CategoryRules") },
-                    isDemoMode = settingsRepo.isDemoMode()
+                    isDemoMode = settingsRepo.isDemoMode(),
+                    isSetupCompleted = settingsRepo.isInitialOnboardingCompleted() || settingsRepo.isInitialSmsImportCompleted(),
+                    onStartSetup = { navigateTo("InitialOnboarding") },
+                    onViewLedger = { navigateTo("Transactions") }
                 )
             } else if (currentRoute == "Budgets") {
                 com.subhashrelangi.arctracker.ui.BudgetsScreen(

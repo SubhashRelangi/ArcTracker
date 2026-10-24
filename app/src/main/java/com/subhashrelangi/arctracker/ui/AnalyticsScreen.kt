@@ -16,7 +16,10 @@ fun AnalyticsScreen(
     onAddExpenseClick: () -> Unit = {},
     onAllCategoriesClick: () -> Unit = {},
     onManageRulesClick: () -> Unit = {},
-    isDemoMode: Boolean = false
+    isDemoMode: Boolean = false,
+    isSetupCompleted: Boolean = false,
+    onStartSetup: () -> Unit = {},
+    onViewLedger: () -> Unit = {}
 ) {
     InsightsPage(
         analyticsManager = analyticsManager,
@@ -26,6 +29,9 @@ fun AnalyticsScreen(
         onAddExpenseClick = onAddExpenseClick,
         onAllCategoriesClick = onAllCategoriesClick,
         onManageRulesClick = onManageRulesClick,
-        isDemoMode = isDemoMode
+        isDemoMode = isDemoMode,
+        isSetupCompleted = isSetupCompleted,
+        onStartSetup = onStartSetup,
+        onViewLedger = onViewLedger
     )
 }

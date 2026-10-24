@@ -31,6 +31,8 @@ fun MonthlyOutflowPaceCard(
     budgetCap: Double = 75000.0,
     previousMonthName: String = "Sept",
     percentageVsPrevious: Int = 12,
+    weeklyOutflows: List<Double> = emptyList(),
+    isDemoMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val cal = Calendar.getInstance()
@@ -39,9 +41,9 @@ fun MonthlyOutflowPaceCard(
     val daysRemaining = maxOf(0, totalDaysInMonth - dayOfMonth)
 
     // Calculate utilization & buffer
-    val displayOutflow = if (totalOutflow > 0.0) totalOutflow else 36750.0
-    val displayCap = if (budgetCap > 0.0) budgetCap else 75000.0
-    val utilizationFraction = (displayOutflow / displayCap).coerceIn(0.0, 1.0).toFloat()
+    val displayOutflow = if (isDemoMode) (if (totalOutflow > 0.0) totalOutflow else 36750.0) else totalOutflow
+    val displayCap = if (isDemoMode) (if (budgetCap > 0.0) budgetCap else 75000.0) else (if (budgetCap > 0.0) budgetCap else maxOf(displayOutflow, 50000.0))
+    val utilizationFraction = if (displayCap > 0.0) (displayOutflow / displayCap).coerceIn(0.0, 1.0).toFloat() else 0f
     val utilizationPercent = (utilizationFraction * 100).roundToInt()
     val bufferLeft = maxOf(0.0, displayCap - displayOutflow)
 
@@ -222,95 +224,147 @@ fun MonthlyOutflowPaceCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
-                // W1
-                Column(
-                    modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Spacer(modifier = Modifier.height(18.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFE2E8F0))
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "W1",
-                        fontSize = 12.sp,
-                        color = InsightsTheme.LightTextSecondary
-                    )
-                }
+                if (isDemoMode || weeklyOutflows.isEmpty()) {
+                    // W1
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFFE2E8F0))
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "W1",
+                            fontSize = 12.sp,
+                            color = InsightsTheme.LightTextSecondary
+                        )
+                    }
 
-                // W2 (Ochre/Amber brown)
-                Column(
-                    modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Spacer(modifier = Modifier.height(18.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(InsightsTheme.AmberBrown)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "W2",
-                        fontSize = 12.sp,
-                        color = InsightsTheme.LightTextSecondary
-                    )
-                }
+                    // W2 (Ochre/Amber brown)
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(InsightsTheme.AmberBrown)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "W2",
+                            fontSize = 12.sp,
+                            color = InsightsTheme.LightTextSecondary
+                        )
+                    }
 
-                // W3
-                Column(
-                    modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Spacer(modifier = Modifier.height(18.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFE2E8F0))
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "W3",
-                        fontSize = 12.sp,
-                        color = InsightsTheme.LightTextSecondary
-                    )
-                }
+                    // W3
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFFE2E8F0))
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "W3",
+                            fontSize = 12.sp,
+                            color = InsightsTheme.LightTextSecondary
+                        )
+                    }
 
-                // W4 (Active Emerald Green with label above)
-                Column(
-                    modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "8.0k",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = InsightsTheme.EmeraldGreen
-                    )
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(InsightsTheme.EmeraldGreenDark)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "W4",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = InsightsTheme.EmeraldGreen
-                    )
+                    // W4 (Active Emerald Green with label above)
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "8.0k",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = InsightsTheme.EmeraldGreen
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(InsightsTheme.EmeraldGreenDark)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "W4",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = InsightsTheme.EmeraldGreen
+                        )
+                    }
+                } else {
+                    // Real data weekly bars
+                    val maxSpend = maxOf(weeklyOutflows.maxOrNull() ?: 1.0, 1.0)
+                    for (i in 0 until 4) {
+                        val wSpend = weeklyOutflows.getOrElse(i) { 0.0 }
+                        val fraction = (wSpend / maxSpend).coerceIn(0.15, 1.0).toFloat()
+                        val isHighest = wSpend == maxSpend && wSpend > 0.0
+                        val barColor = when {
+                            isHighest -> InsightsTheme.EmeraldGreenDark
+                            wSpend > 0.0 -> InsightsTheme.AmberBrown
+                            else -> Color(0xFFE2E8F0)
+                        }
+
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            if (wSpend > 0.0) {
+                                val labelText = if (wSpend >= 1000.0) {
+                                    String.format(Locale.US, "%.1fk", wSpend / 1000.0)
+                                } else {
+                                    "₹${wSpend.toInt()}"
+                                }
+                                Text(
+                                    text = labelText,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isHighest) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isHighest) InsightsTheme.EmeraldGreen else InsightsTheme.LightTextSecondary
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                            } else {
+                                Spacer(modifier = Modifier.height(18.dp))
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height((52 * fraction).dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(barColor)
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "W${i + 1}",
+                                fontSize = 12.sp,
+                                fontWeight = if (isHighest) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isHighest) InsightsTheme.EmeraldGreen else InsightsTheme.LightTextSecondary
+                            )
+                        }
+                    }
                 }
             }
         }

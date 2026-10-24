@@ -30,11 +30,12 @@ fun NetSavingsDailyBurnRow(
     savingsRatePercent: Double = 56.7,
     dailyBurn: Double = 1531.0,
     dailyLimit: Double = 2500.0,
+    isDemoMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val displaySavings = if (netSavings != 0.0) netSavings else 48250.0
-    val displaySavingsRate = if (savingsRatePercent > 0.0) savingsRatePercent else 56.7
-    val displayDailyBurn = if (dailyBurn > 0.0) dailyBurn else 1531.0
+    val displaySavings = if (isDemoMode) (if (netSavings != 0.0) netSavings else 48250.0) else netSavings
+    val displaySavingsRate = if (isDemoMode) (if (savingsRatePercent > 0.0) savingsRatePercent else 56.7) else savingsRatePercent
+    val displayDailyBurn = if (isDemoMode) (if (dailyBurn > 0.0) dailyBurn else 1531.0) else dailyBurn
 
     val formattedSavings = (if (displaySavings >= 0) "+₹" else "-₹") +
             NumberFormat.getNumberInstance(Locale("en", "IN")).format(Math.abs(displaySavings.roundToInt()))
