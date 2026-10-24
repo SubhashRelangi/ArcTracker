@@ -1,10 +1,5 @@
 package com.subhashrelangi.arctracker.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -36,11 +30,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.AppDatabase
+import com.subhashrelangi.arctracker.data.BuiltInCategories
 import com.subhashrelangi.arctracker.data.CategoryVisuals
 import com.subhashrelangi.arctracker.data.ExpenseDao
 import com.subhashrelangi.arctracker.data.TransactionCategory
@@ -51,7 +45,6 @@ import kotlinx.coroutines.withContext
 
 data class CategoryGlyphOption(
     val key: String,
-    val label: String,
     val icon: ImageVector
 )
 
@@ -63,26 +56,26 @@ data class CategoryToneOption(
 )
 
 private val ALL_CATEGORY_GLYPHS = listOf(
-    CategoryGlyphOption("pets", "Pets", Icons.Filled.Pets),
-    CategoryGlyphOption("fitness_center", "Fitness", Icons.Filled.FitnessCenter),
-    CategoryGlyphOption("medical_services", "Health", Icons.Filled.FavoriteBorder),
-    CategoryGlyphOption("coffee", "Cafe", Icons.Filled.LocalCafe),
-    CategoryGlyphOption("flight", "Travel", Icons.Filled.Flight),
-    CategoryGlyphOption("school", "Education", Icons.Filled.MenuBook),
-    CategoryGlyphOption("card_giftcard", "Gift", Icons.Filled.CardGiftcard),
-    CategoryGlyphOption("movie", "Media", Icons.Filled.MusicNote),
-    CategoryGlyphOption("restaurant", "Food", Icons.Default.Restaurant),
-    CategoryGlyphOption("shopping_bag", "Shopping", Icons.Default.ShoppingBag),
-    CategoryGlyphOption("local_grocery_store", "Grocery", Icons.Default.LocalGroceryStore),
-    CategoryGlyphOption("directions_car", "Car & Ride", Icons.Default.DirectionsCar),
-    CategoryGlyphOption("home", "Utilities", Icons.Default.Bolt),
-    CategoryGlyphOption("work", "Work & SaaS", Icons.Default.Computer),
-    CategoryGlyphOption("receipt", "Bills", Icons.Default.Receipt),
-    CategoryGlyphOption("payments", "Salary", Icons.Default.Payments),
-    CategoryGlyphOption("account_balance_wallet", "Wallet", Icons.Default.AccountBalanceWallet),
-    CategoryGlyphOption("savings", "Invest", Icons.Default.Savings),
-    CategoryGlyphOption("swap_horiz", "Transfer", Icons.Default.SwapHoriz),
-    CategoryGlyphOption("category", "General", Icons.Default.Category)
+    CategoryGlyphOption("pets", Icons.Filled.Pets),
+    CategoryGlyphOption("fitness_center", Icons.Filled.FitnessCenter),
+    CategoryGlyphOption("medical_services", Icons.Filled.FavoriteBorder),
+    CategoryGlyphOption("coffee", Icons.Filled.LocalCafe),
+    CategoryGlyphOption("flight", Icons.Filled.Flight),
+    CategoryGlyphOption("school", Icons.Filled.MenuBook),
+    CategoryGlyphOption("card_giftcard", Icons.Filled.CardGiftcard),
+    CategoryGlyphOption("movie", Icons.Filled.MusicNote),
+    CategoryGlyphOption("restaurant", Icons.Default.Restaurant),
+    CategoryGlyphOption("shopping_bag", Icons.Default.ShoppingBag),
+    CategoryGlyphOption("local_grocery_store", Icons.Default.LocalGroceryStore),
+    CategoryGlyphOption("directions_car", Icons.Default.DirectionsCar),
+    CategoryGlyphOption("home", Icons.Default.Bolt),
+    CategoryGlyphOption("work", Icons.Default.Computer),
+    CategoryGlyphOption("receipt", Icons.Default.Receipt),
+    CategoryGlyphOption("payments", Icons.Default.Payments),
+    CategoryGlyphOption("account_balance_wallet", Icons.Default.AccountBalanceWallet),
+    CategoryGlyphOption("savings", Icons.Default.Savings),
+    CategoryGlyphOption("swap_horiz", Icons.Default.SwapHoriz),
+    CategoryGlyphOption("category", Icons.Default.Category)
 )
 
 private val ALL_CATEGORY_TONES = listOf(
@@ -99,6 +92,12 @@ private val ALL_CATEGORY_TONES = listOf(
     CategoryToneOption("brown", "Brown", Color(0xFF5D4037), Color.White),
     CategoryToneOption("default", "Charcoal", Color(0xFF334155), Color.White)
 )
+
+// In-memory cache to ensure instant frame-1 rendering when navigating between Rules/Aliases and Categories
+private var cachedCategoriesState: List<TransactionCategory> = BuiltInCategories.ALL
+private var cachedCategoryCountsState: Map<String, Int> = emptyMap()
+private var cachedRulesCountState: Int = 14
+private var cachedAliasesCountState: Int = 28
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,8 +131,23 @@ fun CategoryManagementScreen(
     val activeRules by ruleDao.getActiveRulesFlow().collectAsState(initial = emptyList())
     val activeAliases by aliasDao.getActiveAliasesFlow().collectAsState(initial = emptyList())
 
-    val rulesCount = if (activeRules.isNotEmpty()) activeRules.size else 14
-    val aliasesCount = if (activeAliases.isNotEmpty()) activeAliases.size else 28
+    val rulesCount = remember(activeRules) {
+        if (activeRules.isNotEmpty()) {
+            cachedRulesCountState = activeRules.size
+            activeRules.size
+        } else {
+            cachedRulesCountState
+        }
+    }
+
+    val aliasesCount = remember(activeAliases) {
+        if (activeAliases.isNotEmpty()) {
+            cachedAliasesCountState = activeAliases.size
+            activeAliases.size
+        } else {
+            cachedAliasesCountState
+        }
+    }
 
     // Ensure built-in categories exist
     LaunchedEffect(Unit) {
@@ -142,11 +156,18 @@ fun CategoryManagementScreen(
         }
     }
 
-    val allCategories by categoryManager.getAllCategoriesFlow().collectAsState(initial = emptyList())
+    // Instant frame-1 state initialized from in-memory cache
+    val allCategories by categoryManager.getAllCategoriesFlow().collectAsState(initial = cachedCategoriesState)
+    LaunchedEffect(allCategories) {
+        if (allCategories.isNotEmpty()) {
+            cachedCategoriesState = allCategories
+        }
+    }
+
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Active, 1: Archived
 
-    // Transaction counts per category
-    var categoryCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    // Transaction counts per category initialized instantly with cached counts
+    var categoryCounts by remember { mutableStateOf(cachedCategoryCountsState) }
     LaunchedEffect(allCategories) {
         withContext(Dispatchers.IO) {
             val counts = mutableMapOf<String, Int>()
@@ -154,6 +175,7 @@ fun CategoryManagementScreen(
                 counts[cat.id] = dao.countByCategoryId(cat.id)
             }
             categoryCounts = counts
+            cachedCategoryCountsState = counts
         }
     }
 
@@ -195,7 +217,7 @@ fun CategoryManagementScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // 1. Auto-apply rules
+                            // 1. Auto-apply rules button
                             Box(
                                 modifier = Modifier
                                     .size(38.dp)
@@ -213,7 +235,7 @@ fun CategoryManagementScreen(
                                 )
                             }
 
-                            // 2. Circular Add (+) Button styled in app's signature dark circle
+                            // 2. Circular Add (+) Button
                             Box(
                                 modifier = Modifier
                                     .size(38.dp)
@@ -221,7 +243,7 @@ fun CategoryManagementScreen(
                                     .background(Color(0xFF0F172A))
                                     .clickable {
                                         scope.launch {
-                                            listState.animateScrollToItem(displayedList.size + 3)
+                                            listState.animateScrollToItem(4)
                                         }
                                     },
                                 contentAlignment = Alignment.Center
@@ -248,7 +270,7 @@ fun CategoryManagementScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Rules & Aliases Navigation Cards Row (directly accessible at the top)
+            // Rules & Aliases Navigation Cards Row
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -444,50 +466,71 @@ fun CategoryManagementScreen(
                 }
             }
 
-            // Category Items
-            if (displayedList.isEmpty()) {
-                item {
+            // Grouped Category Section in One Card with Dividers
+            item {
+                if (displayedList.isEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 24.dp),
+                            .background(Color.White, RoundedCornerShape(16.dp))
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(16.dp))
+                            .padding(vertical = 32.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = if (selectedTab == 0) "No active categories" else "No archived categories",
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF64748B)
                         )
                     }
-                }
-            } else {
-                items(displayedList, key = { it.id }) { category ->
-                    val count = categoryCounts[category.id] ?: 0
-                    CategoryMockCard(
-                        category = category,
-                        transactionCount = count,
-                        onEdit = { categoryToEdit = category },
-                        onArchiveToggle = {
-                            if (category.isArchived) {
-                                scope.launch {
-                                    val res = categoryManager.restoreCategory(category.id)
-                                    if (res.isSuccess) {
-                                        snackbarHostState.showSnackbar("Restored \"${category.name}\"")
-                                    }
+                } else {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            displayedList.forEachIndexed { index, category ->
+                                val count = categoryCounts[category.id] ?: 0
+                                CategoryMockRow(
+                                    category = category,
+                                    transactionCount = count,
+                                    onEdit = { categoryToEdit = category },
+                                    onArchiveToggle = {
+                                        if (category.isArchived) {
+                                            scope.launch {
+                                                val res = categoryManager.restoreCategory(category.id)
+                                                if (res.isSuccess) {
+                                                    snackbarHostState.showSnackbar("Restored \"${category.name}\"")
+                                                }
+                                            }
+                                        } else {
+                                            categoryToArchive = category
+                                        }
+                                    },
+                                    onDelete = { categoryToDelete = category }
+                                )
+
+                                // Subtle divider between items inside the section
+                                if (index < displayedList.size - 1) {
+                                    HorizontalDivider(
+                                        color = Color(0xFFF1F5F9),
+                                        thickness = 1.dp,
+                                        modifier = Modifier.padding(horizontal = 14.dp)
+                                    )
                                 }
-                            } else {
-                                categoryToArchive = category
                             }
-                        },
-                        onDelete = { categoryToDelete = category }
-                    )
+                        }
+                    }
                 }
             }
 
             // Inline "Add New Category" Section at bottom
             item {
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 AddNewCategoryInlineCard(
                     categoryName = newCategoryName,
                     onCategoryNameChange = { newCategoryName = it },
@@ -526,7 +569,7 @@ fun CategoryManagementScreen(
         }
     }
 
-    // Spacious Edit Category Modal Bottom Sheet
+    // Modern Edit Category Modal Bottom Sheet (opens at ~70% initially, expands to 100% on scroll, solid bottom coverage)
     categoryToEdit?.let { category ->
         EditCategoryBottomSheet(
             category = category,
@@ -699,11 +742,11 @@ fun CategoryManagementScreen(
 }
 
 /**
- * Visual card matching the mockup for each category item.
- * Clicking the card opens the spacious Edit Bottom Sheet.
+ * Individual row inside the unified Category Section.
+ * Sleek, proportionate font sizes and clean spacing with divider support.
  */
 @Composable
-private fun CategoryMockCard(
+private fun CategoryMockRow(
     category: TransactionCategory,
     transactionCount: Int,
     onEdit: () -> Unit,
@@ -726,133 +769,124 @@ private fun CategoryMockCard(
         }
     }
 
-    Card(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onEdit),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            .clickable(onClick = onEdit)
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        // Category Icon box
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .size(38.dp)
+                .background(containerBg, RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center
         ) {
-            // Category Icon box
+            Icon(
+                imageVector = iconVector,
+                contentDescription = category.name,
+                tint = iconTint,
+                modifier = Modifier.size(19.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Center details: Sleek proportionate font size
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = category.name,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.5.sp,
+                    color = Color(0xFF0F172A),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = if (category.isSystem) Color(0xFFF1F5F9) else Color(0xFFECFDF5),
+                            shape = RoundedCornerShape(5.dp)
+                        )
+                        .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                ) {
+                    Text(
+                        text = if (category.isSystem) "System" else "Custom",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (category.isSystem) Color(0xFF475569) else Color(0xFF047857)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "$transactionCount transactions logged",
+                fontSize = 11.5.sp,
+                color = Color(0xFF64748B)
+            )
+        }
+
+        // Action icons
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // Edit Icon Button
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .background(containerBg, RoundedCornerShape(12.dp)),
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFF8FAFC))
+                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                    .clickable(onClick = onEdit),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = iconVector,
-                    contentDescription = category.name,
-                    tint = iconTint,
-                    modifier = Modifier.size(22.dp)
+                    imageVector = Icons.Outlined.Edit,
+                    contentDescription = "Edit Category",
+                    tint = Color(0xFF475569),
+                    modifier = Modifier.size(15.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Center details
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = category.name,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = Color(0xFF0F172A),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                color = if (category.isSystem) Color(0xFFF1F5F9) else Color(0xFFECFDF5),
-                                shape = RoundedCornerShape(6.dp)
-                            )
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = if (category.isSystem) "System" else "Custom",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (category.isSystem) Color(0xFF475569) else Color(0xFF047857)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = "$transactionCount transactions logged",
-                    fontSize = 12.sp,
-                    color = Color(0xFF64748B)
-                )
-            }
-
-            // Spacious Action icons
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                // Edit Icon Button
+            if (category.isSystem) {
+                // Archive Toggle Button
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(Color(0xFFF8FAFC))
                         .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
-                        .clickable(onClick = onEdit),
+                        .clickable(onClick = onArchiveToggle),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Edit,
-                        contentDescription = "Edit Category",
+                        imageVector = Icons.Outlined.Archive,
+                        contentDescription = "Archive",
                         tint = Color(0xFF475569),
-                        modifier = Modifier.size(17.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                 }
-
-                if (category.isSystem) {
-                    // Archive Toggle Button
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFF8FAFC))
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
-                            .clickable(onClick = onArchiveToggle),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Archive,
-                            contentDescription = "Archive",
-                            tint = Color(0xFF475569),
-                            modifier = Modifier.size(17.dp)
-                        )
-                    }
-                } else {
-                    // Delete Button for Custom Categories
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFFEE2E2))
-                            .border(BorderStroke(1.dp, Color(0xFFFECACA)), CircleShape)
-                            .clickable(onClick = onDelete),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.DeleteOutline,
-                            contentDescription = "Delete",
-                            tint = Color(0xFFDC2626),
-                            modifier = Modifier.size(17.dp)
-                        )
-                    }
+            } else {
+                // Delete Button for Custom Categories
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFEE2E2))
+                        .border(BorderStroke(1.dp, Color(0xFFFECACA)), CircleShape)
+                        .clickable(onClick = onDelete),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.DeleteOutline,
+                        contentDescription = "Delete",
+                        tint = Color(0xFFDC2626),
+                        modifier = Modifier.size(15.dp)
+                    )
                 }
             }
         }
@@ -861,7 +895,7 @@ private fun CategoryMockCard(
 
 /**
  * Inline "Add New Category" Section at the bottom of the list.
- * Includes expandable 20-icon catalog, full 12-color palette,
+ * Clean, centered icon grid without text labels, full color palette,
  * and a circle/pill format button dynamically colored to match the selected tone.
  */
 @Composable
@@ -901,7 +935,7 @@ private fun AddNewCategoryInlineCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Add New Category",
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF0F172A)
                 )
@@ -914,7 +948,7 @@ private fun AddNewCategoryInlineCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Field: Category Name
             Text(
@@ -936,7 +970,7 @@ private fun AddNewCategoryInlineCard(
                 if (categoryName.isEmpty()) {
                     Text(
                         text = "e.g. Pet Care",
-                        fontSize = 14.sp,
+                        fontSize = 13.5.sp,
                         color = Color(0xFF94A3B8)
                     )
                 }
@@ -945,7 +979,7 @@ private fun AddNewCategoryInlineCard(
                     onValueChange = onCategoryNameChange,
                     singleLine = true,
                     textStyle = TextStyle(
-                        fontSize = 14.sp,
+                        fontSize = 13.5.sp,
                         color = Color(0xFF0F172A),
                         fontWeight = FontWeight.Medium
                     ),
@@ -954,9 +988,9 @@ private fun AddNewCategoryInlineCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Section: Icon Glyph with Interactive "More Icons" selector
+            // Section: Icon Glyph with Centered Icon Selector
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -969,36 +1003,27 @@ private fun AddNewCategoryInlineCard(
                 )
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Interactive selector showing current icon and clickable toggle for more
+                // Interactive toggle for more icons
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
                         .background(Color(0xFFECFDF5))
                         .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(10.dp))
                         .clickable(onClick = onToggleMoreIcons)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 9.dp, vertical = 4.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "${selectedGlyph.label} Selected",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF047857)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (isMoreIconsExpanded) "▲ Less" else "▼ More (${ALL_CATEGORY_GLYPHS.size})",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF047857)
-                        )
-                    }
+                    Text(
+                        text = if (isMoreIconsExpanded) "▲ Less" else "▼ More Icons (${ALL_CATEGORY_GLYPHS.size})",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF047857)
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Display top 8 icons by default, or all 20 when expanded
+            // Centered icons without text labels - 4 columns
             val displayedGlyphs = if (isMoreIconsExpanded) ALL_CATEGORY_GLYPHS else ALL_CATEGORY_GLYPHS.take(8)
             val glyphChunks = displayedGlyphs.chunked(4)
 
@@ -1013,7 +1038,7 @@ private fun AddNewCategoryInlineCard(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(48.dp)
+                                    .height(46.dp)
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(if (isSelected) selectedTone.color.copy(alpha = 0.12f) else Color(0xFFF1F5F9))
                                     .border(
@@ -1026,26 +1051,12 @@ private fun AddNewCategoryInlineCard(
                                     .clickable { onGlyphSelected(item) },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = item.icon,
-                                        contentDescription = item.label,
-                                        tint = if (isSelected) selectedTone.color else Color(0xFF64748B),
-                                        modifier = Modifier.size(19.dp)
-                                    )
-                                    if (isMoreIconsExpanded) {
-                                        Text(
-                                            text = item.label,
-                                            fontSize = 9.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) selectedTone.color else Color(0xFF64748B),
-                                            maxLines = 1
-                                        )
-                                    }
-                                }
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) selectedTone.color else Color(0xFF64748B),
+                                    modifier = Modifier.size(21.dp)
+                                )
                             }
                         }
                     }
@@ -1069,7 +1080,7 @@ private fun AddNewCategoryInlineCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
+                            .size(9.dp)
                             .background(selectedTone.color, CircleShape)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -1146,7 +1157,7 @@ private fun AddNewCategoryInlineCard(
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Create Category",
-                        fontSize = 15.sp,
+                        fontSize = 14.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
@@ -1157,8 +1168,13 @@ private fun AddNewCategoryInlineCard(
 }
 
 /**
- * Spacious, modern Edit Category Modal Bottom Sheet with generous room,
- * 20 selectable glyph cards with labels, 12-color palette, and dynamic circle button.
+ * Modern Edit Category Modal Bottom Sheet:
+ * - Opens initially at ~70% screen height, and expands smoothly to 100% on scroll/drag.
+ * - Sheet container surface sits solidly at the bottom with zero gap (no category components visible underneath).
+ * - Internal scroll is enabled only once the sheet is fully expanded to 100%, allowing smooth expansion first.
+ * - 8 centered icons by default + "More Icons (20)" toggle.
+ * - Colors in ONE line scrollable.
+ * - Dynamic pill format Save button.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1168,10 +1184,14 @@ fun EditCategoryBottomSheet(
     onDismiss: () -> Unit,
     onConfirm: (newName: String, newIcon: String, newColor: String) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
+
     var name by remember { mutableStateOf(category.name) }
     var selectedIcon by remember { mutableStateOf(category.iconKey) }
     var selectedColor by remember { mutableStateOf(category.colorKey) }
+    var isMoreIconsExpanded by remember { mutableStateOf(false) }
 
     val nameValidation = remember(name, existingCategories, category) {
         val trimmed = name.trim()
@@ -1195,12 +1215,16 @@ fun EditCategoryBottomSheet(
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
+        // Internal scroll is only enabled once the sheet expands to 100%, ensuring drag gestures expand the sheet first!
+        val isExpanded = sheetState.currentValue == SheetValue.Expanded
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .verticalScroll(scrollState, enabled = isExpanded)
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 36.dp)
+                .padding(top = 4.dp, bottom = 28.dp)
         ) {
             // Header: Title, Subtitle, and Close Button
             Row(
@@ -1212,7 +1236,7 @@ fun EditCategoryBottomSheet(
                 val previewTint = CategoryVisuals.getColor(selectedColor)
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
+                        .size(44.dp)
                         .background(previewBg, RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -1220,7 +1244,7 @@ fun EditCategoryBottomSheet(
                         imageVector = CategoryVisuals.getIcon(selectedIcon),
                         contentDescription = null,
                         tint = previewTint,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -1229,7 +1253,7 @@ fun EditCategoryBottomSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = if (category.isSystem) "Customize System Category" else "Edit Category",
-                        fontSize = 18.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF0F172A)
                     )
@@ -1243,25 +1267,25 @@ fun EditCategoryBottomSheet(
                 IconButton(
                     onClick = onDismiss,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(34.dp)
                         .background(Color(0xFFF1F5F9), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = "Close",
                         tint = Color(0xFF64748B),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Category Name Field (or Locked System Category notification)
+            // Category Name Textbox (or Locked notification for System Category)
             if (!category.isSystem) {
                 Text(
                     text = "Category Name",
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF334155)
                 )
@@ -1293,7 +1317,7 @@ fun EditCategoryBottomSheet(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.padding(14.dp),
+                        modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
@@ -1306,7 +1330,7 @@ fun EditCategoryBottomSheet(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = category.name,
-                                fontSize = 16.sp,
+                                fontSize = 14.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF0F172A)
                             )
@@ -1321,33 +1345,50 @@ fun EditCategoryBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Spacious Icon Glyphs Section (Full 20-icon catalog)
+            // Icon Glyph Section: 8 icons by default + More Icons button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Icon Glyph",
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF334155)
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                val currentIconLabel = ALL_CATEGORY_GLYPHS.find { it.key == selectedIcon }?.label ?: selectedIcon.replaceFirstChar { it.uppercase() }
-                Text(
-                    text = "$currentIconLabel Selected",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = activeTone.color
-                )
+
+                // Interactive More Icons button (clicking smoothly expands bottom sheet to 100%)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFECFDF5))
+                        .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(10.dp))
+                        .clickable {
+                            isMoreIconsExpanded = !isMoreIconsExpanded
+                            if (isMoreIconsExpanded) {
+                                scope.launch { sheetState.expand() }
+                            }
+                        }
+                        .padding(horizontal = 9.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = if (isMoreIconsExpanded) "▲ Less" else "▼ More Icons (${ALL_CATEGORY_GLYPHS.size})",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF047857)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 4-column Grid of icons
-            val iconChunks = ALL_CATEGORY_GLYPHS.chunked(4)
+            // Centered icons without text labels: 8 icons by default, or all 20 when expanded
+            val displayedGlyphs = if (isMoreIconsExpanded) ALL_CATEGORY_GLYPHS else ALL_CATEGORY_GLYPHS.take(8)
+            val iconChunks = displayedGlyphs.chunked(4)
+
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 iconChunks.forEach { row ->
                     Row(
@@ -1359,115 +1400,106 @@ fun EditCategoryBottomSheet(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(56.dp)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .height(46.dp)
+                                    .clip(RoundedCornerShape(10.dp))
                                     .background(if (isSelected) activeTone.color.copy(alpha = 0.12f) else Color(0xFFF8FAFC))
                                     .border(
                                         BorderStroke(
-                                            if (isSelected) 2.dp else 1.dp,
+                                            if (isSelected) 1.5.dp else 1.dp,
                                             if (isSelected) activeTone.color else Color(0xFFE2E8F0)
                                         ),
-                                        RoundedCornerShape(12.dp)
+                                        RoundedCornerShape(10.dp)
                                     )
                                     .clickable { selectedIcon = item.key },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = item.icon,
-                                        contentDescription = item.label,
-                                        tint = if (isSelected) activeTone.color else Color(0xFF64748B),
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = item.label,
-                                        fontSize = 10.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSelected) activeTone.color else Color(0xFF64748B),
-                                        textAlign = TextAlign.Center,
-                                        maxLines = 1
-                                    )
-                                }
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) activeTone.color else Color(0xFF64748B),
+                                    modifier = Modifier.size(21.dp)
+                                )
                             }
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Spacious Theme Tone Section with 12 Colors
+            // Theme Tone Section: Colors in ONE LINE SCROLLABLE
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Theme Tone",
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF334155)
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = activeTone.label,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = activeTone.color
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(9.dp)
+                            .background(activeTone.color, CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = activeTone.label,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = activeTone.color
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Color Circles in 2 rows of 6
-            val toneChunks = ALL_CATEGORY_TONES.chunked(6)
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                toneChunks.forEach { row ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+            // Colors in ONE horizontal scrollable line
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ALL_CATEGORY_TONES.forEach { tone ->
+                    val isSelected = tone.key.equals(selectedColor, ignoreCase = true)
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(tone.color)
+                            .then(
+                                if (isSelected) Modifier.border(BorderStroke(2.5.dp, Color.White), CircleShape)
+                                else Modifier
+                            )
+                            .clickable { selectedColor = tone.key },
+                        contentAlignment = Alignment.Center
                     ) {
-                        row.forEach { tone ->
-                            val isSelected = tone.key.equals(selectedColor, ignoreCase = true)
-                            Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(tone.color)
-                                    .then(
-                                        if (isSelected) Modifier.border(BorderStroke(2.5.dp, Color.White), CircleShape)
-                                        else Modifier
-                                    )
-                                    .clickable { selectedColor = tone.key },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Check,
-                                        contentDescription = tone.label,
-                                        tint = tone.checkTint,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = tone.label,
+                                tint = tone.checkTint,
+                                modifier = Modifier.size(17.dp)
+                            )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(26.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Dynamic Circle / Pill Format Button matching selected category tone
+            // Dynamic Circle / Pill Format Button for Save Changes
             Button(
                 onClick = { onConfirm(name.trim(), selectedIcon, selectedColor) },
                 enabled = category.isSystem || nameValidation == null,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
+                    .height(48.dp),
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = activeTone.color,
@@ -1476,7 +1508,7 @@ fun EditCategoryBottomSheet(
             ) {
                 Text(
                     text = "Save Changes",
-                    fontSize = 15.sp,
+                    fontSize = 14.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
