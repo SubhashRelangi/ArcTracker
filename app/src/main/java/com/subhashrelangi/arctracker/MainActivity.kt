@@ -603,7 +603,7 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules")) 0.dp else padding.calculateTopPadding()
+            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules", "Backup")) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
                     .padding(top = contentTopPadding)
