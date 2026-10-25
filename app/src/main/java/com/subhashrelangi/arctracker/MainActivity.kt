@@ -527,7 +527,8 @@ fun ExpenseScreen() {
                 currentRoute != "ApplyCategoryRules" &&
                 currentRoute != "Analytics" &&
                 currentRoute != "Budgets" &&
-                currentRoute != "Backup"
+                currentRoute != "Backup" &&
+                currentRoute != "SupportedApps"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
@@ -600,7 +601,7 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "CategoryManagement")) 0.dp else padding.calculateTopPadding()
+            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "CategoryManagement", "SupportedApps")) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
                     .padding(top = contentTopPadding)
