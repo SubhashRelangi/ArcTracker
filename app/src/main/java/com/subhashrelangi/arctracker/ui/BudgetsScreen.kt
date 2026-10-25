@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.subhashrelangi.arctracker.data.*
 import com.subhashrelangi.arctracker.service.AndroidBudgetAlertNotifier
 import com.subhashrelangi.arctracker.service.BudgetManager
@@ -112,8 +113,8 @@ fun BudgetsScreen(
     // Alert engine threshold pill selection
     var selectedAlertThreshold by remember { mutableStateOf(80) }
 
-    // Quick creator states (for category budgets)
-    var quickCategoryExpanded by remember { mutableStateOf(false) }
+    // Quick creator states
+    var showCategoryPickerModal by remember { mutableStateOf(false) }
     var quickSelectedCategory by remember { mutableStateOf<TransactionCategory?>(null) }
     var quickLimitText by remember { mutableStateOf("8000") }
     var quickThresholdSlider by remember { mutableStateOf(0.80f) }
@@ -701,7 +702,7 @@ fun BudgetsScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Category Field (Dropdown showing all app categories)
+                    // Category Field (ArcTracker-styled tactile picker launcher)
                     Text(
                         text = "CATEGORY",
                         fontSize = 10.sp,
@@ -711,48 +712,56 @@ fun BudgetsScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    Box {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(46.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFF9FAFB))
-                                .border(BorderStroke(1.dp, Color(0xFFE5E7EB)), RoundedCornerShape(12.dp))
-                                .clickable { quickCategoryExpanded = true }
-                                .padding(horizontal = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF9FAFB))
+                            .border(BorderStroke(1.dp, Color(0xFFE5E7EB)), RoundedCornerShape(12.dp))
+                            .clickable { showCategoryPickerModal = true }
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val currentCategory = quickSelectedCategory
+                        if (currentCategory != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .background(CategoryVisuals.getColor(currentCategory.colorKey).copy(alpha = 0.15f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = CategoryVisuals.getIcon(currentCategory.iconKey),
+                                    contentDescription = null,
+                                    tint = CategoryVisuals.getColor(currentCategory.colorKey),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = quickSelectedCategory?.name ?: "Select Category",
+                                text = currentCategory.name,
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFF111827),
                                 modifier = Modifier.weight(1f)
                             )
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowDown,
-                                contentDescription = "Select Category",
-                                tint = Color(0xFF6B7280),
-                                modifier = Modifier.size(20.dp)
+                        } else {
+                            Text(
+                                text = "Select Category",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF6B7280),
+                                modifier = Modifier.weight(1f)
                             )
                         }
 
-                        DropdownMenu(
-                            expanded = quickCategoryExpanded,
-                            onDismissRequest = { quickCategoryExpanded = false },
-                            modifier = Modifier.background(Color.White)
-                        ) {
-                            allCategories.forEach { cat ->
-                                DropdownMenuItem(
-                                    text = { Text(cat.name, fontSize = 13.sp) },
-                                    onClick = {
-                                        quickSelectedCategory = cat
-                                        quickCategoryExpanded = false
-                                    }
-                                )
-                            }
-                        }
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Select Category",
+                            tint = Color(0xFF6B7280),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
@@ -770,7 +779,7 @@ fun BudgetsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(46.dp)
+                            .height(48.dp)
                             .background(Color(0xFFF9FAFB), RoundedCornerShape(12.dp))
                             .border(BorderStroke(1.dp, Color(0xFFE5E7EB)), RoundedCornerShape(12.dp))
                             .padding(horizontal = 14.dp),
@@ -900,109 +909,460 @@ fun BudgetsScreen(
         }
     }
 
-    // Modal Dialog: Set Overall Monthly Budget Cap (Triggered by + icon in Overall Velocity)
+    // Creative, ArcTracker-Styled Monthly Budget Cap Dialog
     if (showMonthlyCapDialog) {
         var capAmountText by remember {
             mutableStateOf(overallBudgetProgress?.limit?.let { if (it % 1 == 0.0) it.toLong().toString() else it.toString() } ?: "50000")
         }
-        var capWarningThreshold by remember {
-            mutableStateOf(overallBudgetProgress?.budget?.warningThreshold?.toInt()?.toString() ?: "80")
+        var capWarningThresholdSlider by remember {
+            mutableStateOf((overallBudgetProgress?.budget?.warningThreshold ?: 80.0).toFloat() / 100f)
         }
         var capError by remember { mutableStateOf<String?>(null) }
 
-        AlertDialog(
-            onDismissRequest = { showMonthlyCapDialog = false },
-            title = {
-                Text(
-                    text = "Set Monthly Budget Cap",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = Color(0xFF111827)
-                )
-            },
-            text = {
+        Dialog(onDismissRequest = { showMonthlyCapDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = Color.White,
+                tonalElevation = 6.dp,
+                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+            ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp)
                 ) {
-                    Text(
-                        text = "Set your total spending ceiling across all categories for each monthly cycle.",
-                        fontSize = 12.sp,
-                        color = Color(0xFF6B7280),
-                        lineHeight = 16.sp
-                    )
+                    // Header Row with Icon and Close Button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFDCFCE7)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Speed,
+                                contentDescription = null,
+                                tint = Color(0xFF055B38),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
 
-                    capError?.let { err ->
-                        Text(err, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Monthly Budget Cap",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp,
+                                color = Color(0xFF111827)
+                            )
+                            Text(
+                                text = "Overall spending ceiling across all categories",
+                                fontSize = 11.sp,
+                                color = Color(0xFF6B7280),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFF3F4F6))
+                                .clickable { showMonthlyCapDialog = false },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Color(0xFF6B7280),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
 
-                    OutlinedTextField(
-                        value = capAmountText,
-                        onValueChange = { capAmountText = it.filter { ch -> ch.isDigit() }; capError = null },
-                        label = { Text("Monthly Cap Limit (₹)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    OutlinedTextField(
-                        value = capWarningThreshold,
-                        onValueChange = { capWarningThreshold = it.filter { ch -> ch.isDigit() }; capError = null },
-                        label = { Text("Alert Warning Threshold (%)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val amount = capAmountText.toDoubleOrNull()
-                        val warning = capWarningThreshold.toDoubleOrNull() ?: 80.0
-                        if (amount == null || amount <= 0.0) {
-                            capError = "Please enter a valid amount"
-                            return@Button
-                        }
+                    capError?.let { err ->
+                        Text(
+                            text = err,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                    }
 
-                        scope.launch {
-                            val existing = overallBudgetProgress?.budget
-                            if (existing != null) {
-                                budgetManager.updateBudget(
-                                    existing.copy(
-                                        name = "Monthly Budget Cap",
-                                        amountLimit = amount,
-                                        warningThreshold = warning,
-                                        updatedAt = System.currentTimeMillis()
-                                    )
+                    // Hero Amount Input Card
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.5.dp, Color(0xFFE2E8F0))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                text = "MONTHLY SPENDING LIMIT",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF6B7280),
+                                letterSpacing = 0.5.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "₹",
+                                    fontSize = 28.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF055B38)
                                 )
-                            } else {
-                                budgetManager.createBudget(
-                                    name = "Monthly Budget Cap",
-                                    amountLimit = amount,
-                                    categoryId = null,
-                                    periodType = BudgetPeriodType.MONTHLY,
-                                    warningThreshold = warning,
-                                    exceededThreshold = 100.0
+                                Spacer(modifier = Modifier.width(6.dp))
+                                BasicTextField(
+                                    value = capAmountText,
+                                    onValueChange = {
+                                        capAmountText = it.filter { ch -> ch.isDigit() }
+                                        capError = null
+                                    },
+                                    textStyle = TextStyle(
+                                        fontSize = 28.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF111827)
+                                    ),
+                                    cursorBrush = SolidColor(Color(0xFF055B38)),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
-                            showMonthlyCapDialog = false
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Quick preset chips
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                listOf("25000" to "₹25k", "50000" to "₹50k", "75000" to "₹75k", "100000" to "₹1L").forEach { (amountVal, label) ->
+                                    val isSelected = capAmountText == amountVal
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(CircleShape)
+                                            .background(if (isSelected) Color(0xFFDCFCE7) else Color.White)
+                                            .border(
+                                                BorderStroke(
+                                                    1.dp,
+                                                    if (isSelected) Color(0xFF055B38) else Color(0xFFE2E8F0)
+                                                ),
+                                                CircleShape
+                                            )
+                                            .clickable { capAmountText = amountVal },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color(0xFF055B38) else Color(0xFF334155),
+                                            modifier = Modifier.padding(vertical = 6.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
-                    },
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38))
-                ) {
-                    Text("Save Cap")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showMonthlyCapDialog = false }) {
-                    Text("Cancel", color = Color(0xFF6B7280))
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Visual Alert Telemetry Card
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            val currentCapVal = capAmountText.toDoubleOrNull() ?: 50000.0
+                            val currentPercent = (capWarningThresholdSlider * 100).toInt()
+                            val notifyThresholdAmount = (currentCapVal * capWarningThresholdSlider).toLong()
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "ALERT THRESHOLD",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF6B7280),
+                                    letterSpacing = 0.5.sp
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFFFEF3C7), CircleShape)
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "$currentPercent% • ₹${formatCurrency(notifyThresholdAmount.toDouble())}",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFB45309)
+                                    )
+                                }
+                            }
+
+                            Slider(
+                                value = capWarningThresholdSlider,
+                                onValueChange = { capWarningThresholdSlider = it },
+                                valueRange = 0.50f..1.00f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color(0xFF055B38),
+                                    activeTrackColor = Color(0xFF055B38),
+                                    inactiveTrackColor = Color(0xFFE2E8F0)
+                                ),
+                                modifier = Modifier.height(28.dp)
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("50%", fontSize = 10.sp, color = Color(0xFF9CA3AF))
+                                Text("75%", fontSize = 10.sp, color = Color(0xFF9CA3AF))
+                                Text("80% Alert", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD97706))
+                                Text("100%", fontSize = 10.sp, color = Color(0xFF9CA3AF))
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // Save Action Button
+                    Button(
+                        onClick = {
+                            val amount = capAmountText.toDoubleOrNull()
+                            val warning = (capWarningThresholdSlider * 100).toDouble()
+                            if (amount == null || amount <= 0.0) {
+                                capError = "Please enter a valid amount"
+                                return@Button
+                            }
+
+                            scope.launch {
+                                val existing = overallBudgetProgress?.budget
+                                if (existing != null) {
+                                    budgetManager.updateBudget(
+                                        existing.copy(
+                                            name = "Monthly Budget Cap",
+                                            amountLimit = amount,
+                                            warningThreshold = warning,
+                                            updatedAt = System.currentTimeMillis()
+                                        )
+                                    )
+                                } else {
+                                    budgetManager.createBudget(
+                                        name = "Monthly Budget Cap",
+                                        amountLimit = amount,
+                                        categoryId = null,
+                                        periodType = BudgetPeriodType.MONTHLY,
+                                        warningThreshold = warning,
+                                        exceededThreshold = 100.0
+                                    )
+                                }
+                                showMonthlyCapDialog = false
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF055B38),
+                            contentColor = Color.White
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Save Monthly Cap",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
-        )
+        }
+    }
+
+    // ArcTracker-Styled Category Selection Modal Dialog
+    if (showCategoryPickerModal) {
+        Dialog(onDismissRequest = { showCategoryPickerModal = false }) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = Color.White,
+                tonalElevation = 6.dp,
+                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp)
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFDCFCE7)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Category,
+                                contentDescription = null,
+                                tint = Color(0xFF055B38),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Select Category",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp,
+                                color = Color(0xFF111827)
+                            )
+                            Text(
+                                text = "Choose an envelope for this budget",
+                                fontSize = 11.sp,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFF3F4F6))
+                                .clickable { showCategoryPickerModal = false },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Color(0xFF6B7280),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Scrollable Categories Grid / List
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 380.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        allCategories.forEach { category ->
+                            val isSelected = quickSelectedCategory?.id == category.id
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .clickable {
+                                        quickSelectedCategory = category
+                                        showCategoryPickerModal = false
+                                    },
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isSelected) Color(0xFFF0FDF4) else Color(0xFFF9FAFB),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isSelected) Color(0xFF055B38) else Color(0xFFE5E7EB)
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(34.dp)
+                                            .background(
+                                                CategoryVisuals.getColor(category.colorKey).copy(alpha = 0.15f),
+                                                CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = CategoryVisuals.getIcon(category.iconKey),
+                                            contentDescription = null,
+                                            tint = CategoryVisuals.getColor(category.colorKey),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    Text(
+                                        text = category.name,
+                                        fontSize = 14.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = Color(0xFF111827),
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    if (isSelected) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .background(Color(0xFF055B38), CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "Selected",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // Edit Existing Budget Dialog
