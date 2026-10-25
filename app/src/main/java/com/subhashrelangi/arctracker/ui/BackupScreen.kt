@@ -1352,20 +1352,13 @@ fun BackupScreen(
 
                                     Spacer(modifier = Modifier.width(12.dp))
 
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = opt.title,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A)
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = opt.subtitle,
-                                            fontSize = 11.sp,
-                                            color = Color(0xFF64748B)
-                                        )
-                                    }
+                                    Text(
+                                        text = opt.title,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF0F172A),
+                                        modifier = Modifier.weight(1f)
+                                    )
 
                                     if (isSelected) {
                                         Box(
@@ -1710,7 +1703,6 @@ fun ArcTrackerMockSwitch(
 
 data class ScopeOptionItem(
     val title: String,
-    val subtitle: String,
     val icon: ImageVector
 )
 
