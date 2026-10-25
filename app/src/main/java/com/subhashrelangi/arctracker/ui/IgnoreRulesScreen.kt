@@ -1,7 +1,10 @@
 package com.subhashrelangi.arctracker.ui
 
 import android.content.Context
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,8 +16,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -100,6 +103,7 @@ fun IgnoreRulesScreen(
                     .fillMaxWidth()
                     .background(Color.White)
             ) {
+                // Universal Settings Sub-Page Header
                 ArcTrackerHeader(
                     title = "Ignore Rules",
                     subtitle = "Filter & Noise Suppression",
@@ -137,271 +141,330 @@ fun IgnoreRulesScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Master Noise Filter Card
-            Surface(
+            // 1. Master Noise Filter Card (ArcTracker styled)
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Master Noise Filter",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .background(Color(0xFFECFDF5), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Shield,
+                                contentDescription = null,
+                                tint = Color(0xFF055B38),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
 
-                        Spacer(modifier = Modifier.weight(1f))
+                        Spacer(modifier = Modifier.width(12.dp))
 
-                        Switch(
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Master Noise Filter",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (isEnabled) "Active & Suppressing Noise" else "Suppression Engine Paused",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (isEnabled) Color(0xFF055B38) else Color(0xFF64748B)
+                            )
+                        }
+
+                        // ArcTracker Custom Switch
+                        IgnoreRulesMockSwitch(
                             checked = isEnabled,
                             onCheckedChange = {
                                 isEnabled = it
                                 sharedPrefs.edit().putBoolean("ignore_rules_enabled", it).apply()
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF055B38),
-                                uncheckedThumbColor = Color.White,
-                                uncheckedTrackColor = Color(0xFFE2E8F0),
-                                uncheckedBorderColor = Color.Transparent
-                            )
+                            }
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
                         text = "Automatically suppresses OTPs, balance queries, promotional blasts, and carrier noise before ledger parsing.",
                         fontSize = 12.sp,
-                        color = Color(0xFF6B7280),
-                        lineHeight = 17.sp
+                        color = Color(0xFF64748B),
+                        lineHeight = 16.sp
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Stats pill container
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFF9FAFB)
+                    // Compact Telemetry Stats Bar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                            .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .background(Color(0xFF10B981), CircleShape)
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Canvas(modifier = Modifier.size(6.dp)) {
+                                drawCircle(color = if (isEnabled) Color(0xFF10B981) else Color(0xFF94A3B8))
+                            }
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "${rules.size} Rules Active",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
+                                text = "${rules.size} Active Rules",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF0F172A)
                             )
+                        }
 
-                            Spacer(modifier = Modifier.width(14.dp))
+                        Text("•", color = Color(0xFFCBD5E1))
 
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Outlined.MarkChatRead,
                                 contentDescription = null,
                                 tint = Color(0xFF055B38),
                                 modifier = Modifier.size(15.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = buildAnnotatedString {
-                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFF111827))) {
+                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))) {
                                         append("$silencedCount SMS")
                                     }
-                                    append(" silenced this month")
+                                    withStyle(SpanStyle(color = Color(0xFF64748B))) {
+                                        append(" silenced")
+                                    }
                                 },
-                                fontSize = 11.sp,
-                                color = Color(0xFF4B5563)
+                                fontSize = 12.sp
                             )
                         }
                     }
                 }
             }
 
-            // 2. New Ignore Filter Card (Precision Match)
-            Surface(
+            // 2. New Ignore Filter Card (ArcTracker Quick Creator)
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .alpha(if (isEnabled) 1f else 0.5f),
-                shape = RoundedCornerShape(16.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
                     // Header Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.AddCircleOutline,
+                            imageVector = Icons.Outlined.Tune,
                             contentDescription = null,
                             tint = Color(0xFF055B38),
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "New Ignore Filter",
+                            text = "Add Ignore Filter",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
+                            color = Color(0xFF0F172A)
                         )
 
                         Spacer(modifier = Modifier.weight(1f))
 
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFFF1F5F9), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "Rule Engine",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                    }
+
+                    // Target Type Segmented Pills
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "PRECISION MATCH",
+                            text = "FILTER TARGET",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF6B7280),
+                            color = Color(0xFF64748B),
                             letterSpacing = 0.5.sp
                         )
-                    }
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Target Type Label & Segmented Buttons
-                    Text(
-                        text = "TARGET TYPE",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF6B7280),
-                        letterSpacing = 0.5.sp
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("Keyword", "Sender ID", "Regex").forEach { type ->
-                            val isSelected = selectedTargetType == type
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(38.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(if (isSelected) Color(0xFFDCFCE7) else Color(0xFFF1F5F9))
-                                    .clickable(enabled = isEnabled) {
-                                        selectedTargetType = type
-                                        if (type == "Regex") {
-                                            selectedMatchLogic = "Regex"
-                                        } else if (selectedMatchLogic == "Regex") {
-                                            selectedMatchLogic = "Contains"
-                                        }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = type,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color(0xFF055B38) else Color(0xFF4B5563)
-                                )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf("Keyword", "Sender ID", "Regex").forEach { type ->
+                                val isSelected = selectedTargetType == type
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(38.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isSelected) Color(0xFF055B38) else Color(0xFFF1F5F9))
+                                        .clickable(enabled = isEnabled) {
+                                            selectedTargetType = type
+                                            if (type == "Regex") {
+                                                selectedMatchLogic = "Regex"
+                                            } else if (selectedMatchLogic == "Regex") {
+                                                selectedMatchLogic = "Contains"
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = type,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                        color = if (isSelected) Color.White else Color(0xFF475569)
+                                    )
+                                }
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    // Match Logic Segmented Pills (only if not Regex)
+                    if (selectedTargetType != "Regex") {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "MATCH LOGIC",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF64748B),
+                                letterSpacing = 0.5.sp
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
 
-                    // Match Logic Label & Segmented Buttons
-                    Text(
-                        text = "MATCH LOGIC",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF6B7280),
-                        letterSpacing = 0.5.sp
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("Contains", "Exact", "Starts With").forEach { logic ->
-                            val isSelected = selectedMatchLogic == logic
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(38.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(if (isSelected) Color(0xFFDCFCE7) else Color(0xFFF1F5F9))
-                                    .clickable(enabled = isEnabled && selectedTargetType != "Regex") {
-                                        selectedMatchLogic = logic
-                                    },
-                                contentAlignment = Alignment.Center
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text(
-                                    text = logic,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color(0xFF055B38) else Color(0xFF4B5563)
-                                )
+                                listOf("Contains", "Exact", "Starts With").forEach { logic ->
+                                    val isSelected = selectedMatchLogic == logic
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(36.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC))
+                                            .border(
+                                                BorderStroke(
+                                                    1.dp,
+                                                    if (isSelected) Color(0xFF10B981) else Color(0xFFE2E8F0)
+                                                ),
+                                                CircleShape
+                                            )
+                                            .clickable(enabled = isEnabled) {
+                                                selectedMatchLogic = logic
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = logic,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color(0xFF055B38) else Color(0xFF64748B)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Text Field for Rule Value
+                    // Search / Rule Value Input Box
                     val placeholderText = when (selectedTargetType) {
                         "Sender ID" -> "e.g. VM-AIRTEL, HDFCBK-PROMO"
                         "Regex" -> "e.g. .*(OTP|verification code).*"
                         else -> "e.g. OTP, cashback offer, reward point"
                     }
 
-                    Box(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp)
-                            .background(Color(0xFFF9FAFB), RoundedCornerShape(12.dp))
-                            .border(BorderStroke(1.dp, Color(0xFFE5E7EB)), RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF8FAFC), RoundedCornerShape(14.dp))
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(14.dp))
                             .padding(horizontal = 14.dp),
-                        contentAlignment = Alignment.CenterStart
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (inputRuleValue.isEmpty()) {
-                            Text(
-                                text = placeholderText,
-                                fontSize = 13.sp,
-                                color = Color(0xFF9CA3AF)
+                        Icon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = null,
+                            tint = Color(0xFF055B38),
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (inputRuleValue.isEmpty()) {
+                                Text(
+                                    text = placeholderText,
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF94A3B8)
+                                )
+                            }
+                            BasicTextField(
+                                value = inputRuleValue,
+                                onValueChange = { inputRuleValue = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = isEnabled,
+                                textStyle = TextStyle(
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF0F172A),
+                                    fontFamily = if (selectedTargetType == "Regex") FontFamily.Monospace else FontFamily.Default
+                                ),
+                                cursorBrush = SolidColor(Color(0xFF055B38)),
+                                singleLine = true
                             )
                         }
-                        BasicTextField(
-                            value = inputRuleValue,
-                            onValueChange = { inputRuleValue = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = isEnabled,
-                            textStyle = TextStyle(
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF111827)
-                            ),
-                            cursorBrush = SolidColor(Color(0xFF055B38)),
-                            singleLine = true
-                        )
+
+                        if (inputRuleValue.isNotEmpty()) {
+                            IconButton(
+                                onClick = { inputRuleValue = "" },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    tint = Color(0xFF64748B),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Add Filter Rule Button
+                    // Stadium Pill Add Filter Rule Button
                     Button(
                         onClick = {
                             if (inputRuleValue.isNotBlank()) {
@@ -424,7 +487,7 @@ fun IgnoreRulesScreen(
                         enabled = isEnabled && inputRuleValue.isNotBlank(),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp),
+                            .height(46.dp),
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF055B38),
@@ -435,14 +498,14 @@ fun IgnoreRulesScreen(
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.BookmarkAdd,
+                            imageVector = Icons.Outlined.Add,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(17.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Add Filter Rule",
-                            fontSize = 14.sp,
+                            text = "Add Ignore Rule",
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -461,29 +524,38 @@ fun IgnoreRulesScreen(
                 else -> rules
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // Header
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Section Title Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Active Filters",
-                        fontSize = 16.sp,
+                        text = "Active Rules",
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = Color(0xFF0F172A)
                     )
 
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    Text(
-                        text = "Showing (${filteredRules.size} rules)",
-                        fontSize = 11.sp,
-                        color = Color(0xFF6B7280)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFFF1F5F9), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "${filteredRules.size} active",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF64748B)
+                        )
+                    }
                 }
 
-                // Filter Category Chips
+                // Filter Category Stadium Chips
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -500,34 +572,35 @@ fun IgnoreRulesScreen(
                         Box(
                             modifier = Modifier
                                 .clip(CircleShape)
-                                .background(if (isSelected) Color(0xFFDCFCE7) else Color(0xFFF1F5F9))
+                                .background(if (isSelected) Color(0xFFDCFCE7) else Color.White)
                                 .border(
                                     BorderStroke(
                                         1.dp,
-                                        if (isSelected) Color(0xFF055B38).copy(alpha = 0.2f) else Color.Transparent
+                                        if (isSelected) Color(0xFF055B38) else Color(0xFFE2E8F0)
                                     ),
                                     CircleShape
                                 )
                                 .clickable { selectedFilterCategory = categoryKey }
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                                .padding(horizontal = 14.dp, vertical = 7.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = label,
                                 fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) Color(0xFF055B38) else Color(0xFF4B5563)
+                                color = if (isSelected) Color(0xFF055B38) else Color(0xFF475569)
                             )
                         }
                     }
                 }
 
                 if (filteredRules.isEmpty()) {
-                    Surface(
+                    Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(
                             modifier = Modifier
@@ -538,28 +611,35 @@ fun IgnoreRulesScreen(
                             Icon(
                                 imageVector = Icons.Outlined.FilterAltOff,
                                 contentDescription = null,
-                                tint = Color(0xFF9CA3AF),
+                                tint = Color(0xFF94A3B8),
                                 modifier = Modifier.size(32.dp)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "No rules match this filter",
+                                text = "No rules match this category",
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF6B7280)
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Add a new rule above to silence specific notifications.",
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B)
                             )
                         }
                     }
                 } else {
-                    // Rule Items Cards
+                    // Elevated ArcTracker Rule Cards
                     filteredRules.forEach { rule ->
-                        Surface(
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .alpha(if (isEnabled) 1f else 0.5f),
-                            shape = RoundedCornerShape(14.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Row(
                                 modifier = Modifier
@@ -567,39 +647,42 @@ fun IgnoreRulesScreen(
                                     .padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Left Icon Box
+                                // Category Icon Squircle
+                                val isSender = rule.type.equals("Sender", ignoreCase = true)
+                                val isRegex = rule.type.equals("Pattern", ignoreCase = true) || rule.type.equals("Regex", ignoreCase = true)
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
-                                        .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp)),
+                                        .background(
+                                            when {
+                                                isSender -> Color(0xFFEFF6FF)
+                                                isRegex -> Color(0xFFFAF5FF)
+                                                else -> Color(0xFFECFDF5)
+                                            },
+                                            RoundedCornerShape(12.dp)
+                                        ),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    when (rule.type.lowercase()) {
-                                        "sender" -> {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Send,
-                                                contentDescription = null,
-                                                tint = Color(0xFF055B38),
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                        "pattern", "regex" -> {
-                                            Text(
-                                                text = "(.*)",
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF055B38),
-                                                fontFamily = FontFamily.Monospace
-                                            )
-                                        }
-                                        else -> {
-                                            Text(
-                                                text = "ab",
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF055B38)
-                                            )
-                                        }
+                                    when {
+                                        isSender -> Icon(
+                                            imageVector = Icons.Outlined.Send,
+                                            contentDescription = null,
+                                            tint = Color(0xFF2563EB),
+                                            modifier = Modifier.size(17.dp)
+                                        )
+                                        isRegex -> Text(
+                                            text = "(.*)",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF7C3AED),
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        else -> Icon(
+                                            imageVector = Icons.Outlined.TextFields,
+                                            contentDescription = null,
+                                            tint = Color(0xFF055B38),
+                                            modifier = Modifier.size(18.dp)
+                                        )
                                     }
                                 }
 
@@ -612,24 +695,25 @@ fun IgnoreRulesScreen(
                                     ) {
                                         Text(
                                             text = rule.value,
-                                            fontSize = 14.sp,
+                                            fontSize = 13.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF111827),
+                                            color = Color(0xFF0F172A),
                                             maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
+                                            overflow = TextOverflow.Ellipsis,
+                                            fontFamily = if (isRegex) FontFamily.Monospace else FontFamily.Default
                                         )
 
                                         if (rule.isSystem) {
                                             Box(
                                                 modifier = Modifier
-                                                    .background(Color(0xFFF3F4F6), RoundedCornerShape(4.dp))
+                                                    .background(Color(0xFFF1F5F9), RoundedCornerShape(4.dp))
                                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                                             ) {
                                                 Text(
-                                                    text = "SYSTEM RULE",
+                                                    text = "SYSTEM",
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF6B7280)
+                                                    color = Color(0xFF64748B)
                                                 )
                                             }
                                         } else {
@@ -650,7 +734,7 @@ fun IgnoreRulesScreen(
 
                                     Spacer(modifier = Modifier.height(2.dp))
 
-                                    val matchLabel = if (rule.type.equals("Pattern", ignoreCase = true) || rule.type.equals("Regex", ignoreCase = true)) {
+                                    val matchLabel = if (isRegex) {
                                         "Type: Pattern • Match: Regex"
                                     } else {
                                         "Type: ${rule.type} • Match: ${rule.matchType}"
@@ -659,21 +743,24 @@ fun IgnoreRulesScreen(
                                     Text(
                                         text = matchLabel,
                                         fontSize = 11.sp,
-                                        color = Color(0xFF6B7280)
+                                        color = Color(0xFF64748B)
                                     )
                                 }
 
-                                // Delete Action Icon
-                                IconButton(
-                                    onClick = { deletingRule = rule },
-                                    enabled = isEnabled,
-                                    modifier = Modifier.size(32.dp)
+                                // Soft circular delete button
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFF8FAFC))
+                                        .clickable(enabled = isEnabled) { deletingRule = rule },
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.DeleteOutline,
                                         contentDescription = "Delete",
-                                        tint = Color(0xFF6B7280),
-                                        modifier = Modifier.size(18.dp)
+                                        tint = Color(0xFF64748B),
+                                        modifier = Modifier.size(17.dp)
                                     )
                                 }
                             }
@@ -682,166 +769,120 @@ fun IgnoreRulesScreen(
                 }
             }
 
-            // 4. Auditor's Best Practice Warning Card
-            Surface(
+            // 4. Auditor's Best Practice Notice (Amber Callout)
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .alpha(if (isEnabled) 1f else 0.6f),
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFFFFBEB),
-                border = BorderStroke(1.dp, Color(0xFFFDE68A))
+                    .background(Color(0xFFFFFBEB), RoundedCornerShape(14.dp))
+                    .border(1.dp, Color(0xFFFEF3C7), RoundedCornerShape(14.dp))
+                    .padding(14.dp),
+                verticalAlignment = Alignment.Top
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Lightbulb,
-                        contentDescription = null,
-                        tint = Color(0xFFB45309),
-                        modifier = Modifier.size(22.dp)
+                Icon(
+                    imageVector = Icons.Outlined.Lightbulb,
+                    contentDescription = null,
+                    tint = Color(0xFFD97706),
+                    modifier = Modifier
+                        .size(18.dp)
+                        .padding(top = 1.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Auditor's Best Practice",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF92400E)
                     )
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column {
-                        Text(
-                            text = "Auditor's Best Practice",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF92400E)
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = buildAnnotatedString {
-                                append("Avoid using generic keywords like ")
-                                withStyle(
-                                    SpanStyle(
-                                        fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF92400E),
-                                        background = Color.White
-                                    )
-                                ) {
-                                    append(" debited ")
-                                }
-                                append(" or ")
-                                withStyle(
-                                    SpanStyle(
-                                        fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF92400E),
-                                        background = Color.White
-                                    )
-                                ) {
-                                    append(" credited ")
-                                }
-                                append(". Doing so will silence genuine financial SMS receipts from landing in your ledger.")
-                            },
-                            fontSize = 11.sp,
-                            color = Color(0xFF78350F),
-                            lineHeight = 16.sp
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = buildAnnotatedString {
+                            append("Avoid using generic keywords like ")
+                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFF92400E))) {
+                                append("debited")
+                            }
+                            append(" or ")
+                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFF92400E))) {
+                                append("credited")
+                            }
+                            append(". Doing so will silence genuine financial SMS receipts from landing in your ledger.")
+                        },
+                        fontSize = 11.sp,
+                        color = Color(0xFF78350F),
+                        lineHeight = 16.sp
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            Spacer(modifier = Modifier.navigationBarsPadding())
         }
     }
 
-    // Creative, ArcTracker-Styled Delete Confirmation Dialog
+    // ArcTracker Custom Delete Confirmation Dialog
     deletingRule?.let { rule ->
         Dialog(onDismissRequest = { deletingRule = null }) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = Color.White,
-                tonalElevation = 6.dp,
-                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp)
+                    modifier = Modifier.padding(22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Header Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .background(Color(0xFFFEE2E2), CircleShape),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFFEE2E2)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.DeleteOutline,
-                                contentDescription = null,
-                                tint = Color(0xFFDC2626),
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Delete Ignore Rule",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 17.sp,
-                                color = Color(0xFF111827)
-                            )
-                            Text(
-                                text = "Rule Removal Confirmation",
-                                fontSize = 11.sp,
-                                color = Color(0xFF6B7280)
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFF3F4F6))
-                                .clickable { deletingRule = null },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = Color(0xFF6B7280),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Outlined.DeleteOutline,
+                            contentDescription = null,
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(26.dp)
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // Detail Card of the Rule
+                    Text(
+                        text = "Delete Ignore Rule?",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A)
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "Are you sure you want to remove this suppression rule?",
+                        fontSize = 12.sp,
+                        color = Color(0xFF64748B)
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Preview Card of the rule being deleted
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        color = Color(0xFFF9FAFB),
-                        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                     ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
+                        Column(
+                            modifier = Modifier.padding(14.dp)
+                        ) {
                             Row(
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
                                     text = rule.value,
-                                    fontSize = 15.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF111827),
+                                    color = Color(0xFF0F172A),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f, fill = false)
@@ -849,16 +890,16 @@ fun IgnoreRulesScreen(
                                 Box(
                                     modifier = Modifier
                                         .background(
-                                            if (rule.isSystem) Color(0xFFF3F4F6) else Color(0xFFDCFCE7),
+                                            if (rule.isSystem) Color(0xFFF1F5F9) else Color(0xFFDCFCE7),
                                             RoundedCornerShape(4.dp)
                                         )
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = if (rule.isSystem) "SYSTEM RULE" else "CUSTOM",
+                                        text = if (rule.isSystem) "SYSTEM" else "CUSTOM",
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (rule.isSystem) Color(0xFF6B7280) else Color(0xFF055B38)
+                                        color = if (rule.isSystem) Color(0xFF64748B) else Color(0xFF055B38)
                                     )
                                 }
                             }
@@ -867,17 +908,8 @@ fun IgnoreRulesScreen(
 
                             Text(
                                 text = "Type: ${rule.type} • Match: ${rule.matchType}",
-                                fontSize = 12.sp,
-                                color = Color(0xFF6B7280)
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Text(
-                                text = "Notifications matching this rule will no longer be suppressed and will be parsed into your ledger again.",
                                 fontSize = 11.sp,
-                                color = Color(0xFF4B5563),
-                                lineHeight = 15.sp
+                                color = Color(0xFF64748B)
                             )
                         }
                     }
@@ -893,17 +925,17 @@ fun IgnoreRulesScreen(
                             onClick = { deletingRule = null },
                             modifier = Modifier
                                 .weight(1f)
-                                .height(46.dp),
+                                .height(44.dp),
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFF3F4F6),
+                                containerColor = Color(0xFFF1F5F9),
                                 contentColor = Color(0xFF374151)
                             ),
                             elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                         ) {
                             Text(
                                 text = "Cancel",
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -914,8 +946,8 @@ fun IgnoreRulesScreen(
                                 deletingRule = null
                             },
                             modifier = Modifier
-                                .weight(1.3f)
-                                .height(46.dp),
+                                .weight(1.2f)
+                                .height(44.dp),
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFDC2626),
@@ -926,17 +958,61 @@ fun IgnoreRulesScreen(
                             Icon(
                                 imageVector = Icons.Outlined.DeleteOutline,
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Delete Rule",
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Custom ArcTracker Switch matching the app's clean aesthetic:
+ * Forest green background when checked, white thumb containing dark green checkmark.
+ */
+@Composable
+fun IgnoreRulesMockSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val thumbOffset by animateDpAsState(
+        targetValue = if (checked) 22.dp else 2.dp,
+        label = "switchThumbOffset"
+    )
+
+    Box(
+        modifier = modifier
+            .width(52.dp)
+            .height(30.dp)
+            .clip(CircleShape)
+            .background(if (checked) Color(0xFF055B38) else Color(0xFFCBD5E1))
+            .clickable { onCheckedChange(!checked) }
+            .padding(2.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(x = thumbOffset)
+                .size(26.dp)
+                .background(Color.White, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            if (checked) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color(0xFF055B38),
+                    modifier = Modifier.size(15.dp)
+                )
             }
         }
     }
