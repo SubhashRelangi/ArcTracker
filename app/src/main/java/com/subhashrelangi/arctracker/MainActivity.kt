@@ -528,7 +528,8 @@ fun ExpenseScreen() {
                 currentRoute != "Analytics" &&
                 currentRoute != "Budgets" &&
                 currentRoute != "Backup" &&
-                currentRoute != "SupportedApps"
+                currentRoute != "SupportedApps" &&
+                currentRoute != "ClearAllData"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
@@ -601,7 +602,7 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "CategoryManagement", "SupportedApps")) 0.dp else padding.calculateTopPadding()
+            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "CategoryManagement", "SupportedApps", "ClearAllData")) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
                     .padding(top = contentTopPadding)
@@ -676,6 +677,9 @@ fun ExpenseScreen() {
                 com.subhashrelangi.arctracker.ui.ClearAllDataScreen(
                     onNavigate = {
                         navigateTo(it)
+                    },
+                    onNavigateBack = {
+                        navigateBack()
                     },
                     onClearData = {
                         val repo = com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository.getInstance(context)
