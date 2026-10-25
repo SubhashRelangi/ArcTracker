@@ -114,7 +114,6 @@ fun ClearAllDataScreen(
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
-                        // Circular Shield Status Indicator
                         Box(
                             modifier = Modifier
                                 .size(38.dp)
@@ -273,18 +272,12 @@ fun ClearAllDataScreen(
                 }
             }
 
-            // 3. Purge Inventory Bullet Points Section
+            // 3. Purge Inventory Simple Bullet Points Section
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .background(Color(0xFFDC2626), CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "PURGE INVENTORY (IRREVERSIBLE)",
                         fontSize = 11.sp,
@@ -316,7 +309,8 @@ fun ClearAllDataScreen(
                     border = BorderStroke(1.dp, Color(0xFFE5E7EB))
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         val formattedEntries = if (txCount != null && txCount!! > 0) {
                             NumberFormat.getNumberInstance(Locale.US).format(txCount) + " entries"
@@ -325,15 +319,12 @@ fun ClearAllDataScreen(
                         } else {
                             "1,432 entries"
                         }
-                        DatastoreBulletPoint(
+                        SimpleBulletRow(
                             bulletColor = Color(0xFFDC2626),
-                            title = "Transaction Records",
-                            subtitle = "Expenses, credits & transfers",
+                            text = "Transaction Records",
                             value = formattedEntries,
                             valueColor = Color(0xFFDC2626)
                         )
-
-                        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
 
                         val formattedAccounts = if (accountCount != null && accountCount!! > 0) {
                             "${accountCount} accounts"
@@ -342,30 +333,24 @@ fun ClearAllDataScreen(
                         } else {
                             "3 accounts"
                         }
-                        DatastoreBulletPoint(
+                        SimpleBulletRow(
                             bulletColor = Color(0xFFDC2626),
-                            title = "Discovered Accounts",
-                            subtitle = "Masked ledger references",
+                            text = "Discovered Accounts",
                             value = formattedAccounts,
                             valueColor = Color(0xFFDC2626)
                         )
-
-                        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
 
                         val formattedRules = if (ruleCount != null && aliasCount != null) {
                             "${ruleCount} rules, ${aliasCount} aliases"
                         } else {
                             "14 rules, 28 aliases"
                         }
-                        DatastoreBulletPoint(
+                        SimpleBulletRow(
                             bulletColor = Color(0xFFDC2626),
-                            title = "Category Rules & Aliases",
-                            subtitle = "Trained parsing regex heuristics",
+                            text = "Category Rules & Aliases",
                             value = formattedRules,
                             valueColor = Color(0xFFDC2626)
                         )
-
-                        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
 
                         val formattedBudgets = if (budgetCount != null && budgetCount!! > 0) {
                             "${budgetCount} active limits"
@@ -374,15 +359,12 @@ fun ClearAllDataScreen(
                         } else {
                             "4 active limits"
                         }
-                        DatastoreBulletPoint(
+                        SimpleBulletRow(
                             bulletColor = Color(0xFFDC2626),
-                            title = "Category Budgets",
-                            subtitle = "Monthly ceiling triggers",
+                            text = "Category Budgets",
                             value = formattedBudgets,
                             valueColor = Color(0xFFDC2626)
                         )
-
-                        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
 
                         val formattedCache = if (cacheSizeMb != null && cacheSizeMb!! > 0.0) {
                             String.format(Locale.US, "%.1f MB cache", cacheSizeMb)
@@ -391,10 +373,9 @@ fun ClearAllDataScreen(
                         } else {
                             "18.4 MB cache"
                         }
-                        DatastoreBulletPoint(
+                        SimpleBulletRow(
                             bulletColor = Color(0xFFDC2626),
-                            title = "SQLite Cache & Intake",
-                            subtitle = "Transient SMS / notification intake",
+                            text = "SQLite Cache & Intake",
                             value = formattedCache,
                             valueColor = Color(0xFFDC2626)
                         )
@@ -402,18 +383,12 @@ fun ClearAllDataScreen(
                 }
             }
 
-            // 4. Retained Hardware Preferences Bullet Points Section
+            // 4. Retained Hardware Preferences Simple Bullet Points Section
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .background(Color(0xFF16A34A), CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "RETAINED HARDWARE PREFERENCES",
                         fontSize = 11.sp,
@@ -427,11 +402,11 @@ fun ClearAllDataScreen(
                     Box(
                         modifier = Modifier
                             .background(Color(0xFFDCFCE7), CircleShape)
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                            .padding(horizontal = 10.dp, vertical = 3.dp)
                     ) {
                         Text(
-                            text = "Zero Overhead Reconfiguration",
-                            fontSize = 10.sp,
+                            text = "2 Preserved Settings",
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF16A34A)
                         )
@@ -445,22 +420,19 @@ fun ClearAllDataScreen(
                     border = BorderStroke(1.dp, Color(0xFFE5E7EB))
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        DatastoreBulletPoint(
+                        SimpleBulletRow(
                             bulletColor = Color(0xFF16A34A),
-                            title = "Monitored App Permissions",
-                            subtitle = "Package access tokens & listen hooks",
+                            text = "Monitored App Permissions",
                             value = "Preserved",
                             valueColor = Color(0xFF16A34A)
                         )
 
-                        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
-
-                        DatastoreBulletPoint(
+                        SimpleBulletRow(
                             bulletColor = Color(0xFF16A34A),
-                            title = "Hardware Screen Security",
-                            subtitle = "FLAG_SECURE, biometric lock, masking",
+                            text = "Hardware Screen Security",
                             value = "Preserved",
                             valueColor = Color(0xFF16A34A)
                         )
@@ -648,42 +620,35 @@ fun ClearAllDataScreen(
 }
 
 @Composable
-private fun DatastoreBulletPoint(
+private fun SimpleBulletRow(
     bulletColor: Color,
-    title: String,
-    subtitle: String,
+    text: String,
     value: String,
     valueColor: Color
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp),
+            .padding(vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(6.dp)
+                .size(5.dp)
                 .background(bulletColor, CircleShape)
         )
 
         Spacer(modifier = Modifier.width(10.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF111827)
-            )
-            Text(
-                text = subtitle,
-                fontSize = 11.sp,
-                color = Color(0xFF6B7280)
-            )
-        }
+        Text(
+            text = text,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF1F2937),
+            modifier = Modifier.weight(1f)
+        )
 
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(8.dp))
 
         Text(
             text = value,
