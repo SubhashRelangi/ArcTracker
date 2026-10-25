@@ -529,7 +529,8 @@ fun ExpenseScreen() {
                 currentRoute != "Budgets" &&
                 currentRoute != "Backup" &&
                 currentRoute != "SupportedApps" &&
-                currentRoute != "ClearAllData"
+                currentRoute != "ClearAllData" &&
+                currentRoute != "IgnoreRules"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
@@ -602,7 +603,7 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets")) 0.dp else padding.calculateTopPadding()
+            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules")) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
                     .padding(top = contentTopPadding)
@@ -753,7 +754,9 @@ fun ExpenseScreen() {
 
             } else if (currentRoute == "IgnoreRules") {
 
-                com.subhashrelangi.arctracker.ui.IgnoreRulesScreen()
+                com.subhashrelangi.arctracker.ui.IgnoreRulesScreen(
+                    onNavigateBack = { navigateBack() }
+                )
 
             } else if (currentRoute == "DeveloperOptions") {
                 com.subhashrelangi.arctracker.ui.DeveloperOptionsScreen(
