@@ -1,29 +1,60 @@
 package com.subhashrelangi.arctracker.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.subhashrelangi.arctracker.data.AppDatabase
+import kotlin.math.roundToInt
+import com.subhashrelangi.arctracker.data.BuiltInCategories
 import com.subhashrelangi.arctracker.data.CategoryVisuals
 import com.subhashrelangi.arctracker.data.ExpenseDao
 import com.subhashrelangi.arctracker.data.TransactionCategory
@@ -31,6 +62,62 @@ import com.subhashrelangi.arctracker.service.CategoryManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+data class CategoryGlyphOption(
+    val key: String,
+    val icon: ImageVector
+)
+
+data class CategoryToneOption(
+    val key: String,
+    val label: String,
+    val color: Color,
+    val checkTint: Color = Color.White
+)
+
+private val ALL_CATEGORY_GLYPHS = listOf(
+    CategoryGlyphOption("pets", Icons.Filled.Pets),
+    CategoryGlyphOption("fitness_center", Icons.Filled.FitnessCenter),
+    CategoryGlyphOption("medical_services", Icons.Filled.FavoriteBorder),
+    CategoryGlyphOption("coffee", Icons.Filled.LocalCafe),
+    CategoryGlyphOption("flight", Icons.Filled.Flight),
+    CategoryGlyphOption("school", Icons.Filled.MenuBook),
+    CategoryGlyphOption("card_giftcard", Icons.Filled.CardGiftcard),
+    CategoryGlyphOption("movie", Icons.Filled.MusicNote),
+    CategoryGlyphOption("restaurant", Icons.Default.Restaurant),
+    CategoryGlyphOption("shopping_bag", Icons.Default.ShoppingBag),
+    CategoryGlyphOption("local_grocery_store", Icons.Default.LocalGroceryStore),
+    CategoryGlyphOption("directions_car", Icons.Default.DirectionsCar),
+    CategoryGlyphOption("home", Icons.Default.Bolt),
+    CategoryGlyphOption("work", Icons.Default.Computer),
+    CategoryGlyphOption("receipt", Icons.Default.Receipt),
+    CategoryGlyphOption("payments", Icons.Default.Payments),
+    CategoryGlyphOption("account_balance_wallet", Icons.Default.AccountBalanceWallet),
+    CategoryGlyphOption("savings", Icons.Default.Savings),
+    CategoryGlyphOption("swap_horiz", Icons.Default.SwapHoriz),
+    CategoryGlyphOption("category", Icons.Default.Category)
+)
+
+private val ALL_CATEGORY_TONES = listOf(
+    CategoryToneOption("green", "Emerald", Color(0xFF047857), Color.White),
+    CategoryToneOption("teal", "Teal / Mint", Color(0xFF0D9488), Color.White),
+    CategoryToneOption("blue", "Royal Blue", Color(0xFF2563EB), Color.White),
+    CategoryToneOption("indigo", "Indigo", Color(0xFF4F46E5), Color.White),
+    CategoryToneOption("purple", "Purple", Color(0xFF7C3AED), Color.White),
+    CategoryToneOption("pink", "Rose", Color(0xFFE11D48), Color.White),
+    CategoryToneOption("red", "Coral", Color(0xFFDC2626), Color.White),
+    CategoryToneOption("orange", "Orange", Color(0xFFEA580C), Color.White),
+    CategoryToneOption("amber", "Amber", Color(0xFFD97706), Color.White),
+    CategoryToneOption("cyan", "Cyan", Color(0xFF0284C7), Color.White),
+    CategoryToneOption("brown", "Brown", Color(0xFF5D4037), Color.White),
+    CategoryToneOption("default", "Charcoal", Color(0xFF334155), Color.White)
+)
+
+// In-memory cache to ensure instant frame-1 rendering when navigating between Rules/Aliases and Categories
+private var cachedCategoriesState: List<TransactionCategory> = BuiltInCategories.ALL
+private var cachedCategoryCountsState: Map<String, Int> = emptyMap()
+private var cachedRulesCountState: Int = 14
+private var cachedAliasesCountState: Int = 28
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +132,7 @@ fun CategoryManagementScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val listState = rememberLazyListState()
 
     val categoryManager = remember {
         manager ?: run {
@@ -57,6 +145,30 @@ fun CategoryManagementScreen(
         expenseDao ?: AppDatabase.getDatabase(context).expenseDao()
     }
 
+    val ruleDao = remember { AppDatabase.getDatabase(context).userCategoryRuleDao() }
+    val aliasDao = remember { AppDatabase.getDatabase(context).merchantAliasDao() }
+
+    val activeRules by ruleDao.getActiveRulesFlow().collectAsState(initial = emptyList())
+    val activeAliases by aliasDao.getActiveAliasesFlow().collectAsState(initial = emptyList())
+
+    val rulesCount = remember(activeRules) {
+        if (activeRules.isNotEmpty()) {
+            cachedRulesCountState = activeRules.size
+            activeRules.size
+        } else {
+            cachedRulesCountState
+        }
+    }
+
+    val aliasesCount = remember(activeAliases) {
+        if (activeAliases.isNotEmpty()) {
+            cachedAliasesCountState = activeAliases.size
+            activeAliases.size
+        } else {
+            cachedAliasesCountState
+        }
+    }
+
     // Ensure built-in categories exist
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -64,11 +176,18 @@ fun CategoryManagementScreen(
         }
     }
 
-    val allCategories by categoryManager.getAllCategoriesFlow().collectAsState(initial = emptyList())
+    // Instant frame-1 state initialized from in-memory cache
+    val allCategories by categoryManager.getAllCategoriesFlow().collectAsState(initial = cachedCategoriesState)
+    LaunchedEffect(allCategories) {
+        if (allCategories.isNotEmpty()) {
+            cachedCategoriesState = allCategories
+        }
+    }
+
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Active, 1: Archived
 
-    // Transaction counts per category
-    var categoryCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    // Transaction counts per category initialized instantly with cached counts
+    var categoryCounts by remember { mutableStateOf(cachedCategoryCountsState) }
     LaunchedEffect(allCategories) {
         withContext(Dispatchers.IO) {
             val counts = mutableMapOf<String, Int>()
@@ -76,212 +195,435 @@ fun CategoryManagementScreen(
                 counts[cat.id] = dao.countByCategoryId(cat.id)
             }
             categoryCounts = counts
+            cachedCategoryCountsState = counts
         }
     }
 
-    // Dialog States
-    var showAddDialog by remember { mutableStateOf(false) }
+    // Inline Add Category Form state
+    var newCategoryName by remember { mutableStateOf("") }
+    var selectedGlyph by remember { mutableStateOf(ALL_CATEGORY_GLYPHS.first()) }
+    var selectedTone by remember { mutableStateOf(ALL_CATEGORY_TONES.first()) }
+    var isMoreIconsExpanded by remember { mutableStateOf(false) }
+
+    // Dialog & Bottom Sheet States
     var categoryToEdit by remember { mutableStateOf<TransactionCategory?>(null) }
     var categoryToDelete by remember { mutableStateOf<TransactionCategory?>(null) }
-    var categoryToMerge by remember { mutableStateOf<TransactionCategory?>(null) }
     var categoryToArchive by remember { mutableStateOf<TransactionCategory?>(null) }
 
     val activeCategories = remember(allCategories) { allCategories.filter { !it.isArchived } }
     val archivedCategories = remember(allCategories) { allCategories.filter { it.isArchived } }
+    val displayedList = if (selectedTab == 0) activeCategories else archivedCategories
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "Categories",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Manage system & custom categories",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = subtitleColor
-                        )
+    BackHandler(enabled = categoryToEdit != null) {
+        categoryToEdit = null
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+            Surface(
+                color = Color.White,
+                shadowElevation = 0.5.dp,
+                modifier = Modifier.fillMaxWidth().background(Color.White)
+            ) {
+                com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
+                    title = "Categories",
+                    subtitle = "Taxonomy & Custom Tags",
+                    onBackClick = onNavigateBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .statusBarsPadding(),
+                    horizontalPadding = 16.dp,
+                    actions = {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 1. Auto-apply rules button
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                    .clickable(onClick = onNavigateToApplyRules),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.AutoFixHigh,
+                                    contentDescription = "Apply Rules",
+                                    tint = Color(0xFF0F172A),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+
+                            // 2. Circular Add (+) Button
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF0F172A))
+                                    .clickable {
+                                        scope.launch {
+                                            listState.animateScrollToItem(4)
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = "Add Category",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onNavigateToApplyRules) {
-                        Icon(
-                            imageVector = Icons.Filled.AutoFixHigh,
-                            contentDescription = "Apply Rules",
-                            tint = purpleColor
-                        )
-                    }
-                    IconButton(onClick = onNavigateToRules) {
-                        Icon(
-                            imageVector = Icons.Filled.Rule,
-                            contentDescription = "Category Rules",
-                            tint = purpleColor
-                        )
-                    }
-                    IconButton(onClick = onNavigateToAliases) {
-                        Icon(
-                            imageVector = Icons.Filled.Storefront,
-                            contentDescription = "Merchant Aliases",
-                            tint = purpleColor
-                        )
-                    }
-                    IconButton(onClick = { showAddDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Filled.Add,
-                            contentDescription = "Add Category",
-                            tint = purpleColor
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
                 )
-            )
+            }
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF9F9FB))
-                .padding(innerPadding)
+                .background(Color(0xFFF8FAFC))
+                .padding(innerPadding),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 48.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Tabs: Active vs Archived
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = Color.White,
-                contentColor = purpleColor
-            ) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text("Active (${activeCategories.size})", fontWeight = FontWeight.SemiBold) }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text("Archived (${archivedCategories.size})", fontWeight = FontWeight.SemiBold) }
-                )
-            }
-
-            val displayedList = if (selectedTab == 0) activeCategories else archivedCategories
-
-            if (displayedList.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
+            // Rules & Aliases Navigation Cards Row
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .background(lightPurpleColor, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
+                    // Rules Card
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(Color(0xFFF8FAFC), RoundedCornerShape(14.dp))
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(14.dp))
+                            .clickable(onClick = onNavigateToRules)
+                            .padding(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(Color(0xFFE2E8F0), RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Tune,
+                                    contentDescription = null,
+                                    tint = Color(0xFF475569),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Rules",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = "$rulesCount active",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
                             Icon(
-                                imageVector = if (selectedTab == 0) Icons.Filled.Category else Icons.Filled.Archive,
+                                imageVector = Icons.Filled.ChevronRight,
                                 contentDescription = null,
-                                tint = purpleColor,
-                                modifier = Modifier.size(28.dp)
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(18.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
+                    // Aliases Card
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(Color(0xFFF8FAFC), RoundedCornerShape(14.dp))
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(14.dp))
+                            .clickable(onClick = onNavigateToAliases)
+                            .padding(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(Color(0xFFE2E8F0), RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Storefront,
+                                    contentDescription = null,
+                                    tint = Color(0xFF475569),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Aliases",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = "$aliasesCount mapped",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Filled.ChevronRight,
+                                contentDescription = null,
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Segmented Tab Pill Selector: Active vs Archived
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
+                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(12.dp))
+                        .padding(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Active Tab
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (selectedTab == 0) Color.White else Color.Transparent)
+                                .then(
+                                    if (selectedTab == 0) Modifier.border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(10.dp))
+                                    else Modifier
+                                )
+                                .clickable { selectedTab = 0 }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "Active",
+                                    fontSize = 13.sp,
+                                    fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (selectedTab == 0) Color(0xFF0F172A) else Color(0xFF64748B)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFFF1F5F9), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "${activeCategories.size}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (selectedTab == 0) Color(0xFF0F172A) else Color(0xFF64748B)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Archived Tab
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (selectedTab == 1) Color.White else Color.Transparent)
+                                .then(
+                                    if (selectedTab == 1) Modifier.border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(10.dp))
+                                    else Modifier
+                                )
+                                .clickable { selectedTab = 1 }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "Archived",
+                                    fontSize = 13.sp,
+                                    fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (selectedTab == 1) Color(0xFF0F172A) else Color(0xFF64748B)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFFF1F5F9), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "${archivedCategories.size}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (selectedTab == 1) Color(0xFF0F172A) else Color(0xFF64748B)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Grouped Category Section in One Card with Dividers
+            item {
+                if (displayedList.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White, RoundedCornerShape(16.dp))
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(16.dp))
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
                             text = if (selectedTab == 0) "No active categories" else "No archived categories",
-                            fontSize = 15.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            color = textColor
+                            color = Color(0xFF64748B)
                         )
                     }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(displayedList, key = { it.id }) { category ->
-                        val count = categoryCounts[category.id] ?: 0
-                        CategoryRowCard(
-                            category = category,
-                            transactionCount = count,
-                            onEdit = { categoryToEdit = category },
-                            onArchiveToggle = {
-                                if (category.isArchived) {
-                                    scope.launch {
-                                        val res = categoryManager.restoreCategory(category.id)
-                                        if (res.isSuccess) {
-                                            snackbarHostState.showSnackbar("Restored \"${category.name}\"")
+                } else {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            displayedList.forEachIndexed { index, category ->
+                                val count = categoryCounts[category.id] ?: 0
+                                CategoryMockRow(
+                                    category = category,
+                                    transactionCount = count,
+                                    onEdit = { categoryToEdit = category },
+                                    onArchiveToggle = {
+                                        if (category.isArchived) {
+                                            scope.launch {
+                                                val res = categoryManager.restoreCategory(category.id)
+                                                if (res.isSuccess) {
+                                                    snackbarHostState.showSnackbar("Restored \"${category.name}\"")
+                                                }
+                                            }
+                                        } else {
+                                            categoryToArchive = category
                                         }
-                                    }
-                                } else {
-                                    categoryToArchive = category
+                                    },
+                                    onDelete = { categoryToDelete = category }
+                                )
+
+                                // Subtle divider between items inside the section
+                                if (index < displayedList.size - 1) {
+                                    HorizontalDivider(
+                                        color = Color(0xFFF1F5F9),
+                                        thickness = 1.dp,
+                                        modifier = Modifier.padding(horizontal = 14.dp)
+                                    )
                                 }
-                            },
-                            onMerge = { categoryToMerge = category },
-                            onDelete = { categoryToDelete = category }
-                        )
+                            }
+                        }
                     }
                 }
+            }
+
+            // Inline "Add New Category" Section at bottom
+            item {
+                Spacer(modifier = Modifier.height(6.dp))
+                AddNewCategoryInlineCard(
+                    categoryName = newCategoryName,
+                    onCategoryNameChange = { newCategoryName = it },
+                    selectedGlyph = selectedGlyph,
+                    onGlyphSelected = { selectedGlyph = it },
+                    selectedTone = selectedTone,
+                    onToneSelected = { selectedTone = it },
+                    isMoreIconsExpanded = isMoreIconsExpanded,
+                    onToggleMoreIcons = { isMoreIconsExpanded = !isMoreIconsExpanded },
+                    onCreateCategory = {
+                        val trimmed = newCategoryName.trim()
+                        if (trimmed.isEmpty()) {
+                            scope.launch { snackbarHostState.showSnackbar("Category name cannot be empty") }
+                            return@AddNewCategoryInlineCard
+                        }
+                        if (allCategories.any { it.name.equals(trimmed, ignoreCase = true) }) {
+                            scope.launch { snackbarHostState.showSnackbar("A category with this name already exists") }
+                            return@AddNewCategoryInlineCard
+                        }
+                        scope.launch {
+                            val res = categoryManager.createCategory(
+                                name = trimmed,
+                                iconKey = selectedGlyph.key,
+                                colorKey = selectedTone.key
+                            )
+                            if (res.isSuccess) {
+                                snackbarHostState.showSnackbar("Created category \"$trimmed\"")
+                                newCategoryName = ""
+                            } else {
+                                snackbarHostState.showSnackbar(res.exceptionOrNull()?.message ?: "Failed to create category")
+                            }
+                        }
+                    }
+                )
             }
         }
     }
 
-    // Add Category Dialog
-    if (showAddDialog) {
-        AddCategoryDialog(
-            existingCategories = allCategories,
-            onDismiss = { showAddDialog = false },
-            onConfirm = { name, iconKey, colorKey ->
-                scope.launch {
-                    val result = categoryManager.createCategory(name, iconKey, colorKey)
-                    if (result.isSuccess) {
-                        snackbarHostState.showSnackbar("Category \"$name\" created")
-                        showAddDialog = false
-                    } else {
-                        snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error creating category")
+    // Modern Edit Category Bottom Sheet Overlay (anchored solidly to bottom with 0 gap, 70% screen height)
+        AnimatedVisibility(
+            visible = categoryToEdit != null,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(150))
+        ) {
+            categoryToEdit?.let { category ->
+                EditCategoryBottomSheet(
+                    category = category,
+                    existingCategories = allCategories,
+                    onDismiss = { categoryToEdit = null },
+                    onConfirm = { newName, newIcon, newColor ->
+                        scope.launch {
+                            val result = categoryManager.updateCategory(
+                                id = category.id,
+                                name = if (!category.isSystem) newName else category.name,
+                                iconKey = newIcon,
+                                colorKey = newColor
+                            )
+                            if (result.isSuccess) {
+                                snackbarHostState.showSnackbar("Updated \"${category.name}\"")
+                                categoryToEdit = null
+                            } else {
+                                snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error updating category")
+                            }
+                        }
                     }
-                }
+                )
             }
-        )
-    }
-
-    // Edit Category Dialog
-    categoryToEdit?.let { category ->
-        EditCategoryDialog(
-            category = category,
-            existingCategories = allCategories,
-            onDismiss = { categoryToEdit = null },
-            onConfirm = { newName, newIcon, newColor ->
-                scope.launch {
-                    val result = categoryManager.updateCategory(
-                        id = category.id,
-                        name = if (!category.isSystem) newName else category.name,
-                        iconKey = newIcon,
-                        colorKey = newColor
-                    )
-                    if (result.isSuccess) {
-                        snackbarHostState.showSnackbar("Updated \"${category.name}\"")
-                        categoryToEdit = null
-                    } else {
-                        snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error updating category")
-                    }
-                }
-            }
-        )
+        }
     }
 
     // Archive Confirmation Dialog
@@ -293,7 +635,7 @@ fun CategoryManagementScreen(
                 Text(
                     "Archived categories are hidden from the transaction dropdown, but existing transactions will retain this category.",
                     fontSize = 13.sp,
-                    color = subtitleColor
+                    color = Color(0xFF64748B)
                 )
             },
             confirmButton = {
@@ -308,14 +650,14 @@ fun CategoryManagementScreen(
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = purpleColor)
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
                 ) {
                     Text("Archive")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { categoryToArchive = null }) {
-                    Text("Cancel", color = textColor)
+                    Text("Cancel", color = Color(0xFF0F172A))
                 }
             }
         )
@@ -325,7 +667,7 @@ fun CategoryManagementScreen(
     categoryToDelete?.let { category ->
         val count = categoryCounts[category.id] ?: 0
         var reassignTargetId by remember { mutableStateOf<String?>(null) }
-        var deleteMode by remember { mutableIntStateOf(if (count > 0) 0 else 1) } // 0: Reassign, 1: Unlink
+        var deleteMode by remember { mutableIntStateOf(if (count > 0) 0 else 1) }
         val targetOptions = remember(activeCategories, category) {
             activeCategories.filter { it.id != category.id }
         }
@@ -349,13 +691,13 @@ fun CategoryManagementScreen(
                         )
 
                         if (count > 0) {
-                            Text("What would you like to do with these transactions?", fontSize = 12.sp, color = subtitleColor)
+                            Text("What would you like to do with these transactions?", fontSize = 12.sp, color = Color(0xFF64748B))
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 RadioButton(
                                     selected = deleteMode == 0,
                                     onClick = { deleteMode = 0 },
-                                    colors = RadioButtonDefaults.colors(selectedColor = purpleColor)
+                                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF047857))
                                 )
                                 Text("Reassign to another category", fontSize = 12.sp)
                             }
@@ -391,7 +733,7 @@ fun CategoryManagementScreen(
                                 RadioButton(
                                     selected = deleteMode == 1,
                                     onClick = { deleteMode = 1 },
-                                    colors = RadioButtonDefaults.colors(selectedColor = purpleColor)
+                                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF047857))
                                 )
                                 Text("Leave Uncategorized", fontSize = 12.sp)
                             }
@@ -416,7 +758,7 @@ fun CategoryManagementScreen(
                             }
                         },
                         enabled = count == 0 || deleteMode == 1 || (deleteMode == 0 && reassignTargetId != null),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
                     ) {
                         Text("Delete")
                     }
@@ -424,340 +766,531 @@ fun CategoryManagementScreen(
             },
             dismissButton = {
                 TextButton(onClick = { categoryToDelete = null }) {
-                    Text("Cancel", color = textColor)
-                }
-            }
-        )
-    }
-
-    // Merge Categories Dialog
-    categoryToMerge?.let { sourceCategory ->
-        val count = categoryCounts[sourceCategory.id] ?: 0
-        var targetCategory by remember { mutableStateOf<TransactionCategory?>(null) }
-        val targetCandidates = remember(activeCategories, sourceCategory) {
-            activeCategories.filter { it.id != sourceCategory.id }
-        }
-
-        AlertDialog(
-            onDismissRequest = { categoryToMerge = null },
-            title = { Text("Merge \"${sourceCategory.name}\"", fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Move all $count transaction(s) from \"${sourceCategory.name}\" into a target category.",
-                        fontSize = 13.sp,
-                        color = subtitleColor
-                    )
-                    Text(
-                        text = if (sourceCategory.isSystem) {
-                            "Note: Since \"${sourceCategory.name}\" is a system category, it will be archived after merging."
-                        } else {
-                            "Note: \"${sourceCategory.name}\" will be deleted after merging."
-                        },
-                        fontSize = 11.sp,
-                        color = purpleColor
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("Select Target Category:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-
-                    var dropdownExpanded by remember { mutableStateOf(false) }
-                    Box {
-                        OutlinedButton(
-                            onClick = { dropdownExpanded = true },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(targetCategory?.name ?: "Choose Target Category", fontSize = 13.sp)
-                            Spacer(modifier = Modifier.weight(1f))
-                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
-                        }
-                        DropdownMenu(
-                            expanded = dropdownExpanded,
-                            onDismissRequest = { dropdownExpanded = false }
-                        ) {
-                            targetCandidates.forEach { candidate ->
-                                DropdownMenuItem(
-                                    text = { Text(candidate.name) },
-                                    onClick = {
-                                        targetCategory = candidate
-                                        dropdownExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val target = targetCategory
-                        if (target != null) {
-                            val srcId = sourceCategory.id
-                            val tgtId = target.id
-                            categoryToMerge = null
-                            scope.launch {
-                                val res = categoryManager.mergeCategories(srcId, tgtId)
-                                if (res.isSuccess) {
-                                    snackbarHostState.showSnackbar("Merged \"${sourceCategory.name}\" into \"${target.name}\"")
-                                } else {
-                                    snackbarHostState.showSnackbar(res.exceptionOrNull()?.message ?: "Merge failed")
-                                }
-                            }
-                        }
-                    },
-                    enabled = targetCategory != null,
-                    colors = ButtonDefaults.buttonColors(containerColor = purpleColor)
-                ) {
-                    Text("Merge")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { categoryToMerge = null }) {
-                    Text("Cancel", color = textColor)
+                    Text("Cancel", color = Color(0xFF0F172A))
                 }
             }
         )
     }
 }
 
+/**
+ * Individual row inside the unified Category Section.
+ * Sleek, proportionate font sizes and clean spacing with divider support.
+ */
 @Composable
-fun CategoryRowCard(
+private fun CategoryMockRow(
     category: TransactionCategory,
     transactionCount: Int,
     onEdit: () -> Unit,
     onArchiveToggle: () -> Unit,
-    onMerge: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, borderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    val nameLower = category.name.lowercase()
+    val (containerBg, iconTint, iconVector) = remember(category) {
+        when {
+            nameLower.contains("food") || nameLower.contains("dining") -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), Icons.Default.Restaurant)
+            nameLower.contains("hous") || nameLower.contains("util") -> Triple(Color(0xFFF1F5F9), Color(0xFF64748B), Icons.Default.Bolt)
+            nameLower.contains("shop") || nameLower.contains("gadget") -> Triple(Color(0xFFE2E8F0), Color(0xFF475569), Icons.Default.ShoppingBag)
+            nameLower.contains("travel") || nameLower.contains("commute") -> Triple(Color(0xFFD1FAE5), Color(0xFF059669), Icons.Default.DirectionsCar)
+            nameLower.contains("freelance") || nameLower.contains("saas") -> Triple(Color(0xFFE2E8F0), Color(0xFF475569), Icons.Default.Computer)
+            else -> Triple(
+                CategoryVisuals.getContainerColor(category.colorKey),
+                CategoryVisuals.getColor(category.colorKey),
+                CategoryVisuals.getIcon(category.iconKey)
+            )
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onEdit)
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        // Category Icon box
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .size(38.dp)
+                .background(containerBg, RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center
         ) {
-            // Visual Icon inside colored circle
-            val catColor = CategoryVisuals.getColor(category.colorKey)
+            Icon(
+                imageVector = iconVector,
+                contentDescription = category.name,
+                tint = iconTint,
+                modifier = Modifier.size(19.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Center details: Sleek proportionate font size
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = category.name,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.5.sp,
+                    color = Color(0xFF0F172A),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = if (category.isSystem) Color(0xFFF1F5F9) else Color(0xFFECFDF5),
+                            shape = RoundedCornerShape(5.dp)
+                        )
+                        .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                ) {
+                    Text(
+                        text = if (category.isSystem) "System" else "Custom",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (category.isSystem) Color(0xFF475569) else Color(0xFF047857)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "$transactionCount transactions logged",
+                fontSize = 11.5.sp,
+                color = Color(0xFF64748B)
+            )
+        }
+
+        // Action icons
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // Edit Icon Button
             Box(
                 modifier = Modifier
-                    .size(42.dp)
-                    .background(catColor.copy(alpha = 0.15f), CircleShape),
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFF8FAFC))
+                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                    .clickable(onClick = onEdit),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = CategoryVisuals.getIcon(category.iconKey),
-                    contentDescription = category.name,
-                    tint = catColor,
-                    modifier = Modifier.size(22.dp)
+                    imageVector = Icons.Outlined.Edit,
+                    contentDescription = "Edit Category",
+                    tint = Color(0xFF475569),
+                    modifier = Modifier.size(15.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = category.name,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        color = textColor
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Surface(
-                        color = if (category.isSystem) Color(0xFFEDE7F6) else Color(0xFFE3F2FD),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Text(
-                            text = if (category.isSystem) "System" else "Custom",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (category.isSystem) purpleColor else Color(0xFF1976D2),
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                        )
-                    }
-                    if (category.isArchived) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Surface(
-                            color = Color(0xFFFFEBEE),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text(
-                                text = "Archived",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFC62828),
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "$transactionCount transactions",
-                    fontSize = 11.sp,
-                    color = subtitleColor
-                )
-            }
-
-            // Action Icons
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Edit", modifier = Modifier.size(16.dp), tint = Color.Gray)
-                }
-                IconButton(onClick = onMerge, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Filled.Merge, contentDescription = "Merge", modifier = Modifier.size(16.dp), tint = Color.Gray)
-                }
-                IconButton(onClick = onArchiveToggle, modifier = Modifier.size(32.dp)) {
+            if (category.isSystem) {
+                // Archive Toggle Button
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFF8FAFC))
+                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                        .clickable(onClick = onArchiveToggle),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
-                        imageVector = if (category.isArchived) Icons.Filled.Unarchive else Icons.Filled.Archive,
-                        contentDescription = if (category.isArchived) "Restore" else "Archive",
-                        modifier = Modifier.size(16.dp),
-                        tint = Color.Gray
+                        imageVector = Icons.Outlined.Archive,
+                        contentDescription = "Archive",
+                        tint = Color(0xFF475569),
+                        modifier = Modifier.size(15.dp)
                     )
                 }
-                if (!category.isSystem) {
-                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp), tint = Color(0xFFC62828))
-                    }
+            } else {
+                // Delete Button for Custom Categories
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFEE2E2))
+                        .border(BorderStroke(1.dp, Color(0xFFFECACA)), CircleShape)
+                        .clickable(onClick = onDelete),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.DeleteOutline,
+                        contentDescription = "Delete",
+                        tint = Color(0xFFDC2626),
+                        modifier = Modifier.size(15.dp)
+                    )
                 }
             }
         }
     }
 }
 
+/**
+ * Inline "Add New Category" Section at the bottom of the list.
+ * Clean, centered icon grid without text labels, full color palette,
+ * and a circle/pill format button dynamically colored to match the selected tone.
+ */
 @Composable
-fun AddCategoryDialog(
-    existingCategories: List<TransactionCategory>,
-    onDismiss: () -> Unit,
-    onConfirm: (name: String, iconKey: String, colorKey: String) -> Unit
+private fun AddNewCategoryInlineCard(
+    categoryName: String,
+    onCategoryNameChange: (String) -> Unit,
+    selectedGlyph: CategoryGlyphOption,
+    onGlyphSelected: (CategoryGlyphOption) -> Unit,
+    selectedTone: CategoryToneOption,
+    onToneSelected: (CategoryToneOption) -> Unit,
+    isMoreIconsExpanded: Boolean,
+    onToggleMoreIcons: () -> Unit,
+    onCreateCategory: () -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var selectedIcon by remember { mutableStateOf(CategoryVisuals.AVAILABLE_ICON_KEYS.first()) }
-    var selectedColor by remember { mutableStateOf(CategoryVisuals.AVAILABLE_COLOR_KEYS.first()) }
-
-    val nameValidation = remember(name, existingCategories) {
-        val trimmed = name.trim()
-        when {
-            trimmed.isEmpty() -> "Name cannot be empty"
-            trimmed.length > 30 -> "Name must be 30 characters or fewer"
-            existingCategories.any { it.name.equals(trimmed, ignoreCase = true) } -> "A category with this name already exists"
-            else -> null
-        }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Custom Category", fontWeight = FontWeight.Bold, fontSize = 16.sp) },
-        text = {
-            Column(
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp)
+        ) {
+            // Header Row: Green dot + Add New Category + Custom Node label
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Category Name") },
-                    isError = name.isNotBlank() && nameValidation != null,
-                    supportingText = {
-                        if (name.isNotBlank() && nameValidation != null) {
-                            Text(nameValidation, color = Color(0xFFC62828))
-                        }
-                    },
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .background(selectedTone.color, CircleShape)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Add New Category",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF0F172A)
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "Custom Node",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF64748B)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Field: Category Name
+            Text(
+                text = "Category Name",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF475569)
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp)
+                    .background(Color(0xFFF8FAFC), RoundedCornerShape(10.dp))
+                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (categoryName.isEmpty()) {
+                    Text(
+                        text = "e.g. Pet Care",
+                        fontSize = 13.5.sp,
+                        color = Color(0xFF94A3B8)
+                    )
+                }
+                BasicTextField(
+                    value = categoryName,
+                    onValueChange = onCategoryNameChange,
                     singleLine = true,
+                    textStyle = TextStyle(
+                        fontSize = 13.5.sp,
+                        color = Color(0xFF0F172A),
+                        fontWeight = FontWeight.Medium
+                    ),
+                    cursorBrush = SolidColor(selectedTone.color),
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
 
-                Text("Icon", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(5),
-                    modifier = Modifier.height(100.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Section: Icon Glyph with Centered Icon Selector
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Icon Glyph",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF475569)
+                )
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Interactive toggle for more icons
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFECFDF5))
+                        .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(10.dp))
+                        .clickable(onClick = onToggleMoreIcons)
+                        .padding(horizontal = 9.dp, vertical = 4.dp)
                 ) {
-                    items(CategoryVisuals.AVAILABLE_ICON_KEYS) { iconKey ->
-                        val isSelected = selectedIcon == iconKey
-                        Surface(
-                            shape = CircleShape,
-                            color = if (isSelected) lightPurpleColor else Color(0xFFF5F5F5),
-                            border = if (isSelected) BorderStroke(2.dp, purpleColor) else null,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clickable { selectedIcon = iconKey }
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = if (isMoreIconsExpanded) "▲ Less" else "▼ More Icons (${ALL_CATEGORY_GLYPHS.size})",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF047857)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Centered icons without text labels - 4 columns
+            val displayedGlyphs = if (isMoreIconsExpanded) ALL_CATEGORY_GLYPHS else ALL_CATEGORY_GLYPHS.take(8)
+            val glyphChunks = displayedGlyphs.chunked(4)
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                glyphChunks.forEach { row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        row.forEach { item ->
+                            val isSelected = item.key == selectedGlyph.key
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) selectedTone.color.copy(alpha = 0.12f) else Color(0xFFF1F5F9))
+                                    .border(
+                                        BorderStroke(
+                                            if (isSelected) 1.5.dp else 1.dp,
+                                            if (isSelected) selectedTone.color else Color.Transparent
+                                        ),
+                                        RoundedCornerShape(10.dp)
+                                    )
+                                    .clickable { onGlyphSelected(item) },
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Icon(
-                                    imageVector = CategoryVisuals.getIcon(iconKey),
-                                    contentDescription = iconKey,
-                                    tint = if (isSelected) purpleColor else Color.Gray,
-                                    modifier = Modifier.size(18.dp)
+                                    imageVector = item.icon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) selectedTone.color else Color(0xFF64748B),
+                                    modifier = Modifier.size(21.dp)
                                 )
                             }
                         }
                     }
                 }
+            }
 
-                Text("Color", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(6),
-                    modifier = Modifier.height(80.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items(CategoryVisuals.AVAILABLE_COLOR_KEYS) { colorKey ->
-                        val isSelected = selectedColor == colorKey
-                        val swatchColor = CategoryVisuals.getColor(colorKey)
-                        Surface(
-                            shape = CircleShape,
-                            color = swatchColor,
-                            border = if (isSelected) BorderStroke(2.dp, Color.Black) else null,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clickable { selectedColor = colorKey }
-                        ) {
-                            if (isSelected) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-                                }
-                            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Section: Theme Tone with interactive palette
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Theme Tone",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF475569)
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(9.dp)
+                            .background(selectedTone.color, CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = selectedTone.label,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = selectedTone.color
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 12-Color Selector in horizontal scrollable row with generous swatches
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ALL_CATEGORY_TONES.forEach { tone ->
+                    val isSelected = tone.key == selectedTone.key
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(tone.color)
+                            .then(
+                                if (isSelected) Modifier.border(BorderStroke(2.5.dp, Color.White), CircleShape)
+                                else Modifier
+                            )
+                            .clickable { onToneSelected(tone) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = tone.label,
+                                tint = tone.checkTint,
+                                modifier = Modifier.size(17.dp)
+                            )
                         }
                     }
                 }
             }
-        },
-        confirmButton = {
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Circle / Pill Format Button dynamically colored to match selected category tone
             Button(
-                onClick = { onConfirm(name.trim(), selectedIcon, selectedColor) },
-                enabled = nameValidation == null,
-                colors = ButtonDefaults.buttonColors(containerColor = purpleColor)
+                onClick = onCreateCategory,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = selectedTone.color)
             ) {
-                Text("Create")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = textColor)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .background(Color.White.copy(alpha = 0.25f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Create Category",
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
         }
-    )
+    }
 }
 
+/**
+ * Modern Edit Category Bottom Sheet Overlay:
+ * - Anchored solidly to the bottom of the screen (0dp gap, no category components peeking through underneath).
+ * - Opens initially covering 70% of the screen height, with the top 30% dimmed by a scrim overlay.
+ * - Clicking the top scrim, clicking the Close (X) button, or pressing the back button dismisses it.
+ * - When user drags up or clicks "More Icons (20)", the sheet smoothly expands to 95% of screen height.
+ * - Internal scroll is enabled once expanded to full, allowing users to effortlessly view all 20 icons and options.
+ * - 8 centered icons by default in 2 rows of 4 (centered inside boxes without text labels).
+ * - 12 theme tone colors in ONE horizontal scrollable line.
+ * - Dynamic pill format "Save Changes" button matching the selected theme tone.
+ */
 @Composable
-fun EditCategoryDialog(
+fun EditCategoryBottomSheet(
     category: TransactionCategory,
     existingCategories: List<TransactionCategory>,
     onDismiss: () -> Unit,
     onConfirm: (newName: String, newIcon: String, newColor: String) -> Unit
 ) {
+    var isMoreIconsExpanded by remember { mutableStateOf(false) }
+    val animatedHeightFraction by animateFloatAsState(
+        targetValue = if (isMoreIconsExpanded) 0.90f else 0.70f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "sheetHeightFraction"
+    )
+
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+
     var name by remember { mutableStateOf(category.name) }
     var selectedIcon by remember { mutableStateOf(category.iconKey) }
     var selectedColor by remember { mutableStateOf(category.colorKey) }
+
+    // Downward swipe-to-dismiss drag tracking
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+
+    fun dismissOrSnapBack(totalDrag: Float, velocity: Float = 0f) {
+        if (totalDrag > 70f || velocity > 500f) {
+            onDismiss()
+        } else {
+            scope.launch {
+                val anim = Animatable(dragOffsetY)
+                anim.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow)) {
+                    dragOffsetY = value
+                }
+            }
+        }
+    }
+
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                if (delta < 0 && dragOffsetY > 0f) {
+                    val newOffset = (dragOffsetY + delta).coerceAtLeast(0f)
+                    val consumed = dragOffsetY - newOffset
+                    dragOffsetY = newOffset
+                    return Offset(0f, -consumed)
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                // If content is at the top (or doesn't need scrolling), downward gesture pulls sheet down to dismiss
+                if (delta > 0 && scrollState.value == 0) {
+                    dragOffsetY = (dragOffsetY + delta).coerceAtLeast(0f)
+                    return Offset(0f, delta)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (dragOffsetY > 70f || available.y > 500f) {
+                    onDismiss()
+                    return available
+                } else if (dragOffsetY > 0f) {
+                    dismissOrSnapBack(dragOffsetY, available.y)
+                    return available
+                }
+                return Velocity.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (dragOffsetY > 70f || available.y > 500f) {
+                    onDismiss()
+                } else if (dragOffsetY > 0f) {
+                    dismissOrSnapBack(dragOffsetY, available.y)
+                }
+                return Velocity.Zero
+            }
+        }
+    }
 
     val nameValidation = remember(name, existingCategories, category) {
         val trimmed = name.trim()
@@ -769,113 +1302,383 @@ fun EditCategoryDialog(
         }
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = if (category.isSystem) "Customize System Category" else "Edit Category",
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-        },
-        text = {
+    val activeTone = remember(selectedColor) {
+        ALL_CATEGORY_TONES.find { it.key.equals(selectedColor, ignoreCase = true) }
+            ?: ALL_CATEGORY_TONES.first()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .zIndex(100f)
+    ) {
+        // Top 30% Scrim Overlay covering the category page components
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
+                )
+        )
+
+        // White Bottom Sheet Surface attached 100% solidly to bottom with zero gap
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(animatedHeightFraction)
+                .align(Alignment.BottomCenter)
+                .offset { IntOffset(0, dragOffsetY.roundToInt()) }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { /* consume clicks so clicks don't hit scrim */ }
+                ),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            color = Color.White,
+            shadowElevation = 24.dp
+        ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding()
             ) {
-                if (!category.isSystem) {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("Category Name") },
-                        isError = nameValidation != null,
-                        supportingText = {
-                            if (nameValidation != null) {
-                                Text(nameValidation, color = Color(0xFFC62828))
-                            }
-                        },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    Text(
-                        text = "Category: ${category.name} (Built-in)",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = textColor
+                // Drag handle bar with vertical gesture support to pull down and close
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures(
+                                onDragStart = {},
+                                onDragEnd = { dismissOrSnapBack(dragOffsetY) },
+                                onDragCancel = { dismissOrSnapBack(dragOffsetY) },
+                                onVerticalDrag = { change, dragAmount ->
+                                    if (dragAmount > 0 || dragOffsetY > 0) {
+                                        change.consume()
+                                        dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
+                                    }
+                                }
+                            )
+                        }
+                        .padding(top = 10.dp, bottom = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(38.dp)
+                            .height(4.5.dp)
+                            .background(Color(0xFFCBD5E1), RoundedCornerShape(2.dp))
                     )
                 }
 
-                Text("Icon", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(5),
-                    modifier = Modifier.height(100.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                // Header Row: Icon preview + Title & Subtitle + Close (X) button
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 12.dp)
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures(
+                                onDragStart = {},
+                                onDragEnd = { dismissOrSnapBack(dragOffsetY) },
+                                onDragCancel = { dismissOrSnapBack(dragOffsetY) },
+                                onVerticalDrag = { change, dragAmount ->
+                                    if (dragAmount > 0 || dragOffsetY > 0) {
+                                        change.consume()
+                                        dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
+                                    }
+                                }
+                            )
+                        },
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items(CategoryVisuals.AVAILABLE_ICON_KEYS) { iconKey ->
-                        val isSelected = selectedIcon == iconKey
-                        Surface(
-                            shape = CircleShape,
-                            color = if (isSelected) lightPurpleColor else Color(0xFFF5F5F5),
-                            border = if (isSelected) BorderStroke(2.dp, purpleColor) else null,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clickable { selectedIcon = iconKey }
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = CategoryVisuals.getIcon(iconKey),
-                                    contentDescription = iconKey,
-                                    tint = if (isSelected) purpleColor else Color.Gray,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
+                    val previewBg = CategoryVisuals.getContainerColor(selectedColor)
+                    val previewTint = CategoryVisuals.getColor(selectedColor)
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(previewBg, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = CategoryVisuals.getIcon(selectedIcon),
+                            contentDescription = null,
+                            tint = previewTint,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (category.isSystem) "Customize System Category" else "Edit Category",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A)
+                        )
+                        Text(
+                            text = if (category.isSystem) "Customize icon and theme color" else "Edit category name, icon and color tone",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(34.dp)
+                            .background(Color(0xFFF1F5F9), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Close",
+                            tint = Color(0xFF64748B),
+                            modifier = Modifier.size(17.dp)
+                        )
                     }
                 }
 
-                Text("Color", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(6),
-                    modifier = Modifier.height(80.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                // Content area: stays nicely fitted at 70%; only scrolls if user expanded "More Icons" or on small screens
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .nestedScroll(nestedScrollConnection)
+                        .verticalScroll(scrollState)
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 14.dp)
                 ) {
-                    items(CategoryVisuals.AVAILABLE_COLOR_KEYS) { colorKey ->
-                        val isSelected = selectedColor == colorKey
-                        val swatchColor = CategoryVisuals.getColor(colorKey)
+                    // Category Name Textbox (or Locked notification for System Category)
+                    if (!category.isSystem) {
+                        Text(
+                            text = "Category Name",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF334155)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            singleLine = true,
+                            isError = nameValidation != null,
+                            supportingText = {
+                                if (nameValidation != null) {
+                                    Text(nameValidation, color = Color(0xFFDC2626), fontSize = 11.sp)
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFFF8FAFC),
+                                unfocusedContainerColor = Color(0xFFF8FAFC),
+                                focusedBorderColor = activeTone.color,
+                                unfocusedBorderColor = Color(0xFFE2E8F0)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
                         Surface(
-                            shape = CircleShape,
-                            color = swatchColor,
-                            border = if (isSelected) BorderStroke(2.dp, Color.Black) else null,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clickable { selectedColor = colorKey }
+                            color = Color(0xFFF8FAFC),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            if (isSelected) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Category Name (Locked)",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF64748B)
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = category.name,
+                                        fontSize = 14.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "System category names are locked to preserve regex rules, but you can fully customize icon & color.",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF64748B)
+                                    )
                                 }
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Icon Glyph Section: 8 icons by default + More Icons button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Icon Glyph",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF334155)
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFFECFDF5))
+                                .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(10.dp))
+                                .clickable {
+                                    isMoreIconsExpanded = !isMoreIconsExpanded
+                                }
+                                .padding(horizontal = 9.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = if (isMoreIconsExpanded) "▲ Less" else "▼ More Icons (${ALL_CATEGORY_GLYPHS.size})",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF047857)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    val displayedGlyphs = if (isMoreIconsExpanded) ALL_CATEGORY_GLYPHS else ALL_CATEGORY_GLYPHS.take(8)
+                    val iconChunks = displayedGlyphs.chunked(4)
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        iconChunks.forEach { row ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                row.forEach { item ->
+                                    val isSelected = item.key.equals(selectedIcon, ignoreCase = true)
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(46.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(if (isSelected) activeTone.color.copy(alpha = 0.12f) else Color(0xFFF8FAFC))
+                                            .border(
+                                                BorderStroke(
+                                                    if (isSelected) 1.5.dp else 1.dp,
+                                                    if (isSelected) activeTone.color else Color(0xFFE2E8F0)
+                                                ),
+                                                RoundedCornerShape(10.dp)
+                                            )
+                                            .clickable { selectedIcon = item.key },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = item.icon,
+                                            contentDescription = null,
+                                            tint = if (isSelected) activeTone.color else Color(0xFF64748B),
+                                            modifier = Modifier.size(21.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Theme Tone Section: Colors in ONE LINE SCROLLABLE
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Theme Tone",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF334155)
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(9.dp)
+                                    .background(activeTone.color, CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = activeTone.label,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = activeTone.color
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ALL_CATEGORY_TONES.forEach { tone ->
+                            val isSelected = tone.key.equals(selectedColor, ignoreCase = true)
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(tone.color)
+                                    .then(
+                                        if (isSelected) Modifier.border(BorderStroke(2.5.dp, Color.White), CircleShape)
+                                        else Modifier
+                                    )
+                                    .clickable { selectedColor = tone.key },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = tone.label,
+                                        tint = tone.checkTint,
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Dynamic Pill format Save Changes Button
+                    Button(
+                        onClick = { onConfirm(name.trim(), selectedIcon, selectedColor) },
+                        enabled = category.isSystem || nameValidation == null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = activeTone.color,
+                            disabledContainerColor = Color(0xFFCBD5E1)
+                        )
+                    ) {
+                        Text(
+                            text = "Save Changes",
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(name.trim(), selectedIcon, selectedColor) },
-                enabled = category.isSystem || nameValidation == null,
-                colors = ButtonDefaults.buttonColors(containerColor = purpleColor)
-            ) {
-                Text("Save")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = textColor)
-            }
         }
-    )
+    }
 }

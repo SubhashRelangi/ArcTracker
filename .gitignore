@@ -1,4 +1,4 @@
-﻿*.iml
+*.iml
 .gradle
 /local.properties
 /.idea
@@ -10,6 +10,7 @@
 local.properties
 
 # Custom ignores
+.kotlin/
 referenceImages/
 .vscode/
 /*.png

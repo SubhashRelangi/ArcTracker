@@ -12,12 +12,26 @@ fun AnalyticsScreen(
     onNavigateBack: () -> Unit = {},
     analyticsManager: AnalyticsManager? = null,
     showInternalHeader: Boolean = true,
-    searchQuery: String = ""
+    searchQuery: String = "",
+    onAddExpenseClick: () -> Unit = {},
+    onAllCategoriesClick: () -> Unit = {},
+    onManageRulesClick: () -> Unit = {},
+    isDemoMode: Boolean = false,
+    isSetupCompleted: Boolean = false,
+    onStartSetup: () -> Unit = {},
+    onViewLedger: () -> Unit = {}
 ) {
     InsightsPage(
         analyticsManager = analyticsManager,
         showHeader = showInternalHeader,
         onNavigateBack = onNavigateBack,
-        searchQuery = searchQuery
+        searchQuery = searchQuery,
+        onAddExpenseClick = onAddExpenseClick,
+        onAllCategoriesClick = onAllCategoriesClick,
+        onManageRulesClick = onManageRulesClick,
+        isDemoMode = isDemoMode,
+        isSetupCompleted = isSetupCompleted,
+        onStartSetup = onStartSetup,
+        onViewLedger = onViewLedger
     )
 }

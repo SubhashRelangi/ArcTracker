@@ -62,32 +62,11 @@ fun FinancialAccountsScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "Financial Accounts",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Discovered bank accounts & cards",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = subtitleColor
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
-                )
+            com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
+                title = "Financial Accounts",
+                subtitle = "Discovered bank accounts & cards",
+                onBackClick = onNavigateBack,
+                modifier = Modifier.background(Color.White).statusBarsPadding()
             )
         }
     ) { innerPadding ->

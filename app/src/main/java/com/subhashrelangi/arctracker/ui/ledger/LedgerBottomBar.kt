@@ -1,46 +1,75 @@
 package com.subhashrelangi.arctracker.ui.ledger
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.material.icons.rounded.ArrowDownward
-import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.text.NumberFormat
-import java.util.Locale
-
-import com.subhashrelangi.arctracker.ui.core.ArcTrackerSecurityFooter
 
 /**
- * Encrypted Local-First SQLite Database footer indicator matching Ui-Designs/Ledgerpage.png.
- * Delegates to the universal ArcTrackerSecurityFooter component.
+ * Bottom Privacy & Local-first SQLite store footer matching reference mockup:
+ * [ (🔒) ]
+ * All 32 records synced to private on-device store
+ * No cloud telemetry • Zero analytics trackers
  */
 @Composable
 fun LedgerDatabaseFooter(
+    recordCount: Int = 32,
     modifier: Modifier = Modifier
 ) {
-    ArcTrackerSecurityFooter(modifier = modifier)
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFF1F5F9)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Lock,
+                contentDescription = "Encrypted On-device",
+                tint = Color(0xFF0F172A),
+                modifier = Modifier.size(15.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "All $recordCount records synced to private on-device store",
+            color = Color(0xFF0F172A),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Text(
+            text = "No cloud telemetry • Zero analytics trackers",
+            color = Color(0xFF94A3B8),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Normal
+        )
+    }
 }
 
 /**
- * Floating Ledger Summary Action Bar matching Ui-Designs/Ledgerpage.png:
- * [ ↓ -₹5,989  |  ↑ +₹1,45,000  |  ⤓ Export ]
+ * Backward-compatible helper for action bar if referenced.
  */
 @Composable
 fun LedgerSummaryActionBar(
@@ -49,124 +78,5 @@ fun LedgerSummaryActionBar(
     onExportClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
-    val debitFormatted = currencyFormatter.format(totalDebits)
-        .replace("Rs.", "₹")
-        .replace("INR", "₹")
-        .trim()
-        .substringBefore(".")
-    val creditFormatted = currencyFormatter.format(totalCredits)
-        .replace("Rs.", "₹")
-        .replace("INR", "₹")
-        .trim()
-        .substringBefore(".")
-
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .padding(horizontal = 24.dp)
-            .padding(bottom = 8.dp)
-            .shadow(
-                elevation = 16.dp,
-                shape = LedgerShapes.FloatingSummary,
-                spotColor = Color.Black,
-                ambientColor = Color.Black
-            ),
-        shape = LedgerShapes.FloatingSummary,
-        color = Color(0xFF131720),
-        border = BorderStroke(1.dp, LedgerColors.BorderSubtle)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 1. Debit Total
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.ArrowDownward,
-                    contentDescription = "Debits",
-                    tint = LedgerColors.Debit,
-                    modifier = Modifier.size(15.dp)
-                )
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                Text(
-                    text = "-$debitFormatted",
-                    color = LedgerColors.Debit,
-                    fontSize = 13.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-
-            // Divider 1
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(20.dp)
-                    .background(Color(0xFF262D3D))
-            )
-
-            // 2. Credit Total
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.ArrowUpward,
-                    contentDescription = "Credits",
-                    tint = LedgerColors.Credit,
-                    modifier = Modifier.size(15.dp)
-                )
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                Text(
-                    text = "+$creditFormatted",
-                    color = LedgerColors.Credit,
-                    fontSize = 13.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-
-            // Divider 2
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(20.dp)
-                    .background(Color(0xFF262D3D))
-            )
-
-            // 3. Export Action
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clickable(onClick = onExportClick)
-                    .padding(horizontal = 6.dp, vertical = 3.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.FileDownload,
-                    contentDescription = "Export CSV",
-                    tint = Color(0xFFCBD5E1),
-                    modifier = Modifier.size(15.dp)
-                )
-
-                Spacer(modifier = Modifier.width(5.dp))
-
-                Text(
-                    text = "Export",
-                    color = Color(0xFFE2E8F0),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
-    }
+    // Replaced by top Monthly Overview Card and header export icon in new redesign.
 }

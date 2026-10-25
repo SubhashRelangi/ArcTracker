@@ -5,6 +5,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -42,6 +46,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -89,7 +94,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 privacyManager.screenSecurityFlow.collect { enabled ->
-                    if (enabled) {
+                    if (enabled && !BuildConfig.DEBUG) {
                         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
                     } else {
                         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
@@ -137,34 +142,6 @@ fun ExpenseScreen() {
 
     var hasDismissedInitialSmsImportDialog by rememberSaveable {
         mutableStateOf(false)
-    }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
-                if (isNotificationAccessGranted != granted) {
-                    isNotificationAccessGranted = granted
-                }
-                if (pendingHomeNotificationGrant) {
-                    pendingHomeNotificationGrant = false
-                    if (granted) {
-                        settingsRepo.setGlobalEnabled(true)
-                        settingsRepo.setNotificationTrackingEnabled(true)
-                    } else {
-                        settingsRepo.setGlobalEnabled(false)
-                        settingsRepo.setNotificationTrackingEnabled(false)
-                    }
-                }
-                if (SmsPermissionHelper.isSmsPermissionGranted(context)) {
-                    SmsPermissionHelper.setInitialImportCompleted(context, true)
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
     }
 
     val database = remember { com.subhashrelangi.arctracker.data.AppDatabase.getDatabase(context) }
@@ -295,9 +272,16 @@ fun ExpenseScreen() {
         settingsRepo.isSetupInProgress()
     }
 
+    val activityIntent = (context as? android.app.Activity)?.intent
+    val targetRouteFromIntent = remember(activityIntent) {
+        activityIntent?.getStringExtra("route")
+    }
+
     var backStack by rememberSaveable {
         mutableStateOf(
-            if (isOnboardingCompleted) {
+            if (!targetRouteFromIntent.isNullOrEmpty()) {
+                listOf("InitialOnboarding", targetRouteFromIntent)
+            } else if (isOnboardingCompleted) {
                 listOf("Home")
             } else if (isSetupInProgress) {
                 listOf("InitialOnboarding", "LocalFirstSetup")
@@ -308,10 +292,63 @@ fun ExpenseScreen() {
     }
     val currentRoute = backStack.lastOrNull() ?: "Home"
 
+    var appWasBackgroundedInDemo by rememberSaveable { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                // If user leaves the app while in demo mode (onboarding not completed), record that the app was closed/stopped
+                if (!settingsRepo.isInitialOnboardingCompleted() && settingsRepo.isDemoMode()) {
+                    appWasBackgroundedInDemo = true
+                }
+            } else if (event == Lifecycle.Event.ON_RESUME) {
+                val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
+                if (isNotificationAccessGranted != granted) {
+                    isNotificationAccessGranted = granted
+                }
+                if (pendingHomeNotificationGrant) {
+                    pendingHomeNotificationGrant = false
+                    if (granted) {
+                        settingsRepo.setGlobalEnabled(true)
+                        settingsRepo.setNotificationTrackingEnabled(true)
+                    } else {
+                        settingsRepo.setGlobalEnabled(false)
+                        settingsRepo.setNotificationTrackingEnabled(false)
+                    }
+                }
+                if (SmsPermissionHelper.isSmsPermissionGranted(context)) {
+                    SmsPermissionHelper.setInitialImportCompleted(context, true)
+                }
+
+                // If user closes/leaves the app while in demo mode, returning brings them back to the Setup page!
+                if (appWasBackgroundedInDemo && !settingsRepo.isInitialOnboardingCompleted()) {
+                    appWasBackgroundedInDemo = false
+                    settingsRepo.setDemoMode(false)
+                    scope.launch(Dispatchers.IO) {
+                        com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
+                    }
+                    backStack = listOf("InitialOnboarding")
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     // If onboarding was not permanently completed (e.g. user was in demo mode),
     // any app restart / relaunch MUST return to the Initial Welcome Screen or recover setup in progress.
-    LaunchedEffect(Unit) {
-        if (!settingsRepo.isInitialOnboardingCompleted()) {
+    LaunchedEffect(targetRouteFromIntent) {
+        if (!targetRouteFromIntent.isNullOrEmpty()) {
+            backStack = listOf("InitialOnboarding", targetRouteFromIntent)
+        } else if (!settingsRepo.isInitialOnboardingCompleted()) {
+            if (settingsRepo.isDemoMode()) {
+                settingsRepo.setDemoMode(false)
+                scope.launch(Dispatchers.IO) {
+                    com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
+                }
+            }
             if (settingsRepo.isSetupInProgress()) {
                 if (backStack.lastOrNull() != "LocalFirstSetup") {
                     backStack = listOf("InitialOnboarding", "LocalFirstSetup")
@@ -363,8 +400,17 @@ fun ExpenseScreen() {
         }
     }
 
-    BackHandler(enabled = backStack.size > 1) {
-        navigateBack()
+    val isDemoModeActive = !settingsRepo.isInitialOnboardingCompleted() && currentRoute == "Home"
+    BackHandler(enabled = backStack.size > 1 || isDemoModeActive) {
+        if (isDemoModeActive && backStack.size <= 1) {
+            settingsRepo.setDemoMode(false)
+            scope.launch(Dispatchers.IO) {
+                com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
+            }
+            backStack = listOf("InitialOnboarding")
+        } else {
+            navigateBack()
+        }
     }
 
     var editingRegexRuleId by remember {
@@ -409,33 +455,67 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
-        containerColor = if (currentRoute in listOf("Home", "InitialOnboarding", "LocalFirstSetup", "SmsImport", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) com.subhashrelangi.arctracker.ui.theme.ArcColors.Background else MaterialTheme.colorScheme.background,
+        containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult")) Color.White else if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) Color(0xFFF8FAFC) else MaterialTheme.colorScheme.background,
 
         topBar = {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
-                val isReviewOrSettings = currentRoute in listOf("Pending", "Review", "Settings")
-                com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
-                    modifier = Modifier.statusBarsPadding(),
-                    title = "ArcTracker",
-                    showBadge = true,
-                    badgeText = "UPI",
-                    statusText = "Automated  â€¢  Local-first",
-                    showSearch = !isReviewOrSettings,
-                    showAdd = !isReviewOrSettings,
-                    onSearchClick = {
-                        if (currentRoute == "Transactions") {
-                            ledgerSearchFocusTrigger++
-                        } else {
+                val showSearch = currentRoute in listOf("Home", "Insights", "Analytics", "Settings", "Pending", "Review")
+                val showProfile = currentRoute != "Settings"
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFF8FAFC))
+                        .statusBarsPadding()
+                ) {
+                    com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
+                        title = "ArcTracker",
+                        showSearch = showSearch,
+                        isSearchActive = isSearching,
+                        showProfile = showProfile,
+                        onSearchClick = {
                             isSearching = !isSearching
                             if (!isSearching) searchQuery = ""
+                        },
+                        onProfileClick = {
+                            navigateTo("FinancialAccounts")
                         }
-                    },
-                    onAddClick = {
-                        showAddDialog = true
+                    )
+
+                    AnimatedVisibility(
+                        visible = isSearching && showSearch,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .padding(top = 2.dp, bottom = 8.dp)
+                        ) {
+                            com.subhashrelangi.arctracker.ui.ledger.LedgerSearchBar(
+                                query = searchQuery,
+                                onQueryChange = { searchQuery = it },
+                                focusRequester = homeSearchFocusRequester,
+                                backgroundColor = Color.White,
+                                borderColor = Color(0xFFE2E8F0),
+                                placeholderText = when (currentRoute) {
+                                    "Insights", "Analytics" -> "Search analytics by category, merchant..."
+                                    "Settings" -> "Search settings, accounts, rules..."
+                                    "Pending", "Review" -> "Search unconfirmed transactions, merchants..."
+                                    else -> "Search transactions, merchants, accounts..."
+                                },
+                                onCloseClick = {
+                                    isSearching = false
+                                    searchQuery = ""
+                                }
+                            )
+                        }
                     }
-                )
+                }
             } else if (
                 currentRoute != "SmsImport" &&
+                currentRoute != "SmsScan" &&
+                currentRoute != "SmsResult" &&
                 currentRoute != "InitialOnboarding" &&
                 currentRoute != "LocalFirstSetup" &&
                 currentRoute != "FinancialAccounts" &&
@@ -447,7 +527,10 @@ fun ExpenseScreen() {
                 currentRoute != "ApplyCategoryRules" &&
                 currentRoute != "Analytics" &&
                 currentRoute != "Budgets" &&
-                currentRoute != "Backup"
+                currentRoute != "Backup" &&
+                currentRoute != "SupportedApps" &&
+                currentRoute != "ClearAllData" &&
+                currentRoute != "IgnoreRules"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
@@ -482,8 +565,16 @@ fun ExpenseScreen() {
                     onBackClick = onBackClick,
                     actions = {
                         if (currentRoute == "RegexPatterns") {
-                            IconButton(onClick = { /* TODO */ }) {
-                                Icon(Icons.Outlined.HelpOutline, contentDescription = "Help", tint = Color(0xFF3F51B5))
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                    .clickable { /* TODO */ },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Outlined.HelpOutline, contentDescription = "Help", tint = Color(0xFF0F172A), modifier = Modifier.size(19.dp))
                             }
                         } else if (currentRoute == "EditRegexPattern") {
                             if (editingRegexRuleId != null) {
@@ -492,9 +583,9 @@ fun ExpenseScreen() {
                                     RegexPatternsManager.resetSystemRule(context, editingRegexRuleId!!)
                                     navigateBack()
                                 }) {
-                                    Icon(Icons.Filled.Refresh, contentDescription = "Reset", tint = Color(0xFF3F51B5), modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Filled.Refresh, contentDescription = "Reset", tint = Color(0xFF0F172A), modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Reset", color = Color(0xFF3F51B5), fontWeight = FontWeight.Medium)
+                                    Text("Reset", color = Color(0xFF0F172A), fontWeight = FontWeight.Medium)
                                 }
                             }
                         }
@@ -512,33 +603,22 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport")) 0.dp else padding.calculateTopPadding()
+            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules", "Backup")) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
                     .padding(top = contentTopPadding)
                     .fillMaxSize()
             ) {
 
-            AnimatedVisibility(
-                visible = isSearching && (currentRoute == "Home" || currentRoute == "Insights" || currentRoute == "Analytics")
-            ) {
-                com.subhashrelangi.arctracker.ui.ledger.LedgerSearchBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    focusRequester = homeSearchFocusRequester,
-                    placeholderText = if (currentRoute == "Insights" || currentRoute == "Analytics") {
-                        "Search analytics by merchant or category..."
-                    } else {
-                        "Search transactions, merchants, accounts..."
-                    }
-                )
-            }
-
             if (currentRoute == "Transactions") {
 
                 com.subhashrelangi.arctracker.ui.ledger.LedgerPage(
                     expenses = expenses,
-                    showHeader = false,
+                    isDemoMode = settingsRepo.isDemoMode(),
+                    showHeader = true,
+                    onProfileClick = {
+                        navigateTo("FinancialAccounts")
+                    },
                     searchFocusTrigger = ledgerSearchFocusTrigger,
                     onExpenseClick = { expense ->
                         if (expense.isPending) {
@@ -586,7 +666,11 @@ fun ExpenseScreen() {
                         navigateTo(it)
                     },
                     todayCount = todayTxnCount,
-                    thisMonthCount = thisMonthTxnCount
+                    thisMonthCount = thisMonthTxnCount,
+                    searchQuery = searchQuery,
+                    onAddExpenseClick = {
+                        showAddDialog = true
+                    }
                 )
 
             } else if (currentRoute == "ClearAllData") {
@@ -594,6 +678,9 @@ fun ExpenseScreen() {
                 com.subhashrelangi.arctracker.ui.ClearAllDataScreen(
                     onNavigate = {
                         navigateTo(it)
+                    },
+                    onNavigateBack = {
+                        navigateBack()
                     },
                     onClearData = {
                         val repo = com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository.getInstance(context)
@@ -614,29 +701,34 @@ fun ExpenseScreen() {
                     }
                 )
 
-            } else if (currentRoute == "SmsImport") {
+            } else if (currentRoute == "SmsImport" || currentRoute == "SmsScan" || currentRoute == "SmsResult") {
 
-                com.subhashrelangi.arctracker.ui.SmsImportScreen(
-                    onNavigateBack = {
-                        navigateBack()
-                    },
+                com.subhashrelangi.arctracker.ui.SmsSetupScreen(
+                    initialStartScanning = (currentRoute == "SmsScan"),
+                    initialShowResult = (currentRoute == "SmsResult"),
                     onImportCompleted = {
                         settingsRepo.setSetupInProgress(false)
+                        settingsRepo.setDemoMode(false)
                         settingsRepo.setInitialOnboardingCompleted(true)
                         SmsPermissionHelper.setInitialImportCompleted(context, true)
                         backStack = listOf("Home")
                     },
-                    onNavigateToLedger = {
-                        settingsRepo.setSetupInProgress(false)
-                        settingsRepo.setInitialOnboardingCompleted(true)
-                        SmsPermissionHelper.setInitialImportCompleted(context, true)
-                        backStack = listOf("Home", "Transactions")
-                    },
                     onNavigateToReview = {
                         settingsRepo.setSetupInProgress(false)
+                        settingsRepo.setDemoMode(false)
                         settingsRepo.setInitialOnboardingCompleted(true)
                         SmsPermissionHelper.setInitialImportCompleted(context, true)
                         backStack = listOf("Home", "Review")
+                    },
+                    onSkipClick = {
+                        settingsRepo.setSetupInProgress(false)
+                        settingsRepo.setDemoMode(false)
+                        settingsRepo.setInitialOnboardingCompleted(true)
+                        SmsPermissionHelper.setInitialImportCompleted(context, true)
+                        backStack = listOf("Home")
+                    },
+                    onBackClick = {
+                        navigateBack()
                     }
                 )
 
@@ -662,7 +754,9 @@ fun ExpenseScreen() {
 
             } else if (currentRoute == "IgnoreRules") {
 
-                com.subhashrelangi.arctracker.ui.IgnoreRulesScreen()
+                com.subhashrelangi.arctracker.ui.IgnoreRulesScreen(
+                    onNavigateBack = { navigateBack() }
+                )
 
             } else if (currentRoute == "DeveloperOptions") {
                 com.subhashrelangi.arctracker.ui.DeveloperOptionsScreen(
@@ -736,7 +830,14 @@ fun ExpenseScreen() {
                 com.subhashrelangi.arctracker.ui.AnalyticsScreen(
                     onNavigateBack = { navigateBack() },
                     showInternalHeader = (currentRoute == "Analytics"),
-                    searchQuery = searchQuery
+                    searchQuery = searchQuery,
+                    onAddExpenseClick = { showAddDialog = true },
+                    onAllCategoriesClick = { navigateTo("CategoryManagement") },
+                    onManageRulesClick = { navigateTo("CategoryRules") },
+                    isDemoMode = settingsRepo.isDemoMode(),
+                    isSetupCompleted = settingsRepo.isInitialOnboardingCompleted() || settingsRepo.isInitialSmsImportCompleted(),
+                    onStartSetup = { navigateTo("InitialOnboarding") },
+                    onViewLedger = { navigateTo("Transactions") }
                 )
             } else if (currentRoute == "Budgets") {
                 com.subhashrelangi.arctracker.ui.BudgetsScreen(
@@ -751,6 +852,9 @@ fun ExpenseScreen() {
                 com.subhashrelangi.arctracker.ui.review.ReviewPage(
                     expenses = displayedExpenses,
                     showHeader = false,
+                    isDemoMode = settingsRepo.isDemoMode(),
+                    isSetupCompleted = settingsRepo.isInitialOnboardingCompleted() || settingsRepo.isInitialSmsImportCompleted(),
+                    searchQuery = searchQuery,
                     onSearchClick = {
                         isSearching = !isSearching
                     },
@@ -759,6 +863,9 @@ fun ExpenseScreen() {
                     },
                     onViewLedger = {
                         navigateTo("Transactions")
+                    },
+                    onStartSetup = {
+                        navigateTo("InitialOnboarding")
                     },
                     onEditExpense = {
                         editExpense = it
@@ -772,6 +879,7 @@ fun ExpenseScreen() {
                         scope.launch(Dispatchers.IO) {
                             com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
                         }
+                        settingsRepo.setDemoMode(false)
                         settingsRepo.setSetupInProgress(true)
                         navigateTo("LocalFirstSetup")
                     },
@@ -783,6 +891,7 @@ fun ExpenseScreen() {
                             com.subhashrelangi.arctracker.data.MockData.seedCompleteDemoData(database)
                         }
                         settingsRepo.setSetupInProgress(false)
+                        settingsRepo.setDemoMode(true)
                         hasDismissedNotificationPermissionDialog = true
                         hasDismissedInitialSmsImportDialog = true
                         navigateTo("Home")
@@ -803,10 +912,18 @@ fun ExpenseScreen() {
                             com.subhashrelangi.arctracker.data.MockData.seedCompleteDemoData(database)
                         }
                         settingsRepo.setSetupInProgress(false)
+                        settingsRepo.setDemoMode(true)
                         hasDismissedNotificationPermissionDialog = true
                         hasDismissedInitialSmsImportDialog = true
                         navigateTo("Home")
                         Toast.makeText(context, "Demo mode active with sample data", Toast.LENGTH_SHORT).show()
+                    },
+                    onBackClick = {
+                        if (backStack.size > 1) {
+                            backStack = backStack.dropLast(1)
+                        } else {
+                            navigateTo("InitialOnboarding")
+                        }
                     }
                 )
 
@@ -836,6 +953,8 @@ fun ExpenseScreen() {
 
                 com.subhashrelangi.arctracker.ui.HomeScreenRedesign(
                     expenses = displayedExpenses,
+                    isDemoMode = settingsRepo.isDemoMode(),
+                    knownAccounts = knownAccounts,
                     showHeader = false,
                     onSearchClick = {
                         isSearching = !isSearching
@@ -852,8 +971,8 @@ fun ExpenseScreen() {
                     onScanSmsClick = {
                         navigateTo("SmsImport")
                     },
-                    onAddCashClick = {
-                        showAddDialog = true
+                    onBudgetsClick = {
+                        navigateTo("Budgets")
                     },
                     onExportClick = {
                         navigateTo("Backup")
@@ -877,6 +996,8 @@ fun ExpenseScreen() {
             "LocalFirstSetup",
             "ClearAllData",
             "SmsImport",
+            "SmsScan",
+            "SmsResult",
             "BackupRestore",
             "SupportedApps",
             "CategoryManagement",
@@ -898,6 +1019,8 @@ fun ExpenseScreen() {
                 modifier = Modifier.align(Alignment.BottomCenter),
                 currentDestination = destination,
                 reviewBadgeCount = pendingCount,
+                isStatic = true,
+                isLightMode = true,
                 onNavigate = { dest ->
                     navigateTo(dest.route)
                 }
@@ -1292,7 +1415,7 @@ fun ExpenseScreen() {
             )
         }
 
-        if (currentRoute != "InitialOnboarding" && currentRoute != "LocalFirstSetup") {
+        if (currentRoute != "InitialOnboarding" && currentRoute != "LocalFirstSetup" && currentRoute != "SmsImport" && currentRoute != "SmsScan" && currentRoute != "SmsResult") {
             if (!isNotificationAccessGranted && !hasDismissedNotificationPermissionDialog) {
                 NotificationPermissionDialog(
                     onGrantClick = {

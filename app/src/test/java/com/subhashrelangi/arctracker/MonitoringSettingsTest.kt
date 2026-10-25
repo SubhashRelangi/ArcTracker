@@ -725,6 +725,26 @@ class MonitoringSettingsTest {
         val reloaded = SharedPreferencesMonitoringSettingsRepository(fakePrefs)
         assertTrue("Initial onboarding completed persisted across reload", reloaded.isInitialOnboardingCompleted())
     }
+
+    @Test
+    fun test95_demoMode_canBePersistedAndCleared() {
+        assertFalse("Demo mode defaults to false", repo.isDemoMode())
+        repo.setDemoMode(true)
+        assertTrue("Demo mode is now true", repo.isDemoMode())
+        assertEquals(true, fakePrefs.getBoolean(MonitoringSettingsRepository.KEY_IS_DEMO_MODE, false))
+
+        repo.setDemoMode(false)
+        assertFalse("Demo mode is cleared to false", repo.isDemoMode())
+        assertEquals(false, fakePrefs.getBoolean(MonitoringSettingsRepository.KEY_IS_DEMO_MODE, true))
+    }
+
+    @Test
+    fun test96_resetToDefaults_clearsDemoMode() {
+        repo.setDemoMode(true)
+        assertTrue(repo.isDemoMode())
+        repo.resetToDefaults()
+        assertFalse(repo.isDemoMode())
+    }
 }
 
 /**

@@ -1,10 +1,13 @@
 package com.subhashrelangi.arctracker.ui
 
+import android.app.Activity
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,383 +21,412 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.subhashrelangi.arctracker.ui.theme.ArcColors
+import androidx.core.view.WindowCompat
+import com.subhashrelangi.arctracker.BuildConfig
+import com.subhashrelangi.arctracker.R
+import kotlinx.coroutines.launch
 
 // ==========================================
-// Color Tokens matching Ui-Designs/InitialPage.png
+// Light Theme Color Tokens
 // ==========================================
-private val InitialBgColor = ArcColors.Background // #090C10 nearly black
-private val CardSurface = Color(0xFF141720)
-private val CardBorder = Color(0xFF222836)
-
-// 100% LOCAL-FIRST ENGINE badge
-private val PillGreenBg = Color(0xFF0D251A)
-private val PillGreenBorder = Color(0xFF164E35)
-private val PillGreenText = Color(0xFF00E676)
-
-// Card 1: Notification (Blue)
-private val NotificationIconTint = Color(0xFF60A5FA)
-private val NotificationBoxBg = Color(0xFF14243B)
-private val NotificationBoxBorder = Color(0xFF1E3A5F)
-
-// Card 2: Security (Green)
-private val SecurityIconTint = Color(0xFF00E676)
-private val SecurityBoxBg = Color(0xFF0F2B1D)
-private val SecurityBoxBorder = Color(0xFF175337)
-
-// Card 3: SMS (Purple/Indigo)
-private val SmsIconTint = Color(0xFFA78BFA)
-private val SmsBoxBg = Color(0xFF241C38)
-private val SmsBoxBorder = Color(0xFF3B2D5A)
-
-private val TextPrimary = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFF94A3B8)
-private val TextMuted = Color(0xFF64748B)
+private val InitialLightBackground = Color(0xFFFFFFFF)
+private val BrandTextPrimary = Color(0xFF0F172A)
+private val BrandTextSecondary = Color(0xFF64748B)
+private val VersionBadgeBg = Color(0xFFF1F5F9)
+private val VersionBadgeText = Color(0xFF64748B)
+private val StatusIndicatorGreen = Color(0xFF10B981)
+private val PagerIndicatorActive = Color(0xFF0F172A)
+private val PagerIndicatorInactive = Color(0xFFE2E8F0)
+private val PrimaryBtnBg = Color(0xFF0F172A)
+private val PrimaryBtnText = Color(0xFFFFFFFF)
+private val SecondaryBtnBg = Color(0xFFF8FAFC)
+private val SecondaryBtnBorder = Color(0xFFE2E8F0)
+private val SecondaryBtnText = Color(0xFF0F172A)
+private val LockIconGreen = Color(0xFF10B981)
 
 /**
- * First-launch welcome / setup screen matching Ui-Designs/InitialPage.png exactly.
- *
- * Structure:
- * 1. Centered ArcTracker logo inside dark squircle with outer white/slate border ring
- * 2. "100% LOCAL-FIRST ENGINE" green pill badge
- * 3. "ArcTracker" bold brand title
- * 4. Compact subtitle: "Zero cloud sync. Real-time Indian banking SMS & UPI notification ledger stored locally in encrypted SQLite."
- * 5. Three capability cards:
- *    - Notification Listener (blue icon)
- *    - AES-256-GCM Vault (green icon)
- *    - Telephony SMS Ingest (purple icon)
- * 6. Primary CTA: "Start Setup" (clean white pill button)
- * 7. Secondary action: "Skip straight to Dashboard (Demo Data)"
+ * Initial Page matching requested specifications:
+ * 1. Top Bar: Title starts first ("ArcTracker" bold text + GitHub release version pill, green status dot on right)
+ * 2. Borderless Logo: Dark theme logo for light theme, light theme logo for dark theme, completely borderless
+ * 3. Hero group positioned right above the CTA buttons (no empty space between them)
+ * 4. Static-sized swipeable pager: Prevents text shrinking/jitter on the 3rd swipe with consistent line heights
+ * 5. 3-step page indicators synced to the swipe pager
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun InitialPageScreen(
-    onStartSetupClick: () -> Unit,
-    onSkipToDashboardClick: () -> Unit,
+    onStartSetupClick: () -> Unit = {},
+    onSkipToDashboardClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    // Adapt system status & navigation bars for light theme surface
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window
+            if (window != null) {
+                val insetsController = WindowCompat.getInsetsController(window, view)
+                insetsController.isAppearanceLightStatusBars = true
+                insetsController.isAppearanceLightNavigationBars = true
+            }
+        }
+    }
+
+    val isDark = isSystemInDarkTheme()
+    // Dark theme logo used for light theme, light theme logo used for dark theme
+    val logoResource = if (isDark) R.drawable.ic_logo_light else R.drawable.ic_logo_dark
+
+    val pagerState = rememberPagerState(pageCount = { 3 })
+    val coroutineScope = rememberCoroutineScope()
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(InitialBgColor)
+            .background(InitialLightBackground)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 24.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 24.dp, vertical = 12.dp)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
-
             // ----------------------------------------------------
-            // 1. ArcTracker Logo at Top Center
+            // 1. Header (Title starts first on left, GitHub version, green dot on right)
             // ----------------------------------------------------
-            InitialBrandLogo(
-                modifier = Modifier.size(68.dp)
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // ----------------------------------------------------
-            // 2. 100% LOCAL-FIRST ENGINE Badge Pill
-            // ----------------------------------------------------
-            Box(
+            Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(PillGreenBg)
-                    .border(BorderStroke(1.dp, PillGreenBorder), RoundedCornerShape(50))
-                    .padding(horizontal = 13.dp, vertical = 4.dp)
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "100% LOCAL-FIRST ENGINE",
-                    color = PillGreenText,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp
+                // Left: Title starts first, followed by GitHub version pill
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "ArcTracker",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BrandTextPrimary,
+                        letterSpacing = (-0.4).sp
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Version Badge Pill (GitHub downloaded version)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(VersionBadgeBg)
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = BuildConfig.GITHUB_VERSION.ifEmpty { "v${BuildConfig.VERSION_NAME}" },
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = VersionBadgeText
+                        )
+                    }
+                }
+
+                // Right: Status Indicator Green Dot
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(StatusIndicatorGreen)
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // ----------------------------------------------------
-            // 3. Brand Title
-            // ----------------------------------------------------
-            Text(
-                text = "ArcTracker",
-                color = TextPrimary,
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.5).sp,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // ----------------------------------------------------
-            // 4. Subtitle Description
-            // ----------------------------------------------------
-            Text(
-                text = "Zero cloud sync. Real-time Indian banking SMS & UPI notification ledger stored locally in encrypted SQLite.",
-                color = TextSecondary,
-                fontSize = 12.5.sp,
-                lineHeight = 17.5.sp,
-                fontWeight = FontWeight.Normal,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // ----------------------------------------------------
-            // 5. Capability Cards (Exactly 3)
-            // ----------------------------------------------------
-            // Card 1: Notification Listener
-            CapabilityCard(
-                icon = Icons.Outlined.NotificationsNone,
-                iconTint = NotificationIconTint,
-                iconBoxBg = NotificationBoxBg,
-                iconBoxBorder = NotificationBoxBorder,
-                title = "Notification Listener",
-                description = "Captures GPay, PhonePe, Paytm & Bank alerts sub-millisecond."
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Card 2: AES-256-GCM Vault
-            CapabilityCard(
-                icon = Icons.Outlined.Lock,
-                iconTint = SecurityIconTint,
-                iconBoxBg = SecurityBoxBg,
-                iconBoxBorder = SecurityBoxBorder,
-                title = "AES-256-GCM Vault",
-                description = "Air-gapped on-device Room database. No server sockets."
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Card 3: Telephony SMS Ingest
-            CapabilityCard(
-                icon = Icons.Outlined.ChatBubbleOutline,
-                iconTint = SmsIconTint,
-                iconBoxBg = SmsBoxBg,
-                iconBoxBorder = SmsBoxBorder,
-                title = "Telephony SMS Ingest",
-                description = "Batch scans historical bank statements (HDFC, SBI, Axis, ICICI)."
-            )
-
-            // Flexible dynamic spacer absorbing remaining viewport height
+            // Pushes hero content & buttons down to the bottom area, removing gap before buttons
             Spacer(modifier = Modifier.weight(1f))
 
             // ----------------------------------------------------
-            // 6. Primary Action: Start Setup
+            // 2. Hero Section (Left-aligned, positioned directly above buttons)
             // ----------------------------------------------------
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .shadow(
-                        elevation = 12.dp,
-                        shape = RoundedCornerShape(16.dp),
-                        spotColor = Color(0x66000000),
-                        ambientColor = Color(0x33000000)
-                    )
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = rememberRipple(color = Color.Black.copy(alpha = 0.2f)),
-                        onClick = onStartSetupClick
-                    ),
-                shape = RoundedCornerShape(16.dp),
-                color = Color.White
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.Start
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                // Borderless Brand Logo (Dark-theme logo in light theme, completely borderless)
+                Image(
+                    painter = painterResource(id = logoResource),
+                    contentDescription = "ArcTracker Brand Logo",
+                    modifier = Modifier.size(56.dp)
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Static-sized Horizontal Pager: Fixed height and line limits to prevent any shrinking/jitter
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                ) { page ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(end = 6.dp),
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        when (page) {
+                            0 -> {
+                                Text(
+                                    text = "Your finances. Clear\nand under control.",
+                                    fontSize = 26.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    lineHeight = 32.sp,
+                                    letterSpacing = (-0.4).sp,
+                                    color = BrandTextPrimary,
+                                    minLines = 2,
+                                    maxLines = 2
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Text(
+                                    text = "Track transactions, understand spending, and\nstay in control with private, on-device\nautomation.",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    lineHeight = 19.sp,
+                                    color = BrandTextSecondary,
+                                    minLines = 3,
+                                    maxLines = 3
+                                )
+                            }
+                            1 -> {
+                                Text(
+                                    text = "100% Local-First.\nZero cloud sync.",
+                                    fontSize = 26.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    lineHeight = 32.sp,
+                                    letterSpacing = (-0.4).sp,
+                                    color = BrandTextPrimary,
+                                    minLines = 2,
+                                    maxLines = 2
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Text(
+                                    text = "Real-time Indian banking SMS & notification\nledger stored strictly on your device in\nencrypted SQLite.",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    lineHeight = 19.sp,
+                                    color = BrandTextSecondary,
+                                    minLines = 3,
+                                    maxLines = 3
+                                )
+                            }
+                            2 -> {
+                                Text(
+                                    text = "Intelligent Ingest.\nBuilt for Indian UPI.",
+                                    fontSize = 26.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    lineHeight = 32.sp,
+                                    letterSpacing = (-0.4).sp,
+                                    color = BrandTextPrimary,
+                                    minLines = 2,
+                                    maxLines = 2
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Text(
+                                    text = "• Instant UPI & bank SMS alert ingestion\n• Automated smart categorization rules\n• Multi-bank balance reconciliation & budgets",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    lineHeight = 19.sp,
+                                    color = BrandTextSecondary,
+                                    minLines = 3,
+                                    maxLines = 3
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 3-Step Page Indicators synced to PagerState
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Start Setup",
-                        color = Color(0xFF0A0D14),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.2.sp
-                    )
+                    repeat(3) { index ->
+                        val isSelected = pagerState.currentPage == index
+                        val width = if (isSelected) 22.dp else 7.dp
+                        val color = if (isSelected) PagerIndicatorActive else PagerIndicatorInactive
+
+                        Box(
+                            modifier = Modifier
+                                .width(width)
+                                .height(3.5.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(color)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(index)
+                                    }
+                                }
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // Tight spacing directly connecting hero group to bottom buttons
+            Spacer(modifier = Modifier.height(24.dp))
 
             // ----------------------------------------------------
-            // 7. Secondary Action: Skip straight to Dashboard (Demo Data)
+            // 3. Bottom CTA Actions
             // ----------------------------------------------------
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = rememberRipple(color = Color.White.copy(alpha = 0.1f)),
-                        onClick = onSkipToDashboardClick
-                    )
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Skip straight to Dashboard (Demo Data)",
-                    color = TextSecondary,
-                    fontSize = 12.5.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-        }
-    }
-}
-
-/**
- * Backward compatibility overload for existing call sites.
- */
-@Composable
-fun InitialPageScreen(
-    onGetStartedClick: () -> Unit = {},
-    onExploreDemoClick: () -> Unit = {}
-) {
-    InitialPageScreen(
-        onStartSetupClick = onGetStartedClick,
-        onSkipToDashboardClick = onExploreDemoClick
-    )
-}
-
-/**
- * Horizontal capability card matching the reference image.
- */
-@Composable
-private fun CapabilityCard(
-    icon: ImageVector,
-    iconTint: Color,
-    iconBoxBg: Color,
-    iconBoxBorder: Color,
-    title: String,
-    description: String,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        color = CardSurface,
-        border = BorderStroke(1.dp, CardBorder)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Left: Icon Container (Rounded square)
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(iconBoxBg)
-                    .border(BorderStroke(1.dp, iconBoxBorder), RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(19.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Right: Title & Description
             Column(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = title,
-                    color = TextPrimary,
-                    fontSize = 13.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.1.sp
-                )
+                // Primary Action Button: "Get Started ->"
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .shadow(
+                            elevation = 2.dp,
+                            shape = CircleShape,
+                            ambientColor = Color(0x10000000),
+                            spotColor = Color(0x1A000000)
+                        )
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = rememberRipple(color = Color.White.copy(alpha = 0.2f)),
+                            onClick = onStartSetupClick
+                        ),
+                    shape = CircleShape,
+                    color = PrimaryBtnBg
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Get Started",
+                            color = PrimaryBtnText,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = PrimaryBtnText,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
 
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                Text(
-                    text = description,
-                    color = TextSecondary,
-                    fontSize = 11.5.sp,
-                    lineHeight = 15.5.sp,
-                    fontWeight = FontWeight.Normal
-                )
+                // Secondary Action Button: "Explore Demo"
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = rememberRipple(color = Color.Black.copy(alpha = 0.06f)),
+                            onClick = onSkipToDashboardClick
+                        ),
+                    shape = CircleShape,
+                    color = SecondaryBtnBg,
+                    border = BorderStroke(1.dp, SecondaryBtnBorder)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Visibility,
+                            contentDescription = null,
+                            tint = SecondaryBtnText,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Explore Demo",
+                            color = SecondaryBtnText,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Local-First Security Note
+                Row(
+                    modifier = Modifier.padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Lock,
+                        contentDescription = null,
+                        tint = LockIconGreen,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Your financial data stays on your device.",
+                        color = BrandTextSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
             }
         }
     }
 }
 
-/**
- * Top brand squircle logo for InitialPage matching reference image:
- * Dark rounded squircle with white circular border container enclosing the project's real ArcTracker logo asset.
- */
-@Composable
-private fun InitialBrandLogo(
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xFF141720))
-            .border(BorderStroke(1.dp, Color(0xFF262C3D)), RoundedCornerShape(22.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        // Inner white squircle matching reference mockup
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(Color.White),
-            contentAlignment = Alignment.Center
-        ) {
-            androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(id = com.subhashrelangi.arctracker.R.drawable.ic_launcher_foreground),
-                contentDescription = "ArcTracker App Icon",
-                modifier = Modifier.size(46.dp)
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF090C10)
+@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
 @Composable
 fun InitialPageScreenPreview() {
     MaterialTheme {
