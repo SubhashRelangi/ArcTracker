@@ -5,6 +5,7 @@ import android.net.Uri
 import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -19,7 +20,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -39,6 +39,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -52,11 +53,11 @@ import com.subhashrelangi.arctracker.security.BackupEncryptionManager
 import com.subhashrelangi.arctracker.security.PrivacySettingsManager
 import com.subhashrelangi.arctracker.security.SensitiveDataSanitizer
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
+import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
-import java.io.File
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -100,7 +101,7 @@ fun BackupScreen(
         }
     }
 
-    // Ledger Stats
+    // Ledger Stats (Real data vs Demo Mode)
     var totalTxns by remember { mutableIntStateOf(if (isDemoMode) 1432 else 0) }
     var totalAccounts by remember { mutableIntStateOf(if (isDemoMode) 3 else 0) }
     var totalCategories by remember { mutableIntStateOf(if (isDemoMode) 18 else 0) }
@@ -125,7 +126,7 @@ fun BackupScreen(
                         databaseFileSizeKb = sizeKb
                     }
                 } catch (e: Exception) {
-                    // Fallback to defaults
+                    // Retain defaults on exception
                 }
             }
         }
@@ -139,6 +140,11 @@ fun BackupScreen(
     var isHardwareEncryptionEnabled by remember { mutableStateOf(true) }
     var vaultPassphrase by remember { mutableStateOf("ArcVaultMasterKey2026!") }
     var isPassphraseVisible by remember { mutableStateOf(false) }
+
+    // Real-time dynamic password strength calculation
+    val (strengthScore, strengthLabel, strengthColor) = remember(vaultPassphrase) {
+        calculatePasswordStrength(vaultPassphrase)
+    }
 
     // Conflict Resolution Strategy
     // 0: Merge & Deduplicate (Recommended)
@@ -282,296 +288,206 @@ fun BackupScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-        ) {
-            // TOP BAR / HEADER (Matching reference mockup exactly)
-            Row(
+    Scaffold(
+        topBar = {
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .background(Color.White)
             ) {
-                // Back Button
-                IconButton(
-                    onClick = onNavigateBack,
-                    modifier = Modifier.size(38.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color(0xFF0F172A),
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(6.dp))
-
-                // Title + ACTIVE Badge & Subtitle
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Backup & Export",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
-                        )
+                // Universal Settings Sub-Page Header
+                ArcTrackerHeader(
+                    title = "Backup & Export",
+                    subtitle = "Air-Gapped Vault Archival",
+                    onBackClick = onNavigateBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .statusBarsPadding(),
+                    horizontalPadding = 16.dp,
+                    actions = {
                         Box(
                             modifier = Modifier
-                                .background(Color(0xFFDCFCE7), RoundedCornerShape(6.dp))
-                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "ACTIVE",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF055B38)
+                            Icon(
+                                imageVector = Icons.Outlined.Shield,
+                                contentDescription = "Security Vault",
+                                tint = Color(0xFF055B38),
+                                modifier = Modifier.size(19.dp)
                             )
                         }
                     }
-                    Text(
-                        text = "Air-Gapped Vault Archival",
-                        fontSize = 12.sp,
-                        color = Color(0xFF64748B)
-                    )
-                }
-
-                // Header Right Actions: Shield Icon + "img" Box
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .background(Color(0xFFECFDF5), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.GppGood,
-                            contentDescription = "Security Active",
-                            tint = Color(0xFF055B38),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .background(Color(0xFFE2E8F0), RoundedCornerShape(6.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "img",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF64748B)
-                        )
-                    }
-                }
+                )
             }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF8F9FA))
+                .padding(innerPadding)
+        ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 1. AIR-GAPPED VAULT SECURITY CARD
+                // 1. AIR-GAPPED VAULT SECURITY SUMMARY CARD (ArcTracker styled)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(Color(0xFFECFDF5), RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .background(Color(0xFFECFDF5), RoundedCornerShape(10.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Lock,
-                                        contentDescription = null,
-                                        tint = Color(0xFF055B38),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Outlined.Lock,
+                                    contentDescription = null,
+                                    tint = Color(0xFF055B38),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
 
-                                Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
 
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Air-Gapped Vault Security",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
-                                    )
-                                    Spacer(modifier = Modifier.height(3.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .background(Color(0xFFECFDF5), RoundedCornerShape(4.dp))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Canvas(modifier = Modifier.size(5.dp)) {
-                                                drawCircle(color = Color(0xFF10B981))
-                                            }
-                                            Spacer(modifier = Modifier.width(5.dp))
-                                            Text(
-                                                text = "Encrypted Keystore",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color(0xFF055B38)
-                                            )
-                                        }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Air-Gapped Vault Security",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Canvas(modifier = Modifier.size(5.dp)) {
+                                        drawCircle(color = Color(0xFF10B981))
                                     }
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = "On-Device Android Keystore",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF055B38)
+                                    )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            Text(
-                                text = "Backups are generated completely on-device within Android Keystore. Absolute zero cloud transmission or third-party telemetry.",
-                                fontSize = 12.sp,
-                                color = Color(0xFF4B5563),
-                                lineHeight = 16.sp
-                            )
-                        }
-
-                        // Divider and Physical SQLite Ledger stats footer
-                        HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF8FAFC))
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Box(
+                                modifier = Modifier
+                                    .background(Color(0xFFF1F5F9), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = "PHYSICAL SQLITE LEDGER",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF64748B),
-                                    letterSpacing = 0.5.sp
-                                )
-                                Text(
                                     text = databaseFileSizeKb,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF0F172A)
                                 )
                             }
+                        }
 
-                            Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Backups are created 100% locally on your hardware. Zero cloud transmission or external telemetry.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B),
+                            lineHeight = 16.sp
+                        )
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                        // Compact Stats Bar
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                                .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
                                     contentDescription = null,
                                     tint = Color(0xFF055B38),
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Text(
-                                    text = buildAnnotatedString {
-                                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))) {
-                                            append(DecimalFormat("#,###").format(totalTxns))
-                                        }
-                                        withStyle(SpanStyle(color = Color(0xFF64748B))) {
-                                            append(" Txns")
-                                        }
-                                    },
-                                    fontSize = 12.sp
-                                )
-
-                                Text(
-                                    text = "  •  ",
+                                    text = "${DecimalFormat("#,###").format(totalTxns)} Txns",
                                     fontSize = 12.sp,
-                                    color = Color(0xFFCBD5E1)
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF0F172A)
                                 )
+                            }
 
+                            Text("•", color = Color(0xFFCBD5E1))
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Outlined.AccountBalance,
                                     contentDescription = null,
                                     tint = Color(0xFF055B38),
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Text(
-                                    text = buildAnnotatedString {
-                                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))) {
-                                            append(totalAccounts.toString())
-                                        }
-                                        withStyle(SpanStyle(color = Color(0xFF64748B))) {
-                                            append(" Accounts")
-                                        }
-                                    },
-                                    fontSize = 12.sp
-                                )
-
-                                Text(
-                                    text = "  •  ",
+                                    text = "$totalAccounts Accounts",
                                     fontSize = 12.sp,
-                                    color = Color(0xFFCBD5E1)
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF0F172A)
                                 )
+                            }
 
+                            Text("•", color = Color(0xFFCBD5E1))
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Outlined.LocalOffer,
                                     contentDescription = null,
                                     tint = Color(0xFF055B38),
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Text(
-                                    text = buildAnnotatedString {
-                                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))) {
-                                            append(totalCategories.toString())
-                                        }
-                                        withStyle(SpanStyle(color = Color(0xFF64748B))) {
-                                            append(" Categories")
-                                        }
-                                    },
-                                    fontSize = 12.sp
+                                    text = "$totalCategories Categories",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF0F172A)
                                 )
                             }
                         }
                     }
                 }
 
-                // 2. PLAIN LEDGER EXPORT SECTION
-                Column(modifier = Modifier.fillMaxWidth()) {
+                // 2. PLAIN LEDGER EXPORT (CSV)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -585,7 +501,7 @@ fun BackupScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Plain Ledger Export",
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF0F172A)
                             )
@@ -600,7 +516,7 @@ fun BackupScreen(
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -609,130 +525,87 @@ fun BackupScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            // Top Row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
+                            Text(
+                                text = "Export unencrypted ledger entries for Excel, Google Sheets, or auditing tools.",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B),
+                                lineHeight = 16.sp
+                            )
+
+                            // Scope Selector Box
+                            Box {
+                                Row(
                                     modifier = Modifier
-                                        .size(38.dp)
-                                        .background(Color(0xFFF1F5F9), RoundedCornerShape(10.dp)),
-                                    contentAlignment = Alignment.Center
+                                        .fillMaxWidth()
+                                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                                    .clickable { showScopeDropdown = true }
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Outlined.Description,
+                                        imageVector = Icons.Outlined.CalendarToday,
+                                        contentDescription = null,
+                                        tint = Color(0xFF055B38),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = "$selectedExportScope (${DecimalFormat("#,###").format(totalTxns)} txns)",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF0F172A),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.KeyboardArrowDown,
                                         contentDescription = null,
                                         tint = Color(0xFF64748B),
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Universal Spreadsheet Ledger",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = "Export unencrypted historical records for direct auditing in Excel, Google Sheets, or plain-text Beancount ledgers.",
-                                        fontSize = 12.sp,
-                                        color = Color(0xFF4B5563),
-                                        lineHeight = 16.sp
-                                    )
-                                }
-                            }
 
-                            // EXPORT SCOPE
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Text(
-                                    text = "EXPORT SCOPE",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF64748B),
-                                    letterSpacing = 0.5.sp
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                Box {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp))
-                                            .clickable { showScopeDropdown = true }
-                                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.CalendarToday,
-                                            contentDescription = null,
-                                            tint = Color(0xFF64748B),
-                                            modifier = Modifier.size(16.dp)
+                                DropdownMenu(
+                                    expanded = showScopeDropdown,
+                                    onDismissRequest = { showScopeDropdown = false }
+                                ) {
+                                    scopeOptions.forEach { option ->
+                                        DropdownMenuItem(
+                                            text = { Text(option) },
+                                            onClick = {
+                                                selectedExportScope = option
+                                                showScopeDropdown = false
+                                            }
                                         )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Text(
-                                            text = "$selectedExportScope (${DecimalFormat("#,###").format(totalTxns)} txns)",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A),
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Icon(
-                                            imageVector = Icons.Default.KeyboardArrowDown,
-                                            contentDescription = null,
-                                            tint = Color(0xFF64748B),
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-
-                                    DropdownMenu(
-                                        expanded = showScopeDropdown,
-                                        onDismissRequest = { showScopeDropdown = false }
-                                    ) {
-                                        scopeOptions.forEach { option ->
-                                            DropdownMenuItem(
-                                                text = { Text(option) },
-                                                onClick = {
-                                                    selectedExportScope = option
-                                                    showScopeDropdown = false
-                                                }
-                                            )
-                                        }
                                     }
                                 }
                             }
 
-                            // Sanitized info notice
+                            // Sanitized Note Pill
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFFF8FAFC), RoundedCornerShape(8.dp))
-                                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
-                                    .padding(10.dp),
-                                verticalAlignment = Alignment.Top
+                                    .background(Color(0xFFF0FDF4), RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.GppGood,
                                     contentDescription = null,
                                     tint = Color(0xFF055B38),
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .padding(top = 1.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Sanitized export contains ISO timestamps, raw amounts, category slugs, and masked account identifiers (e.g. •••• 4012).",
+                                    text = "Includes ISO timestamps, category slugs, and masked accounts.",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF4B5563),
-                                    lineHeight = 15.sp
+                                    color = Color(0xFF055B38)
                                 )
                             }
 
-                            // Export Button
+                            // Stadium Pill Export Button
                             Button(
                                 onClick = {
                                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
@@ -741,17 +614,17 @@ fun BackupScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(46.dp),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFFF1F5F9),
-                                    contentColor = Color(0xFF1E293B)
+                                    contentColor = Color(0xFF0F172A)
                                 ),
                                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.FileDownload,
                                     contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(17.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
@@ -764,12 +637,13 @@ fun BackupScreen(
                     }
                 }
 
-                // 3. ENCRYPTED FULL SNAPSHOT SECTION
-                Column(modifier = Modifier.fillMaxWidth()) {
+                // 3. ENCRYPTED FULL SNAPSHOT
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -783,7 +657,7 @@ fun BackupScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Encrypted Full Snapshot",
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF0F172A)
                             )
@@ -795,7 +669,7 @@ fun BackupScreen(
                         ) {
                             Text(
                                 text = "Encrypted",
-                                fontSize = 11.sp,
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF055B38)
                             )
@@ -804,7 +678,7 @@ fun BackupScreen(
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -815,47 +689,19 @@ fun BackupScreen(
                                 .padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            // Top Row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .background(Color(0xFFECFDF5), RoundedCornerShape(10.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Shield,
-                                        contentDescription = null,
-                                        tint = Color(0xFF055B38),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Cryptographic Vault Container",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = "Generates a tamper-evident payload (.arcvault) holding complete transactional metadata, automated merchant rules, and budget limits.",
-                                        fontSize = 12.sp,
-                                        color = Color(0xFF4B5563),
-                                        lineHeight = 16.sp
-                                    )
-                                }
-                            }
+                            Text(
+                                text = "Generates a tamper-evident payload (.arcvault) with complete transactions, categories, rules, and budget limits.",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B),
+                                lineHeight = 16.sp
+                            )
 
-                            // Hardware Encryption Container
+                            // Hardware Encryption Switch Row
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFFF9FAFB), RoundedCornerShape(10.dp))
+                                    .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
                                     .padding(horizontal = 14.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -868,20 +714,19 @@ fun BackupScreen(
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = "AES-256-GCM + PBKDF2 with 100k salt iterations",
+                                        text = "AES-256-GCM + PBKDF2 with 100k iterations",
                                         fontSize = 11.sp,
                                         color = Color(0xFF64748B)
                                     )
                                 }
 
-                                // Mockup-styled Switch with checkmark
                                 ArcTrackerMockSwitch(
                                     checked = isHardwareEncryptionEnabled,
                                     onCheckedChange = { isHardwareEncryptionEnabled = it }
                                 )
                             }
 
-                            // VAULT PASSPHRASE
+                            // Passphrase Single-line Input
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -905,16 +750,20 @@ fun BackupScreen(
 
                                 Spacer(modifier = Modifier.height(6.dp))
 
+                                // Single-Line Password Input Box
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp))
+                                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
                                         .padding(horizontal = 14.dp, vertical = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     BasicTextField(
                                         value = vaultPassphrase,
                                         onValueChange = { vaultPassphrase = it },
+                                        singleLine = true,
+                                        maxLines = 1,
                                         textStyle = TextStyle(
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Medium,
@@ -923,6 +772,10 @@ fun BackupScreen(
                                         ),
                                         cursorBrush = SolidColor(Color(0xFF055B38)),
                                         visualTransformation = if (isPassphraseVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                        keyboardOptions = KeyboardOptions(
+                                            keyboardType = KeyboardType.Password,
+                                            imeAction = ImeAction.Done
+                                        ),
                                         modifier = Modifier.weight(1f)
                                     )
 
@@ -941,53 +794,43 @@ fun BackupScreen(
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                // Strength meter
+                                // Dynamic Working Password Strength Meter
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(
                                         modifier = Modifier.weight(1f),
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(4.dp)
-                                                .background(Color(0xFF055B38), RoundedCornerShape(2.dp))
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(4.dp)
-                                                .background(Color(0xFF055B38), RoundedCornerShape(2.dp))
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(4.dp)
-                                                .background(Color(0xFF055B38), RoundedCornerShape(2.dp))
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(4.dp)
-                                                .background(Color(0xFFE5E7EB), RoundedCornerShape(2.dp))
-                                        )
+                                        for (barIndex in 1..4) {
+                                            val isBarActive = strengthScore >= barIndex
+                                            val barColor by animateColorAsState(
+                                                targetValue = if (isBarActive) strengthColor else Color(0xFFE2E8F0),
+                                                label = "strengthBarColor"
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(4.dp)
+                                                    .clip(RoundedCornerShape(2.dp))
+                                                    .background(barColor)
+                                            )
+                                        }
                                     }
 
                                     Spacer(modifier = Modifier.width(12.dp))
 
                                     Text(
-                                        text = "Strong",
+                                        text = strengthLabel,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF055B38)
+                                        color = strengthColor
                                     )
                                 }
                             }
 
-                            // Generate Encrypted Backup Button
+                            // Stadium Pill Generate Encrypted Backup Button
                             Button(
                                 onClick = {
                                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
@@ -995,8 +838,8 @@ fun BackupScreen(
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp),
-                                shape = RoundedCornerShape(10.dp),
+                                    .height(46.dp),
+                                shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFF055B38),
                                     contentColor = Color.White
@@ -1006,12 +849,12 @@ fun BackupScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.Archive,
                                     contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(17.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "Generate Encrypted Backup",
-                                    fontSize = 14.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -1019,12 +862,13 @@ fun BackupScreen(
                     }
                 }
 
-                // 4. RESTORE FROM FILE SECTION
-                Column(modifier = Modifier.fillMaxWidth()) {
+                // 4. RESTORE FROM FILE
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1038,7 +882,7 @@ fun BackupScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Restore from File",
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF0F172A)
                             )
@@ -1053,7 +897,7 @@ fun BackupScreen(
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -1064,59 +908,36 @@ fun BackupScreen(
                                 .padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            // Top Row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .background(Color(0xFFF1F5F9), RoundedCornerShape(10.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.History,
-                                        contentDescription = null,
-                                        tint = Color(0xFF64748B),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Restore Snapshot Archive",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = "Import and cryptographically verify previous archives before merging or committing changes to the active database.",
-                                        fontSize = 12.sp,
-                                        color = Color(0xFF4B5563),
-                                        lineHeight = 16.sp
-                                    )
-                                }
-                            }
+                            Text(
+                                text = "Import and cryptographically verify archives before merging or committing changes.",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B),
+                                lineHeight = 16.sp
+                            )
 
-                            // Select Snapshot Archive Target / Dropzone
+                            // File Selector Dropzone Container
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp))
-                                    .clickable {
-                                        filePickerLauncher.launch(arrayOf("*/*"))
-                                    }
-                                    .padding(vertical = 18.dp, horizontal = 16.dp),
+                                    .background(Color(0xFFF8FAFC), RoundedCornerShape(14.dp))
+                                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(14.dp))
+                                    .clickable { filePickerLauncher.launch(arrayOf("*/*")) }
+                                    .padding(vertical = 16.dp, horizontal = 14.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.NoteAdd,
-                                    contentDescription = null,
-                                    tint = Color(0xFF4B5563),
-                                    modifier = Modifier.size(24.dp)
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(Color(0xFFF1F5F9), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.NoteAdd,
+                                        contentDescription = null,
+                                        tint = Color(0xFF055B38),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = selectedSnapshotFileName ?: "Select Snapshot Archive",
@@ -1126,14 +947,14 @@ fun BackupScreen(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = if (selectedSnapshotFileName != null) "Verified payload ready for restore" else "Accepts .arcvault or plain .json schemas",
+                                    text = if (selectedSnapshotFileName != null) "Payload inspected and ready for restore" else "Accepts .arcvault or plain .json schemas",
                                     fontSize = 11.sp,
                                     color = if (selectedSnapshotFileName != null) Color(0xFF055B38) else Color(0xFF64748B),
                                     fontWeight = if (selectedSnapshotFileName != null) FontWeight.SemiBold else FontWeight.Normal
                                 )
                             }
 
-                            // CONFLICT RESOLUTION STRATEGY
+                            // Conflict Strategy
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1146,19 +967,19 @@ fun BackupScreen(
                                     letterSpacing = 0.5.sp
                                 )
 
-                                // Option 1: Merge & Deduplicate (Recommended)
+                                // Strategy 1: Merge & Deduplicate
                                 val isOpt1Selected = selectedStrategyIndex == 0
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .background(
-                                            if (isOpt1Selected) Color(0xFFECFDF5) else Color(0xFFF9FAFB),
-                                            RoundedCornerShape(10.dp)
+                                            if (isOpt1Selected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
+                                            RoundedCornerShape(12.dp)
                                         )
                                         .border(
                                             1.5.dp,
-                                            if (isOpt1Selected) Color(0xFF10B981) else Color(0xFFE5E7EB),
-                                            RoundedCornerShape(10.dp)
+                                            if (isOpt1Selected) Color(0xFF10B981) else Color(0xFFE2E8F0),
+                                            RoundedCornerShape(12.dp)
                                         )
                                         .clickable { selectedStrategyIndex = 0 }
                                         .padding(12.dp)
@@ -1189,27 +1010,27 @@ fun BackupScreen(
                                         }
                                         Spacer(modifier = Modifier.height(3.dp))
                                         Text(
-                                            text = "Imports novel ledger rows. Detects matching hashes and skips preexisting records safely.",
+                                            text = "Imports novel rows. Skips preexisting records safely based on unique cryptographic hashes.",
                                             fontSize = 11.sp,
-                                            color = Color(0xFF4B5563),
+                                            color = Color(0xFF64748B),
                                             lineHeight = 15.sp
                                         )
                                     }
                                 }
 
-                                // Option 2: Replace Existing
+                                // Strategy 2: Replace Existing
                                 val isOpt2Selected = selectedStrategyIndex == 1
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .background(
-                                            if (isOpt2Selected) Color(0xFFECFDF5) else Color(0xFFF9FAFB),
-                                            RoundedCornerShape(10.dp)
+                                            if (isOpt2Selected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
+                                            RoundedCornerShape(12.dp)
                                         )
                                         .border(
                                             1.5.dp,
-                                            if (isOpt2Selected) Color(0xFF10B981) else Color(0xFFE5E7EB),
-                                            RoundedCornerShape(10.dp)
+                                            if (isOpt2Selected) Color(0xFF10B981) else Color(0xFFE2E8F0),
+                                            RoundedCornerShape(12.dp)
                                         )
                                         .clickable { selectedStrategyIndex = 1 }
                                         .padding(12.dp)
@@ -1223,7 +1044,7 @@ fun BackupScreen(
                                         )
                                         Spacer(modifier = Modifier.height(3.dp))
                                         Text(
-                                            text = "Overwrites conflicting transaction IDs with payload data while preserving unmatched rows.",
+                                            text = "Overwrites matching records with archive data while keeping unmatched rows intact.",
                                             fontSize = 11.sp,
                                             color = Color(0xFF64748B),
                                             lineHeight = 15.sp
@@ -1231,19 +1052,19 @@ fun BackupScreen(
                                     }
                                 }
 
-                                // Option 3: Full Wipe & Restore
+                                // Strategy 3: Full Wipe & Restore
                                 val isOpt3Selected = selectedStrategyIndex == 2
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .background(
-                                            if (isOpt3Selected) Color(0xFFFEF2F2) else Color(0xFFF9FAFB),
-                                            RoundedCornerShape(10.dp)
+                                            if (isOpt3Selected) Color(0xFFFEF2F2) else Color(0xFFF8FAFC),
+                                            RoundedCornerShape(12.dp)
                                         )
                                         .border(
                                             1.5.dp,
                                             if (isOpt3Selected) Color(0xFFDC2626) else Color(0xFFFECACA),
-                                            RoundedCornerShape(10.dp)
+                                            RoundedCornerShape(12.dp)
                                         )
                                         .clickable { selectedStrategyIndex = 2 }
                                         .padding(12.dp)
@@ -1268,7 +1089,7 @@ fun BackupScreen(
                                         }
                                         Spacer(modifier = Modifier.height(3.dp))
                                         Text(
-                                            text = "Purges current local SQLite tables entirely. Completely restructures ledger from archive.",
+                                            text = "Erases local SQLite database completely before restoring fresh from archive.",
                                             fontSize = 11.sp,
                                             color = Color(0xFF64748B),
                                             lineHeight = 15.sp
@@ -1277,7 +1098,7 @@ fun BackupScreen(
                                 }
                             }
 
-                            // Validate & Execute Restore Button
+                            // Stadium Pill Restore Button
                             Button(
                                 onClick = {
                                     val payload = pendingImportPayload
@@ -1305,17 +1126,17 @@ fun BackupScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(46.dp),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFE5E7EB),
-                                    contentColor = Color(0xFF1F2937)
+                                    containerColor = Color(0xFFF1F5F9),
+                                    contentColor = Color(0xFF0F172A)
                                 ),
                                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.FileDownload,
                                     contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(17.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
@@ -1328,12 +1149,12 @@ fun BackupScreen(
                     }
                 }
 
-                // 5. PASSPHRASE RECOVERY NOTICE (AMBER CALLOUT)
+                // 5. PASSPHRASE RECOVERY NOTICE (Amber Callout)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFFFFBEB), RoundedCornerShape(12.dp))
-                        .border(1.dp, Color(0xFFFEF3C7), RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFFFBEB), RoundedCornerShape(14.dp))
+                        .border(1.dp, Color(0xFFFEF3C7), RoundedCornerShape(14.dp))
                         .padding(14.dp),
                     verticalAlignment = Alignment.Top
                 ) {
@@ -1356,11 +1177,11 @@ fun BackupScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = buildAnnotatedString {
-                                append("ArcTracker does not transmit, synchronise, or cache your private backup passphrases. Encrypted ")
+                                append("ArcTracker never transmits or caches your master passphrase. Encrypted ")
                                 withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFF92400E))) {
                                     append(".arcvault")
                                 }
-                                append(" snapshots cannot be decrypted or recovered if the master passphrase is misplaced.")
+                                append(" archives cannot be decrypted or recovered if the passphrase is lost.")
                             },
                             fontSize = 11.sp,
                             color = Color(0xFF78350F),
@@ -1369,7 +1190,7 @@ fun BackupScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
 
@@ -1413,18 +1234,18 @@ fun BackupScreen(
         val rawContent = selectedSnapshotContent
         Dialog(onDismissRequest = { showImportPassphraseDialog = false }) {
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(24.dp),
                 color = Color.White,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(38.dp)
                                 .background(Color(0xFFECFDF5), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
@@ -1447,7 +1268,7 @@ fun BackupScreen(
                     Text(
                         text = "This snapshot is encrypted with AES-256-GCM. Please enter the master passphrase to decrypt and inspect the payload.",
                         fontSize = 12.sp,
-                        color = Color(0xFF4B5563),
+                        color = Color(0xFF64748B),
                         lineHeight = 16.sp
                     )
 
@@ -1456,15 +1277,15 @@ fun BackupScreen(
                         onValueChange = { importPassphraseInput = it },
                         placeholder = { Text("Master Passphrase") },
                         visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         singleLine = true
                     )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Button(
                             onClick = {
@@ -1477,11 +1298,11 @@ fun BackupScreen(
                                 .height(44.dp),
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFF3F4F6),
+                                containerColor = Color(0xFFF1F5F9),
                                 contentColor = Color(0xFF374151)
                             )
                         ) {
-                            Text("Cancel")
+                            Text("Cancel", fontWeight = FontWeight.SemiBold)
                         }
 
                         Button(
@@ -1527,7 +1348,7 @@ fun BackupScreen(
                                 contentColor = Color.White
                             )
                         ) {
-                            Text("Decrypt")
+                            Text("Decrypt", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -1539,12 +1360,12 @@ fun BackupScreen(
     if (successDialogMessage != null) {
         Dialog(onDismissRequest = { successDialogMessage = null }) {
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(24.dp),
                 color = Color.White,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(22.dp),
+                    modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
@@ -1598,12 +1419,12 @@ fun BackupScreen(
     if (errorDialogMessage != null) {
         Dialog(onDismissRequest = { errorDialogMessage = null }) {
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(24.dp),
                 color = Color.White,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(22.dp),
+                    modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
@@ -1655,7 +1476,34 @@ fun BackupScreen(
 }
 
 /**
- * Custom ArcTracker Switch matching the reference mockup:
+ * Real-time Password Strength Calculator.
+ * Returns (score: 0..4, label: String, color: Color).
+ */
+private fun calculatePasswordStrength(passphrase: String): Triple<Int, String, Color> {
+    if (passphrase.isEmpty()) {
+        return Triple(0, "Empty", Color(0xFF94A3B8))
+    }
+    if (passphrase.length < 6) {
+        return Triple(1, "Weak", Color(0xFFEF4444))
+    }
+
+    var score = 0
+    if (passphrase.length >= 6) score++
+    if (passphrase.length >= 10) score++
+    if (passphrase.any { it.isUpperCase() } && passphrase.any { it.isLowerCase() }) score++
+    if (passphrase.any { it.isDigit() }) score++
+    if (passphrase.any { !it.isLetterOrDigit() }) score++
+
+    return when {
+        score <= 1 -> Triple(1, "Weak", Color(0xFFEF4444))
+        score == 2 -> Triple(2, "Fair", Color(0xFFF59E0B))
+        score in 3..4 -> Triple(3, "Good", Color(0xFF10B981))
+        else -> Triple(4, "Strong", Color(0xFF055B38))
+    }
+}
+
+/**
+ * Custom ArcTracker Switch matching the app's clean UI:
  * Forest green background when checked, white thumb containing dark green checkmark.
  */
 @Composable
