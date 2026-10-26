@@ -22,7 +22,10 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -715,95 +718,176 @@ fun FinancialAccountsScreen(
         var selectedType by remember { mutableStateOf(InstrumentType.BANK_ACCOUNT) }
         var isError by remember { mutableStateOf(false) }
 
-        AlertDialog(
-            onDismissRequest = { showAddAccountDialog = false },
-            shape = RoundedCornerShape(20.dp),
-            containerColor = Color.White,
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFECFDF5)),
-                        contentAlignment = Alignment.Center
+        Dialog(
+            onDismissRequest = { showAddAccountDialog = false }
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+                shadowElevation = 8.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Header Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.AddCircleOutline,
-                            contentDescription = null,
-                            tint = Color(0xFF059669),
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFECFDF5)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.AddCircleOutline,
+                                contentDescription = null,
+                                tint = Color(0xFF059669),
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Link Financial Account",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = Color(0xFF0F172A)
+                            )
+                            Spacer(modifier = Modifier.height(1.dp))
+                            Text(
+                                text = "Add account for local reconciliation",
+                                fontSize = 11.5.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFF1F5F9))
+                                .clickable { showAddAccountDialog = false },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Close",
+                                tint = Color(0xFF64748B),
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Link Financial Account",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp,
-                            color = Color(0xFF0F172A)
-                        )
-                        Text(
-                            text = "Add account for local reconciliation",
-                            fontSize = 11.5.sp,
-                            color = Color(0xFF64748B)
-                        )
-                    }
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+
                     Text(
                         text = "Register an account to automatically match incoming SMS and banking notifications offline.",
-                        fontSize = 12.sp,
+                        fontSize = 11.5.sp,
                         color = Color(0xFF64748B),
                         lineHeight = 16.sp
                     )
 
-                    OutlinedTextField(
-                        value = bankNameInput,
-                        onValueChange = {
-                            bankNameInput = it
-                            if (isError) isError = false
-                        },
-                        label = { Text("Bank or Issuer (e.g. HDFC Bank, SBI, ICICI)") },
-                        placeholder = { Text("e.g. HDFC Bank") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF0F172A),
-                            unfocusedBorderColor = Color(0xFFE2E8F0)
-                        )
-                    )
-
-                    OutlinedTextField(
-                        value = suffixInput,
-                        onValueChange = {
-                            if (it.length <= 4 && it.all { char -> char.isDigit() }) {
-                                suffixInput = it
-                                if (isError) isError = false
-                            }
-                        },
-                        label = { Text("Account / Card Suffix (last 4 digits)") },
-                        placeholder = { Text("e.g. 4821") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF0F172A),
-                            unfocusedBorderColor = Color(0xFFE2E8F0)
-                        )
-                    )
-
-                    Column {
+                    // Input 1: Bank / Issuer Name
+                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text(
-                            text = "Instrument Type",
+                            text = "Bank or Issuer Name",
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
                             color = Color(0xFF475569)
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = bankNameInput,
+                            onValueChange = {
+                                bankNameInput = it
+                                if (isError) isError = false
+                            },
+                            placeholder = {
+                                Text("e.g. HDFC Bank, SBI, ICICI", fontSize = 12.5.sp, color = Color(0xFF94A3B8))
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.AccountBalance,
+                                    contentDescription = null,
+                                    tint = Color(0xFF64748B),
+                                    modifier = Modifier.size(17.dp)
+                                )
+                            },
+                            singleLine = true,
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF0F172A)
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFFF8FAFC),
+                                unfocusedContainerColor = Color(0xFFF8FAFC),
+                                focusedBorderColor = Color(0xFF0F172A),
+                                unfocusedBorderColor = Color(0xFFE2E8F0)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    // Input 2: Suffix (Last 4 digits)
+                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text(
+                            text = "Account / Card Suffix (Last 4 Digits)",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF475569)
+                        )
+                        OutlinedTextField(
+                            value = suffixInput,
+                            onValueChange = {
+                                if (it.length <= 4 && it.all { char -> char.isDigit() }) {
+                                    suffixInput = it
+                                    if (isError) isError = false
+                                }
+                            },
+                            placeholder = {
+                                Text("e.g. 4821", fontSize = 12.5.sp, color = Color(0xFF94A3B8))
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.CreditCard,
+                                    contentDescription = null,
+                                    tint = Color(0xFF64748B),
+                                    modifier = Modifier.size(17.dp)
+                                )
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF0F172A)
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFFF8FAFC),
+                                unfocusedContainerColor = Color(0xFFF8FAFC),
+                                focusedBorderColor = Color(0xFF0F172A),
+                                unfocusedBorderColor = Color(0xFFE2E8F0)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    // Input 3: Instrument Type Selector
+                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text(
+                            text = "Instrument Type",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF475569)
+                        )
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
@@ -815,9 +899,11 @@ fun FinancialAccountsScreen(
                                 val isTypeSelected = selectedType == type
                                 Surface(
                                     onClick = { selectedType = type },
-                                    modifier = Modifier.weight(1f).height(42.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(38.dp),
                                     shape = RoundedCornerShape(10.dp),
-                                    color = if (isTypeSelected) Color(0xFF0F172A) else Color(0xFFF1F5F9),
+                                    color = if (isTypeSelected) Color(0xFF0F172A) else Color(0xFFF8FAFC),
                                     border = BorderStroke(1.dp, if (isTypeSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0))
                                 ) {
                                     Row(
@@ -828,8 +914,8 @@ fun FinancialAccountsScreen(
                                         Icon(
                                             imageVector = icon,
                                             contentDescription = null,
-                                            tint = if (isTypeSelected) Color.White else Color(0xFF475569),
-                                            modifier = Modifier.size(16.dp)
+                                            tint = if (isTypeSelected) Color.White else Color(0xFF64748B),
+                                            modifier = Modifier.size(15.dp)
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
@@ -846,53 +932,65 @@ fun FinancialAccountsScreen(
 
                     if (isError) {
                         Text(
-                            text = "Please enter bank name and 4-digit suffix",
+                            text = "Please enter bank name and last 4 digits suffix",
                             color = Color(0xFFDC2626),
-                            fontSize = 11.5.sp
+                            fontSize = 11.sp
                         )
                     }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val cleanSuffix = suffixInput.trim()
-                        val instName = bankNameInput.trim()
-                        if (instName.isBlank() || cleanSuffix.length < 2) {
-                            isError = true
-                            return@Button
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    // Action buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { showAddAccountDialog = false },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        ) {
+                            Text("Cancel", color = Color(0xFF475569), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         }
-                        val newAccount = KnownFinancialAccount.create(
-                            institutionId = instName.lowercase().replace(" ", "_"),
-                            institutionName = instName,
-                            accountSuffix = cleanSuffix,
-                            instrumentType = selectedType,
-                            confidence = IdentityConfidence.HIGH,
-                            source = AccountSource.USER_CONFIRMED
-                        )
-                        scope.launch {
-                            reconciliationManager.registerAccount(newAccount)
-                            snackbarHostState.showSnackbar("Linked $instName ••••$cleanSuffix")
-                            selectedAccountId = newAccount.id
-                            showAddAccountDialog = false
+
+                        Button(
+                            onClick = {
+                                val cleanSuffix = suffixInput.trim()
+                                val instName = bankNameInput.trim()
+                                if (instName.isBlank() || cleanSuffix.length < 2) {
+                                    isError = true
+                                    return@Button
+                                }
+                                val newAccount = KnownFinancialAccount.create(
+                                    institutionId = instName.lowercase().replace(" ", "_"),
+                                    institutionName = instName,
+                                    accountSuffix = cleanSuffix,
+                                    instrumentType = selectedType,
+                                    confidence = IdentityConfidence.HIGH,
+                                    source = AccountSource.USER_CONFIRMED
+                                )
+                                scope.launch {
+                                    reconciliationManager.registerAccount(newAccount)
+                                    snackbarHostState.showSnackbar("Linked $instName ••••$cleanSuffix")
+                                    selectedAccountId = newAccount.id
+                                    showAddAccountDialog = false
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Add Account", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text("Add Account", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { showAddAccountDialog = false },
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-                ) {
-                    Text("Cancel", color = Color(0xFF475569))
+                    }
                 }
             }
-        )
+        }
     }
 }
 
