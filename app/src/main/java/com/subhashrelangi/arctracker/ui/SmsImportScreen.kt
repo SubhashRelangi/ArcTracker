@@ -275,7 +275,7 @@ fun SmsImportScreen(
                     val enrichedResult = result.copy(accountGroups = groups)
                     scanResultSuccess = enrichedResult
                     selectedItemIds = enrichedResult.scannedItems.map { it.sourceEvent.sourceId }.toSet()
-                    expandedGroupIds = groups.map { it.groupId }.toSet()
+                    expandedGroupIds = emptySet() // Initially minimize all accounts
                     currentStage = SmsImportStage.REVIEW
                 } else if (result is SmsScanResult.Cancelled) {
                     currentStage = SmsImportStage.TIME_SELECTION
@@ -460,11 +460,9 @@ fun SmsImportScreen(
             )
         },
         bottomBar = {
-            // Clean ArcTracker Sticky Bottom Bar elevated with navigationBarsPadding
+            // Clean ArcTracker Sticky Bottom Bar sticking directly to the bottom of the screen
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding(),
+                modifier = Modifier.fillMaxWidth(),
                 color = Color.White,
                 shadowElevation = 8.dp,
                 border = BorderStroke(1.dp, Color(0xFFE2E8F0))
@@ -472,9 +470,10 @@ fun SmsImportScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                        .navigationBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     when (currentStage) {
                         SmsImportStage.TIME_SELECTION -> {
@@ -1141,11 +1140,12 @@ fun SmsImportScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
+                                        .padding(14.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Row(
+                                        modifier = Modifier.weight(1f),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
@@ -1153,24 +1153,33 @@ fun SmsImportScreen(
                                             imageVector = Icons.Default.CheckCircle,
                                             contentDescription = "Discovered",
                                             tint = Color(0xFF055B38),
-                                            modifier = Modifier.size(24.dp)
+                                            modifier = Modifier.size(22.dp)
                                         )
                                         Column {
                                             Text(
-                                                text = "$totalDiscovered Transactions Discovered",
-                                                fontSize = 14.5.sp,
+                                                text = "$totalDiscovered Found",
+                                                fontSize = 14.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F172A)
+                                                color = Color(0xFF0F172A),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                             Text(
-                                                text = "${result?.newTransactionsCount ?: items.size} new • ${result?.duplicatesCount ?: 0} already in ledger",
-                                                fontSize = 11.5.sp,
-                                                color = Color(0xFF64748B)
+                                                text = "${result?.newTransactionsCount ?: items.size} new • ${result?.duplicatesCount ?: 0} in vault",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF64748B),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
                                     }
 
-                                    Column(horizontalAlignment = Alignment.End) {
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    Column(
+                                        horizontalAlignment = Alignment.End,
+                                        modifier = Modifier.wrapContentWidth()
+                                    ) {
                                         val formattedVolume = if (totalVolume % 1.0 == 0.0) {
                                             String.format(Locale.ENGLISH, "₹%,.0f", totalVolume)
                                         } else {
@@ -1178,13 +1187,14 @@ fun SmsImportScreen(
                                         }
                                         Text(
                                             text = formattedVolume,
-                                            fontSize = 18.sp,
+                                            fontSize = 17.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A)
+                                            color = Color(0xFF0F172A),
+                                            maxLines = 1
                                         )
                                         Text(
                                             text = "Total Volume",
-                                            fontSize = 11.sp,
+                                            fontSize = 10.5.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Color(0xFF055B38)
                                         )
