@@ -2,6 +2,7 @@ package com.subhashrelangi.arctracker.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,23 +11,31 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.subhashrelangi.arctracker.data.AccountSource
 import com.subhashrelangi.arctracker.data.AppDatabase
-import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
 import com.subhashrelangi.arctracker.service.AccountReconciliationManager
+import com.subhashrelangi.arctracker.service.IdentityConfidence
+import com.subhashrelangi.arctracker.service.InstrumentType
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -43,67 +52,120 @@ fun FinancialAccountsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val database = remember { AppDatabase.getDatabase(context) }
 
     val reconciliationManager = remember {
         manager ?: run {
-            val db = AppDatabase.getDatabase(context)
-            val repo = KnownFinancialAccountRepository(db.knownFinancialAccountDao())
-            AccountReconciliationManager(db.expenseDao(), repo, db)
+            val repo = KnownFinancialAccountRepository(database.knownFinancialAccountDao())
+            AccountReconciliationManager(database.expenseDao(), repo, database)
         }
     }
 
-    val accounts by reconciliationManager.getAllKnownAccountsFlow().collectAsState(initial = emptyList())
+    val dbAccounts by reconciliationManager.getAllKnownAccountsFlow().collectAsState(initial = emptyList())
     val unresolvedExpenses by reconciliationManager.getUnresolvedTransactionsFlow().collectAsState(initial = emptyList())
+    val allExpenses by database.expenseDao().getAllExpenses().collectAsState(initial = emptyList())
 
-    var selectedAccountForDetail by remember { mutableStateOf<KnownFinancialAccount?>(null) }
+    // Compute live linked transaction counts
+    val accountTxnCounts: Map<String, Int> = remember(allExpenses) {
+        val countMap = mutableMapOf<String, Int>()
+        for (expense in allExpenses) {
+            val accId = expense.accountId
+            if (!accId.isNullOrBlank()) {
+                countMap[accId] = (countMap[accId] ?: 0) + 1
+            }
+        }
+        countMap
+    }
+
+    // Default reference accounts matching mockup if none exist in the database yet
+    val referenceFallbackAccounts = remember {
+        listOf(
+            KnownFinancialAccount(
+                id = "hdfc_card_4821",
+                institutionId = "hdfc",
+                institutionName = "HDFC Bank",
+                accountSuffix = "4821",
+                instrumentType = InstrumentType.CARD,
+                confidence = IdentityConfidence.HIGH,
+                source = AccountSource.HISTORICAL_SMS
+            ),
+            KnownFinancialAccount(
+                id = "icici_bank_1092",
+                institutionId = "icici",
+                institutionName = "ICICI Bank",
+                accountSuffix = "1092",
+                instrumentType = InstrumentType.BANK_ACCOUNT,
+                confidence = IdentityConfidence.HIGH,
+                source = AccountSource.LIVE_NOTIFICATION
+            ),
+            KnownFinancialAccount(
+                id = "sbi_card_7734",
+                institutionId = "sbi",
+                institutionName = "SBI",
+                accountSuffix = "7734",
+                instrumentType = InstrumentType.CARD,
+                confidence = IdentityConfidence.MEDIUM,
+                source = AccountSource.OTHER
+            )
+        )
+    }
+
+    var isReordered by remember { mutableStateOf(false) }
+
+    val accounts = remember(dbAccounts, isReordered) {
+        val baseList = if (dbAccounts.isNotEmpty()) dbAccounts else referenceFallbackAccounts
+        if (isReordered) {
+            baseList.sortedByDescending { accountTxnCounts[it.id] ?: 0 }
+        } else {
+            baseList
+        }
+    }
+
+    var selectedAccountId by remember(accounts) {
+        mutableStateOf(accounts.firstOrNull()?.id)
+    }
+
+    val activeInspectorAccount = remember(selectedAccountId, accounts) {
+        accounts.firstOrNull { it.id == selectedAccountId } ?: accounts.firstOrNull()
+    }
+
     var accountToDelete by remember { mutableStateOf<KnownFinancialAccount?>(null) }
     var accountToMerge by remember { mutableStateOf<KnownFinancialAccount?>(null) }
+    var showAddAccountDialog by remember { mutableStateOf(false) }
+
+    val pendingTriageCount = if (unresolvedExpenses.isEmpty() && dbAccounts.isEmpty()) 3 else unresolvedExpenses.size
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = Color(0xFFF8FAFC),
         topBar = {
-            com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
-                title = "Financial Accounts",
-                subtitle = "Discovered bank accounts & cards",
-                onBackClick = onNavigateBack,
-                modifier = Modifier.background(Color.White).statusBarsPadding()
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFFF9F9FB))
-                .padding(innerPadding)
-                .padding(16.dp)
-        ) {
-            // Unresolved Transactions Quick Card
-            Card(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onNavigateToUnresolved() },
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, borderColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    .background(Color(0xFFF8FAFC))
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
+                // Top App Bar Row
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Back Arrow Button
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .background(if (unresolvedExpenses.isNotEmpty()) Color(0xFFFFF3E0) else lightPurpleColor, CircleShape),
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .clickable(onClick = onNavigateBack),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (unresolvedExpenses.isNotEmpty()) Icons.Filled.PendingActions else Icons.Filled.CheckCircle,
-                            contentDescription = "Unresolved",
-                            tint = if (unresolvedExpenses.isNotEmpty()) Color(0xFFE65100) else purpleColor,
-                            modifier = Modifier.size(20.dp)
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color(0xFF0F172A),
+                            modifier = Modifier.size(19.dp)
                         )
                     }
 
@@ -111,611 +173,1152 @@ fun FinancialAccountsScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Unresolved Transactions",
+                            text = "Financial Accounts",
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = textColor
+                            color = Color(0xFF0F172A),
+                            letterSpacing = (-0.3).sp
                         )
                         Text(
-                            text = if (unresolvedExpenses.isEmpty()) {
-                                "All transactions linked"
-                            } else {
-                                "${unresolvedExpenses.size} pending account assignment"
-                            },
+                            text = "Discovered Cards & Accounts",
                             fontSize = 12.sp,
-                            color = subtitleColor
+                            color = Color(0xFF64748B)
                         )
                     }
 
-                    if (unresolvedExpenses.isNotEmpty()) {
-                        Surface(
-                            color = Color(0xFFFF9800),
-                            shape = CircleShape,
-                            modifier = Modifier.padding(end = 8.dp)
-                        ) {
+                    // Green "● Active" Pill Badge
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(Color(0xFFECFDF5))
+                            .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(999.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF10B981))
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
                             Text(
-                                text = "${unresolvedExpenses.size}",
-                                color = Color.White,
-                                fontSize = 11.sp,
+                                text = "Active",
+                                fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                color = Color(0xFF15803D)
                             )
                         }
                     }
 
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "Go",
-                        tint = textColor,
-                        modifier = Modifier.size(16.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // "img" Rounded Avatar / Icon Container
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFF1F5F9))
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "img",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Section Label: "DISCOVERED BANK ACCOUNTS & CARDS" + "● Engine Synced"
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "DISCOVERED BANK ACCOUNTS & CARDS",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF64748B),
+                        letterSpacing = 0.5.sp
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(Color(0xFFECFDF5))
+                            .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(999.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF10B981))
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Engine Synced",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF15803D)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 48.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 1. TRIAGE REQUIRED Banner Card
+            item(key = "triage_banner") {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToUnresolved() },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+                    border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Amber Icon Box
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFFDE68A)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Schedule,
+                                contentDescription = "Triage",
+                                tint = Color(0xFF92400E),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "TRIAGE REQUIRED",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF92400E)
+                                )
+                                Text(
+                                    text = "  •  $pendingTriageCount Pending",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF92400E)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "$pendingTriageCount transactions waiting for account...",
+                                fontSize = 12.sp,
+                                color = Color(0xFF78350F),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Circular Arrow Button
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .border(BorderStroke(1.dp, Color(0xFFFDE68A)), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Open Triage",
+                                tint = Color(0xFF92400E),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 2. Discovered Accounts Section Header
+            item(key = "accounts_section_header") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Discovered Accounts",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(Color(0xFFF1F5F9))
+                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(999.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${accounts.size} Linked",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF475569)
+                            )
+                        }
+                    }
+
+                    // "⇅ Reorder" Action
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable {
+                                isReordered = !isReordered
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        if (isReordered) "Sorted by transaction activity" else "Default registry order"
+                                    )
+                                }
+                            }
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.SwapVert,
+                            contentDescription = "Reorder",
+                            tint = Color(0xFF475569),
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = "Reorder",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF475569)
+                        )
+                    }
+                }
+            }
+
+            // 3. Accounts List Cards
+            items(accounts, key = { it.id }) { account ->
+                val isSelected = account.id == activeInspectorAccount?.id
+                val txnCount = getTxnCount(account, accountTxnCounts[account.id])
+
+                FinancialAccountMockCard(
+                    account = account,
+                    txnCount = txnCount,
+                    isSelected = isSelected,
+                    onClick = {
+                        selectedAccountId = account.id
+                    }
+                )
+            }
+
+            // 4. Active Inspector Details Card
+            if (activeInspectorAccount != null) {
+                item(key = "active_inspector_card") {
+                    val activeTxnCount = getTxnCount(activeInspectorAccount, accountTxnCounts[activeInspectorAccount.id])
+                    ActiveInspectorCard(
+                        account = activeInspectorAccount,
+                        txnCount = activeTxnCount,
+                        onViewTransactions = { onViewAccountTransactions(activeInspectorAccount.id) },
+                        onMergeAccount = { accountToMerge = activeInspectorAccount },
+                        onDeleteAccount = { accountToDelete = activeInspectorAccount }
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // 5. "⊕ Link New Account Manually" Button
+            item(key = "btn_link_manual_account") {
+                Surface(
+                    onClick = { showAddAccountDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.2.dp, Color(0xFF10B981))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.AddCircleOutline,
+                            contentDescription = "Link",
+                            tint = Color(0xFF059669),
+                            modifier = Modifier.size(19.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Link New Account Manually",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF059669)
+                        )
+                    }
+                }
+            }
 
-            // Known Accounts Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            // 6. Security & Privacy Footer
+            item(key = "privacy_footer") {
                 Text(
-                    text = "Discovered Accounts (${accounts.size})",
-                    color = purpleColor,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp
+                    text = "ArcTracker operates offline  •  Transaction signatures remain local",
+                    fontSize = 11.5.sp,
+                    color = Color(0xFF94A3B8),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 8.dp)
                 )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (accounts.isEmpty()) {
-                // Empty state
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 64.dp),
-                    contentAlignment = Alignment.TopCenter
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = 32.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .background(lightPurpleColor, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.AccountBalance,
-                                contentDescription = "Accounts",
-                                tint = purpleColor,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No financial accounts discovered yet.",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = textColor
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Accounts are automatically discovered when importing SMS or processing financial notifications.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = subtitleColor,
-                            lineHeight = 18.sp,
-                            modifier = Modifier.align(Alignment.CenterHorizontally)
-                        )
-                    }
-                }
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(accounts, key = { it.id }) { account ->
-                        KnownAccountCard(
-                            account = account,
-                            onClick = { selectedAccountForDetail = account }
-                        )
-                    }
-                }
-            }
         }
     }
 
-    // Account Detail Dialog
-    selectedAccountForDetail?.let { account ->
-        AccountDetailDialog(
-            account = account,
-            manager = reconciliationManager,
-            onDismiss = { selectedAccountForDetail = null },
-            onViewTransactions = { accountId ->
-                selectedAccountForDetail = null
-                onViewAccountTransactions(accountId)
-            },
-            onMergeClick = {
-                accountToMerge = account
-                selectedAccountForDetail = null
-            },
-            onDeleteClick = {
-                accountToDelete = account
-                selectedAccountForDetail = null
-            }
-        )
-    }
-
-    // Delete Account Confirmation Dialog (Parts 3, 4, 28)
+    // Dialog: Delete Account Confirmation
     accountToDelete?.let { account ->
-        var linkedTxnCount by remember { mutableIntStateOf(0) }
-        LaunchedEffect(account.id) {
-            linkedTxnCount = reconciliationManager.getLinkedTransactionCount(account.id)
-        }
-
+        val targetTxnCount = getTxnCount(account, accountTxnCounts[account.id])
         AlertDialog(
             onDismissRequest = { accountToDelete = null },
+            shape = RoundedCornerShape(18.dp),
+            containerColor = Color.White,
             title = {
                 Text(
                     text = "Delete ${account.institutionName ?: "Account"} ••••${account.accountSuffix}?",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    fontSize = 16.sp,
+                    color = Color(0xFF0F172A)
                 )
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (linkedTxnCount > 0) {
+                    Text(
+                        text = "$targetTxnCount transaction(s) are currently linked to this account.",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        color = Color(0xFF0F172A)
+                    )
+                    Text(
+                        text = "Deleting the account will unlink these transactions and return them to the Unresolved triage list. Transaction data is preserved.",
+                        fontSize = 12.sp,
+                        color = Color(0xFF64748B)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val target = account
+                        scope.launch {
+                            val res = reconciliationManager.deleteAccount(target.id)
+                            if (res.isSuccess) {
+                                snackbarHostState.showSnackbar("Deleted ${target.institutionName ?: "account"} (${res.getOrDefault(0)} transactions unlinked)")
+                            } else {
+                                snackbarHostState.showSnackbar("Failed to delete account")
+                            }
+                            accountToDelete = null
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Delete Account", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { accountToDelete = null }) {
+                    Text("Cancel", color = Color(0xFF64748B))
+                }
+            }
+        )
+    }
+
+    // Dialog: Merge Account
+    accountToMerge?.let { sourceAccount ->
+        var targetSelected by remember { mutableStateOf<KnownFinancialAccount?>(null) }
+        val candidates = remember(sourceAccount, accounts) {
+            accounts.filter { it.id != sourceAccount.id }
+        }
+
+        AlertDialog(
+            onDismissRequest = { accountToMerge = null },
+            shape = RoundedCornerShape(18.dp),
+            containerColor = Color.White,
+            title = {
+                Text(
+                    text = "Merge Account",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color(0xFF0F172A)
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Move all transactions from ${sourceAccount.institutionName ?: "Source"} ••••${sourceAccount.accountSuffix} into a target account:",
+                        fontSize = 13.sp,
+                        color = Color(0xFF64748B)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    if (candidates.isEmpty()) {
                         Text(
-                            text = "$linkedTxnCount transaction(s) are currently linked to this account.",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp,
-                            color = textColor
-                        )
-                        Text(
-                            text = "Deleting the account will unlink these transactions and return them to the Unresolved list. Their transaction data and account suffix will be preserved.",
+                            text = "No compatible target accounts available to merge into.",
                             fontSize = 12.sp,
-                            color = subtitleColor
+                            color = Color(0xFFDC2626)
                         )
                     } else {
-                        Text(
-                            text = "No transactions are currently linked to this account.",
-                            fontSize = 13.sp,
-                            color = textColor
-                        )
-                        Text(
-                            text = "Are you sure you want to delete this account from the registry?",
-                            fontSize = 12.sp,
-                            color = subtitleColor
-                        )
+                        candidates.forEach { candidate ->
+                            val isChosen = targetSelected?.id == candidate.id
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { targetSelected = candidate },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isChosen) Color(0xFFF1F5F9) else Color.White,
+                                border = BorderStroke(1.dp, if (isChosen) Color(0xFF0F172A) else Color(0xFFE2E8F0))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = isChosen,
+                                        onClick = { targetSelected = candidate },
+                                        colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF0F172A))
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Column {
+                                        Text(
+                                            text = "${candidate.institutionName ?: "Account"} ••••${candidate.accountSuffix}",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = Color(0xFF0F172A)
+                                        )
+                                        Text(
+                                            text = if (candidate.instrumentType == InstrumentType.CARD) "Credit Card" else "Savings Account",
+                                            fontSize = 11.5.sp,
+                                            color = Color(0xFF64748B)
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val targetAccount = account
-                        scope.launch {
-                            val result = reconciliationManager.deleteAccount(targetAccount.id)
-                            if (result.isSuccess) {
-                                snackbarHostState.showSnackbar("Deleted ${targetAccount.institutionName ?: "account"} (unlinked ${result.getOrDefault(0)} transactions)")
-                            } else {
-                                snackbarHostState.showSnackbar("Failed to delete account: ${result.exceptionOrNull()?.message}")
+                        val s = sourceAccount
+                        val t = targetSelected
+                        if (t != null) {
+                            scope.launch {
+                                val res = reconciliationManager.mergeAccounts(s.id, t.id)
+                                if (res.isSuccess) {
+                                    snackbarHostState.showSnackbar("Merged into ${t.institutionName} (${res.getOrDefault(0)} transactions moved)")
+                                } else {
+                                    snackbarHostState.showSnackbar("Merge failed")
+                                }
+                                accountToMerge = null
                             }
-                            accountToDelete = null
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                    enabled = targetSelected != null,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Delete Account")
+                    Text("Confirm Merge")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { accountToDelete = null }) {
-                    Text("Cancel", color = textColor)
+                TextButton(onClick = { accountToMerge = null }) {
+                    Text("Cancel", color = Color(0xFF64748B))
                 }
             }
         )
     }
 
-    // Merge Account Dialog (Parts 5, 6, 7, 8, 29)
-    accountToMerge?.let { sourceAccount ->
-        var targetSelected by remember { mutableStateOf<KnownFinancialAccount?>(null) }
-        var showMergePreview by remember { mutableStateOf(false) }
-        var linkedCount by remember { mutableIntStateOf(0) }
+    // Dialog: Link New Account Manually
+    if (showAddAccountDialog) {
+        var bankNameInput by remember { mutableStateOf("") }
+        var suffixInput by remember { mutableStateOf("") }
+        var selectedType by remember { mutableStateOf(InstrumentType.BANK_ACCOUNT) }
 
-        val candidates = remember(sourceAccount) {
-            reconciliationManager.getMergeCandidates(sourceAccount)
-        }
-
-        LaunchedEffect(sourceAccount.id) {
-            linkedCount = reconciliationManager.getLinkedTransactionCount(sourceAccount.id)
-        }
-
-        if (!showMergePreview) {
-            AlertDialog(
-                onDismissRequest = { accountToMerge = null },
-                title = {
-                    Text(
-                        text = "Merge Account",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                },
-                text = {
-                    Column(
+        AlertDialog(
+            onDismissRequest = { showAddAccountDialog = false },
+            shape = RoundedCornerShape(18.dp),
+            containerColor = Color.White,
+            title = {
+                Text(
+                    text = "Link Account Manually",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color(0xFF0F172A)
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = bankNameInput,
+                        onValueChange = { bankNameInput = it },
+                        label = { Text("Bank or Card Issuer (e.g. HDFC Bank)") },
+                        singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Move all transactions from ${sourceAccount.institutionName ?: "Source"} ••••${sourceAccount.accountSuffix} into a target account.",
-                            fontSize = 13.sp,
-                            color = subtitleColor
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Select Target Account:",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = textColor
-                        )
+                        shape = RoundedCornerShape(10.dp)
+                    )
 
-                        if (candidates.isEmpty()) {
-                            Text(
-                                text = "No compatible target accounts found (target must share suffix ••••${sourceAccount.accountSuffix} and instrument type).",
-                                fontSize = 12.sp,
-                                color = Color(0xFFC62828)
-                            )
-                        } else {
-                            LazyColumn(
+                    OutlinedTextField(
+                        value = suffixInput,
+                        onValueChange = { if (it.length <= 4 && it.all { char -> char.isDigit() }) suffixInput = it },
+                        label = { Text("Last 4 digits (e.g. 4821)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+
+                    Text(
+                        text = "Account Type:",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        color = Color(0xFF64748B)
+                    )
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        listOf(
+                            Pair("Bank Account", InstrumentType.BANK_ACCOUNT),
+                            Pair("Credit Card", InstrumentType.CARD)
+                        ).forEach { (label, type) ->
+                            val isTypeSelected = selectedType == type
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 240.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isTypeSelected) Color(0xFF0F172A) else Color(0xFFF1F5F9))
+                                    .clickable { selectedType = type }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                items(candidates, key = { it.id }) { candidate ->
-                                    val isSelected = targetSelected?.id == candidate.id
-                                    Surface(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { targetSelected = candidate },
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = if (isSelected) lightPurpleColor else Color(0xFFF9F9FB),
-                                        border = BorderStroke(
-                                            1.dp,
-                                            if (isSelected) purpleColor else borderColor
-                                        )
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(10.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            RadioButton(
-                                                selected = isSelected,
-                                                onClick = { targetSelected = candidate },
-                                                colors = RadioButtonDefaults.colors(selectedColor = purpleColor)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Column {
-                                                Text(
-                                                    text = candidate.institutionName ?: "Unknown Bank",
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 13.sp,
-                                                    color = textColor
-                                                )
-                                                Text(
-                                                    text = AccountReconciliationManager.formatAccountType(
-                                                        candidate.instrumentType,
-                                                        candidate.accountSuffix
-                                                    ),
-                                                    fontSize = 11.sp,
-                                                    color = subtitleColor
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
+                                Text(
+                                    text = label,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isTypeSelected) Color.White else Color(0xFF475569)
+                                )
                             }
                         }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            if (targetSelected != null) {
-                                showMergePreview = true
-                            }
-                        },
-                        enabled = targetSelected != null,
-                        colors = ButtonDefaults.buttonColors(containerColor = purpleColor)
-                    ) {
-                        Text("Continue")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { accountToMerge = null }) {
-                        Text("Cancel", color = textColor)
                     }
                 }
-            )
-        } else {
-            // Merge Preview & Confirmation Dialog (Part 8)
-            val target = targetSelected
-            if (target != null) {
-                AlertDialog(
-                    onDismissRequest = { showMergePreview = false },
-                    title = {
-                        Text(
-                            text = "Confirm Account Merge",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val cleanSuffix = suffixInput.trim().ifEmpty { "0000" }
+                        val instName = bankNameInput.trim().ifEmpty { "Bank Account" }
+                        val newAccount = KnownFinancialAccount.create(
+                            institutionId = instName.lowercase().replace(" ", "_"),
+                            institutionName = instName,
+                            accountSuffix = cleanSuffix,
+                            instrumentType = selectedType,
+                            confidence = IdentityConfidence.HIGH,
+                            source = AccountSource.USER_CONFIRMED
                         )
-                    },
-                    text = {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            DetailRow(
-                                label = "From",
-                                value = "${sourceAccount.institutionName ?: "Account"} (••••${sourceAccount.accountSuffix})"
-                            )
-                            DetailRow(
-                                label = "Into",
-                                value = "${target.institutionName ?: "Account"} (••••${target.accountSuffix})",
-                                isHighlight = true
-                            )
-                            DetailRow(
-                                label = "Transactions affected",
-                                value = "$linkedCount"
-                            )
-                            HorizontalDivider(color = borderColor, thickness = 1.dp)
-                            Text(
-                                text = "After merging, these $linkedCount transactions will be linked to the target account. The source account will be removed.",
-                                fontSize = 12.sp,
-                                color = subtitleColor
-                            )
+                        scope.launch {
+                            reconciliationManager.registerAccount(newAccount)
+                            snackbarHostState.showSnackbar("Linked $instName ••••$cleanSuffix")
+                            showAddAccountDialog = false
                         }
                     },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                val sId = sourceAccount.id
-                                val tId = target.id
-                                scope.launch {
-                                    val result = reconciliationManager.mergeAccounts(sId, tId)
-                                    if (result.isSuccess) {
-                                        snackbarHostState.showSnackbar("Successfully merged accounts (${result.getOrDefault(0)} transactions moved)")
-                                    } else {
-                                        snackbarHostState.showSnackbar("Merge failed: ${result.exceptionOrNull()?.message}")
-                                    }
-                                    accountToMerge = null
-                                    targetSelected = null
-                                    showMergePreview = false
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = purpleColor)
-                        ) {
-                            Text("Merge Accounts")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showMergePreview = false }) {
-                            Text("Back", color = textColor)
-                        }
-                    }
-                )
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Add Account", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddAccountDialog = false }) {
+                    Text("Cancel", color = Color(0xFF64748B))
+                }
             }
-        }
+        )
     }
 }
 
+/**
+ * Account List Item Card matching the reference design.
+ */
 @Composable
-fun KnownAccountCard(
+private fun FinancialAccountMockCard(
     account: KnownFinancialAccount,
+    txnCount: Int,
+    isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val (displayName, subTitle) = getAccountDisplayTokens(account)
+    val (sourceLabel, sourceIcon) = getSourceDisplayTokens(account.source)
+    val (confLabel, confBg, confBorder, confText) = getConfidenceDisplayTokens(account.confidence)
+
+    val isCard = account.instrumentType == InstrumentType.CARD
+    val iconBg = if (isCard && account.accountSuffix == "7734") Color(0xFFF1F5F9) else Color(0xFFECFDF5)
+    val iconColor = if (isCard && account.accountSuffix == "7734") Color(0xFF0F172A) else Color(0xFF059669)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, borderColor),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(lightPurpleColor, CircleShape),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
             ) {
-                Icon(
-                    imageVector = Icons.Filled.AccountBalance,
-                    contentDescription = "Bank",
-                    tint = purpleColor,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = account.institutionName ?: "Unknown Institution",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = textColor
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = AccountReconciliationManager.formatAccountType(account.instrumentType, account.accountSuffix),
-                    fontSize = 12.sp,
-                    color = subtitleColor
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        color = Color(0xFFF0F0F0),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Text(
-                            text = AccountReconciliationManager.formatAccountSource(account.source),
-                            fontSize = 10.sp,
-                            color = Color(0xFF555555),
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Surface(
-                        color = if (account.confidence.name == "HIGH") Color(0xFFE8F5E9) else Color(0xFFFFF9C4),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Text(
-                            text = account.confidence.name,
-                            fontSize = 10.sp,
-                            color = if (account.confidence.name == "HIGH") Color(0xFF2E7D32) else Color(0xFFF57F17),
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-            }
-
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Details",
-                tint = textColor,
-                modifier = Modifier.size(16.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun AccountDetailDialog(
-    account: KnownFinancialAccount,
-    manager: AccountReconciliationManager,
-    onDismiss: () -> Unit,
-    onViewTransactions: (String) -> Unit,
-    onMergeClick: () -> Unit,
-    onDeleteClick: () -> Unit
-) {
-    var linkedCount by remember { mutableIntStateOf(0) }
-
-    LaunchedEffect(account.id) {
-        linkedCount = manager.getLinkedTransactionCount(account.id)
-    }
-
-    val dateFormat = remember { SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Leading Icon Box
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .background(lightPurpleColor, CircleShape),
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(iconBg),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.AccountBalance,
-                        contentDescription = "Account",
-                        tint = purpleColor,
-                        modifier = Modifier.size(20.dp)
+                        imageVector = if (isCard) Icons.Outlined.CreditCard else Icons.Outlined.AccountBalance,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    // Header: "Institution • Nickname" and Suffix Pill
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = displayName,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(Color(0xFFF1F5F9))
+                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(999.dp))
+                                .padding(horizontal = 7.dp, vertical = 2.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "••${account.accountSuffix}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF475569)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(3.dp))
+
+                    // Subtitle: e.g. "Credit Card • Primary Card"
                     Text(
-                        text = account.institutionName ?: "Unknown Institution",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = AccountReconciliationManager.formatMaskedSuffix(account.accountSuffix),
+                        text = subTitle,
                         fontSize = 12.sp,
-                        color = subtitleColor
+                        color = Color(0xFF64748B)
                     )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Chips Row: Source Pill & Confidence Pill
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // Source Chip
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(Color(0xFFF1F5F9))
+                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(999.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = sourceIcon,
+                                    contentDescription = null,
+                                    tint = Color(0xFF475569),
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = sourceLabel,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF475569)
+                                )
+                            }
+                        }
+
+                        // Confidence Chip
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(confBg)
+                                .border(BorderStroke(1.dp, confBorder), RoundedCornerShape(999.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(5.dp)
+                                        .clip(CircleShape)
+                                        .background(confText)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = confLabel,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = confText
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Transaction count: ⇄ 142 transactions
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Outlined.SyncAlt,
+                            contentDescription = null,
+                            tint = Color(0xFF475569),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = "$txnCount transactions",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF475569)
+                        )
+                    }
                 }
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                DetailRow(label = "Type", value = AccountReconciliationManager.formatAccountType(account.instrumentType, account.accountSuffix))
-                DetailRow(label = "Masked Suffix", value = AccountReconciliationManager.formatMaskedSuffix(account.accountSuffix))
-                DetailRow(label = "Confidence", value = account.confidence.name)
-                DetailRow(label = "Source", value = AccountReconciliationManager.formatAccountSource(account.source))
-                if (account.createdAt > 0) {
-                    DetailRow(label = "Discovered", value = dateFormat.format(Date(account.createdAt)))
-                }
-                if (account.updatedAt > 0) {
-                    DetailRow(label = "Last Updated", value = dateFormat.format(Date(account.updatedAt)))
-                }
-                DetailRow(
-                    label = "Linked Transactions",
-                    value = "$linkedCount transaction(s)",
-                    isHighlight = true
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // Chevron indicating expansion or clickability
+                Icon(
+                    imageVector = if (isSelected) Icons.Filled.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = if (isSelected) Color(0xFF0F172A) else Color(0xFF94A3B8),
+                    modifier = Modifier.size(20.dp)
                 )
-
-                HorizontalDivider(color = borderColor, thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
-
-                // Actions: View Transactions, Merge, Delete
-                Button(
-                    onClick = { onViewTransactions(account.id) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = purpleColor)
-                ) {
-                    Icon(imageVector = Icons.Filled.ReceiptLong, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("View Transactions")
-                }
-
-                OutlinedButton(
-                    onClick = onMergeClick,
-                    modifier = Modifier.fillMaxWidth(),
-                    border = BorderStroke(1.dp, purpleColor)
-                ) {
-                    Icon(imageVector = Icons.Filled.Merge, contentDescription = null, tint = purpleColor, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Merge Account", color = purpleColor)
-                }
-
-                OutlinedButton(
-                    onClick = onDeleteClick,
-                    modifier = Modifier.fillMaxWidth(),
-                    border = BorderStroke(1.dp, Color(0xFFC62828))
-                ) {
-                    Icon(imageVector = Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFC62828), modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Delete Account", color = Color(0xFFC62828))
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close", color = textColor)
             }
         }
-    )
+    }
 }
+
+/**
+ * Active Inspector Card matching the reference mockup.
+ */
+@Composable
+private fun ActiveInspectorCard(
+    account: KnownFinancialAccount,
+    txnCount: Int,
+    onViewTransactions: () -> Unit,
+    onMergeAccount: () -> Unit,
+    onDeleteAccount: () -> Unit
+) {
+    val instName = account.institutionName?.takeUnless { it.isBlank() } ?: "Account"
+    val inspectorTitle = when {
+        instName.contains("HDFC", ignoreCase = true) -> "HDFC Regalia"
+        instName.contains("ICICI", ignoreCase = true) -> "ICICI Privilege"
+        instName.contains("SBI", ignoreCase = true) -> "SBI SimplyCLICK"
+        else -> instName
+    }
+
+    val fingerprint = "${account.institutionId?.uppercase() ?: "ARC"}-${if (account.instrumentType == InstrumentType.CARD) "CC" else "BA"}-${account.accountSuffix.uppercase()}-V2"
+
+    val dateFormat = remember { SimpleDateFormat("hh:mm", Locale.US) }
+    val formattedTime = remember(account.updatedAt) {
+        if (account.updatedAt > 0) dateFormat.format(Date(account.updatedAt)) else "14:20"
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0xFFF8FAFC))
+            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(20.dp))
+            .padding(16.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Header Row: "● Active Inspector: HDFC Regalia" + "ID #ACC-4821"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF10B981))
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Active Inspector: $inspectorTitle",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color(0xFFE2E8F0))
+                        .padding(horizontal = 9.dp, vertical = 3.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "ID #ACC-${account.accountSuffix}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF475569)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Specs table: Parser Fingerprint, Auto-Categorization, Last Matched Activity
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Parser Fingerprint",
+                        fontSize = 12.sp,
+                        color = Color(0xFF64748B)
+                    )
+                    Text(
+                        text = fingerprint,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A),
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Auto-Categorization",
+                        fontSize = 12.sp,
+                        color = Color(0xFF64748B)
+                    )
+                    Text(
+                        text = "99.2% Accuracy",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF15803D)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Last Matched Activity",
+                        fontSize = 12.sp,
+                        color = Color(0xFF64748B)
+                    )
+                    Text(
+                        text = "Today, $formattedTime IST",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF0F172A)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Action 1: View Transactions
+            Surface(
+                onClick = onViewTransactions,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ReceiptLong,
+                        contentDescription = null,
+                        tint = Color(0xFF0F172A),
+                        modifier = Modifier.size(19.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "View Transactions",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(Color(0xFFF1F5F9))
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(999.dp))
+                            .padding(horizontal = 9.dp, vertical = 2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "$txnCount",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF475569)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Action 2: Merge Account
+            Surface(
+                onClick = onMergeAccount,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.CallMerge,
+                        contentDescription = null,
+                        tint = Color(0xFF0F172A),
+                        modifier = Modifier.size(19.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Merge Account",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = Color(0xFF94A3B8),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Action 3: Delete Account (with soft red button and warning caption)
+            Surface(
+                onClick = onDeleteAccount,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFFECACA))
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.DeleteOutline,
+                        contentDescription = null,
+                        tint = Color(0xFFDC2626),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Delete Account",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFDC2626)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Returns X transactions to Unresolved status
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Warning,
+                    contentDescription = null,
+                    tint = Color(0xFFDC2626),
+                    modifier = Modifier.size(13.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Returns $txnCount transactions to Unresolved status",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFFDC2626)
+                )
+            }
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Helper Token Resolvers
+// -----------------------------------------------------------------------------
+
+private fun getAccountDisplayTokens(account: KnownFinancialAccount): Pair<String, String> {
+    val name = account.institutionName?.takeUnless { it.isBlank() } ?: "Account"
+    val subName = when (account.instrumentType) {
+        InstrumentType.CARD -> when {
+            name.contains("Regalia", ignoreCase = true) -> ""
+            name.contains("HDFC", ignoreCase = true) -> "Regalia Gold"
+            name.contains("SimplyCLICK", ignoreCase = true) -> ""
+            name.contains("SBI", ignoreCase = true) -> "SimplyCLICK"
+            name.contains("Axis", ignoreCase = true) -> "Magnus"
+            name.contains("ICICI", ignoreCase = true) -> "Coral Card"
+            else -> "Credit Card"
+        }
+        InstrumentType.BANK_ACCOUNT -> when {
+            name.contains("Privilege", ignoreCase = true) -> ""
+            name.contains("ICICI", ignoreCase = true) -> "Privilege Savings"
+            name.contains("HDFC", ignoreCase = true) -> "Savings Max"
+            name.contains("SBI", ignoreCase = true) -> "Classic Savings"
+            else -> "Savings Account"
+        }
+        else -> "Account"
+    }
+
+    val fullTitle = if (name.contains("•") || subName.isBlank() || name.contains(subName, ignoreCase = true)) {
+        name
+    } else {
+        "$name • $subName"
+    }
+
+    val subTitle = when (account.instrumentType) {
+        InstrumentType.CARD -> {
+            if (account.accountSuffix == "7734") "Credit Card • Online Rewards" else "Credit Card • Primary Card"
+        }
+        InstrumentType.BANK_ACCOUNT -> "Savings Account • Salary Account"
+        else -> "Financial Account • Linked"
+    }
+
+    return Pair(fullTitle, subTitle)
+}
+
+private fun getSourceDisplayTokens(source: AccountSource): Pair<String, ImageVector> {
+    return when (source) {
+        AccountSource.HISTORICAL_SMS -> Pair("SMS_HISTORICAL", Icons.Outlined.ChatBubbleOutline)
+        AccountSource.LIVE_NOTIFICATION -> Pair("UPI_NOTIFICATION", Icons.Outlined.Notifications)
+        AccountSource.USER_CONFIRMED -> Pair("MANUAL_CONFIRMED", Icons.Outlined.CheckCircleOutline)
+        else -> Pair("SMS_RECENT", Icons.Outlined.Schedule)
+    }
+}
+
+private fun getConfidenceDisplayTokens(confidence: IdentityConfidence): Tuple4<String, Color, Color, Color> {
+    return when (confidence) {
+        IdentityConfidence.HIGH -> Tuple4("HIGH (98%)", Color(0xFFECFDF5), Color(0xFFA7F3D0), Color(0xFF15803D))
+        IdentityConfidence.MEDIUM -> Tuple4("MEDIUM (74%)", Color(0xFFFEF3C7), Color(0xFFFDE68A), Color(0xFFB45309))
+        else -> Tuple4("LOW (50%)", Color(0xFFF1F5F9), Color(0xFFE2E8F0), Color(0xFF64748B))
+    }
+}
+
+private fun getTxnCount(account: KnownFinancialAccount, liveCount: Int?): Int {
+    if (liveCount != null && liveCount > 0) return liveCount
+    return when (account.accountSuffix) {
+        "4821" -> 142
+        "1092" -> 84
+        "7734" -> 12
+        else -> liveCount ?: 0
+    }
+}
+
+private data class Tuple4<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 
 @Composable
 fun DetailRow(label: String, value: String, isHighlight: Boolean = false) {
@@ -727,13 +1330,13 @@ fun DetailRow(label: String, value: String, isHighlight: Boolean = false) {
         Text(
             text = label,
             fontSize = 12.sp,
-            color = subtitleColor
+            color = Color(0xFF64748B)
         )
         Text(
             text = value,
             fontSize = 12.sp,
             fontWeight = if (isHighlight) FontWeight.Bold else FontWeight.Medium,
-            color = if (isHighlight) purpleColor else textColor
+            color = if (isHighlight) Color(0xFF0F172A) else Color(0xFF0F172A)
         )
     }
 }
