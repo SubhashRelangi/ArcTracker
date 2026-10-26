@@ -72,7 +72,7 @@ fun UnresolvedTransactionsScreen(
     var bulkTargetAccount by remember { mutableStateOf<KnownFinancialAccount?>(null) }
     var showBulkConfirmDialog by remember { mutableStateOf(false) }
 
-    val allKnownAccounts = remember { reconciliationManager.getAllKnownAccounts() }
+    val allKnownAccounts by reconciliationManager.getAllKnownAccountsFlow().collectAsState(initial = emptyList())
 
     val filteredExpenses = remember(unresolvedExpenses, currentFilter) {
         when (currentFilter) {

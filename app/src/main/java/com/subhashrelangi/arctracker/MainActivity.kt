@@ -603,7 +603,11 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules", "Backup")) 0.dp else padding.calculateTopPadding()
+            val contentTopPadding = if (currentRoute in listOf(
+                "InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult",
+                "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules", "Backup",
+                "FinancialAccounts", "UnresolvedTransactions", "AccountTransactions"
+            )) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
                     .padding(top = contentTopPadding)
@@ -796,6 +800,7 @@ fun ExpenseScreen() {
                 com.subhashrelangi.arctracker.ui.FinancialAccountsScreen(
                     onNavigateBack = { navigateBack() },
                     onNavigateToUnresolved = { navigateTo("UnresolvedTransactions") },
+                    onNavigateToSmsImport = { navigateTo("SmsImport") },
                     onViewAccountTransactions = { accId ->
                         viewingAccountId = accId
                         navigateTo("AccountTransactions")

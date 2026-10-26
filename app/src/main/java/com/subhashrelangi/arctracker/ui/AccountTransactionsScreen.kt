@@ -49,7 +49,8 @@ fun AccountTransactionsScreen(
         }
     }
 
-    val account = remember(accountId) { reconciliationManager.getAccountById(accountId) }
+    val allAccounts by reconciliationManager.getAllKnownAccountsFlow().collectAsState(initial = emptyList())
+    val account = remember(allAccounts, accountId) { allAccounts.firstOrNull { it.id == accountId } }
     val transactions by reconciliationManager.getLinkedTransactionsFlow(accountId).collectAsState(initial = emptyList())
 
     // Multi-Selection State (Parts 17, 18)
@@ -72,7 +73,6 @@ fun AccountTransactionsScreen(
     // Dialog state for Bulk Unlink
     var showBulkUnlinkConfirmDialog by remember { mutableStateOf(false) }
 
-    val allAccounts = remember { reconciliationManager.getAllKnownAccounts() }
     val otherAccounts = remember(allAccounts, accountId) { allAccounts.filter { it.id != accountId } }
 
     Scaffold(
