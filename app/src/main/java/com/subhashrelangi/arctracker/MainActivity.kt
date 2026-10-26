@@ -701,7 +701,18 @@ fun ExpenseScreen() {
                     }
                 )
 
-            } else if (currentRoute == "SmsImport" || currentRoute == "SmsScan" || currentRoute == "SmsResult") {
+            } else if (currentRoute == "SmsImport") {
+
+                com.subhashrelangi.arctracker.ui.SmsImportScreen(
+                    onNavigateBack = {
+                        navigateBack()
+                    },
+                    onNavigateToLedger = {
+                        backStack = listOf("Home", "Transactions")
+                    }
+                )
+
+            } else if (currentRoute == "SmsScan" || currentRoute == "SmsResult") {
 
                 com.subhashrelangi.arctracker.ui.SmsSetupScreen(
                     initialStartScanning = (currentRoute == "SmsScan"),
