@@ -516,6 +516,7 @@ fun ExpenseScreen() {
                 currentRoute != "SmsImport" &&
                 currentRoute != "SmsScan" &&
                 currentRoute != "SmsResult" &&
+                currentRoute != "SettingsSmsImport" &&
                 currentRoute != "InitialOnboarding" &&
                 currentRoute != "LocalFirstSetup" &&
                 currentRoute != "FinancialAccounts" &&
@@ -606,7 +607,7 @@ fun ExpenseScreen() {
             modifier = Modifier.fillMaxSize()
         ) {
             val contentTopPadding = if (currentRoute in listOf(
-                "InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult",
+                "InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "SettingsSmsImport",
                 "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules", "Backup",
                 "FinancialAccounts", "UnresolvedTransactions", "AccountTransactions", "DeveloperOptions", "RegexPatterns"
             )) 0.dp else padding.calculateTopPadding()
@@ -707,18 +708,7 @@ fun ExpenseScreen() {
                     }
                 )
 
-            } else if (currentRoute == "SmsImport") {
-
-                com.subhashrelangi.arctracker.ui.SmsImportScreen(
-                    onNavigateBack = {
-                        navigateBack()
-                    },
-                    onNavigateToLedger = {
-                        backStack = listOf("Home", "Transactions")
-                    }
-                )
-
-            } else if (currentRoute == "SmsScan" || currentRoute == "SmsResult") {
+            } else if (currentRoute == "SmsImport" || currentRoute == "SmsScan" || currentRoute == "SmsResult") {
 
                 com.subhashrelangi.arctracker.ui.SmsSetupScreen(
                     initialStartScanning = (currentRoute == "SmsScan"),
@@ -746,6 +736,17 @@ fun ExpenseScreen() {
                     },
                     onBackClick = {
                         navigateBack()
+                    }
+                )
+
+            } else if (currentRoute == "SettingsSmsImport") {
+
+                com.subhashrelangi.arctracker.ui.SettingsSmsImportScreen(
+                    onNavigateBack = {
+                        navigateBack()
+                    },
+                    onNavigateToLedger = {
+                        backStack = listOf("Home", "Transactions")
                     }
                 )
 
@@ -804,7 +805,7 @@ fun ExpenseScreen() {
                 com.subhashrelangi.arctracker.ui.FinancialAccountsScreen(
                     onNavigateBack = { navigateBack() },
                     onNavigateToUnresolved = { navigateTo("UnresolvedTransactions") },
-                    onNavigateToSmsImport = { navigateTo("SmsImport") },
+                    onNavigateToSmsImport = { navigateTo("SettingsSmsImport") },
                     onViewAccountTransactions = { accId ->
                         viewingAccountId = accId
                         navigateTo("AccountTransactions")
@@ -1018,6 +1019,7 @@ fun ExpenseScreen() {
             "SmsImport",
             "SmsScan",
             "SmsResult",
+            "SettingsSmsImport",
             "BackupRestore",
             "SupportedApps",
             "CategoryManagement",

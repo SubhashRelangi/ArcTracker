@@ -795,7 +795,7 @@ fun SettingsScreen(
                             icon = Icons.Outlined.History,
                             title = "Import Previous Transactions",
                             subtitle = "Scan historical SMS inbox across custom date range",
-                            onClick = { onNavigate("SmsImport") }
+                            onClick = { onNavigate("SettingsSmsImport") }
                         )
                     }
                     if (showExportEngine) {
