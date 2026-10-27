@@ -104,7 +104,7 @@ private data class HorizonOption(
 )
 
 /**
- * Single-page historical SMS import wizard for Settings subsection with bank-wise grouping,
+ * Single-page historical SMS import wizard with bank-wise grouping,
  * explicit selection checkboxes, fixed telemetry layout, and ArcTracker-themed styling.
  */
 @Composable
