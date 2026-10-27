@@ -14,8 +14,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -29,6 +32,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +46,7 @@ import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
+import com.subhashrelangi.arctracker.data.TransactionCategory
 import com.subhashrelangi.arctracker.service.AccountReconciliationManager
 import com.subhashrelangi.arctracker.service.CategoryManager
 import com.subhashrelangi.arctracker.service.IdentityConfidence
@@ -137,6 +142,7 @@ fun ReviewPage(
     }
     val aliasManager = remember { MerchantAliasManager(aliasDao) }
     val categoryManager = remember { CategoryManager(categoryDao, expenseDao, database) }
+    val allDbCategories by categoryManager.getActiveCategoriesFlow().collectAsState(initial = emptyList())
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -553,6 +559,19 @@ fun ReviewPage(
         if (filteredQueue.size > 1) filteredQueue.drop(1) else emptyList()
     }
 
+    val defaultCategoryNames = remember {
+        listOf(
+            "Food & Dining", "Shopping & Tech", "Transport & Commute",
+            "Bills & Utilities", "Entertainment", "Healthcare & Medical",
+            "Groceries & Essentials", "Travel & Vacation", "Housing & Rent",
+            "Education", "Personal Care", "Investments", "Miscellaneous"
+        )
+    }
+    var showCategorySelectionDialog by remember { mutableStateOf(false) }
+    var selectedCategoryName by remember(activeItem?.id) {
+        mutableStateOf(activeItem?.suggestedCategories?.firstOrNull() ?: allDbCategories.firstOrNull()?.name ?: defaultCategoryNames.first())
+    }
+
     val pendingCount = queueItems.size + filteredUnlinkedItems.size
     val resolvedCount = resolvedItems.size
     val totalCount = maxOf(pendingCount + resolvedCount, initialTotalCount)
@@ -777,45 +796,153 @@ fun ReviewPage(
                             }
                         }
 
-                        // Triage Sub-Banner
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFFF8FAFC),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                        // Triage Sub-Banner or Top Bulk Action Card
+                        if (isSelectionMode) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFF0FDF4),
+                                border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Box(
+                                Column(
                                     modifier = Modifier
-                                        .size(32.dp)
-                                        .background(Color(0xFFECFDF5), CircleShape),
-                                    contentAlignment = Alignment.Center
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Link,
-                                        contentDescription = null,
-                                        tint = Color(0xFF055B38),
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .background(Color(0xFF047857), CircleShape)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "${selectedAccountExpenseIds.size} of ${filteredUnlinkedItems.size} Selected",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF0F172A)
+                                            )
+                                        }
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = if (selectedAccountExpenseIds.size == filteredUnlinkedItems.size) "Deselect All" else "Select All",
+                                                fontSize = 11.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF047857),
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .clickable {
+                                                        selectedAccountExpenseIds = if (selectedAccountExpenseIds.size == filteredUnlinkedItems.size) {
+                                                            emptySet()
+                                                        } else {
+                                                            filteredUnlinkedItems.map { it.id }.toSet()
+                                                        }
+                                                    }
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = Color(0xFFF1F5F9),
+                                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                                modifier = Modifier.clickable {
+                                                    isSelectionMode = false
+                                                    selectedAccountExpenseIds = emptySet()
+                                                }
+                                            ) {
+                                                Text(
+                                                    text = "Cancel",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = Color(0xFF64748B),
+                                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Button(
+                                        onClick = { showBulkAssignDialog = true },
+                                        enabled = selectedAccountExpenseIds.isNotEmpty(),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF055B38),
+                                            disabledContainerColor = Color(0xFFCBD5E1)
+                                        ),
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(vertical = 10.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = if (selectedAccountExpenseIds.isNotEmpty()) {
+                                                "Bulk Assign (${selectedAccountExpenseIds.size} Selected)"
+                                            } else {
+                                                "Select Transactions to Bulk Assign"
+                                            },
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = Color.White
+                                        )
+                                    }
                                 }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = "${filteredUnlinkedItems.size} unlinked transactions",
-                                        fontSize = 12.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
-                                    )
-                                    Text(
-                                        text = "Detected from SMS & notifications waiting for local account reconciliation.",
-                                        fontSize = 11.5.sp,
-                                        color = Color(0xFF64748B)
-                                    )
+                            }
+                        } else {
+                            // Triage Sub-Banner
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFF8FAFC),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(Color(0xFFECFDF5), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Link,
+                                            contentDescription = null,
+                                            tint = Color(0xFF055B38),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "${filteredUnlinkedItems.size} unlinked transactions",
+                                            fontSize = 12.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF0F172A)
+                                        )
+                                        Text(
+                                            text = "Detected from SMS & notifications waiting for local account reconciliation.",
+                                            fontSize = 11.5.sp,
+                                            color = Color(0xFF64748B)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1032,7 +1159,7 @@ fun ReviewPage(
                                     .fillMaxWidth()
                                     .padding(16.dp)
                             ) {
-                                // Merchant Row
+                                // 1. Merchant Row (Title + Avatar on left, Amount on right)
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.Top
@@ -1060,7 +1187,9 @@ fun ReviewPage(
                                                 text = activeItem.merchant,
                                                 fontSize = 16.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F172A)
+                                                color = Color(0xFF0F172A),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                             if (activeItem.badge != null) {
                                                 Spacer(modifier = Modifier.width(6.dp))
@@ -1078,36 +1207,84 @@ fun ReviewPage(
                                                 }
                                             }
                                         }
+                                    }
 
-                                        Spacer(modifier = Modifier.height(3.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
 
+                                    Text(
+                                        text = "- ₹${formatAmount(activeItem.amount)}",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                }
+
+                                // 2. Clean Metadata Badges Row (Date + Account Badge + Needs Review Status Pill)
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color(0xFFF8FAFC),
+                                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                    ) {
                                         Text(
-                                            text = "${activeItem.dateInfo} • ${activeItem.accountInfo}",
-                                            fontSize = 12.sp,
-                                            color = Color(0xFF64748B)
+                                            text = activeItem.dateInfo,
+                                            fontSize = 11.5.sp,
+                                            color = Color(0xFF64748B),
+                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                            maxLines = 1
                                         )
                                     }
 
-                                    Column(horizontalAlignment = Alignment.End) {
-                                        Text(
-                                            text = "- ₹${formatAmount(activeItem.amount)}",
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A)
-                                        )
-                                        if (activeItem.ambiguityLabel != null) {
-                                            Spacer(modifier = Modifier.height(2.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color(0xFFF1F5F9),
+                                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.AccountBalance,
+                                                contentDescription = null,
+                                                tint = Color(0xFF475569),
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = activeItem.accountInfo,
+                                                fontSize = 11.5.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color(0xFF334155),
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+
+                                    if (activeItem.ambiguityLabel != null) {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = Color(0xFFFEF3C7),
+                                            border = BorderStroke(1.dp, Color(0xFFFDE68A))
+                                        ) {
                                             Text(
                                                 text = activeItem.ambiguityLabel,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFFB45309)
+                                                color = Color(0xFFB45309),
+                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                                maxLines = 1
                                             )
                                         }
                                     }
                                 }
 
-                                // Local Pattern Detected Banner
+                                // 3. Local Pattern Detected Banner
                                 if (activeItem.patternTitle != null) {
                                     Spacer(modifier = Modifier.height(14.dp))
                                     Surface(
@@ -1147,68 +1324,163 @@ fun ReviewPage(
                                     }
                                 }
 
-                                // CHOOSE CATEGORY Section
+                                // 4. CHOOSE CATEGORY Section with Pop-up Dialog & Suggestions
                                 Spacer(modifier = Modifier.height(14.dp))
 
-                                Text(
-                                    text = "CHOOSE CATEGORY",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF64748B),
-                                    letterSpacing = 0.8.sp
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "CHOOSE CATEGORY",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF64748B),
+                                        letterSpacing = 0.8.sp
+                                    )
+
+                                    val count = if (allDbCategories.isNotEmpty()) allDbCategories.size else defaultCategoryNames.size
+                                    Text(
+                                        text = "Browse all ($count)",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF047857),
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .clickable { showCategorySelectionDialog = true }
+                                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                                    )
+                                }
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                val categories = if (activeItem.suggestedCategories.isNotEmpty()) {
-                                    activeItem.suggestedCategories
-                                } else {
-                                    listOf("Food & Dining", "Team Meals", "Personal Outflow", "Tax Deductible")
+                                // Main Category Card (Opens Pop-up Modal)
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color(0xFFF8FAFC),
+                                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable { showCategorySelectionDialog = true }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.weight(1f),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(34.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(0xFFECFDF5)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = getCategoryIcon(selectedCategoryName),
+                                                    contentDescription = null,
+                                                    tint = Color(0xFF047857),
+                                                    modifier = Modifier.size(17.dp)
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.width(10.dp))
+
+                                            Column {
+                                                Text(
+                                                    text = selectedCategoryName,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 14.sp,
+                                                    color = Color(0xFF0F172A)
+                                                )
+                                                Text(
+                                                    text = "Tap to choose or add category",
+                                                    fontSize = 11.sp,
+                                                    color = Color(0xFF64748B)
+                                                )
+                                            }
+                                        }
+
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = Color(0xFFF1F5F9),
+                                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "Change",
+                                                    fontSize = 11.5.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = Color(0xFF047857)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Icon(
+                                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                                    contentDescription = "Dropdown",
+                                                    tint = Color(0xFF047857),
+                                                    modifier = Modifier.size(15.dp)
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
 
-                                // 2x2 Category Grid
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        CategoryOptionChip(
-                                            text = categories.getOrNull(0) ?: "Food & Dining",
-                                            icon = if (selectedCategoryIndex == 0) Icons.Outlined.CheckCircle else Icons.Outlined.Restaurant,
-                                            isSelected = selectedCategoryIndex == 0,
-                                            modifier = Modifier.weight(1f),
-                                            onClick = { selectedCategoryIndex = 0 }
-                                        )
-                                        CategoryOptionChip(
-                                            text = categories.getOrNull(1) ?: "Team Meals",
-                                            icon = Icons.Outlined.Groups,
-                                            isSelected = selectedCategoryIndex == 1,
-                                            modifier = Modifier.weight(1f),
-                                            onClick = { selectedCategoryIndex = 1 }
-                                        )
-                                    }
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        CategoryOptionChip(
-                                            text = categories.getOrNull(2) ?: "Personal Outflow",
-                                            icon = Icons.Outlined.Person,
-                                            isSelected = selectedCategoryIndex == 2,
-                                            modifier = Modifier.weight(1f),
-                                            onClick = { selectedCategoryIndex = 2 }
-                                        )
-                                        CategoryOptionChip(
-                                            text = categories.getOrNull(3) ?: "Tax Deductible",
-                                            icon = Icons.Outlined.ReceiptLong,
-                                            isSelected = selectedCategoryIndex == 3,
-                                            modifier = Modifier.weight(1f),
-                                            onClick = { selectedCategoryIndex = 3 }
-                                        )
+                                // Quick Suggestion Pills (Horizontally Scrollable)
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    val quickOptions = (activeItem.suggestedCategories + listOf("Food & Dining", "Shopping & Tech", "Transport & Commute", "Bills & Utilities")).distinct()
+                                    quickOptions.take(5).forEach { catName ->
+                                        val isSelected = catName.equals(selectedCategoryName, ignoreCase = true)
+                                        Surface(
+                                            shape = RoundedCornerShape(20.dp),
+                                            color = if (isSelected) Color(0xFFECFDF5) else Color.White,
+                                            border = BorderStroke(1.dp, if (isSelected) Color(0xFF047857) else Color(0xFFE2E8F0)),
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(20.dp))
+                                                .clickable { selectedCategoryName = catName }
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFF047857),
+                                                        modifier = Modifier.size(12.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                }
+                                                Text(
+                                                    text = catName,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (isSelected) Color(0xFF047857) else Color(0xFF334155),
+                                                    maxLines = 1,
+                                                    softWrap = false
+                                                )
+                                            }
+                                        }
                                     }
                                 }
 
-                                // Remember Rule & Tag
+                                // 5. Remember Rule & Tag
                                 Spacer(modifier = Modifier.height(14.dp))
 
                                 Text(
@@ -1245,7 +1517,7 @@ fun ReviewPage(
                                     }
                                 }
 
-                                // Action Buttons: Confirm & Decline / Skip
+                                // 6. Action Buttons: Confirm & Decline / Skip
                                 Spacer(modifier = Modifier.height(16.dp))
 
                                 Row(
@@ -1255,7 +1527,7 @@ fun ReviewPage(
                                     // Confirm Category (Primary)
                                     Button(
                                         onClick = {
-                                            val resolvedCat = categories.getOrNull(selectedCategoryIndex) ?: "Food & Dining"
+                                            val resolvedCat = selectedCategoryName
                                             val newlyResolved = ResolvedReviewItem(
                                                 id = activeItem.id,
                                                 merchant = activeItem.merchant,
@@ -1290,7 +1562,8 @@ fun ReviewPage(
                                         shape = RoundedCornerShape(12.dp),
                                         modifier = Modifier
                                             .weight(1f)
-                                            .height(46.dp)
+                                            .height(46.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
@@ -1300,9 +1573,9 @@ fun ReviewPage(
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "Confirm Category",
+                                            text = "Confirm",
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp,
+                                            fontSize = 13.sp,
                                             color = Color.White,
                                             maxLines = 1,
                                             softWrap = false
@@ -1450,29 +1723,58 @@ fun ReviewPage(
                                                     text = nextItem.merchant,
                                                     fontSize = 15.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF0F172A)
-                                                )
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                Text(
-                                                    text = "${nextItem.accountInfo} • ${nextItem.dateInfo}",
-                                                    fontSize = 12.sp,
-                                                    color = Color(0xFF64748B)
+                                                    color = Color(0xFF0F172A),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
                                                 )
                                             }
 
-                                            Column(horizontalAlignment = Alignment.End) {
-                                                Text(
-                                                    text = "- ₹${formatAmount(nextItem.amount)}",
-                                                    fontSize = 15.5.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF0F172A)
-                                                )
-                                                if (nextItem.ambiguityLabel != null) {
-                                                    Spacer(modifier = Modifier.height(2.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+
+                                            Text(
+                                                text = "- ₹${formatAmount(nextItem.amount)}",
+                                                fontSize = 15.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF0F172A)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        // Subtitle Row: Account + Date + Ambiguity Badge
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = nextItem.accountInfo,
+                                                fontSize = 11.5.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = Color(0xFF475569)
+                                            )
+                                            Text(
+                                                text = "•",
+                                                fontSize = 11.5.sp,
+                                                color = Color(0xFF94A3B8)
+                                            )
+                                            Text(
+                                                text = nextItem.dateInfo,
+                                                fontSize = 11.5.sp,
+                                                color = Color(0xFF64748B)
+                                            )
+                                            Spacer(modifier = Modifier.weight(1f))
+                                            if (nextItem.ambiguityLabel != null) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = Color(0xFFFEF3C7)
+                                                ) {
                                                     Text(
                                                         text = nextItem.ambiguityLabel,
-                                                        fontSize = 11.5.sp,
-                                                        color = Color(0xFF64748B)
+                                                        fontSize = 10.5.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFFB45309),
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                                     )
                                                 }
                                             }
@@ -1785,12 +2087,12 @@ fun ReviewPage(
             }
         }
 
-        // Floating Stadium Multi-Select Bar (matches mockup uploaded_media_1793084168021.png)
+        // Floating Stadium Multi-Select Bar (cleared above bottom navigation bar)
         if (isSelectionMode && selectedAccountExpenseIds.isNotEmpty()) {
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 20.dp, start = 20.dp, end = 20.dp),
+                    .padding(bottom = 90.dp, start = 20.dp, end = 20.dp),
                 shape = RoundedCornerShape(28.dp),
                 color = Color(0xFF0F172A),
                 shadowElevation = 8.dp
@@ -1847,12 +2149,12 @@ fun ReviewPage(
             }
         }
 
-        // 7. Universal Black Floating Action Button (+ Add Expense)
+        // 7. Universal Black Floating Action Button (+ Add Expense, cleared above bottom nav)
         if (!isSelectionMode || selectedAccountExpenseIds.isEmpty()) {
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(bottom = 24.dp, end = 20.dp)
+                .padding(bottom = 90.dp, end = 20.dp)
                 .shadow(elevation = 6.dp, shape = RoundedCornerShape(28.dp))
                 .clip(RoundedCornerShape(28.dp))
                 .clickable { onAddExpenseClick() },
@@ -1908,6 +2210,35 @@ fun ReviewPage(
             onConfirm = { account ->
                 bulkAssignAccounts(account)
             }
+        )
+    }
+
+    // Category Selection Modal Dialog (Pop-up with Search & Add New Category)
+    if (showCategorySelectionDialog) {
+        CategorySelectionModalDialog(
+            categories = allDbCategories,
+            selectedCategoryName = selectedCategoryName,
+            onCategorySelected = { catName ->
+                selectedCategoryName = catName
+                showCategorySelectionDialog = false
+            },
+            onAddNewCategory = { newName ->
+                scope.launch {
+                    withContext(Dispatchers.IO) {
+                        val res = categoryManager.createCategory(newName)
+                        withContext(Dispatchers.Main) {
+                            if (res.isSuccess) {
+                                selectedCategoryName = newName
+                                showCategorySelectionDialog = false
+                                Toast.makeText(context, "Added category: $newName", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, res.exceptionOrNull()?.message ?: "Failed to add category", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+            },
+            onDismiss = { showCategorySelectionDialog = false }
         )
     }
 
@@ -2713,6 +3044,391 @@ private fun AccountSelectionDialog(
                         )
                     ) {
                         Text("Confirm Link", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun getCategoryIcon(categoryName: String): ImageVector {
+    val nameLower = categoryName.lowercase(Locale.ROOT)
+    return when {
+        nameLower.contains("food") || nameLower.contains("dining") || nameLower.contains("restaurant") || nameLower.contains("meal") -> Icons.Outlined.Restaurant
+        nameLower.contains("shop") || nameLower.contains("store") || nameLower.contains("tech") -> Icons.Outlined.ShoppingBag
+        nameLower.contains("transport") || nameLower.contains("commute") || nameLower.contains("cab") || nameLower.contains("ride") -> Icons.Outlined.DirectionsCar
+        nameLower.contains("bill") || nameLower.contains("utilit") -> Icons.Outlined.Receipt
+        nameLower.contains("entertainment") || nameLower.contains("movie") -> Icons.Outlined.Movie
+        nameLower.contains("health") || nameLower.contains("medical") -> Icons.Outlined.MedicalServices
+        nameLower.contains("travel") || nameLower.contains("flight") -> Icons.Outlined.Flight
+        nameLower.contains("education") || nameLower.contains("school") -> Icons.Outlined.School
+        nameLower.contains("grocer") -> Icons.Outlined.LocalGroceryStore
+        nameLower.contains("house") || nameLower.contains("rent") -> Icons.Outlined.Home
+        nameLower.contains("invest") || nameLower.contains("saving") -> Icons.Outlined.TrendingUp
+        else -> Icons.Outlined.Category
+    }
+}
+
+@Composable
+private fun CategorySelectionModalDialog(
+    categories: List<TransactionCategory>,
+    selectedCategoryName: String,
+    onCategorySelected: (String) -> Unit,
+    onAddNewCategory: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    var isAddingNew by remember { mutableStateOf(false) }
+    var newCategoryName by remember { mutableStateOf("") }
+
+    val effectiveCategories = remember(categories) {
+        if (categories.isNotEmpty()) {
+            categories
+        } else {
+            listOf(
+                "Food & Dining", "Shopping & Tech", "Transport & Commute",
+                "Bills & Utilities", "Entertainment", "Healthcare & Medical",
+                "Groceries & Essentials", "Travel & Vacation", "Housing & Rent",
+                "Education", "Personal Care", "Investments", "Miscellaneous"
+            ).mapIndexed { idx, name ->
+                TransactionCategory(
+                    id = "default_$idx",
+                    name = name,
+                    iconKey = "category",
+                    colorKey = "default",
+                    isSystem = true,
+                    isArchived = false,
+                    sortOrder = idx,
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis()
+                )
+            }
+        }
+    }
+
+    val filteredList = remember(effectiveCategories, searchQuery) {
+        if (searchQuery.isBlank()) effectiveCategories
+        else effectiveCategories.filter { it.name.contains(searchQuery.trim(), ignoreCase = true) }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            shadowElevation = 12.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Select Category",
+                            color = Color(0xFF0F172A),
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Choose or create a category",
+                            color = Color(0xFF64748B),
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color(0xFF64748B),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Search Bar
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFF8FAFC),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = "Search",
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            singleLine = true,
+                            textStyle = TextStyle(
+                                fontSize = 13.5.sp,
+                                color = Color(0xFF0F172A),
+                                fontWeight = FontWeight.Normal
+                            ),
+                            modifier = Modifier.weight(1f),
+                            decorationBox = { innerTextField ->
+                                if (searchQuery.isEmpty()) {
+                                    Text(
+                                        text = "Search categories...",
+                                        fontSize = 13.5.sp,
+                                        color = Color(0xFF94A3B8)
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        )
+                        if (searchQuery.isNotEmpty()) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear",
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { searchQuery = "" }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Scrollable Category List
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 280.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(filteredList, key = { it.id }) { cat ->
+                        val isSelected = cat.name.equals(selectedCategoryName, ignoreCase = true)
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
+                            border = BorderStroke(
+                                1.dp,
+                                if (isSelected) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onCategorySelected(cat.name)
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(30.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isSelected) Color(0xFFD1FAE5) else Color(0xFFE2E8F0)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = getCategoryIcon(cat.name),
+                                            contentDescription = null,
+                                            tint = if (isSelected) Color(0xFF047857) else Color(0xFF475569),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(10.dp))
+
+                                    Text(
+                                        text = cat.name,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color(0xFF047857) else Color(0xFF0F172A),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = Color(0xFF047857),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (filteredList.isEmpty()) {
+                        item {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "No category matching \"$searchQuery\"",
+                                    fontSize = 12.5.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                HorizontalDivider(color = Color(0xFFE2E8F0))
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // + Add Category Section
+                if (!isAddingNew) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFFF0FDF4),
+                        border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                isAddingNew = true
+                                if (searchQuery.isNotBlank() && filteredList.isEmpty()) {
+                                    newCategoryName = searchQuery.trim()
+                                }
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                tint = Color(0xFF047857),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (searchQuery.isNotBlank() && filteredList.isEmpty()) {
+                                    "Create \"${searchQuery.trim()}\" Category"
+                                } else {
+                                    "+ Add New Category"
+                                },
+                                color = Color(0xFF047857),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, Color(0xFF047857)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                BasicTextField(
+                                    value = newCategoryName,
+                                    onValueChange = { newCategoryName = it },
+                                    singleLine = true,
+                                    textStyle = TextStyle(
+                                        fontSize = 13.5.sp,
+                                        color = Color(0xFF0F172A),
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    modifier = Modifier.weight(1f),
+                                    decorationBox = { innerTextField ->
+                                        if (newCategoryName.isEmpty()) {
+                                            Text(
+                                                text = "Enter category name...",
+                                                fontSize = 12.5.sp,
+                                                color = Color(0xFF94A3B8)
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    isAddingNew = false
+                                    newCategoryName = ""
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                            ) {
+                                Text("Cancel", color = Color(0xFF475569), fontSize = 12.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    val trimmed = newCategoryName.trim()
+                                    if (trimmed.isNotEmpty()) {
+                                        onAddNewCategory(trimmed)
+                                    }
+                                },
+                                enabled = newCategoryName.isNotBlank(),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1.4f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF047857),
+                                    disabledContainerColor = Color(0xFFCBD5E1)
+                                )
+                            ) {
+                                Text("Save & Select", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
                     }
                 }
             }
