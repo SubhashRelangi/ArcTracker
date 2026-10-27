@@ -60,96 +60,130 @@ object RegexPatternsManager {
 
     private val defaultRules = listOf(
         RegexRule(
+            id = "sys_merchant_upi",
+            name = "Standard UPI Merchant Extract",
+            description = "Payee String (Normalized)",
+            category = "Merchant / Payee",
+            pattern = "(?i)(?:to|vpa|paid to)\\s+([a-zA-Z0-9._\\s]+?)(?:\\s+on|\\s+ref|\\.|${'$'})",
+            isSystem = true,
+            iconType = "upi",
+            priority = 1,
+            matches = 1249,
+            testMessage = "Rs 1,450.00 debited from a/c **4821 on 24-Oct-26 via UPI to ZOMATO. Ref 429104."
+        ),
+        RegexRule(
+            id = "sys_merchant_pos",
+            name = "Card Swipe PosTerminal",
+            description = "EDC Terminal / Store Code",
+            category = "Merchant / Payee",
+            pattern = "(?i)(?:at|spent at)\\s+([a-zA-Z0-9._\\s]+?)(?:\\s+using|\\s+card)",
+            isSystem = true,
+            iconType = "bank",
+            priority = 2,
+            matches = 482,
+            testMessage = "Rs. 382.50 spent at UBER INDIA using HDFC Bank card 4821"
+        ),
+        RegexRule(
+            id = "custom_merchant_quickcommerce",
+            name = "Blinkit / QuickCommerce Custom",
+            description = "Rapid Grocery Merchant",
+            category = "Merchant / Payee",
+            pattern = "(?i)(?:blinkit|grofers|zepto)\\s*([a-zA-Z0-9]*)",
+            isSystem = false,
+            isActive = true,
+            iconType = "custom",
+            priority = 3,
+            matches = 112,
+            testMessage = "Paid Rs 340 to Blinkit Grocery Order #9910"
+        ),
+        RegexRule(
+            id = "sys_merchant_store",
+            name = "Store & Retail Payee Pattern",
+            description = "Direct Storefront Payment",
+            category = "Merchant / Payee",
+            pattern = "(?i)(?:to|towards)\\s+([A-Za-z0-9 &._-]{2,40})",
+            isSystem = true,
+            iconType = "storefront",
+            priority = 4,
+            matches = 654
+        ),
+        RegexRule(
             id = "sys_amount_1",
-            name = "UPI Amount Pattern",
-            description = "Matches amounts from UPI apps (e.g. ₹500, Rs. 1,200)",
+            name = "Standard UPI Amount",
+            description = "Numeric Currency Anchor",
             category = "Amount",
             pattern = "(?i)(?:rs\\.?|inr|₹|rupees)\\s*([0-9,]+\\.?[0-9]*)",
             isSystem = true,
             iconType = "upi",
-            priority = 1
+            priority = 1,
+            matches = 1432,
+            testMessage = "Rs 1,450.00 debited from a/c **4821"
         ),
         RegexRule(
             id = "sys_amount_2",
             name = "Bank SMS Amount Pattern",
-            description = "Matches amounts from bank transaction SMS",
+            description = "Ledger Debit / Credit Value",
             category = "Amount",
             pattern = "(?i)(?:debited|credited|amount:?)\\s*(?:rs\\.?|inr|₹)?\\s*([0-9,]+\\.?[0-9]*)",
             isSystem = true,
             iconType = "bank",
-            priority = 2
-        ),
-        RegexRule(
-            id = "sys_merchant_1",
-            name = "UPI Merchant Pattern",
-            description = "Extracts merchant name from UPI notifications",
-            category = "Name / Merchant",
-            pattern = "(?i)(?:to|at|@)\\s+([A-Za-z0-9 &._-]{2,50})",
-            isSystem = true,
-            iconType = "storefront",
-            priority = 1
-        ),
-        RegexRule(
-            id = "sys_merchant_2",
-            name = "Bank Merchant Pattern",
-            description = "Extracts merchant name from bank SMS",
-            category = "Name / Merchant",
-            pattern = "(?i)(?:at|in|on)\\s+([A-Za-z0-9 &._-]{2,50})",
-            isSystem = true,
-            iconType = "bank",
-            priority = 2
-        ),
-        RegexRule(
-            id = "sys_merchant_3",
-            name = "Sender as Merchant (Fallback)",
-            description = "Uses sender name when merchant is not found",
-            category = "Name / Merchant",
-            pattern = "(?i)^([A-Za-z0-9 &._-]{2,50})",
-            isSystem = true,
-            iconType = "person",
-            priority = 3
-        ),
-        RegexRule(
-            id = "custom_merchant_1",
-            name = "Custom Merchant Pattern",
-            description = "Add pattern for a specific app or message format",
-            category = "Name / Merchant",
-            pattern = "(?i)merchant[:\\s]+([A-Za-z0-9 &._-]{2,50})",
-            isActive = false,
-            isSystem = false,
-            iconType = "custom",
-            priority = 4
+            priority = 2,
+            matches = 980
         ),
         RegexRule(
             id = "sys_type_debit",
             name = "Debit Keywords Pattern",
-            description = "Detects debit transactions",
-            category = "Type (Debit/Credit)",
+            description = "Outward Cashflow Signal",
+            category = "Type Debit/Credit",
             pattern = "(?i)(debited|debit|paid|spent|withdrawn|purchase|sent)",
             isSystem = true,
             iconType = "arrow_downward",
-            priority = 1
+            priority = 1,
+            matches = 1120
         ),
         RegexRule(
             id = "sys_type_credit",
             name = "Credit Keywords Pattern",
-            description = "Detects credit transactions",
-            category = "Type (Debit/Credit)",
+            description = "Inward Cashflow Signal",
+            category = "Type Debit/Credit",
             pattern = "(?i)(credited|credit|received|deposited|refunded|salary|cashback)",
             isSystem = true,
             iconType = "arrow_upward",
-            priority = 2
+            priority = 2,
+            matches = 312
         ),
         RegexRule(
-            id = "custom_type_1",
-            name = "Custom Type Pattern",
-            description = "Add custom pattern for transaction type",
-            category = "Type (Debit/Credit)",
-            pattern = "(?i)(refund|reversal)",
-            isActive = false,
-            isSystem = false,
+            id = "sys_account_suffix",
+            name = "Bank Account Masked Suffix",
+            description = "Account Suffix Identifier",
+            category = "Account / Card",
+            pattern = "(?i)(?:a/c|account|acct)\\s*(?:no\\.?)?\\s*[\\*xX]*([0-9]{4})",
+            isSystem = true,
+            iconType = "bank",
+            priority = 1,
+            matches = 840
+        ),
+        RegexRule(
+            id = "sys_card_suffix",
+            name = "Card Suffix (Last 4 Digits)",
+            description = "Card Identifier",
+            category = "Account / Card",
+            pattern = "(?i)(?:card|ending with|ending in)\\s*[\\*xX]*([0-9]{4})",
+            isSystem = true,
+            iconType = "bank",
+            priority = 2,
+            matches = 530
+        ),
+        RegexRule(
+            id = "sys_ref_utr",
+            name = "UPI Reference / UTR Number",
+            description = "Clearing Reference",
+            category = "Others",
+            pattern = "(?i)(?:ref|rrn|utr|txn id)\\s*[:\\s]*([0-9a-zA-Z]{6,16})",
+            isSystem = true,
             iconType = "custom",
-            priority = 3
+            priority = 1,
+            matches = 670
         )
     )
 
@@ -164,13 +198,28 @@ object RegexPatternsManager {
         }
 
         val rulesSet = prefs.getStringSet(RULES_KEY, emptySet()) ?: emptySet()
-        return rulesSet.mapNotNull {
+        val loaded = rulesSet.mapNotNull {
             try {
                 RegexRule.fromJson(it)
             } catch (e: Exception) {
                 null
             }
-        }.sortedBy { it.priority }
+        }.toMutableList()
+
+        // Ensure newly defined system rules are present
+        val loadedIds = loaded.map { it.id }.toSet()
+        var updated = false
+        for (defaultRule in defaultRules) {
+            if (defaultRule.id !in loadedIds) {
+                loaded.add(defaultRule)
+                updated = true
+            }
+        }
+        if (updated) {
+            saveRules(context, loaded)
+        }
+
+        return loaded.sortedBy { it.priority }
     }
 
     fun saveRules(context: Context, rules: List<RegexRule>) {

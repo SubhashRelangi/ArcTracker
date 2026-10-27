@@ -516,6 +516,7 @@ fun ExpenseScreen() {
                 currentRoute != "SmsImport" &&
                 currentRoute != "SmsScan" &&
                 currentRoute != "SmsResult" &&
+                currentRoute != "SettingsSmsImport" &&
                 currentRoute != "InitialOnboarding" &&
                 currentRoute != "LocalFirstSetup" &&
                 currentRoute != "FinancialAccounts" &&
@@ -530,12 +531,13 @@ fun ExpenseScreen() {
                 currentRoute != "Backup" &&
                 currentRoute != "SupportedApps" &&
                 currentRoute != "ClearAllData" &&
-                currentRoute != "IgnoreRules"
+                currentRoute != "IgnoreRules" &&
+                currentRoute != "DeveloperOptions" &&
+                currentRoute != "RegexPatterns"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
                     "ClearAllData" -> "Clear All Data"
-                    "BackupRestore" -> "Backup & Restore"
                     "IgnoreRules" -> "Ignore Rules"
                     "DeveloperOptions" -> "Developer Options"
                     "RegexPatterns" -> "Regex Patterns"
@@ -603,7 +605,11 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            val contentTopPadding = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules", "Backup")) 0.dp else padding.calculateTopPadding()
+            val contentTopPadding = if (currentRoute in listOf(
+                "InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "SettingsSmsImport",
+                "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules", "Backup",
+                "FinancialAccounts", "UnresolvedTransactions", "AccountTransactions", "DeveloperOptions", "RegexPatterns"
+            )) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
                     .padding(top = contentTopPadding)
@@ -701,18 +707,7 @@ fun ExpenseScreen() {
                     }
                 )
 
-            } else if (currentRoute == "SmsImport") {
-
-                com.subhashrelangi.arctracker.ui.SmsImportScreen(
-                    onNavigateBack = {
-                        navigateBack()
-                    },
-                    onNavigateToLedger = {
-                        backStack = listOf("Home", "Transactions")
-                    }
-                )
-
-            } else if (currentRoute == "SmsScan" || currentRoute == "SmsResult") {
+            } else if (currentRoute == "SmsImport" || currentRoute == "SmsScan" || currentRoute == "SmsResult") {
 
                 com.subhashrelangi.arctracker.ui.SmsSetupScreen(
                     initialStartScanning = (currentRoute == "SmsScan"),
@@ -743,11 +738,14 @@ fun ExpenseScreen() {
                     }
                 )
 
-            } else if (currentRoute == "BackupRestore") {
+            } else if (currentRoute == "SettingsSmsImport") {
 
-                com.subhashrelangi.arctracker.ui.BackupRestoreScreen(
-                    onNavigate = {
-                        navigateTo(it)
+                com.subhashrelangi.arctracker.ui.SettingsSmsImportScreen(
+                    onNavigateBack = {
+                        navigateBack()
+                    },
+                    onNavigateToLedger = {
+                        backStack = listOf("Home", "Transactions")
                     }
                 )
 
@@ -771,7 +769,8 @@ fun ExpenseScreen() {
 
             } else if (currentRoute == "DeveloperOptions") {
                 com.subhashrelangi.arctracker.ui.DeveloperOptionsScreen(
-                    onNavigate = { navigateTo(it) }
+                    onNavigate = { navigateTo(it) },
+                    onNavigateBack = { navigateBack() }
                 )
             } else if (currentRoute == "RegexPatterns") {
                 com.subhashrelangi.arctracker.ui.RegexPatternsScreen(
@@ -784,7 +783,8 @@ fun ExpenseScreen() {
                         editingRegexRuleId = rule.id
                         editingRegexRuleCategory = rule.category
                         navigateTo("EditRegexPattern")
-                    }
+                    },
+                    onNavigateBack = { navigateBack() }
                 )
             } else if (currentRoute == "EditRegexPattern") {
                 com.subhashrelangi.arctracker.ui.EditRegexPatternScreen(
@@ -796,6 +796,7 @@ fun ExpenseScreen() {
                 com.subhashrelangi.arctracker.ui.FinancialAccountsScreen(
                     onNavigateBack = { navigateBack() },
                     onNavigateToUnresolved = { navigateTo("UnresolvedTransactions") },
+                    onNavigateToSmsImport = { navigateTo("SettingsSmsImport") },
                     onViewAccountTransactions = { accId ->
                         viewingAccountId = accId
                         navigateTo("AccountTransactions")
@@ -1009,7 +1010,7 @@ fun ExpenseScreen() {
             "SmsImport",
             "SmsScan",
             "SmsResult",
-            "BackupRestore",
+            "SettingsSmsImport",
             "SupportedApps",
             "CategoryManagement",
             "FinancialAccounts",
@@ -1020,7 +1021,11 @@ fun ExpenseScreen() {
             "ApplyCategoryRules",
             "Analytics",
             "Budgets",
-            "Backup"
+            "Backup",
+            "DeveloperOptions",
+            "IgnoreRules",
+            "RegexPatterns",
+            "EditRegexPattern"
         )
 
         if (showBottomNav) {

@@ -51,6 +51,10 @@ class AccountReconciliationManager(
         return knownAccountRepo.getById(id)
     }
 
+    fun registerAccount(account: KnownFinancialAccount): KnownFinancialAccount {
+        return knownAccountRepo.upsert(account)
+    }
+
     // --- Account Linked Transactions ---
 
     suspend fun getLinkedTransactionCount(accountId: String): Int {
