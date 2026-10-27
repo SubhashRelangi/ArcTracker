@@ -1,26 +1,29 @@
 package com.subhashrelangi.arctracker.ui
 
 import android.Manifest
+import android.app.Activity
 import android.app.DatePickerDialog
-import android.widget.Toast
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.ripple.rememberRipple
@@ -30,1957 +33,3153 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.subhashrelangi.arctracker.service.DedupDecision
-import com.subhashrelangi.arctracker.service.FinancialAccountGroup
-import com.subhashrelangi.arctracker.service.FinancialAccountGrouper
-import com.subhashrelangi.arctracker.service.HistoricalSmsImportManager
-import com.subhashrelangi.arctracker.service.InstrumentType
-import com.subhashrelangi.arctracker.service.ScannedTransactionItem
-import com.subhashrelangi.arctracker.service.SmsImportResult
-import com.subhashrelangi.arctracker.service.SmsPermissionHelper
-import com.subhashrelangi.arctracker.service.SmsScanProgress
-import com.subhashrelangi.arctracker.service.SmsScanResult
-import com.subhashrelangi.arctracker.service.TransactionDirection
+import androidx.core.app.ActivityCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.subhashrelangi.arctracker.R
+import com.subhashrelangi.arctracker.data.AppDatabase
+import com.subhashrelangi.arctracker.service.*
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
-import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
-import kotlinx.coroutines.CancellationException
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.sin
 
-/**
- * Sequential 3-Stage Workflow of the Historical SMS Import Wizard:
- *   1. TIME_SELECTION: Select lookback horizon or custom date range.
- *   2. SCANNING: Live on-device parsing with real engine telemetry.
- *   3. REVIEW: Bank-wise and transaction-level review with explicit checkboxes.
- *   COMPLETE: Celebratory persistence summary.
- */
-private enum class SmsImportStage {
-    TIME_SELECTION,
+// ==========================================
+// Color Tokens matching Ui-Designs/SmsScanWizard.png
+// ==========================================
+private val WizardBgColor = ArcColors.Background // #090C10
+private val CardSurface = Color(0xFF12151D)
+private val CardBorder = Color(0xFF222836)
+private val SelectedCardSurface = Color(0xFF181E2B)
+private val SelectedCardBorder = Color(0xFF333F54)
+
+private val EmeraldAccent = Color(0xFF00E676)
+private val EmeraldPillBg = Color(0xFF0D251A)
+private val EmeraldPillBorder = Color(0xFF164E35)
+
+private val AmberAccent = Color(0xFFF59E0B)
+private val AmberPillBg = Color(0xFF2E200B)
+private val AmberPillBorder = Color(0xFF533912)
+
+private val SubBoxBg = Color(0xFF161A24)
+private val SubBoxBorder = Color(0xFF262C3D)
+
+private val TextWhite = Color(0xFFFFFFFF)
+private val TextSecondary = Color(0xFF94A3B8)
+private val TextMuted = Color(0xFF64748B)
+
+enum class SmsImportUiPhase {
+    SELECT_RANGE,
     SCANNING,
-    REVIEW,
-    COMPLETE
+    SCAN_PREVIEW,
+    IMPORTING,
+    IMPORT_COMPLETE,
+    ERROR
+}
+
+enum class ImportAnimationState {
+    IMPORTING,
+    SUCCESS,
+    FAILURE
 }
 
 /**
- * Review organization mode: Bank-wise (default) or flat transaction list
+ * Historical SMS Import Wizard screen matching Ui-Designs/SmsScanWizard.png exactly.
+ *
+ * Connected directly to HistoricalSmsImportManager for zero-cloud on-device scanning.
  */
-private enum class ReviewViewMode {
-    BY_BANK,
-    ALL_TRANSACTIONS
-}
-
-/**
- * Filter type for all transactions view
- */
-private enum class ReviewFilterType {
-    ALL,
-    HIGH_CONFIDENCE,
-    NEEDS_REVIEW
-}
-
-/**
- * Lookback horizon option
- */
-private data class HorizonOption(
-    val days: Int,
-    val label: String
-)
-
-/**
- * Single-page historical SMS import wizard with bank-wise grouping,
- * explicit selection checkboxes, fixed telemetry layout, and ArcTracker-themed styling.
- */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SmsImportScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToLedger: () -> Unit,
+    onImportCompleted: () -> Unit = onNavigateBack,
+    onNavigateToLedger: () -> Unit = onImportCompleted,
+    onNavigateToReview: () -> Unit = onImportCompleted,
+    manager: HistoricalSmsImportManager? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
-    val settingsRepo = remember { MonitoringSettingsRepository.getInstance(context) }
-    val importManager = remember { HistoricalSmsImportManager.create(context) }
+    val scrollState = rememberScrollState()
 
-    // Sequential stage state
-    var currentStage by rememberSaveable { mutableStateOf(SmsImportStage.TIME_SELECTION) }
-
-    // Date range timestamps (Default: 90 days ago to now)
-    val defaultStartDate = remember { SmsPermissionHelper.calculateThreeMonthsAgoTimestamp() }
-    var startDateMillis by rememberSaveable { mutableLongStateOf(defaultStartDate) }
-    var endDateMillis by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
-
-    // Lookback horizon presets
-    val horizons = remember {
-        listOf(
-            HorizonOption(30, "30 Days"),
-            HorizonOption(90, "90 Days"),
-            HorizonOption(180, "180 Days"),
-            HorizonOption(365, "1 Year")
-        )
-    }
-    var selectedHorizonIndex by rememberSaveable { mutableIntStateOf(1) } // 90 Days default
-    var isCustomRange by rememberSaveable { mutableStateOf(false) }
-
-    // Scanning execution state (Stage 2)
-    var scanJob by remember { mutableStateOf<Job?>(null) }
-    var scanProgressFloat by remember { mutableFloatStateOf(0f) }
-    var messagesScannedCount by remember { mutableIntStateOf(0) }
-    var totalMessagesEstimated by remember { mutableIntStateOf(0) }
-    var financialMessagesCount by remember { mutableIntStateOf(0) }
-    var scanStatusText by remember { mutableStateOf("Initializing scanner...") }
-
-    // Review & curation state (Stage 3)
-    var scanResultSuccess by remember { mutableStateOf<SmsScanResult.Success?>(null) }
-    var selectedItemIds by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var reviewViewMode by remember { mutableStateOf(ReviewViewMode.BY_BANK) }
-    var activeFilter by remember { mutableStateOf(ReviewFilterType.ALL) }
-    var expandedGroupIds by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var isImporting by remember { mutableStateOf(false) }
-
-    // Completion state
-    var importResultSuccess by remember { mutableStateOf<SmsImportResult.Success?>(null) }
-
-    // Date formatters
-    val fullDateFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH) }
-    val itemDateFormat = remember { SimpleDateFormat("dd MMM, HH:mm", Locale.ENGLISH) }
-
-    // Native DatePickerDialogs for Custom Range
-    val calendar = remember { Calendar.getInstance() }
-    val toDialog = remember {
-        DatePickerDialog(
-            context,
-            { _, year, month, dayOfMonth ->
-                val calEnd = Calendar.getInstance()
-                calEnd.set(year, month, dayOfMonth, 23, 59, 59)
-                calEnd.set(Calendar.MILLISECOND, 999)
-                endDateMillis = calEnd.timeInMillis
-                isCustomRange = true
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        )
-    }
-
-    val fromDialog = remember {
-        DatePickerDialog(
-            context,
-            { _, year, month, dayOfMonth ->
-                val calStart = Calendar.getInstance()
-                calStart.set(year, month, dayOfMonth, 0, 0, 0)
-                calStart.set(Calendar.MILLISECOND, 0)
-                startDateMillis = calStart.timeInMillis
-                toDialog.setTitle("Select End Date")
-                toDialog.show()
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        )
-    }
-
-    // Helper to select horizon preset
-    fun selectHorizon(index: Int) {
-        selectedHorizonIndex = index
-        isCustomRange = false
-        val now = System.currentTimeMillis()
-        val cal = Calendar.getInstance()
-        cal.timeInMillis = now
-        when (index) {
-            0 -> cal.add(Calendar.DAY_OF_YEAR, -30)
-            1 -> cal.add(Calendar.MONTH, -3)
-            2 -> cal.add(Calendar.MONTH, -6)
-            3 -> cal.add(Calendar.YEAR, -1)
-        }
-        startDateMillis = cal.timeInMillis
-        endDateMillis = now
-    }
-
-    // Cancel active scan and return to Stage 1
-    fun cancelScan() {
-        scanJob?.cancel()
-        scanJob = null
-        scanProgressFloat = 0f
-        currentStage = SmsImportStage.TIME_SELECTION
-    }
-
-    // Start live on-device SMS scan
-    fun startScan() {
-        if (scanJob?.isActive == true) return
-        currentStage = SmsImportStage.SCANNING
-        scanProgressFloat = 0.05f
-        scanStatusText = "Reading SMS inbox..."
-        messagesScannedCount = 0
-        financialMessagesCount = 0
-        totalMessagesEstimated = 0
-
-        scanJob = scope.launch {
-            try {
-                delay(120)
-                val result = withContext(Dispatchers.IO) {
-                    importManager.scan(
-                        startTimeMillis = startDateMillis,
-                        endTimeMillis = endDateMillis,
-                        progressCallback = { progress: SmsScanProgress ->
-                            messagesScannedCount = progress.recordsProcessed
-                            val est = progress.totalEstimated
-                            if (est != null && est > 0) {
-                                totalMessagesEstimated = est
-                                val ratio = (progress.recordsProcessed.toFloat() / est.toFloat()).coerceIn(0.05f, 0.95f)
-                                scanProgressFloat = ratio
-                            } else {
-                                totalMessagesEstimated = maxOf(messagesScannedCount, 1)
-                                scanProgressFloat = 0.5f
-                            }
-                            financialMessagesCount = progress.financialDetected
-                            scanStatusText = if (progress.financialDetected > 0) {
-                                "${progress.financialDetected} financial transactions detected"
-                            } else {
-                                "Analyzing messages on device..."
-                            }
-                            true
-                        }
-                    )
-                }
-
-                scanProgressFloat = 1.0f
-                scanStatusText = if (financialMessagesCount > 0) "$financialMessagesCount txns detected" else "Scan complete"
-                delay(400) // smooth visual transition
-
-                if (result is SmsScanResult.Success) {
-                    val groups = if (result.accountGroups.isNotEmpty()) {
-                        result.accountGroups
-                    } else if (result.scannedItems.isNotEmpty()) {
-                        FinancialAccountGrouper.groupTransactions(result.scannedItems)
-                    } else {
-                        emptyList()
+    val csvExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                try {
+                    val count = withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { stream ->
+                            val db = AppDatabase.getDatabase(context)
+                            val backupManager = com.subhashrelangi.arctracker.backup.BackupManager(
+                                database = db,
+                                expenseDao = db.expenseDao(),
+                                categoryDao = db.transactionCategoryDao(),
+                                accountDao = db.knownFinancialAccountDao(),
+                                ruleDao = db.userCategoryRuleDao(),
+                                aliasDao = db.merchantAliasDao(),
+                                budgetDao = db.budgetDao()
+                            )
+                            backupManager.exportTransactionsCsv(stream).getOrThrow()
+                        } ?: 0
                     }
-                    val enrichedResult = result.copy(accountGroups = groups)
-                    scanResultSuccess = enrichedResult
-                    selectedItemIds = enrichedResult.scannedItems.map { it.sourceEvent.sourceId }.toSet()
-                    expandedGroupIds = emptySet() // Initially minimize all accounts
-                    currentStage = SmsImportStage.REVIEW
-                } else if (result is SmsScanResult.Cancelled) {
-                    currentStage = SmsImportStage.TIME_SELECTION
-                } else {
-                    scanResultSuccess = SmsScanResult.Success(
-                        startTimeMillis = startDateMillis,
-                        endTimeMillis = endDateMillis,
-                        messagesScanned = messagesScannedCount,
-                        financialMessages = financialMessagesCount,
-                        nonFinancialMessages = 0,
-                        noiseMessages = 0,
-                        transactionCandidatesCount = 0,
-                        newTransactionsCount = 0,
-                        duplicatesCount = 0,
-                        correlationsCount = 0,
-                        pendingReviewCount = 0,
-                        rejectedCount = 0,
-                        totalDebitAmount = 0.0,
-                        totalCreditAmount = 0.0,
-                        scannedItems = emptyList(),
-                        accountGroups = emptyList()
-                    )
-                    selectedItemIds = emptySet()
-                    currentStage = SmsImportStage.REVIEW
+                    android.widget.Toast.makeText(context, "Exported $count transactions to CSV", android.widget.Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(context, "Export failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
                 }
-            } catch (e: Exception) {
-                if (e is CancellationException) {
-                    return@launch
-                }
-                scanResultSuccess = SmsScanResult.Success(
-                    startTimeMillis = startDateMillis,
-                    endTimeMillis = endDateMillis,
-                    messagesScanned = messagesScannedCount,
-                    financialMessages = 0,
-                    nonFinancialMessages = 0,
-                    noiseMessages = 0,
-                    transactionCandidatesCount = 0,
-                    newTransactionsCount = 0,
-                    duplicatesCount = 0,
-                    correlationsCount = 0,
-                    pendingReviewCount = 0,
-                    rejectedCount = 0,
-                    totalDebitAmount = 0.0,
-                    totalCreditAmount = 0.0,
-                    scannedItems = emptyList(),
-                    accountGroups = emptyList()
-                )
-                selectedItemIds = emptySet()
-                currentStage = SmsImportStage.REVIEW
             }
         }
     }
 
-    // Permission launcher
+    val importManager = manager ?: remember { HistoricalSmsImportManager.create(context) }
+
+    val dateFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH) }
+
+    var selectedPeriodIndex by rememberSaveable { mutableStateOf(1) } // Default: "Last 3 months" (Recommended)
+    var startDateMillis by rememberSaveable { mutableStateOf(SmsPermissionHelper.calculateThreeMonthsAgoTimestamp()) }
+    var endDateMillis by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
+
+    var currentPhase by remember { mutableStateOf(SmsImportUiPhase.SELECT_RANGE) }
+    var scanProgress by remember { mutableStateOf(SmsScanProgress(0)) }
+    var scanResult by remember { mutableStateOf<SmsScanResult.Success?>(null) }
+    var importProgress by remember { mutableStateOf(SmsImportProgress(0, 0)) }
+    var importResult by remember { mutableStateOf<SmsImportResult.Success?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isCancelled by remember { mutableStateOf(false) }
+
+    var selectedGroupIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var expandedGroupIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var scanDurationSeconds by remember { mutableStateOf("0.38s") }
+
+    var hasSmsPermission by remember {
+        mutableStateOf(SmsPermissionHelper.isSmsPermissionGranted(context))
+    }
+    var isNotificationAccessGranted by remember {
+        mutableStateOf(NotificationPermissionHelper.isNotificationAccessGranted(context))
+    }
+    var hasRequestedPermissionThisSession by rememberSaveable { mutableStateOf(false) }
+    var isPermanentlyDenied by remember { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val granted = SmsPermissionHelper.isSmsPermissionGranted(context)
+                hasSmsPermission = granted
+                if (granted) {
+                    isPermanentlyDenied = false
+                    SmsPermissionHelper.setInitialImportCompleted(context, true)
+                }
+                isNotificationAccessGranted = NotificationPermissionHelper.isNotificationAccessGranted(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    BackHandler(enabled = true) {
+        when (currentPhase) {
+            SmsImportUiPhase.IMPORT_COMPLETE -> onImportCompleted()
+            SmsImportUiPhase.SCAN_PREVIEW -> currentPhase = SmsImportUiPhase.SELECT_RANGE
+            SmsImportUiPhase.SCANNING -> {
+                isCancelled = true
+                currentPhase = SmsImportUiPhase.SELECT_RANGE
+            }
+            SmsImportUiPhase.IMPORTING -> {
+                isCancelled = true
+            }
+            else -> onNavigateBack()
+        }
+    }
+
+    val isDateRangeValid = selectedPeriodIndex != -1 && startDateMillis <= endDateMillis
+
+    val rangeDays = remember(startDateMillis, endDateMillis) {
+        val diff = endDateMillis - startDateMillis
+        maxOf(1, (diff / (1000L * 60 * 60 * 24)).toInt())
+    }
+
+    val windowLabel = when (selectedPeriodIndex) {
+        0 -> "30 Days Window"
+        1 -> "3 Months Window"
+        2 -> "6 Months Window"
+        3 -> "1 Year Window"
+        4 -> "Custom Window"
+        else -> ""
+    }
+
+    fun togglePeriod(index: Int) {
+        if (selectedPeriodIndex == index) {
+            selectedPeriodIndex = -1
+        } else {
+            selectedPeriodIndex = index
+            val cal = Calendar.getInstance()
+            val now = System.currentTimeMillis()
+            endDateMillis = now
+            when (index) {
+                0 -> { // Last 30 days
+                    cal.add(Calendar.DAY_OF_YEAR, -30)
+                    startDateMillis = cal.timeInMillis
+                }
+                1 -> { // Last 3 months
+                    startDateMillis = SmsPermissionHelper.calculateThreeMonthsAgoTimestamp(now)
+                }
+                2 -> { // Last 6 months
+                    cal.add(Calendar.MONTH, -6)
+                    startDateMillis = cal.timeInMillis
+                }
+                3 -> { // Last 1 year
+                    cal.add(Calendar.YEAR, -1)
+                    startDateMillis = cal.timeInMillis
+                }
+                // 4: Custom range keeps existing custom dates
+            }
+        }
+    }
+
+    fun showDatePicker(initialMillis: Long, maxMillis: Long? = System.currentTimeMillis(), onDateSelected: (Long) -> Unit) {
+        val cal = Calendar.getInstance().apply { timeInMillis = initialMillis }
+        val dialog = DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val selectedCal = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, year)
+                    set(Calendar.MONTH, month)
+                    set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                onDateSelected(selectedCal.timeInMillis)
+            },
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH),
+            cal.get(Calendar.DAY_OF_MONTH)
+        )
+        if (maxMillis != null) {
+            dialog.datePicker.maxDate = maxMillis
+        }
+        dialog.show()
+    }
+
+    fun triggerScan() {
+        SmsPermissionHelper.setInitialImportCompleted(context, true)
+        errorMessage = null
+        currentPhase = SmsImportUiPhase.SCANNING
+        isCancelled = false
+        val scanStartTime = System.currentTimeMillis()
+        scope.launch {
+            val res = withContext(Dispatchers.IO) {
+                importManager.scan(startDateMillis, endDateMillis) { prog ->
+                    scanProgress = prog
+                    !isCancelled
+                }
+            }
+            val elapsed = maxOf(0.12, (System.currentTimeMillis() - scanStartTime) / 1000.0)
+            scanDurationSeconds = "%.2fs".format(Locale.ENGLISH, elapsed)
+            if (isCancelled || res is SmsScanResult.Cancelled) {
+                currentPhase = SmsImportUiPhase.SELECT_RANGE
+            } else if (res is SmsScanResult.Success) {
+                scanResult = res
+                selectedGroupIds = res.accountGroups
+                    .filter { it.groupId != "unidentified_account" }
+                    .map { it.groupId }
+                    .toSet()
+                    .ifEmpty { res.accountGroups.map { it.groupId }.toSet() }
+                expandedGroupIds = emptySet()
+                currentPhase = SmsImportUiPhase.SCAN_PREVIEW
+            } else if (res is SmsScanResult.Failure) {
+                errorMessage = res.message
+                currentPhase = SmsImportUiPhase.ERROR
+            } else if (res is SmsScanResult.PermissionRequired) {
+                hasSmsPermission = false
+                currentPhase = SmsImportUiPhase.SELECT_RANGE
+            }
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
+        hasSmsPermission = isGranted
         if (isGranted) {
-            startScan()
+            isPermanentlyDenied = false
+            SmsPermissionHelper.setInitialImportCompleted(context, true)
+            triggerScan()
         } else {
-            Toast.makeText(context, "SMS permission is required to import transactions", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    // Check permission before initiating scan
-    fun checkPermissionAndScan() {
-        if (SmsPermissionHelper.isSmsPermissionGranted(context)) {
-            startScan()
-        } else {
-            permissionLauncher.launch(Manifest.permission.READ_SMS)
-        }
-    }
-
-    // Execute real backend import reconciliation
-    fun executeImport() {
-        if (isImporting) return
-        val res = scanResultSuccess ?: return
-        isImporting = true
-
-        scope.launch {
-            try {
-                val realResult = withContext(Dispatchers.IO) {
-                    importManager.importTransactions(
-                        scanResult = res,
-                        selectedGroupIds = null,
-                        selectedItemIds = selectedItemIds
-                    )
-                }
-                if (realResult is SmsImportResult.Success) {
-                    importResultSuccess = realResult
-                    settingsRepo.setInitialSmsImportCompleted(true)
-                    SmsPermissionHelper.setInitialImportCompleted(context, true)
-                    isImporting = false
-                    currentStage = SmsImportStage.COMPLETE
-                } else if (realResult is SmsImportResult.Failure) {
-                    isImporting = false
-                    Toast.makeText(context, "Import failed: ${realResult.message}", Toast.LENGTH_SHORT).show()
-                } else {
-                    isImporting = false
-                    currentStage = SmsImportStage.TIME_SELECTION
-                }
-            } catch (e: Exception) {
-                isImporting = false
-                Toast.makeText(context, "Import failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            currentPhase = SmsImportUiPhase.SELECT_RANGE
+            val activity = context.findActivity()
+            if (activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_SMS)) {
+                isPermanentlyDenied = true
             }
         }
     }
 
-    // Toggle all items in an account group
-    fun toggleAccountGroup(group: FinancialAccountGroup) {
-        val groupItemIds = group.transactions.map { it.sourceEvent.sourceId }.toSet()
-        val allSelected = groupItemIds.isNotEmpty() && groupItemIds.all { selectedItemIds.contains(it) }
-        selectedItemIds = if (allSelected) {
-            selectedItemIds - groupItemIds
-        } else {
-            selectedItemIds + groupItemIds
-        }
-    }
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(WizardBgColor)
+            .statusBarsPadding()
+    ) {
+        // ----------------------------------------------------
+        // 1. Static Wizard Header matching reference
+        // ----------------------------------------------------
+        val isCompletionPhase = currentPhase == SmsImportUiPhase.IMPORT_COMPLETE || currentPhase == SmsImportUiPhase.IMPORTING
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = 16.dp,
+                    vertical = if (isCompletionPhase) 4.dp else 10.dp
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = {
+                        when (currentPhase) {
+                            SmsImportUiPhase.SCAN_PREVIEW -> {
+                                currentPhase = SmsImportUiPhase.SELECT_RANGE
+                            }
+                            SmsImportUiPhase.IMPORT_COMPLETE -> {
+                                onImportCompleted()
+                            }
+                            SmsImportUiPhase.IMPORTING -> {
+                                // Do not interrupt running persistence
+                            }
+                            else -> {
+                                onNavigateBack()
+                            }
+                        }
+                    },
+                    enabled = currentPhase != SmsImportUiPhase.IMPORTING,
+                    modifier = Modifier.size(if (isCompletionPhase) 34.dp else 38.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = if (currentPhase == SmsImportUiPhase.IMPORTING) TextMuted else TextWhite,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
 
-    // Toggle expansion of account group
-    fun toggleGroupExpansion(groupId: String) {
-        expandedGroupIds = if (expandedGroupIds.contains(groupId)) {
-            expandedGroupIds - groupId
-        } else {
-            expandedGroupIds + groupId
-        }
-    }
+                Spacer(modifier = Modifier.width(8.dp))
 
-    // Handle back button logically per stage
-    fun handleBack() {
-        when (currentStage) {
-            SmsImportStage.TIME_SELECTION -> onNavigateBack()
-            SmsImportStage.SCANNING -> cancelScan()
-            SmsImportStage.REVIEW -> currentStage = SmsImportStage.TIME_SELECTION
-            SmsImportStage.COMPLETE -> onNavigateBack()
-        }
-    }
+                Column {
+                    Text(
+                        text = "Sms Import Wizard",
+                        color = TextWhite,
+                        fontSize = if (isCompletionPhase) 17.sp else 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.2).sp
+                    )
+                    if (isCompletionPhase) {
+                        Text(
+                            text = "ArcTracker Secure Vault",
+                            color = Color(0xFF64748B),
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+            }
 
-    BackHandler {
-        handleBack()
-    }
-
-    // Animation for scanning sync icon
-    val infiniteTransition = rememberInfiniteTransition(label = "scan_spinner")
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotation"
-    )
-
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = Color(0xFFF8FAFC),
-        topBar = {
-            // Universal Settings Sub-Page Header with statusBarsPadding matching all other sub-settings pages
-            ArcTrackerHeader(
-                modifier = Modifier.statusBarsPadding(),
-                title = "SMS Import Wizard",
-                subtitle = "Historical Ingestion Pipeline",
-                onBackClick = { handleBack() },
-                horizontalPadding = 16.dp,
-                actions = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isCompletionPhase) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
-                            .background(Color(0xFFF1F5F9), CircleShape)
-                            .border(1.dp, Color(0xFFE2E8F0), CircleShape),
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF161C26))
+                            .border(BorderStroke(1.dp, Color(0xFF222C3D)), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Shield,
-                            contentDescription = "Air-Gapped Vault",
-                            tint = Color(0xFF055B38),
-                            modifier = Modifier.size(18.dp)
+                            contentDescription = "Secure Vault",
+                            tint = Color(0xFF64748B),
+                            modifier = Modifier.size(16.dp)
                         )
                     }
+                    Spacer(modifier = Modifier.width(8.dp))
                 }
-            )
-        },
-        bottomBar = {
-            // Clean ArcTracker Sticky Bottom Bar sticking directly to the bottom of the screen
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
-                shadowElevation = 8.dp,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-            ) {
+
+                // Real ArcTracker App Icon from app res folder
+                Box(
+                    modifier = Modifier
+                        .size(if (isCompletionPhase) 32.dp else 34.dp)
+                        .clip(CircleShape)
+                        .background(if (isCompletionPhase) Color.White else Color.Black)
+                        .border(BorderStroke(1.dp, Color(0xFF2D3748)), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                        contentDescription = "ArcTracker App Icon",
+                        modifier = Modifier.size(if (isCompletionPhase) 34.dp else 36.dp)
+                    )
+                }
+            }
+        }
+
+        // ----------------------------------------------------
+        // Scrollable Body Content
+        // ----------------------------------------------------
+        when (currentPhase) {
+            SmsImportUiPhase.SELECT_RANGE -> {
                 Column(
                     modifier = Modifier
+                        .weight(1f)
                         .fillMaxWidth()
                         .navigationBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    when (currentStage) {
-                        SmsImportStage.TIME_SELECTION -> {
-                            Button(
-                                onClick = { checkPermissionAndScan() },
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .verticalScroll(scrollState),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // ----------------------------------------------------
+                        // Select Time Period Section
+                        // ----------------------------------------------------
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Select Time Period",
+                                    color = TextWhite,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Icon(
+                                    imageVector = Icons.Outlined.Tune,
+                                    contentDescription = null,
+                                    tint = Color(0xFF64748B),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(2.dp))
+
+                            Text(
+                                text = "Historical transaction breadth for deterministic sync",
+                                color = TextSecondary,
+                                fontSize = 11.5.sp
+                            )
+                        }
+
+                        // Period Options (1 to 5) with left checkboxes
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            // 1. Last 30 days
+                            PeriodOptionCard(
+                                title = "Last 30 days",
+                                subtitle = "Recent active statement • ~120 msgs",
+                                trailingIcon = Icons.Outlined.Schedule,
+                                isSelected = selectedPeriodIndex == 0,
+                                onClick = { togglePeriod(0) }
+                            )
+
+                            // 2. Last 3 months (Recommended)
+                            PeriodOptionCard(
+                                title = "Last 3 months",
+                                subtitle = "Full balance reconciliation",
+                                trailingIcon = Icons.Outlined.CalendarMonth,
+                                badgeText = "Recommended",
+                                isSelected = selectedPeriodIndex == 1,
+                                onClick = { togglePeriod(1) }
+                            )
+
+                            // 3. Last 6 months
+                            PeriodOptionCard(
+                                title = "Last 6 months",
+                                subtitle = "Comprehensive financial quarter",
+                                trailingIcon = Icons.Outlined.GridView,
+                                isSelected = selectedPeriodIndex == 2,
+                                onClick = { togglePeriod(2) }
+                            )
+
+                            // 4. Last 1 year
+                            PeriodOptionCard(
+                                title = "Last 1 year",
+                                subtitle = "Annual tax & ledger construction",
+                                trailingIcon = Icons.Outlined.Description,
+                                isSelected = selectedPeriodIndex == 3,
+                                onClick = { togglePeriod(3) }
+                            )
+
+                            // 5. Custom range
+                            PeriodOptionCard(
+                                title = "Custom range",
+                                subtitle = "Select custom start and end date",
+                                trailingIcon = Icons.Outlined.CalendarMonth,
+                                isSelected = selectedPeriodIndex == 4,
+                                onClick = { togglePeriod(4) }
+                            )
+                        }
+
+                        // Custom Date Pickers (visible if custom range is selected)
+                        if (selectedPeriodIndex == 4) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                color = SubBoxBg,
+                                border = BorderStroke(1.dp, SubBoxBorder)
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Text(
+                                        text = "Choose Custom Date Range",
+                                        color = TextWhite,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Surface(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(38.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .clickable {
+                                                    showDatePicker(startDateMillis) { newDate ->
+                                                        startDateMillis = newDate
+                                                    }
+                                                },
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = Color(0xFF1E2433),
+                                            border = BorderStroke(1.dp, Color(0xFF2E394F))
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .padding(horizontal = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text(dateFormat.format(Date(startDateMillis)), color = TextWhite, fontSize = 11.5.sp)
+                                                Icon(Icons.Outlined.CalendarToday, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(13.dp))
+                                            }
+                                        }
+
+                                        Surface(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(38.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .clickable {
+                                                    showDatePicker(endDateMillis) { newDate ->
+                                                        endDateMillis = newDate
+                                                    }
+                                                },
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = Color(0xFF1E2433),
+                                            border = BorderStroke(1.dp, Color(0xFF2E394F))
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .padding(horizontal = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text(dateFormat.format(Date(endDateMillis)), color = TextWhite, fontSize = 11.5.sp)
+                                                Icon(Icons.Outlined.CalendarToday, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(13.dp))
+                                            }
+                                        }
+                                    }
+                                    if (!isDateRangeValid) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Start date must be before or equal to end date",
+                                            color = Color(0xFFEF4444),
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // ----------------------------------------------------
+                        // 4. Active Ingest Window Card
+                        // ----------------------------------------------------
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(11.dp),
+                            color = CardSurface,
+                            border = BorderStroke(1.dp, CardBorder)
+                        ) {
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(50.dp),
-                                shape = CircleShape,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF055B38),
-                                    contentColor = Color.White
-                                )
+                                    .padding(horizontal = 12.dp, vertical = 7.dp)
                             ) {
                                 Row(
+                                    modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "ACTIVE INGEST WINDOW",
+                                        color = TextSecondary,
+                                        fontSize = 9.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.5.sp
+                                    )
+
+                                    Text(
+                                        text = if (selectedPeriodIndex == -1) "No Window Selected" else "$rangeDays Days Range",
+                                        color = if (selectedPeriodIndex == -1) TextMuted else EmeraldAccent,
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(5.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
+                                    // FROM Box
+                                    Surface(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                if (selectedPeriodIndex == 4) {
+                                                    showDatePicker(startDateMillis) { startDateMillis = it }
+                                                }
+                                            },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = SubBoxBg,
+                                        border = BorderStroke(1.dp, SubBoxBorder)
+                                    ) {
+                                        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "FROM",
+                                                    color = Color(0xFF64748B),
+                                                    fontSize = 8.5.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Text(
+                                                    text = "IST 00:00",
+                                                    color = Color(0xFF64748B),
+                                                    fontSize = 8.sp,
+                                                    fontFamily = FontFamily.Monospace
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.height(2.dp))
+
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = dateFormat.format(Date(startDateMillis)),
+                                                    color = TextWhite,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Icon(
+                                                    imageVector = Icons.Outlined.CalendarToday,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFF64748B),
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // TO Box
+                                    Surface(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                if (selectedPeriodIndex == 4) {
+                                                    showDatePicker(endDateMillis) { endDateMillis = it }
+                                                }
+                                            },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = SubBoxBg,
+                                        border = BorderStroke(1.dp, SubBoxBorder)
+                                    ) {
+                                        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "TO",
+                                                    color = Color(0xFF64748B),
+                                                    fontSize = 8.5.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Text(
+                                                    text = "Live Sync",
+                                                    color = EmeraldAccent,
+                                                    fontSize = 8.sp,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.height(2.dp))
+
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = dateFormat.format(Date(endDateMillis)),
+                                                    color = TextWhite,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Icon(
+                                                    imageVector = Icons.Outlined.CalendarToday,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFF64748B),
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // ----------------------------------------------------
+                        // 5. SMS Permission Status Card
+                        // ----------------------------------------------------
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(11.dp),
+                            color = CardSurface,
+                            border = BorderStroke(1.dp, CardBorder)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = "Scan",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(18.dp)
+                                        imageVector = if (hasSmsPermission) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+                                        contentDescription = null,
+                                        tint = if (hasSmsPermission) EmeraldAccent else AmberAccent,
+                                        modifier = Modifier.size(15.dp)
                                     )
+
+                                    Spacer(modifier = Modifier.width(6.dp))
+
                                     Text(
-                                        text = "Scan SMS Inbox",
-                                        fontSize = 15.sp,
+                                        text = if (hasSmsPermission) "Granted (READ_SMS)" else "Permission Required (READ_SMS)",
+                                        color = TextWhite,
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+
+                                    Spacer(modifier = Modifier.width(5.dp))
+
+                                    Text(
+                                        text = "• Android Process Recovery Active",
+                                        color = Color(0xFF64748B),
+                                        fontSize = 9.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        maxLines = 1
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(2.dp))
+
+                                Text(
+                                    text = "Strict OTP & Spam suppression active. No personal messages or OTP tokens are ever stored or retained.",
+                                    color = TextSecondary,
+                                    fontSize = 10.sp,
+                                    lineHeight = 13.sp
+                                )
+
+                                if (!hasSmsPermission) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(34.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                if (isPermanentlyDenied) {
+                                                    SmsPermissionHelper.openAppSettings(context)
+                                                } else {
+                                                    hasRequestedPermissionThisSession = true
+                                                    permissionLauncher.launch(Manifest.permission.READ_SMS)
+                                                }
+                                            },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFF222938),
+                                        border = BorderStroke(1.dp, Color(0xFF3B4863))
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = if (isPermanentlyDenied) "Open App Settings" else "Grant SMS Permission",
+                                                color = TextWhite,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ----------------------------------------------------
+                    // Bottom Docked: Scan Button & Regex Engine Footer
+                    // ----------------------------------------------------
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Error display if any
+                        if (errorMessage != null) {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 4.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFF2B1215),
+                                border = BorderStroke(1.dp, Color(0xFF5C1D24))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Filled.Warning, contentDescription = null, tint = Color(0xFFF87171), modifier = Modifier.size(15.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(errorMessage!!, color = Color(0xFFFCA5A5), fontSize = 11.5.sp)
+                                }
+                            }
+                        }
+
+                        // 6. Primary Scan Action Button
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp)
+                                .shadow(
+                                    elevation = if (isDateRangeValid) 8.dp else 0.dp,
+                                    shape = RoundedCornerShape(12.dp),
+                                    spotColor = Color(0x66000000),
+                                    ambientColor = Color(0x33000000)
+                                )
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable(
+                                    enabled = isDateRangeValid,
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = rememberRipple(color = Color.Black.copy(alpha = 0.2f))
+                                ) {
+                                    errorMessage = null
+                                    if (!isDateRangeValid) return@clickable
+
+                                    if (SmsPermissionHelper.isSmsPermissionGranted(context)) {
+                                        hasSmsPermission = true
+                                        isPermanentlyDenied = false
+                                        triggerScan()
+                                    } else {
+                                        val activity = context.findActivity()
+                                        val permanentlyDenied = hasRequestedPermissionThisSession && activity != null &&
+                                            !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_SMS)
+
+                                        if (permanentlyDenied) {
+                                            isPermanentlyDenied = true
+                                            SmsPermissionHelper.openAppSettings(context)
+                                        } else {
+                                            hasRequestedPermissionThisSession = true
+                                            permissionLauncher.launch(Manifest.permission.READ_SMS)
+                                        }
+                                    }
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isDateRangeValid) Color.White else Color(0xFF1E232E),
+                            border = if (isDateRangeValid) null else BorderStroke(1.dp, Color(0xFF2E3747))
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (selectedPeriodIndex == -1) "Select Time Period" else "Scan Messages ($windowLabel)",
+                                    color = if (isDateRangeValid) Color(0xFF090C10) else Color(0xFF6B7280),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.1.sp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = if (isDateRangeValid) Color(0xFF090C10) else Color(0xFF6B7280),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // 7. Deterministic Regex Engine Footer
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(EmeraldAccent)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = "Deterministic Regex Engine v4.2 Local • ~460 msg/s",
+                                color = Color(0xFF64748B),
+                                fontSize = 9.5.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+            }
+            SmsImportUiPhase.SCAN_PREVIEW -> {
+                val result = scanResult
+                if (result != null) {
+                    val groups = result.accountGroups
+                    val selectedGroups = groups.filter { selectedGroupIds.contains(it.groupId) }
+                    val selectedTxnCount = selectedGroups.sumOf { it.transactionCount }
+                    val selectedDebitTotal = selectedGroups.sumOf { it.totalDebit }
+                    val selectedCreditTotal = selectedGroups.sumOf { it.totalCredit }
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // 1. Step 2 of 2 Badge
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFF111722),
+                                border = BorderStroke(1.dp, Color(0xFF1E2838))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(EmeraldAccent)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Step 2 of 2: Ingestion Audit & Ac...",
+                                            color = Color(0xFFE2E8F0),
+                                            fontSize = 11.5.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Stage Ready",
+                                        color = EmeraldAccent,
+                                        fontSize = 11.5.sp,
+                                        fontFamily = FontFamily.Monospace,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
 
-                            Text(
-                                text = "Cancel & Exit",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF64748B),
-                                modifier = Modifier
-                                    .clickable { onNavigateBack() }
-                                    .padding(vertical = 4.dp)
-                            )
-                        }
-
-                        SmsImportStage.SCANNING -> {
-                            // ArcTracker-styled cancel action
-                            Button(
-                                onClick = { cancelScan() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
-                                shape = CircleShape,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFFEE2E2),
-                                    contentColor = Color(0xFFDC2626)
-                                )
-                            ) {
-                                Text(
-                                    text = "Cancel Scan",
-                                    fontSize = 14.5.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            Text(
-                                text = "Return to Date Selection",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF64748B),
-                                modifier = Modifier
-                                    .clickable { cancelScan() }
-                                    .padding(vertical = 4.dp)
-                            )
-                        }
-
-                        SmsImportStage.REVIEW -> {
-                            val countToImport = selectedItemIds.size
-                            Button(
-                                onClick = { executeImport() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp),
-                                shape = CircleShape,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF055B38),
-                                    contentColor = Color.White
-                                ),
-                                enabled = !isImporting && countToImport > 0
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    if (isImporting) {
-                                        CircularProgressIndicator(
-                                            color = Color.White,
-                                            modifier = Modifier.size(18.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                        Text(
-                                            text = "Ingesting to Local Ledger...",
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = "Import",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Text(
-                                            text = "Import $countToImport Transactions to Ledger",
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
-
-                            Text(
-                                text = "Cancel & Rescan",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF64748B),
-                                modifier = Modifier
-                                    .clickable { currentStage = SmsImportStage.TIME_SELECTION }
-                                    .padding(vertical = 4.dp)
-                            )
-                        }
-
-                        SmsImportStage.COMPLETE -> {
-                            Button(
-                                onClick = onNavigateToLedger,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp),
-                                shape = CircleShape,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF055B38),
-                                    contentColor = Color.White
-                                )
-                            ) {
-                                Text(
-                                    text = "View in Ledger",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            OutlinedButton(
-                                onClick = onNavigateBack,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
-                                shape = CircleShape,
-                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = Color(0xFF334155)
-                                )
-                            ) {
-                                Text(
-                                    text = "Return to Settings",
-                                    fontSize = 14.5.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp)
-        ) {
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // ----------------------------------------------------
-            // Stage Progress Header showing active stage
-            // ----------------------------------------------------
-            StageProgressIndicator(
-                currentStage = currentStage,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // ----------------------------------------------------
-            // Stage Content Switcher (Sequential Flow in 1 Page)
-            // ----------------------------------------------------
-            when (currentStage) {
-                // ====================================================
-                // STAGE 1: Time Selection / Date Horizon
-                // ====================================================
-                SmsImportStage.TIME_SELECTION -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        // Hero Banner Card
-                        item {
+                            // 2. Deterministic Scan Diagnostics Card
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(18.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .background(Color(0xFFECFDF5), RoundedCornerShape(12.dp))
-                                            .border(1.dp, Color(0xFFA7F3D0), RoundedCornerShape(12.dp)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Forum,
-                                            contentDescription = "SMS Scanner",
-                                            tint = Color(0xFF055B38),
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Scan SMS Inbox & Ingest Historical Ledger",
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A),
-                                            letterSpacing = (-0.2).sp
-                                        )
-                                        Spacer(modifier = Modifier.height(3.dp))
-                                        Text(
-                                            text = "Select your lookback horizon to parse transaction alerts locally into ArcTracker's double-entry vault.",
-                                            fontSize = 12.sp,
-                                            color = Color(0xFF64748B),
-                                            lineHeight = 16.sp
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Horizon Lookback Pills
-                        item {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 2.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "AUDIT LOOKBACK HORIZON",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF64748B),
-                                        letterSpacing = 0.6.sp
-                                    )
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.History,
-                                            contentDescription = "Sync History",
-                                            tint = Color(0xFF055B38),
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                        Text(
-                                            text = "Zero Cloud Sync",
-                                            fontSize = 11.5.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF055B38)
-                                        )
-                                    }
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    horizons.forEachIndexed { index, horizon ->
-                                        val isSelected = !isCustomRange && selectedHorizonIndex == index
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .clip(CircleShape)
-                                                .background(if (isSelected) Color(0xFF055B38) else Color.White)
-                                                .border(
-                                                    1.dp,
-                                                    if (isSelected) Color(0xFF055B38) else Color(0xFFE2E8F0),
-                                                    CircleShape
-                                                )
-                                                .clickable { selectHorizon(index) }
-                                                .padding(vertical = 9.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                            ) {
-                                                if (isSelected) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Check,
-                                                        contentDescription = "Selected",
-                                                        tint = Color.White,
-                                                        modifier = Modifier.size(13.dp)
-                                                    )
-                                                }
-                                                Text(
-                                                    text = horizon.label,
-                                                    fontSize = 12.5.sp,
-                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                    color = if (isSelected) Color.White else Color(0xFF334155)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Custom Date Range Selector Card
-                        item {
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { fromDialog.show() },
-                                shape = RoundedCornerShape(16.dp),
-                                color = if (isCustomRange) Color(0xFFF0FDF4) else Color.White,
-                                border = BorderStroke(1.dp, if (isCustomRange) Color(0xFF86EFAC) else Color(0xFFE2E8F0))
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(38.dp)
-                                                .background(Color(0xFFF1F5F9), CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.DateRange,
-                                                contentDescription = "Calendar",
-                                                tint = Color(0xFF0F172A),
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-
-                                        Column {
-                                            Text(
-                                                text = if (isCustomRange) "Custom Audit Period" else "Pick Custom Date Range",
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F172A)
-                                            )
-                                            Text(
-                                                text = "${fullDateFormat.format(Date(startDateMillis))}  —  ${fullDateFormat.format(Date(endDateMillis))}",
-                                                fontSize = 12.sp,
-                                                color = Color(0xFF64748B)
-                                            )
-                                        }
-                                    }
-
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = "Edit Dates",
-                                        tint = Color(0xFF055B38),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        // Air-Gapped Vault Security Notice
-                        item {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                shape = RoundedCornerShape(12.dp),
+                                color = CardSurface,
+                                border = BorderStroke(1.dp, CardBorder)
                             ) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
+                                    // Diagnostics Header
                                     Row(
+                                        modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Shield,
-                                            contentDescription = "Security",
-                                            tint = Color(0xFF055B38),
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Text(
-                                            text = "Air-Gapped Vault Security",
-                                            fontSize = 13.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A)
-                                        )
-                                    }
-
-                                    Text(
-                                        text = "ArcTracker reads incoming transaction alerts directly from Android's Telephony provider. Pattern extraction, noise reduction, and double-entry reconciliation execute 100% on your device with zero internet transmission.",
-                                        fontSize = 12.sp,
-                                        color = Color(0xFF64748B),
-                                        lineHeight = 17.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // ====================================================
-                // STAGE 2: Scanning SMS Inbox Execution
-                // ====================================================
-                SmsImportStage.SCANNING -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(20.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(46.dp)
-                                                .background(Color(0xFFE8F5E9), CircleShape),
-                                            contentAlignment = Alignment.Center
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f, fill = false)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Refresh,
-                                                contentDescription = "Scanning",
-                                                tint = Color(0xFF055B38),
-                                                modifier = Modifier
-                                                    .size(24.dp)
-                                                    .rotate(rotationAngle)
+                                                imageVector = Icons.Outlined.CheckCircle,
+                                                contentDescription = null,
+                                                tint = EmeraldAccent,
+                                                modifier = Modifier.size(17.dp)
                                             )
-                                        }
-
-                                        Column {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                Text(
-                                                    text = "Scanning SMS Inbox",
-                                                    fontSize = 15.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF0F172A)
-                                                )
-                                                Box(
-                                                    modifier = Modifier
-                                                        .background(Color(0xFFDCFCE7), CircleShape)
-                                                        .padding(horizontal = 7.dp, vertical = 2.dp)
-                                                ) {
-                                                    Text(
-                                                        text = "Live",
-                                                        fontSize = 10.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = Color(0xFF15803D)
-                                                    )
-                                                }
-                                            }
-
-                                            Spacer(modifier = Modifier.height(2.dp))
-
+                                            Spacer(modifier = Modifier.width(7.dp))
                                             Text(
-                                                text = if (totalMessagesEstimated > 0) {
-                                                    "$messagesScannedCount / $totalMessagesEstimated SMS parsed"
-                                                } else {
-                                                    "$messagesScannedCount SMS parsed"
-                                                },
-                                                fontSize = 12.sp,
-                                                color = Color(0xFF64748B)
+                                                text = "Deterministic Scan Diagnostics",
+                                                color = TextWhite,
+                                                fontSize = 13.5.sp,
+                                                fontWeight = FontWeight.Bold
                                             )
                                         }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Complete",
+                                            color = Color(0xFF94A3B8),
+                                            fontSize = 11.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Medium
+                                        )
                                     }
 
-                                    Text(
-                                        text = "${(scanProgressFloat * 100).toInt()}%",
-                                        fontSize = 22.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF055B38)
+                                    Spacer(modifier = Modifier.height(1.dp))
+
+                                    // 5 Diagnostic Rows matching ScanResult.png
+                                    DiagnosticRow(
+                                        icon = Icons.Outlined.Info,
+                                        iconTint = Color(0xFF64748B),
+                                        label = "${result.messagesScanned} messages scanned",
+                                        tag = "Total window"
                                     )
-                                }
 
-                                Spacer(modifier = Modifier.height(18.dp))
-
-                                // Progress Bar
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(8.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFF1F5F9))
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth(scanProgressFloat.coerceIn(0f, 1f))
-                                            .fillMaxHeight()
-                                            .clip(CircleShape)
-                                            .background(Color(0xFF055B38))
+                                    DiagnosticRow(
+                                        icon = Icons.Outlined.AccountBalance,
+                                        iconTint = Color(0xFF3B82F6),
+                                        label = "${result.financialMessages} financial messages found",
+                                        tag = "Pattern matched"
                                     )
-                                }
 
-                                Spacer(modifier = Modifier.height(16.dp))
-
-                                // Telemetry Strip (Fixed shrinking layout)
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(Color(0xFFF8FAFC), RoundedCornerShape(10.dp))
-                                        .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(10.dp))
-                                        .padding(horizontal = 12.dp, vertical = 9.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Shield,
-                                        contentDescription = null,
-                                        tint = Color(0xFF055B38),
-                                        modifier = Modifier.size(14.dp)
+                                    DiagnosticRow(
+                                        icon = Icons.Outlined.CheckCircle,
+                                        iconTint = EmeraldAccent,
+                                        label = "${result.transactionCandidatesCount} transaction candidates",
+                                        tag = "Schema valid"
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "Zero cloud upload • On-device regex",
-                                        fontSize = 11.5.sp,
-                                        color = Color(0xFF475569),
-                                        fontWeight = FontWeight.Medium,
-                                        modifier = Modifier.weight(1f),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+
+                                    DiagnosticRow(
+                                        icon = Icons.Outlined.AddCircleOutline,
+                                        iconTint = EmeraldAccent,
+                                        label = "${result.newTransactionsCount} new transactions available",
+                                        labelColor = EmeraldAccent,
+                                        tag = if (result.duplicatesCount == 0) "Zero dups" else "${result.duplicatesCount} dups",
+                                        tagColor = EmeraldAccent,
+                                        tagBold = true
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "4.2 ms/msg",
-                                        fontSize = 11.5.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF475569)
+
+                                    val noiseOrOtp = result.noiseMessages + result.nonFinancialMessages
+                                    DiagnosticRow(
+                                        icon = Icons.Outlined.RemoveCircleOutline,
+                                        iconTint = Color(0xFF64748B),
+                                        label = "$noiseOrOtp non-financial / OTP ignored",
+                                        labelColor = Color(0xFF94A3B8),
+                                        tag = "Suppressed"
                                     )
-                                }
-                            }
-                        }
 
-                        // Engine Status Card
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = "Automated Engine Active",
-                                    fontSize = 13.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
-                                )
-                                Text(
-                                    text = scanStatusText,
-                                    fontSize = 12.5.sp,
-                                    color = Color(0xFF055B38),
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = "Classifying financial debits and credits while filtering out balance inquiries, OTPs, promotional spam, and personal texts.",
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF64748B),
-                                    lineHeight = 16.sp
-                                )
-                            }
-                        }
+                                    Spacer(modifier = Modifier.height(2.dp))
 
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-                }
-
-                // ====================================================
-                // STAGE 3: Review & Curate Scanned Results (Bank-Wise)
-                // ====================================================
-                SmsImportStage.REVIEW -> {
-                    val result = scanResultSuccess
-                    val items = result?.scannedItems ?: emptyList()
-                    val accountGroups = result?.accountGroups ?: emptyList()
-
-                    val displayedItems = remember(items, activeFilter) {
-                        when (activeFilter) {
-                            ReviewFilterType.ALL -> items
-                            ReviewFilterType.HIGH_CONFIDENCE -> items.filter { it.plannedDecision != DedupDecision.NEEDS_REVIEW && !it.candidate.needsReview }
-                            ReviewFilterType.NEEDS_REVIEW -> items.filter { it.plannedDecision == DedupDecision.NEEDS_REVIEW || it.candidate.needsReview }
-                        }
-                    }
-
-                    val totalDiscovered = result?.let { it.newTransactionsCount + it.duplicatesCount } ?: items.size
-                    val totalVolume = (result?.totalDebitAmount ?: 0.0) + (result?.totalCreditAmount ?: 0.0)
-
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Summary Overview Card
-                        item {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
+                                    // Diagnostic Footer
                                     Row(
-                                        modifier = Modifier.weight(1f),
+                                        modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.CheckCircle,
-                                            contentDescription = "Discovered",
-                                            tint = Color(0xFF055B38),
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                        Column {
-                                            Text(
-                                                text = "$totalDiscovered Found",
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F172A),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Memory,
+                                                contentDescription = null,
+                                                tint = Color(0xFF64748B),
+                                                modifier = Modifier.size(13.dp)
                                             )
+                                            Spacer(modifier = Modifier.width(5.dp))
                                             Text(
-                                                text = "${result?.newTransactionsCount ?: items.size} new • ${result?.duplicatesCount ?: 0} in vault",
-                                                fontSize = 11.sp,
+                                                text = "Local in-memory evaluation • $scanDurationSeconds execution",
                                                 color = Color(0xFF64748B),
+                                                fontSize = 9.5.sp,
+                                                fontFamily = FontFamily.Monospace,
                                                 maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                             )
                                         }
-                                    }
-
-                                    Spacer(modifier = Modifier.width(12.dp))
-
-                                    Column(
-                                        horizontalAlignment = Alignment.End,
-                                        modifier = Modifier.wrapContentWidth()
-                                    ) {
-                                        val formattedVolume = if (totalVolume % 1.0 == 0.0) {
-                                            String.format(Locale.ENGLISH, "₹%,.0f", totalVolume)
-                                        } else {
-                                            String.format(Locale.ENGLISH, "₹%,.2f", totalVolume)
-                                        }
+                                        Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = formattedVolume,
-                                            fontSize = 17.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A),
-                                            maxLines = 1
-                                        )
-                                        Text(
-                                            text = "Total Volume",
-                                            fontSize = 10.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF055B38)
+                                            text = "SHA-256",
+                                            color = Color(0xFF64748B),
+                                            fontSize = 9.5.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold
                                         )
                                     }
                                 }
                             }
-                        }
 
-                        // View Mode Switcher: "By Bank Account" vs "All Transactions"
-                        item {
+                            // 3. Select Accounts to Import Header
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
-                                    .padding(3.dp),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                val isBankMode = reviewViewMode == ReviewViewMode.BY_BANK
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (isBankMode) Color.White else Color.Transparent)
-                                        .clickable { reviewViewMode = ReviewViewMode.BY_BANK }
-                                        .padding(vertical = 7.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "By Bank Account (${accountGroups.size})",
-                                        fontSize = 12.sp,
-                                        fontWeight = if (isBankMode) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isBankMode) Color(0xFF0F172A) else Color(0xFF64748B)
-                                    )
-                                }
-
-                                val isAllMode = reviewViewMode == ReviewViewMode.ALL_TRANSACTIONS
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (isAllMode) Color.White else Color.Transparent)
-                                        .clickable { reviewViewMode = ReviewViewMode.ALL_TRANSACTIONS }
-                                        .padding(vertical = 7.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "All Transactions (${items.size})",
-                                        fontSize = 12.sp,
-                                        fontWeight = if (isAllMode) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isAllMode) Color(0xFF0F172A) else Color(0xFF64748B)
-                                    )
-                                }
-                            }
-                        }
-
-                        // Batch Select Controls Row
-                        item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 2.dp),
+                                    .padding(top = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "${selectedItemIds.size} of ${items.size} Selected",
-                                    fontSize = 12.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF055B38)
-                                )
-
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Column {
                                     Text(
-                                        text = "Select all",
-                                        fontSize = 12.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A),
-                                        modifier = Modifier.clickable {
-                                            selectedItemIds = items.map { it.sourceEvent.sourceId }.toSet()
-                                        }
+                                        text = "Select accounts to",
+                                        color = TextWhite,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "Deselect all",
-                                        fontSize = 12.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF64748B),
-                                        modifier = Modifier.clickable {
-                                            selectedItemIds = emptySet()
-                                        }
+                                        text = "import",
+                                        color = TextWhite,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
-                            }
-                        }
 
-                        // Empty State if no financial SMS found
-                        if (items.isEmpty()) {
-                            item {
-                                Surface(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 20.dp),
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = Color.White,
-                                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-                                ) {
-                                    Column(
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color(0xFF1E2430),
+                                        border = BorderStroke(1.dp, Color(0xFF2E3A4E)),
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(24.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .clickable {
+                                                selectedGroupIds = groups.map { it.groupId }.toSet()
+                                            }
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(50.dp)
-                                                .background(Color(0xFFF1F5F9), CircleShape),
-                                            contentAlignment = Alignment.Center
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
                                         ) {
+                                            Text("Select", color = TextWhite, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                            Text("All", color = TextWhite, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color(0xFF1E2430),
+                                        border = BorderStroke(1.dp, Color(0xFF2E3A4E)),
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .clickable {
+                                                selectedGroupIds = emptySet()
+                                            }
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text("Clear", color = Color(0xFF64748B), fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                            Text("All", color = Color(0xFF64748B), fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Subtitle Row with Amber Dot
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(vertical = 2.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(5.dp)
+                                        .clip(CircleShape)
+                                        .background(AmberAccent)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "${selectedGroups.size} of ${groups.size} accounts selected • $selectedTxnCount transactions",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+
+                            // 4. Discovered Account Cards
+                            if (groups.isEmpty()) {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0xFF10151E),
+                                    border = BorderStroke(1.dp, Color(0xFF1E2838))
+                                ) {
+                                    Box(modifier = Modifier.padding(16.dp), contentAlignment = Alignment.Center) {
+                                        Text("No accounts found in this period", color = TextSecondary, fontSize = 12.sp)
+                                    }
+                                }
+                            } else {
+                                groups.forEach { group ->
+                                    val isSelected = selectedGroupIds.contains(group.groupId)
+                                    val isExpanded = expandedGroupIds.contains(group.groupId)
+                                    val isUnidentified = group.groupId == "unidentified_account"
+
+                                    if (isUnidentified) {
+                                        // Unidentified Account Card (Amber Warning)
+                                        Surface(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = Color(0xFF221706),
+                                            border = BorderStroke(1.dp, Color(0xFF684712))
+                                        ) {
+                                            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    // Square checkbox
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(20.dp)
+                                                            .clip(RoundedCornerShape(4.dp))
+                                                            .background(if (isSelected) Color(0xFF3B2607) else Color(0xFF191104))
+                                                            .border(BorderStroke(1.dp, if (isSelected) AmberAccent else Color(0xFF5E3C0B)), RoundedCornerShape(4.dp))
+                                                            .clickable {
+                                                                selectedGroupIds = if (isSelected) selectedGroupIds - group.groupId else selectedGroupIds + group.groupId
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        if (isSelected) {
+                                                            Icon(Icons.Filled.Check, contentDescription = null, tint = AmberAccent, modifier = Modifier.size(14.dp))
+                                                        }
+                                                    }
+
+                                                    Spacer(modifier = Modifier.width(10.dp))
+
+                                                    Column(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .clickable {
+                                                                selectedGroupIds = if (isSelected) selectedGroupIds - group.groupId else selectedGroupIds + group.groupId
+                                                            }
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Icon(Icons.Filled.Warning, contentDescription = null, tint = AmberAccent, modifier = Modifier.size(15.dp))
+                                                            Spacer(modifier = Modifier.width(5.dp))
+                                                            Text(
+                                                                text = "Unidentified Account",
+                                                                color = AmberAccent,
+                                                                fontSize = 14.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        }
+                                                        Spacer(modifier = Modifier.height(2.dp))
+                                                        Text(
+                                                            text = "REVIEW REQUIRED • Ambiguous Suffix",
+                                                            color = Color(0xFFD97706),
+                                                            fontSize = 10.sp,
+                                                            fontFamily = FontFamily.Monospace,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier.clickable {
+                                                            expandedGroupIds = if (isExpanded) expandedGroupIds - group.groupId else expandedGroupIds + group.groupId
+                                                        }
+                                                    ) {
+                                                        Surface(
+                                                            color = Color(0xFF130E05),
+                                                            shape = RoundedCornerShape(4.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = "${group.transactionCount} txn",
+                                                                color = AmberAccent,
+                                                                fontSize = 11.sp,
+                                                                fontFamily = FontFamily.Monospace,
+                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            )
+                                                        }
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Icon(
+                                                            imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.ChevronRight,
+                                                            contentDescription = null,
+                                                            tint = Color(0xFFD97706),
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                }
+
+                                                // Amber explanatory inner box
+                                                Surface(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(top = 8.dp),
+                                                    color = Color(0xFF140D04),
+                                                    border = BorderStroke(1.dp, Color(0xFF38250A)),
+                                                    shape = RoundedCornerShape(6.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Could not confidently link bank suffix. Tap to inspect raw evidence before importing.",
+                                                        color = Color(0xFFCBD5E1),
+                                                        fontSize = 11.sp,
+                                                        lineHeight = 15.sp,
+                                                        modifier = Modifier.padding(8.dp)
+                                                    )
+                                                }
+
+                                                if (group.totalDebit > 0 || group.totalCredit > 0) {
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(top = 8.dp),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Text("Debit ", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                                            Text("-₹${formatCurrency(group.totalDebit)}", color = Color(0xFFEF4444), fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                                        }
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Text("Credit ", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                                            val creditText = if (group.totalCredit > 0) "+₹${formatCurrency(group.totalCredit)}" else "₹0.00"
+                                                            val creditColor = if (group.totalCredit > 0) EmeraldAccent else Color(0xFF64748B)
+                                                            Text(creditText, color = creditColor, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                                        }
+                                                    }
+                                                }
+
+                                                if (isExpanded && group.transactions.isNotEmpty()) {
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    HorizontalDivider(color = Color(0xFF38250A))
+                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                    group.transactions.forEach { txnItem ->
+                                                        val cand = txnItem.candidate.candidate
+                                                        val isCredit = cand.direction == TransactionDirection.CREDIT
+                                                        val party = cand.merchant?.takeIf { it.isNotBlank() }
+                                                            ?: cand.counterparty?.takeIf { it.isNotBlank() }
+                                                            ?: "Transaction"
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(vertical = 3.dp),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Column(modifier = Modifier.weight(1f)) {
+                                                                Text(party, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = TextWhite, maxLines = 1)
+                                                                cand.transactionDateString?.let {
+                                                                    Text(it, fontSize = 10.sp, color = TextMuted)
+                                                                }
+                                                            }
+                                                            Text(
+                                                                (if (isCredit) "+₹" else "-₹") + formatCurrency(cand.amount ?: 0.0),
+                                                                fontSize = 12.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = if (isCredit) EmeraldAccent else Color(0xFFF87171)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        // Standard Identified Account Card
+                                        Surface(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = Color(0xFF10151E),
+                                            border = BorderStroke(1.dp, Color(0xFF1E2838))
+                                        ) {
+                                            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    // Square checkbox
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(20.dp)
+                                                            .clip(RoundedCornerShape(4.dp))
+                                                            .background(if (isSelected) Color(0xFF0F261E) else Color(0xFF151B26))
+                                                            .border(BorderStroke(1.dp, if (isSelected) EmeraldAccent else Color(0xFF2D3B4F)), RoundedCornerShape(4.dp))
+                                                            .clickable {
+                                                                selectedGroupIds = if (isSelected) selectedGroupIds - group.groupId else selectedGroupIds + group.groupId
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        if (isSelected) {
+                                                            Icon(Icons.Filled.Check, contentDescription = null, tint = EmeraldAccent, modifier = Modifier.size(14.dp))
+                                                        }
+                                                    }
+
+                                                    Spacer(modifier = Modifier.width(10.dp))
+
+                                                    Column(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .clickable {
+                                                                selectedGroupIds = if (isSelected) selectedGroupIds - group.groupId else selectedGroupIds + group.groupId
+                                                            }
+                                                    ) {
+                                                        Text(
+                                                            text = group.identity.getDisplayName(),
+                                                            color = TextWhite,
+                                                            fontSize = 14.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                        Spacer(modifier = Modifier.height(2.dp))
+                                                        val subLabel = when {
+                                                            group.identity.instrumentType == InstrumentType.CARD -> "Auto-Matched • Credit Card"
+                                                            group.identity.institutionName == null -> "Merchant Direct Debit"
+                                                            group.groupId.contains("salary", ignoreCase = true) -> "Auto-Matched • Salary Account"
+                                                            group.groupId.contains("upi", ignoreCase = true) -> "Auto-Matched • Primary UPI"
+                                                            else -> "Auto-Matched • Savings"
+                                                        }
+                                                        val subColor = if (subLabel.startsWith("Auto-Matched")) EmeraldAccent else Color(0xFF94A3B8)
+                                                        Text(
+                                                            text = subLabel,
+                                                            color = subColor,
+                                                            fontSize = 10.5.sp,
+                                                            fontFamily = FontFamily.Monospace,
+                                                            fontWeight = FontWeight.Medium
+                                                        )
+                                                    }
+
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier.clickable {
+                                                            expandedGroupIds = if (isExpanded) expandedGroupIds - group.groupId else expandedGroupIds + group.groupId
+                                                        }
+                                                    ) {
+                                                        Surface(
+                                                            color = Color(0xFF1A2230),
+                                                            shape = RoundedCornerShape(4.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = "${group.transactionCount} txns",
+                                                                color = Color(0xFFCBD5E1),
+                                                                fontSize = 11.sp,
+                                                                fontFamily = FontFamily.Monospace,
+                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            )
+                                                        }
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Icon(
+                                                            imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.ChevronRight,
+                                                            contentDescription = null,
+                                                            tint = Color(0xFF64748B),
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                }
+
+                                                // Bottom Row: Debit / Credit
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(top = 8.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Text("Debit ", color = Color(0xFF64748B), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                                        Text("-₹${formatCurrency(group.totalDebit)}", color = Color(0xFFEF4444), fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                                    }
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Text("Credit ", color = Color(0xFF64748B), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                                        val creditText = if (group.totalCredit > 0) "+₹${formatCurrency(group.totalCredit)}" else "₹0.00"
+                                                        val creditColor = if (group.totalCredit > 0) EmeraldAccent else Color(0xFF64748B)
+                                                        Text(creditText, color = creditColor, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                                    }
+                                                }
+
+                                                if (isExpanded && group.transactions.isNotEmpty()) {
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    HorizontalDivider(color = Color(0xFF1E2838))
+                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                    group.transactions.forEach { txnItem ->
+                                                        val cand = txnItem.candidate.candidate
+                                                        val isCredit = cand.direction == TransactionDirection.CREDIT
+                                                        val party = cand.merchant?.takeIf { it.isNotBlank() }
+                                                            ?: cand.counterparty?.takeIf { it.isNotBlank() }
+                                                            ?: "Transaction"
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(vertical = 3.dp),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Column(modifier = Modifier.weight(1f)) {
+                                                                Text(party, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = TextWhite, maxLines = 1)
+                                                                cand.transactionDateString?.let {
+                                                                    Text(it, fontSize = 10.sp, color = TextMuted)
+                                                                }
+                                                            }
+                                                            Text(
+                                                                (if (isCredit) "+₹" else "-₹") + formatCurrency(cand.amount ?: 0.0),
+                                                                fontSize = 12.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = if (isCredit) EmeraldAccent else Color(0xFFF87171)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 5. Staging Ingest Summary Card
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF10151E),
+                                border = BorderStroke(1.dp, Color(0xFF1E2838))
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    // Top Row: Icon + Title + Counts
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
                                             Icon(
-                                                imageVector = Icons.Outlined.Sms,
-                                                contentDescription = "No SMS",
-                                                tint = Color(0xFF64748B),
-                                                modifier = Modifier.size(26.dp)
+                                                imageVector = Icons.Outlined.AccountBalanceWallet,
+                                                contentDescription = null,
+                                                tint = Color(0xFFCBD5E1),
+                                                modifier = Modifier.size(20.dp)
                                             )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Column {
+                                                Text("Staging Ingest", color = TextWhite, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
+                                                Text("Summary", color = TextWhite, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
+                                            }
                                         }
 
-                                        Text(
-                                            text = "No Financial SMS Detected",
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A)
-                                        )
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text("Accounts: ${selectedGroups.size} |", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                            Text("Transactions: $selectedTxnCount", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                        }
+                                    }
 
-                                        Text(
-                                            text = "We scanned $messagesScannedCount messages in the selected timeframe, but found no financial transaction alerts matching debit or credit patterns.",
-                                            fontSize = 12.5.sp,
-                                            color = Color(0xFF64748B),
-                                            textAlign = TextAlign.Center,
-                                            lineHeight = 17.sp
-                                        )
+                                    Spacer(modifier = Modifier.height(10.dp))
 
-                                        Spacer(modifier = Modifier.height(4.dp))
-
-                                        Button(
-                                            onClick = { currentStage = SmsImportStage.TIME_SELECTION },
-                                            shape = CircleShape,
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color(0xFF055B38),
-                                                contentColor = Color.White
-                                            )
+                                    // Spending & Income Blocks Side-by-Side
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        // Selected Spending Box
+                                        Surface(
+                                            modifier = Modifier.weight(1f),
+                                            color = Color(0xFF241014),
+                                            border = BorderStroke(1.dp, Color(0xFF4C1D24)),
+                                            shape = RoundedCornerShape(8.dp)
                                         ) {
-                                            Text(text = "Try Wider Date Range", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                                                Text("Selected Spending", color = Color(0xFFEF4444), fontSize = 9.5.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium)
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text("-₹${formatCurrency(selectedDebitTotal)}", color = Color(0xFFEF4444), fontSize = 14.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+
+                                        // Selected Income Box
+                                        Surface(
+                                            modifier = Modifier.weight(1f),
+                                            color = Color(0xFF0A2018),
+                                            border = BorderStroke(1.dp, Color(0xFF124330)),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                                                Text("Selected Income", color = EmeraldAccent, fontSize = 9.5.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium)
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text("+₹${formatCurrency(selectedCreditTotal)}", color = EmeraldAccent, fontSize = 14.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Net Ledger Impact Row
+                                    val netBalance = selectedCreditTotal - selectedDebitTotal
+                                    val netFormatted = (if (netBalance >= 0) "+₹" else "-₹") + formatCurrency(Math.abs(netBalance))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text("Net Ledger", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                            Text("Impact", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                        }
+
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                text = "$netFormatted net balance",
+                                                color = if (netBalance >= 0) EmeraldAccent else Color(0xFFEF4444),
+                                                fontSize = 12.5.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = "adjustment",
+                                                color = if (netBalance >= 0) EmeraldAccent else Color(0xFFEF4444),
+                                                fontSize = 12.5.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
                                         }
                                     }
                                 }
                             }
                         }
 
-                        // MODE 1: Bank-Wise View (Grouped by Bank/Financial Account)
-                        if (reviewViewMode == ReviewViewMode.BY_BANK) {
-                            items(accountGroups, key = { it.groupId }) { group ->
-                                val isExpanded = expandedGroupIds.contains(group.groupId)
-                                val groupItemIds = group.transactions.map { it.sourceEvent.sourceId }.toSet()
-                                val selectedInGroup = groupItemIds.count { selectedItemIds.contains(it) }
-                                val isGroupChecked = groupItemIds.isNotEmpty() && selectedInGroup == groupItemIds.size
-
-                                BankAccountReviewCard(
-                                    group = group,
-                                    isExpanded = isExpanded,
-                                    isGroupChecked = isGroupChecked,
-                                    selectedCount = selectedInGroup,
-                                    selectedItemIds = selectedItemIds,
-                                    dateFormat = itemDateFormat,
-                                    onToggleGroup = { toggleAccountGroup(group) },
-                                    onToggleExpand = { toggleGroupExpansion(group.groupId) },
-                                    onToggleItem = { id ->
-                                        selectedItemIds = if (selectedItemIds.contains(id)) {
-                                            selectedItemIds - id
-                                        } else {
-                                            selectedItemIds + id
-                                        }
-                                    }
-                                )
-                            }
-                        } else {
-                            // MODE 2: Flat List of All Transactions
-                            items(displayedItems, key = { it.sourceEvent.sourceId }) { item ->
-                                val isSelected = selectedItemIds.contains(item.sourceEvent.sourceId)
-                                RealScannedItemCard(
-                                    item = item,
-                                    isSelected = isSelected,
-                                    dateFormat = itemDateFormat,
-                                    onToggle = {
-                                        selectedItemIds = if (isSelected) {
-                                            selectedItemIds - item.sourceEvent.sourceId
-                                        } else {
-                                            selectedItemIds + item.sourceEvent.sourceId
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // ====================================================
-                // COMPLETE STAGE: Celebratory Ingestion Finished
-                // ====================================================
-                SmsImportStage.COMPLETE -> {
-                    val res = importResultSuccess
-                    val inserted = res?.insertedCount ?: 0
-                    val totalVol = (res?.totalAmountImported ?: 0.0) + (res?.totalIncomeImported ?: 0.0)
-                    val duplicatesSkipped = res?.duplicatesSkippedCount ?: 0
-
-                    val formattedVolume = if (totalVol % 1.0 == 0.0) {
-                        String.format(Locale.ENGLISH, "₹%,.0f", totalVol)
-                    } else {
-                        String.format(Locale.ENGLISH, "₹%,.2f", totalVol)
-                    }
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(top = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Box(
+                        // Bottom Action Controls Docked at Screen End
+                        Column(
                             modifier = Modifier
-                                .size(86.dp)
-                                .background(Color(0xFFE8F5E9), CircleShape)
-                                .border(2.dp, Color(0xFFA7F3D0), CircleShape),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Success",
-                                tint = Color(0xFF055B38),
-                                modifier = Modifier.size(52.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        Text(
-                            text = "Historical Ledger Ingested!",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A),
-                            textAlign = TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        Text(
-                            text = "$inserted transactions parsed and cryptographically sealed into your local SQLite vault with zero cloud telemetry.",
-                            fontSize = 13.sp,
-                            color = Color(0xFF64748B),
-                            textAlign = TextAlign.Center,
-                            lineHeight = 18.sp,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // Breakdown Summary Card
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-                        ) {
-                            Column(
+                            Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(18.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    .height(46.dp)
+                                    .shadow(
+                                        elevation = if (selectedGroupIds.isNotEmpty()) 8.dp else 0.dp,
+                                        shape = RoundedCornerShape(12.dp),
+                                        spotColor = Color(0x66000000),
+                                        ambientColor = Color(0x33000000)
+                                    )
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable(
+                                        enabled = selectedGroupIds.isNotEmpty(),
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = rememberRipple(color = Color.Black.copy(alpha = 0.2f))
+                                    ) {
+                                        currentPhase = SmsImportUiPhase.IMPORTING
+                                        isCancelled = false
+                                        scope.launch {
+                                            val impRes = withContext(Dispatchers.IO) {
+                                                importManager.importTransactions(
+                                                    scanResult = result,
+                                                    selectedGroupIds = selectedGroupIds
+                                                ) { prog ->
+                                                    importProgress = prog
+                                                    !isCancelled
+                                                }
+                                            }
+                                            if (isCancelled || impRes is SmsImportResult.Cancelled) {
+                                                currentPhase = SmsImportUiPhase.SELECT_RANGE
+                                            } else if (impRes is SmsImportResult.Success) {
+                                                importResult = impRes
+                                                SmsPermissionHelper.setInitialImportCompleted(context, true)
+                                                currentPhase = SmsImportUiPhase.IMPORT_COMPLETE
+                                            } else if (impRes is SmsImportResult.Failure) {
+                                                errorMessage = impRes.message
+                                                currentPhase = SmsImportUiPhase.ERROR
+                                            }
+                                        }
+                                    },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (selectedGroupIds.isNotEmpty()) Color.White else Color(0xFF1E232E),
+                                border = if (selectedGroupIds.isNotEmpty()) null else BorderStroke(1.dp, Color(0xFF2E3747))
                             ) {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    modifier = Modifier.fillMaxSize(),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(text = "Total Transactions Processed", fontSize = 13.sp, color = Color(0xFF64748B))
-                                    Text(text = "$inserted records", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                                    Text(
+                                        text = "Import $selectedTxnCount Transactions to Ledger",
+                                        color = if (selectedGroupIds.isNotEmpty()) Color(0xFF090C10) else Color(0xFF6B7280),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.1.sp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = null,
+                                        tint = if (selectedGroupIds.isNotEmpty()) Color(0xFF090C10) else Color(0xFF6B7280),
+                                        modifier = Modifier.size(16.dp)
+                                    )
                                 }
+                            }
 
-                                HorizontalDivider(color = Color(0xFFF1F5F9))
+                            Spacer(modifier = Modifier.height(4.dp))
 
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(text = "Total Cumulative Volume", fontSize = 13.sp, color = Color(0xFF64748B))
-                                    Text(text = formattedVolume, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFF055B38))
-                                }
-
-                                HorizontalDivider(color = Color(0xFFF1F5F9))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(text = "Duplicates Prevented", fontSize = 13.sp, color = Color(0xFF64748B))
-                                    Text(text = "$duplicatesSkipped skipped", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF475569))
-                                }
-
-                                HorizontalDivider(color = Color(0xFFF1F5F9))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(text = "Privacy Guarantee", fontSize = 13.sp, color = Color(0xFF64748B))
-                                    Text(text = "100% On-Device", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF055B38))
-                                }
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { currentPhase = SmsImportUiPhase.SELECT_RANGE }
+                                    .padding(vertical = 4.dp, horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.CalendarToday,
+                                    contentDescription = null,
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Change Date Range",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-/**
- * 3-Stage Progress Indicator Header showing current stage
- */
-@Composable
-private fun StageProgressIndicator(
-    currentStage: SmsImportStage,
-    modifier: Modifier = Modifier
-) {
-    val stageNumber = when (currentStage) {
-        SmsImportStage.TIME_SELECTION -> 1
-        SmsImportStage.SCANNING -> 2
-        SmsImportStage.REVIEW -> 3
-        SmsImportStage.COMPLETE -> 3
-    }
-    val stageTitle = when (currentStage) {
-        SmsImportStage.TIME_SELECTION -> "Stage 1 of 3: Select Horizon"
-        SmsImportStage.SCANNING -> "Stage 2 of 3: Scanning Inbox"
-        SmsImportStage.REVIEW -> "Stage 3 of 3: Review & Ingest"
-        SmsImportStage.COMPLETE -> "Historical Ingestion Complete"
-    }
-
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(
-                                if (currentStage == SmsImportStage.COMPLETE) Color(0xFF10B981) else Color(0xFF055B38),
-                                CircleShape
-                            )
-                    )
-                    Text(
-                        text = stageTitle,
-                        fontSize = 12.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
-                    )
-                }
-
-                Text(
-                    text = if (currentStage == SmsImportStage.COMPLETE) "All Done" else "Step $stageNumber of 3",
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF64748B)
+            SmsImportUiPhase.IMPORTING, SmsImportUiPhase.IMPORT_COMPLETE -> {
+                SmsImportCompletionContent(
+                    animationState = if (currentPhase == SmsImportUiPhase.IMPORTING) ImportAnimationState.IMPORTING else ImportAnimationState.SUCCESS,
+                    importResult = importResult,
+                    scanResult = scanResult,
+                    selectedGroupIds = selectedGroupIds,
+                    isRealTimeIngestionActive = isNotificationAccessGranted &&
+                        MonitoringSettingsRepository.getInstance(context).getSettings().let {
+                            it.isNotificationTrackingEnabled && it.globalEnabled
+                        },
+                    onOpenNotificationSettings = {
+                        NotificationPermissionHelper.openNotificationAccessSettings(context)
+                    },
+                    onCompleteGoHome = onImportCompleted,
+                    onNavigateToReview = onNavigateToReview,
+                    onExportCsv = {
+                        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                        csvExportLauncher.launch("arctracker_ingestion_audit_$timestamp.csv")
+                    },
+                    modifier = Modifier.weight(1f)
                 )
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 3 Segmented Bars
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                // Step 1: Range
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(5.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF055B38))
-                )
-                // Step 2: Scan
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(5.dp)
-                        .clip(CircleShape)
-                        .background(if (stageNumber >= 2) Color(0xFF055B38) else Color(0xFFE2E8F0))
-                )
-                // Step 3: Review
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(5.dp)
-                        .clip(CircleShape)
-                        .background(if (stageNumber >= 3) Color(0xFF055B38) else Color(0xFFE2E8F0))
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "1. Range",
-                    fontSize = 10.5.sp,
-                    fontWeight = if (stageNumber == 1) FontWeight.Bold else FontWeight.Medium,
-                    color = if (stageNumber >= 1) Color(0xFF055B38) else Color(0xFF94A3B8)
-                )
-                Text(
-                    text = "2. Scan",
-                    fontSize = 10.5.sp,
-                    fontWeight = if (stageNumber == 2) FontWeight.Bold else FontWeight.Medium,
-                    color = if (stageNumber >= 2) Color(0xFF055B38) else Color(0xFF94A3B8)
-                )
-                Text(
-                    text = "3. Review",
-                    fontSize = 10.5.sp,
-                    fontWeight = if (stageNumber == 3) FontWeight.Bold else FontWeight.Medium,
-                    color = if (stageNumber >= 3) Color(0xFF055B38) else Color(0xFF94A3B8)
-                )
-            }
-        }
-    }
-}
-
-/**
- * Bank Account Review Card with Account Summary, Checkbox, and Expandable Transaction List
- */
-@Composable
-private fun BankAccountReviewCard(
-    group: FinancialAccountGroup,
-    isExpanded: Boolean,
-    isGroupChecked: Boolean,
-    selectedCount: Int,
-    selectedItemIds: Set<String>,
-    dateFormat: SimpleDateFormat,
-    onToggleGroup: () -> Unit,
-    onToggleExpand: () -> Unit,
-    onToggleItem: (String) -> Unit
-) {
-    val isUnidentified = group.identity.accountSuffix.isNullOrBlank() && group.identity.cardSuffix.isNullOrBlank()
-    val totalVolume = group.totalDebit + group.totalCredit
-    val formattedTotal = if (totalVolume % 1.0 == 0.0) {
-        String.format(Locale.ENGLISH, "₹%,.0f", totalVolume)
-    } else {
-        String.format(Locale.ENGLISH, "₹%,.2f", totalVolume)
-    }
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, if (selectedCount > 0) Color(0xFFCBD5E1) else Color(0xFFF1F5F9))
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Header Row (Clickable to expand, with dedicated Checkbox)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onToggleExpand() }
-                    .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // Bank Icon Box
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isUnidentified) Color(0xFFFEF3C7) else Color(0xFFF1F5F9)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val icon = when {
-                        isUnidentified -> Icons.Outlined.HelpOutline
-                        group.identity.instrumentType == InstrumentType.CARD -> Icons.Outlined.CreditCard
-                        else -> Icons.Outlined.AccountBalance
-                    }
-                    val iconTint = if (isUnidentified) Color(0xFFB45309) else Color(0xFF334155)
-
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                // Bank Name & Counts
-                Column(modifier = Modifier.weight(1f)) {
-                    val displayName = when {
-                        isUnidentified -> "Unidentified Sender / Account"
-                        !group.identity.accountSuffix.isNullOrBlank() ->
-                            "${group.identity.institutionName ?: "Bank"} ••${group.identity.accountSuffix}"
-                        !group.identity.cardSuffix.isNullOrBlank() ->
-                            "${group.identity.institutionName ?: "Card"} ••${group.identity.cardSuffix}"
-                        else -> group.identity.getDisplayName()
-                    }
-
-                    Text(
-                        text = displayName,
-                        fontSize = 14.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Text(
-                        text = "$selectedCount of ${group.transactionCount} selected • $formattedTotal",
-                        fontSize = 12.sp,
-                        color = Color(0xFF64748B)
-                    )
-                }
-
-                // Expand Chevron
-                Icon(
-                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (isExpanded) "Collapse" else "Expand",
-                    tint = Color(0xFF64748B),
-                    modifier = Modifier.size(22.dp)
-                )
-
-                // Dedicated Checkbox for the entire Account Group
-                ArcTrackerCheckbox(
-                    checked = isGroupChecked,
-                    onCheckedChange = onToggleGroup
-                )
-            }
-
-            // Expanded Transaction Items List
-            AnimatedVisibility(visible = isExpanded) {
+            else -> {
                 Column(
                     modifier = Modifier
+                        .weight(1f)
                         .fillMaxWidth()
-                        .background(Color(0xFFF8FAFC))
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .navigationBarsPadding()
+                        .verticalScroll(scrollState)
+                        .padding(horizontal = 20.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    group.transactions.forEach { item ->
-                        val isItemSelected = selectedItemIds.contains(item.sourceEvent.sourceId)
-                        RealScannedItemCard(
-                            item = item,
-                            isSelected = isItemSelected,
-                            dateFormat = dateFormat,
-                            onToggle = { onToggleItem(item.sourceEvent.sourceId) }
-                        )
+                    when (currentPhase) {
+                        SmsImportUiPhase.SCANNING -> {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = CardSurface,
+                        border = BorderStroke(1.dp, CardBorder)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator(
+                                color = EmeraldAccent,
+                                strokeWidth = 3.dp,
+                                modifier = Modifier.size(44.dp)
+                            )
+                            Spacer(modifier = Modifier.height(18.dp))
+                            Text(
+                                text = "Scanning SMS Messages...",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextWhite
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "${scanProgress.recordsProcessed} messages processed locally",
+                                fontSize = 13.5.sp,
+                                color = TextSecondary,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            if (scanProgress.financialDetected > 0) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "${scanProgress.financialDetected} financial transactions detected",
+                                    fontSize = 13.sp,
+                                    color = EmeraldAccent,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        isCancelled = true
+                                        currentPhase = SmsImportUiPhase.SELECT_RANGE
+                                    },
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF1E2433),
+                                border = BorderStroke(1.dp, Color(0xFF2E394F))
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("Cancel Scan", color = TextSecondary, fontSize = 13.5.sp, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                        }
                     }
                 }
+
+
+
+                SmsImportUiPhase.ERROR -> {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFF2B1215),
+                        border = BorderStroke(1.dp, Color(0xFF5C1D24))
+                    ) {
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            Text("Import Error", fontWeight = FontWeight.Bold, color = Color(0xFFF87171), fontSize = 16.sp)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(errorMessage ?: "An error occurred", color = Color(0xFFFCA5A5), fontSize = 13.sp)
+                        }
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable { currentPhase = SmsImportUiPhase.SELECT_RANGE },
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color.White
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("Try Again", color = Color(0xFF090C10), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
+                    }
+                }
+                else -> {}
             }
         }
     }
 }
+}
+}
 
-/**
- * Real Scanned Transaction Item Card with explicit Checkbox
- */
+// -----------------------------------------------------------------------------
+// Sub-components
+// -----------------------------------------------------------------------------
+
 @Composable
-private fun RealScannedItemCard(
-    item: ScannedTransactionItem,
+private fun PeriodOptionCard(
+    title: String,
+    subtitle: String,
+    trailingIcon: ImageVector,
+    badgeText: String? = null,
     isSelected: Boolean,
-    dateFormat: SimpleDateFormat,
-    onToggle: () -> Unit
+    onClick: () -> Unit
 ) {
-    val candidate = item.candidate.candidate
-    val merchant = candidate.merchant ?: candidate.counterparty ?: "Transaction Alert"
-    val isCredit = candidate.direction == TransactionDirection.CREDIT
-    val amount = candidate.amount ?: 0.0
-    val dateDisplay = dateFormat.format(Date(candidate.transactionTimestamp))
-    val accountSuffix = candidate.accountSuffix
-        ?: candidate.cardSuffix
-        ?: "••••"
-    val isReview = item.plannedDecision == DedupDecision.NEEDS_REVIEW || item.candidate.needsReview
-    val confidenceScore = if (isReview) 82 else 99
-
-    val icon = getMerchantIcon(merchant, isCredit)
-
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onToggle() },
-        shape = RoundedCornerShape(14.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, if (isSelected) Color(0xFFCBD5E1) else Color(0xFFE2E8F0))
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(11.dp),
+        color = if (isSelected) SelectedCardSurface else CardSurface,
+        border = BorderStroke(1.dp, if (isSelected) SelectedCardBorder else CardBorder)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = 12.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Explicit Checkbox on the Left
-            ArcTrackerCheckbox(
-                checked = isSelected,
-                onCheckedChange = onToggle
-            )
-
-            // Merchant Icon
+            // Left checkbox indicator (checked = white filled with black checkmark, unchecked = dark box)
             Box(
                 modifier = Modifier
-                    .size(38.dp)
-                    .background(
-                        if (isCredit) Color(0xFFE8F5E9) else Color(0xFFF1F5F9),
-                        CircleShape
+                    .size(18.dp)
+                    .clip(RoundedCornerShape(4.5.dp))
+                    .background(if (isSelected) Color.White else Color(0xFF161A22))
+                    .border(
+                        BorderStroke(1.dp, if (isSelected) Color.White else Color(0xFF2E3747)),
+                        RoundedCornerShape(4.5.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = merchant,
-                    tint = if (isCredit) Color(0xFF055B38) else Color(0xFF475569),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            // Merchant Name & Date
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = merchant,
-                    fontSize = 13.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = dateDisplay,
-                        fontSize = 11.sp,
-                        color = Color(0xFF64748B)
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Checked",
+                        tint = Color.Black,
+                        modifier = Modifier.size(12.dp)
                     )
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0xFFF1F5F9), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 5.dp, vertical = 1.dp)
-                    ) {
-                        Text(
-                            text = if (accountSuffix.startsWith("••")) accountSuffix else "••$accountSuffix",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF475569)
-                        )
-                    }
                 }
             }
 
-            // Amount & Confidence Badge
-            Column(horizontalAlignment = Alignment.End) {
-                val formattedAmount = if (amount % 1.0 == 0.0) {
-                    String.format(Locale.ENGLISH, "₹%,.0f", amount)
-                } else {
-                    String.format(Locale.ENGLISH, "₹%,.2f", amount)
+            Spacer(modifier = Modifier.width(11.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = title,
+                        color = TextWhite,
+                        fontSize = 13.5.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
+                    )
+
+                    if (badgeText != null) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(AmberPillBg)
+                                .border(BorderStroke(1.dp, AmberPillBorder), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = badgeText,
+                                color = AmberAccent,
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(1.dp))
+
                 Text(
-                    text = if (isCredit) "+$formattedAmount" else "-$formattedAmount",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isCredit) Color(0xFF055B38) else Color(0xFF0F172A)
-                )
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                if (isReview) {
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0xFFFEF3C7), CircleShape)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "$confidenceScore% Review",
-                            fontSize = 9.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFB45309)
-                        )
-                    }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0xFFDCFCE7), CircleShape)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "$confidenceScore% High",
-                            fontSize = 9.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF15803D)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Crisp, explicit ArcTracker-themed checkbox with green fill & checkmark when checked,
- * and clean rounded outline when unchecked.
- */
-@Composable
-private fun ArcTrackerCheckbox(
-    checked: Boolean,
-    onCheckedChange: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .size(34.dp)
-            .clip(CircleShape)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(bounded = false, radius = 17.dp),
-                onClick = onCheckedChange
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (checked) {
-            Box(
-                modifier = Modifier
-                    .size(20.dp)
-                    .clip(RoundedCornerShape(5.dp))
-                    .background(Color(0xFF055B38)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = "Selected",
-                    tint = Color.White,
-                    modifier = Modifier.size(14.dp)
+                    text = subtitle,
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp
                 )
             }
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(20.dp)
-                    .clip(RoundedCornerShape(5.dp))
-                    .border(BorderStroke(1.5.dp, Color(0xFFCBD5E1)), RoundedCornerShape(5.dp))
-                    .background(Color.White)
+
+            // Trailing icon (always displayed, no checkmark on the right)
+            Icon(
+                imageVector = trailingIcon,
+                contentDescription = null,
+                tint = if (isSelected) TextWhite else Color(0xFF4A5568),
+                modifier = Modifier.size(16.dp)
             )
         }
     }
 }
 
-/**
- * Resolver for category/merchant icon
- */
-private fun getMerchantIcon(merchant: String, isCredit: Boolean): ImageVector {
-    if (isCredit) return Icons.Outlined.Payments
-    val m = merchant.lowercase(Locale.ENGLISH)
-    return when {
-        m.contains("swiggy") || m.contains("zomato") || m.contains("food") || m.contains("eat") || m.contains("restaurant") -> Icons.Outlined.Restaurant
-        m.contains("amazon") || m.contains("flipkart") || m.contains("blinkit") || m.contains("zepto") || m.contains("shop") || m.contains("store") -> Icons.Outlined.ShoppingBag
-        m.contains("uber") || m.contains("ola") || m.contains("rapido") || m.contains("metro") || m.contains("travel") -> Icons.Outlined.DirectionsCar
-        m.contains("power") || m.contains("electricity") || m.contains("broadband") || m.contains("airtel") || m.contains("jio") || m.contains("bill") -> Icons.Default.Bolt
-        m.contains("coffee") || m.contains("cafe") || m.contains("tea") || m.contains("starbucks") -> Icons.Default.LocalCafe
-        else -> Icons.Outlined.Receipt
+@Composable
+private fun TechnicalPill(
+    text: String,
+    isHighlight: Boolean
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (isHighlight) EmeraldPillBg else Color(0xFF191D26))
+            .border(
+                BorderStroke(1.dp, if (isHighlight) EmeraldPillBorder else Color(0xFF282F3E)),
+                RoundedCornerShape(6.dp)
+            )
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+    ) {
+        Text(
+            text = text,
+            color = if (isHighlight) EmeraldAccent else TextSecondary,
+            fontSize = 10.5.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
+
+@Composable
+private fun DarkResultRow(
+    icon: ImageVector,
+    text: String,
+    tint: Color = TextSecondary
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = text, fontSize = 12.5.sp, color = TextWhite)
+    }
+}
+
+private fun Context.findActivity(): Activity? {
+    var ctx = this
+    while (ctx is ContextWrapper) {
+        if (ctx is Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
+
+@Composable
+private fun DiagnosticRow(
+    icon: ImageVector,
+    iconTint: Color,
+    label: String,
+    labelColor: Color = Color(0xFFCBD5E1),
+    tag: String,
+    tagColor: Color = Color(0xFF64748B),
+    tagBold: Boolean = false
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f, fill = false)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(15.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = label,
+                color = labelColor,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = tag,
+            color = tagColor,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = if (tagBold) FontWeight.Bold else FontWeight.Normal
+        )
+    }
+}
+
+private fun formatCurrency(amount: Double): String {
+    val formatter = java.text.NumberFormat.getNumberInstance(Locale("en", "IN"))
+    formatter.minimumFractionDigits = 2
+    formatter.maximumFractionDigits = 2
+    return formatter.format(amount)
+}
+
+private fun formatIndianNumber(number: Int): String {
+    val formatter = java.text.NumberFormat.getNumberInstance(Locale("en", "IN"))
+    return formatter.format(number)
+}
+
+private fun formatIndianCurrency(amount: Double): String {
+    val formatter = java.text.NumberFormat.getNumberInstance(Locale("en", "IN"))
+    if (amount % 1.0 == 0.0) {
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 0
+    } else {
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+    }
+    return formatter.format(amount)
+}
+
+// ==========================================
+// Animation Components & Particles
+// ==========================================
+private data class AnimationParticle(
+    val angleDeg: Float,
+    val distanceDp: Float,
+    val sizeDp: Float,
+    val color: Color
+)
+
+private val SuccessParticles = listOf(
+    AnimationParticle(25f, 26f, 3.0f, EmeraldAccent),
+    AnimationParticle(70f, 22f, 2.2f, Color.White),
+    AnimationParticle(115f, 28f, 2.8f, EmeraldAccent),
+    AnimationParticle(165f, 20f, 2.4f, AmberAccent),
+    AnimationParticle(210f, 27f, 3.0f, EmeraldAccent),
+    AnimationParticle(255f, 23f, 2.0f, Color.White),
+    AnimationParticle(295f, 29f, 2.8f, EmeraldAccent),
+    AnimationParticle(340f, 21f, 2.2f, Color(0xFF86EFAC))
+)
+
+@Composable
+fun ImportCompletionAnimation(
+    state: ImportAnimationState,
+    modifier: Modifier = Modifier,
+    sizeDp: Dp = 68.dp
+) {
+    // Persist completion state across recompositions and scrolling
+    var hasPlayedSuccess by rememberSaveable { mutableStateOf(false) }
+
+    // State A: Rotating arc + pulsing glow while IMPORTING
+    val infiniteTransition = rememberInfiniteTransition(label = "ImportLoadingTransition")
+    val loadingRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1100, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "loadingRotation"
+    )
+    val loadingGlowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.12f,
+        targetValue = 0.28f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "loadingGlowAlpha"
+    )
+
+    // State B: Success fill, pop, checkmark path draw, and particles burst
+    val circlePopScale = remember { Animatable(if (hasPlayedSuccess) 1f else 0.85f) }
+    val checkmarkDrawProgress = remember { Animatable(if (hasPlayedSuccess) 1f else 0f) }
+    val particlesProgress = remember { Animatable(if (hasPlayedSuccess) 1f else 0f) }
+
+    LaunchedEffect(state) {
+        if (state == ImportAnimationState.SUCCESS && !hasPlayedSuccess) {
+            // Trigger sequence: pop scale, checkmark draw, particles burst
+            launch {
+                circlePopScale.animateTo(1.08f, tween(160, easing = FastOutSlowInEasing))
+                circlePopScale.animateTo(1.0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow))
+            }
+            launch {
+                // Particles burst outward and fade smoothly
+                particlesProgress.animateTo(1f, tween(480, easing = LinearOutSlowInEasing))
+            }
+            // Checkmark draws smoothly stroke-by-stroke
+            checkmarkDrawProgress.animateTo(1f, tween(360, easing = FastOutSlowInEasing))
+            hasPlayedSuccess = true
+        }
+    }
+
+    val contentDesc = when (state) {
+        ImportAnimationState.IMPORTING -> "Importing transactions to local ledger"
+        ImportAnimationState.SUCCESS -> "Import completed successfully"
+        ImportAnimationState.FAILURE -> "Import failed"
+    }
+
+    Box(
+        modifier = modifier
+            .size(sizeDp)
+            .semantics { contentDescription = contentDesc },
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val width = size.width
+            val height = size.height
+            val center = Offset(width / 2f, height / 2f)
+            val outerRadius = width / 2f
+            val coreCircleRadius = width * 0.32f
+
+            when (state) {
+                ImportAnimationState.IMPORTING -> {
+                    // 1. Subtle pulsing outer glow
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                EmeraldAccent.copy(alpha = loadingGlowAlpha),
+                                EmeraldAccent.copy(alpha = loadingGlowAlpha * 0.3f),
+                                Color.Transparent
+                            ),
+                            center = center,
+                            radius = outerRadius
+                        ),
+                        radius = outerRadius,
+                        center = center
+                    )
+
+                    // 2. Dark inner core
+                    drawCircle(
+                        color = Color(0xFF10151E),
+                        radius = coreCircleRadius,
+                        center = center
+                    )
+
+                    // 3. Faint background track
+                    drawCircle(
+                        color = EmeraldAccent.copy(alpha = 0.15f),
+                        radius = coreCircleRadius,
+                        center = center,
+                        style = Stroke(width = 2.5.dp.toPx())
+                    )
+
+                    // 4. Rotating active arc
+                    val strokePx = 3.dp.toPx()
+                    val arcTopLeft = Offset(center.x - coreCircleRadius, center.y - coreCircleRadius)
+                    val arcSize = Size(coreCircleRadius * 2, coreCircleRadius * 2)
+                    drawArc(
+                        color = EmeraldAccent,
+                        startAngle = loadingRotation,
+                        sweepAngle = 100f,
+                        useCenter = false,
+                        topLeft = arcTopLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokePx, cap = StrokeCap.Round)
+                    )
+                }
+
+                ImportAnimationState.SUCCESS -> {
+                    val pop = circlePopScale.value
+                    val currentRadius = coreCircleRadius * pop
+
+                    // 1. Surrounding subtle green glow
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                EmeraldAccent.copy(alpha = 0.22f),
+                                EmeraldAccent.copy(alpha = 0.05f),
+                                Color.Transparent
+                            ),
+                            center = center,
+                            radius = outerRadius
+                        ),
+                        radius = outerRadius,
+                        center = center
+                    )
+
+                    // 2. Solid green success circle
+                    drawCircle(
+                        color = EmeraldAccent,
+                        radius = currentRadius,
+                        center = center
+                    )
+
+                    // 3. Subtle fintech particles emitted outward during transition
+                    val pProg = particlesProgress.value
+                    if (pProg > 0f && pProg < 1f) {
+                        val particleFade = (1f - pProg).coerceIn(0f, 1f)
+                        SuccessParticles.forEach { particle ->
+                            val angleRad = Math.toRadians(particle.angleDeg.toDouble())
+                            val travelDist = currentRadius + (particle.distanceDp.dp.toPx() * pProg)
+                            val px = center.x + (cos(angleRad) * travelDist).toFloat()
+                            val py = center.y + (sin(angleRad) * travelDist).toFloat()
+                            val pRadius = (particle.sizeDp.dp.toPx() / 2f) * (1f - 0.25f * pProg)
+                            drawCircle(
+                                color = particle.color.copy(alpha = particleFade * 0.9f),
+                                radius = pRadius,
+                                center = Offset(px, py)
+                            )
+                        }
+                    }
+
+                    // 4. Checkmark drawing via Path stroke animation
+                    val checkProg = checkmarkDrawProgress.value
+                    if (checkProg > 0f) {
+                        // Checkmark coordinates relative to center and currentRadius
+                        val p1 = Offset(center.x - currentRadius * 0.42f, center.y + currentRadius * 0.02f)
+                        val p2 = Offset(center.x - currentRadius * 0.10f, center.y + currentRadius * 0.38f)
+                        val p3 = Offset(center.x + currentRadius * 0.44f, center.y - currentRadius * 0.32f)
+
+                        val seg1Len = kotlin.math.hypot(p2.x - p1.x, p2.y - p1.y)
+                        val seg2Len = kotlin.math.hypot(p3.x - p2.x, p3.y - p2.y)
+                        val totalLen = seg1Len + seg2Len
+                        val seg1Fraction = seg1Len / totalLen
+
+                        val checkPath = Path()
+                        checkPath.moveTo(p1.x, p1.y)
+
+                        if (checkProg <= seg1Fraction) {
+                            val localT = (checkProg / seg1Fraction).coerceIn(0f, 1f)
+                            val curX = p1.x + (p2.x - p1.x) * localT
+                            val curY = p1.y + (p2.y - p1.y) * localT
+                            checkPath.lineTo(curX, curY)
+                        } else {
+                            checkPath.lineTo(p2.x, p2.y)
+                            val localT = ((checkProg - seg1Fraction) / (1f - seg1Fraction)).coerceIn(0f, 1f)
+                            val curX = p2.x + (p3.x - p2.x) * localT
+                            val curY = p2.y + (p3.y - p2.y) * localT
+                            checkPath.lineTo(curX, curY)
+                        }
+
+                        drawPath(
+                            path = checkPath,
+                            color = Color.White,
+                            style = Stroke(
+                                width = 3.2.dp.toPx(),
+                                cap = StrokeCap.Round,
+                                join = StrokeJoin.Round
+                            )
+                        )
+                    }
+                }
+
+                ImportAnimationState.FAILURE -> {
+                    // Soft red circle with X
+                    drawCircle(
+                        color = Color(0xFFEF4444),
+                        radius = coreCircleRadius,
+                        center = center
+                    )
+                    val xOffset = coreCircleRadius * 0.35f
+                    val strokePx = 3.dp.toPx()
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(center.x - xOffset, center.y - xOffset),
+                        end = Offset(center.x + xOffset, center.y + xOffset),
+                        strokeWidth = strokePx,
+                        cap = StrokeCap.Round
+                    )
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(center.x + xOffset, center.y - xOffset),
+                        end = Offset(center.x - xOffset, center.y + xOffset),
+                        strokeWidth = strokePx,
+                        cap = StrokeCap.Round
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Rebuilt SMS Import Completion Screen matching Ui-Designs/ImportCompletePage.png exactly.
+ *
+ * Content is scrollable for safe fit across all device form factors while the primary CTA
+ * is pinned statically at the bottom.
+ */
+@Composable
+private fun SmsImportCompletionContent(
+    animationState: ImportAnimationState,
+    importResult: SmsImportResult.Success?,
+    scanResult: SmsScanResult.Success?,
+    selectedGroupIds: Set<String>,
+    isRealTimeIngestionActive: Boolean,
+    onOpenNotificationSettings: () -> Unit,
+    onCompleteGoHome: () -> Unit,
+    onNavigateToReview: () -> Unit,
+    onExportCsv: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isImporting = animationState == ImportAnimationState.IMPORTING
+
+    val insertedCount = importResult?.insertedCount ?: run {
+        val groups = scanResult?.accountGroups?.filter { selectedGroupIds.contains(it.groupId) }
+        groups?.sumOf { it.transactionCount } ?: 0
+    }
+    val totalDebits = importResult?.totalAmountImported ?: run {
+        val groups = scanResult?.accountGroups?.filter { selectedGroupIds.contains(it.groupId) }
+        groups?.sumOf { it.totalDebit } ?: 0.0
+    }
+    val totalCredits = importResult?.totalIncomeImported ?: run {
+        val groups = scanResult?.accountGroups?.filter { selectedGroupIds.contains(it.groupId) }
+        groups?.sumOf { it.totalCredit } ?: 0.0
+    }
+    val netBalance = totalCredits - totalDebits
+
+    val debitCount = remember(importResult, scanResult, selectedGroupIds) {
+        if (importResult != null) {
+            importResult.persistenceResults.count { res ->
+                when (res) {
+                    is ExpensePersistenceResult.Inserted -> !res.expense.type.equals("Credit", ignoreCase = true)
+                    is ExpensePersistenceResult.ReviewPending -> !res.expense.type.equals("Credit", ignoreCase = true)
+                    else -> false
+                }
+            }.takeIf { it > 0 } ?: (if (totalDebits > 0) insertedCount else 0)
+        } else {
+            scanResult?.accountGroups
+                ?.filter { selectedGroupIds.contains(it.groupId) }
+                ?.sumOf { group -> group.transactions.count { it.candidate.candidate.direction != TransactionDirection.CREDIT } }
+                ?: 0
+        }
+    }
+
+    val creditCount = remember(importResult, scanResult, selectedGroupIds) {
+        if (importResult != null) {
+            importResult.persistenceResults.count { res ->
+                when (res) {
+                    is ExpensePersistenceResult.Inserted -> res.expense.type.equals("Credit", ignoreCase = true)
+                    is ExpensePersistenceResult.ReviewPending -> res.expense.type.equals("Credit", ignoreCase = true)
+                    else -> false
+                }
+            }.takeIf { it > 0 } ?: 0
+        } else {
+            scanResult?.accountGroups
+                ?.filter { selectedGroupIds.contains(it.groupId) }
+                ?.sumOf { group -> group.transactions.count { it.candidate.candidate.direction == TransactionDirection.CREDIT } }
+                ?: 0
+        }
+    }
+
+    val messagesScanned = scanResult?.messagesScanned ?: (importResult?.totalProcessed ?: 0)
+    val duplicatesFiltered = importResult?.duplicatesSkippedCount ?: (scanResult?.duplicatesCount ?: 0)
+    val spamAndOtps = scanResult?.noiseMessages ?: 0
+    val reviewCount = importResult?.reviewPendingCount ?: 0
+
+    val reconciledAccounts = remember(scanResult, importResult, selectedGroupIds) {
+        val groups = scanResult?.accountGroups ?: emptyList()
+        val activeGroups = if (importResult?.selectedGroupIds != null) {
+            groups.filter { importResult.selectedGroupIds.contains(it.groupId) }
+        } else {
+            groups.filter { selectedGroupIds.contains(it.groupId) }
+        }
+        activeGroups.mapNotNull { group ->
+            group.identity.institutionName?.let { name ->
+                when {
+                    name.contains("HDFC", ignoreCase = true) -> "HDFC"
+                    name.contains("SBI", ignoreCase = true) || name.contains("State Bank", ignoreCase = true) -> "SBI"
+                    name.contains("Axis", ignoreCase = true) -> "Axis"
+                    name.contains("ICICI", ignoreCase = true) -> "ICICI"
+                    name.contains("Kotak", ignoreCase = true) -> "Kotak"
+                    name.contains("PNB", ignoreCase = true) || name.contains("Punjab National", ignoreCase = true) -> "PNB"
+                    name.contains("BOB", ignoreCase = true) || name.contains("Bank of Baroda", ignoreCase = true) -> "BOB"
+                    else -> name.split(" ").firstOrNull() ?: name
+                }
+            } ?: group.identity.institutionId?.uppercase()
+              ?: (if (group.groupId != "unidentified_account") group.groupId.uppercase() else null)
+        }.distinct()
+    }
+
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = modifier.fillMaxSize()
+    ) {
+        // ----------------------------------------------------
+        // Scrollable Body Content
+        // ----------------------------------------------------
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // 1. HERO AREA with ImportCompletionAnimation
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Success / Loading Animation
+                ImportCompletionAnimation(
+                    state = animationState,
+                    sizeDp = 68.dp
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // 100% LOCAL VAULT INITIALIZED Badge
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF082215),
+                    border = BorderStroke(1.dp, Color(0xFF164E35))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Lock,
+                            contentDescription = null,
+                            tint = EmeraldAccent,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "100% LOCAL VAULT",
+                                color = EmeraldAccent,
+                                fontSize = 8.5.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp,
+                                lineHeight = 10.sp
+                            )
+                            Text(
+                                text = if (isImporting) "INITIALIZING" else "INITIALIZED",
+                                color = EmeraldAccent,
+                                fontSize = 8.5.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp,
+                                lineHeight = 10.sp
+                            )
+                        }
+                    }
+                }
+
+                // Main Headline
+                Text(
+                    text = if (isImporting) "Ingesting $insertedCount Transactions..." else "$insertedCount Transactions Ingested",
+                    color = TextWhite,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    letterSpacing = (-0.2).sp
+                )
+
+                // Explanatory Subtitle
+                Text(
+                    text = if (isImporting) {
+                        "Parsing, deduplicating, and securely committing selected SMS records to your local encrypted SQLite Room ledger."
+                    } else {
+                        "Historical SMS data parsed, deduplicated, and securely committed to your local encrypted SQLite Room ledger."
+                    },
+                    color = Color(0xFF94A3B8),
+                    fontSize = 11.5.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 15.sp,
+                    modifier = Modifier.padding(horizontal = 10.dp)
+                )
+            }
+
+            // 2. INGESTION AUDIT REPORT Card
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                color = CardSurface,
+                border = BorderStroke(1.dp, CardBorder)
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Outlined.Layers,
+                                contentDescription = null,
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column {
+                                Text(
+                                    text = "INGESTION AUDIT",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 9.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp,
+                                    lineHeight = 11.sp
+                                )
+                                Text(
+                                    text = "REPORT",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 9.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp,
+                                    lineHeight = 11.sp
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(5.dp),
+                            color = Color(0xFF161C26),
+                            border = BorderStroke(1.dp, Color(0xFF222C3D))
+                        ) {
+                            Text(
+                                text = "Room v${AppDatabase.DATABASE_VERSION} • AES-256",
+                                color = Color(0xFF64748B),
+                                fontSize = 9.5.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    // 2-Column Metric Grid
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Column 1
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Column {
+                                Text("Messages Scanned", fontSize = 9.5.sp, color = TextMuted)
+                                Text(
+                                    text = formatIndianNumber(messagesScanned),
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextWhite,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                            Column {
+                                Text("Duplicates Filtered", fontSize = 9.5.sp, color = TextMuted)
+                                Text(
+                                    text = "${formatIndianNumber(duplicatesFiltered)} suppressed",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFCBD5E1),
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+
+                        // Column 2
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Column {
+                                Text("Financial Entries", fontSize = 9.5.sp, color = TextMuted)
+                                Text(
+                                    text = "${formatIndianNumber(insertedCount)} records",
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldAccent,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                            Column {
+                                Text("Spam & OTPs", fontSize = 9.5.sp, color = TextMuted)
+                                Text(
+                                    text = "${formatIndianNumber(spamAndOtps)} ignored",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF94A3B8),
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+
+                    // Reconciled Accounts
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Reconciled Accounts (${reconciledAccounts.size})",
+                            fontSize = 10.sp,
+                            color = TextSecondary,
+                            fontFamily = FontFamily.Monospace
+                        )
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val visibleAccounts = reconciledAccounts.take(3)
+                            val remainingCount = reconciledAccounts.size - visibleAccounts.size
+                            visibleAccounts.forEach { acc ->
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = Color(0xFF1E2433),
+                                    border = BorderStroke(1.dp, Color(0xFF2E394F))
+                                ) {
+                                    Text(
+                                        text = acc,
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextWhite,
+                                        fontFamily = FontFamily.Monospace,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            if (remainingCount > 0) {
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = Color(0xFF1E2433),
+                                    border = BorderStroke(1.dp, Color(0xFF2E394F))
+                                ) {
+                                    Text(
+                                        text = "+$remainingCount",
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextSecondary,
+                                        fontFamily = FontFamily.Monospace,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. HISTORICAL BALANCE DELTA Card
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                color = CardSurface,
+                border = BorderStroke(1.dp, CardBorder)
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Outlined.AccountBalanceWallet,
+                                contentDescription = null,
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column {
+                                Text(
+                                    text = "HISTORICAL BALANCE",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 9.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp,
+                                    lineHeight = 11.sp
+                                )
+                                Text(
+                                    text = "DELTA",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 9.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp,
+                                    lineHeight = 11.sp
+                                )
+                            }
+                        }
+
+                        val netPrefix = if (netBalance > 0) "+₹" else if (netBalance < 0) "-₹" else "₹"
+                        val netText = "$netPrefix${formatIndianCurrency(Math.abs(netBalance))} net"
+                        Text(
+                            text = netText,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = if (netBalance >= 0) EmeraldAccent else Color(0xFFF87171)
+                        )
+                    }
+
+                    // Debits and Credits summary blocks
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Debits
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF241318),
+                            border = BorderStroke(1.dp, Color(0xFF451922))
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                                Text("Total Debits tracked", fontSize = 9.5.sp, color = Color(0xFFF87171), maxLines = 1)
+                                Text(
+                                    text = "-₹${formatIndianCurrency(totalDebits)}",
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFEF4444),
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1
+                                )
+                                Text("$debitCount debits", fontSize = 9.5.sp, color = Color(0xFFFCA5A5), maxLines = 1)
+                            }
+                        }
+
+                        // Credits
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF0F261B),
+                            border = BorderStroke(1.dp, Color(0xFF1A4732))
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                                Text("Total Credits tracked", fontSize = 9.5.sp, color = Color(0xFF34D399), maxLines = 1)
+                                Text(
+                                    text = "+₹${formatIndianCurrency(totalCredits)}",
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldAccent,
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1
+                                )
+                                Text("$creditCount deposits", fontSize = 9.5.sp, color = Color(0xFF86EFAC), maxLines = 1)
+                            }
+                        }
+                    }
+
+                    // Review / Triage Warning Strip
+                    if (reviewCount > 0) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFF2A1C08),
+                            border = BorderStroke(1.dp, Color(0xFF4D3410))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Info,
+                                        contentDescription = null,
+                                        tint = AmberAccent,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "$reviewCount ${if (reviewCount == 1) "item requires" else "items require"} categorization tria...",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFFFDE68A),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Review",
+                                    color = AmberAccent,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.clickable { onNavigateToReview() }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. NEXT ACTIONS Section
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Text(
+                    text = "NEXT ACTIONS",
+                    fontSize = 9.sp,
+                    color = Color(0xFF64748B),
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp
+                )
+
+                // Review Triage Inbox card
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToReview() },
+                    shape = RoundedCornerShape(10.dp),
+                    color = CardSurface,
+                    border = BorderStroke(1.dp, CardBorder)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(RoundedCornerShape(7.dp))
+                                .background(if (reviewCount > 0) Color(0xFF281C09) else Color(0xFF0F261B))
+                                .border(
+                                    BorderStroke(1.dp, if (reviewCount > 0) Color(0xFF4A3412) else Color(0xFF1A4732)),
+                                    RoundedCornerShape(7.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (reviewCount > 0) Icons.Outlined.Warning else Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = if (reviewCount > 0) AmberAccent else EmeraldAccent,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(9.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Review Triage Inbox",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextWhite
+                            )
+                            Text(
+                                text = if (reviewCount > 0) "$reviewCount UPI merchant transactions unmapped" else "All transactions categorized and mapped",
+                                fontSize = 10.sp,
+                                color = TextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (reviewCount > 0) "Review →" else "Clean ✓",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (reviewCount > 0) AmberAccent else EmeraldAccent
+                        )
+                    }
+                }
+
+                // Real-Time Ingestion card
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onOpenNotificationSettings()
+                        },
+                    shape = RoundedCornerShape(10.dp),
+                    color = CardSurface,
+                    border = BorderStroke(1.dp, CardBorder)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(RoundedCornerShape(7.dp))
+                                .background(if (isRealTimeIngestionActive) Color(0xFF0F261B) else Color(0xFF1A1F2B))
+                                .border(
+                                    BorderStroke(1.dp, if (isRealTimeIngestionActive) Color(0xFF1A4732) else Color(0xFF2E384D)),
+                                    RoundedCornerShape(7.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Sensors,
+                                contentDescription = null,
+                                tint = if (isRealTimeIngestionActive) EmeraldAccent else Color(0xFF94A3B8),
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(9.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Real-Time Ingestion",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextWhite
+                            )
+                            Text(
+                                text = "Local zero-network daemon monitor",
+                                fontSize = 10.sp,
+                                color = TextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isRealTimeIngestionActive) EmeraldAccent else Color(0xFF64748B))
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isRealTimeIngestionActive) "Active" else "Inactive",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isRealTimeIngestionActive) EmeraldAccent else Color(0xFF94A3B8)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // ----------------------------------------------------
+        // Pinned Static Bottom Actions Bar
+        // ----------------------------------------------------
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            color = Color.Transparent
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // PRIMARY CTA: Complete & Go to Home ->
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                        .shadow(
+                            elevation = if (isImporting) 0.dp else 4.dp,
+                            shape = RoundedCornerShape(12.dp),
+                            spotColor = Color(0x66000000)
+                        )
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(enabled = !isImporting) { onCompleteGoHome() },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isImporting) Color(0xFF1E2433) else Color.White
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (isImporting) "Committing to Ledger..." else "Complete & Go to Home",
+                            color = if (isImporting) Color(0xFF64748B) else Color(0xFF090C10),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.1.sp
+                        )
+                        if (!isImporting) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = Color(0xFF090C10),
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .size(16.dp)
+                            )
+                        }
+                    }
+                }
+
+                // EXPORT AUDIT LOG (CSV)
+                if (!isImporting) {
+                    Text(
+                        text = "Export Ingestion Audit Log (CSV)",
+                        color = Color(0xFF64748B),
+                        fontSize = 10.5.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { onExportCsv() }
+                            .padding(vertical = 2.dp, horizontal = 8.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
