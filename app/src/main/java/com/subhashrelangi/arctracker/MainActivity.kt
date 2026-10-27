@@ -538,7 +538,6 @@ fun ExpenseScreen() {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
                     "ClearAllData" -> "Clear All Data"
-                    "BackupRestore" -> "Backup & Restore"
                     "IgnoreRules" -> "Ignore Rules"
                     "DeveloperOptions" -> "Developer Options"
                     "RegexPatterns" -> "Regex Patterns"
@@ -747,14 +746,6 @@ fun ExpenseScreen() {
                     },
                     onNavigateToLedger = {
                         backStack = listOf("Home", "Transactions")
-                    }
-                )
-
-            } else if (currentRoute == "BackupRestore") {
-
-                com.subhashrelangi.arctracker.ui.BackupRestoreScreen(
-                    onNavigate = {
-                        navigateTo(it)
                     }
                 )
 
@@ -1020,7 +1011,6 @@ fun ExpenseScreen() {
             "SmsScan",
             "SmsResult",
             "SettingsSmsImport",
-            "BackupRestore",
             "SupportedApps",
             "CategoryManagement",
             "FinancialAccounts",

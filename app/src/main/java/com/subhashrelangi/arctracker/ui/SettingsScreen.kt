@@ -311,8 +311,7 @@ fun SettingsScreen(
         val showCategories = matchesSearch("Categories & Rules", "Categories", "Merchant aliases", "Auto-rules")
         val showAnalytics = matchesSearch("Analytics & Insights", "Analytics", "Insights", "Financial statistics", "Velocity", "Breakdown")
         val showBudgets = matchesSearch("Budgets & Limits", "Budgets", "Limits", "Recurring spending", "Alert thresholds")
-        val showBackup = matchesSearch("Export & Backup", "Export", "Backup", "JSON", "CSV export", "Snapshot")
-        val hasCoreMatches = showFinancial || showUnresolved || showCategories || showAnalytics || showBudgets || showBackup
+        val hasCoreMatches = showFinancial || showUnresolved || showCategories || showAnalytics || showBudgets
 
         val showTracker = matchesSearch("Tracker Engine", "Automatic Tracking", "Real-time", "Event listener", "Pipeline", "Service", "Zero Latency", "Stats", "Indexed")
 
@@ -324,9 +323,9 @@ fun SettingsScreen(
 
         val showDb = matchesSearch("Database", "SQLite", "SQLCipher", "Storage")
         val showImport = matchesSearch("Import Previous Transactions", "Scan", "Historical SMS")
-        val showExportEngine = matchesSearch("Full Backup & Export Engine", "Backup", "Export", "AES-256", "CSV")
+        val showBackup = matchesSearch("Full Backup & Export Engine", "Backup & Export Vault", "Export & Backup", "Backup", "Export", "AES-256", "CSV", "JSON", "Air-Gapped")
         val showClear = matchesSearch("Clear All Data", "Reset", "Delete", "Fresh")
-        val hasDataMatches = showDb || showImport || showExportEngine || showClear
+        val hasDataMatches = showDb || showImport || showBackup || showClear
 
         val showScreenSec = matchesSearch("Screen Security", "Screenshots", "FLAG_SECURE", "Recent apps")
         val showMask = matchesSearch("Mask Account Numbers", "Mask", "Account details", "Safe suffixes")
@@ -543,16 +542,8 @@ fun SettingsScreen(
                             icon = Icons.Outlined.Speed,
                             title = "Budgets & Limits",
                             subtitle = "Recurring spending limits & alert thresholds",
-                            onClick = { onNavigate("Budgets") }
-                        )
-                    }
-                    if (showBackup) {
-                        SettingsItemRow(
-                            icon = Icons.Outlined.LockReset,
-                            title = "Export & Backup",
-                            subtitle = "JSON encrypted snapshot & CSV export",
                             isLast = true,
-                            onClick = { onNavigate("Backup") }
+                            onClick = { onNavigate("Budgets") }
                         )
                     }
                 }
@@ -798,12 +789,12 @@ fun SettingsScreen(
                             onClick = { onNavigate("SettingsSmsImport") }
                         )
                     }
-                    if (showExportEngine) {
+                    if (showBackup) {
                         SettingsItemRow(
                             icon = Icons.Outlined.FileUpload,
                             title = "Full Backup & Export Engine",
-                            subtitle = "Encrypted JSON/AES-256-GCM & CSV ledger export",
-                            onClick = { onNavigate("BackupRestore") }
+                            subtitle = "Encrypted JSON (AES-256-GCM) & CSV ledger export",
+                            onClick = { onNavigate("Backup") }
                         )
                     }
                     if (showClear) {
