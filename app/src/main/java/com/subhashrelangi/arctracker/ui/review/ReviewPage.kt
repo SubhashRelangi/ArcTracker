@@ -378,7 +378,7 @@ fun ReviewPage(
                             dateInfo = dateFmt,
                             icon = icon,
                             badge = if (exp.rawText?.contains("UPI", ignoreCase = true) == true) "UPI" else null,
-                            ambiguityLabel = if (exp.tag.isNullOrBlank()) "Needs Review" else null,
+                            ambiguityLabel = if (exp.tag.isNullOrBlank()) "To Review" else null,
                             patternTitle = if (!exp.note.isNullOrBlank()) "Local Pattern Detected" else null,
                             patternDescription = exp.note ?: "Detected new unconfirmed transaction waiting for review.",
                             suggestedCategories = listOf("Food & Dining", "Shopping & Tech", "Transport", "Housing & Utilities"),
@@ -437,7 +437,7 @@ fun ReviewPage(
             dateInfo = item.dateInfo,
             icon = Icons.Outlined.ReceiptLong,
             badge = if (item.source.contains("SMS", ignoreCase = true)) "SMS" else "Push",
-            ambiguityLabel = "Needs Review",
+            ambiguityLabel = "To Review",
             patternTitle = "Account Linked: ${account.institutionName ?: "Bank"}",
             patternDescription = "Local bank account reconciled (••${account.accountSuffix}). Select category to complete review.",
             suggestedCategories = listOf("Food & Dining", "Shopping & Tech", "Transport", "Housing & Utilities"),
@@ -874,21 +874,30 @@ fun ReviewPage(
                                     Button(
                                         onClick = { showBulkAssignDialog = true },
                                         enabled = selectedAccountExpenseIds.isNotEmpty(),
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFF055B38),
+                                            containerColor = Color(0xFF047857),
                                             disabledContainerColor = Color(0xFFCBD5E1)
                                         ),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(vertical = 10.dp)
+                                        shape = CircleShape,
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .background(if (selectedAccountExpenseIds.isNotEmpty()) Color.White.copy(alpha = 0.25f) else Color.Transparent, CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = if (selectedAccountExpenseIds.isNotEmpty()) {
                                                 "Bulk Assign (${selectedAccountExpenseIds.size} Selected)"
@@ -896,7 +905,7 @@ fun ReviewPage(
                                                 "Select Transactions to Bulk Assign"
                                             },
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp,
+                                            fontSize = 13.5.sp,
                                             color = Color.White
                                         )
                                     }
@@ -1219,10 +1228,12 @@ fun ReviewPage(
                                     )
                                 }
 
-                                // 2. Clean Metadata Badges Row (Date + Account Badge + Needs Review Status Pill)
+                                // 2. Clean Metadata Badges Row (Date + Account Badge + To Review Status Pill)
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -1236,7 +1247,8 @@ fun ReviewPage(
                                             fontSize = 11.5.sp,
                                             color = Color(0xFF64748B),
                                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                                            maxLines = 1
+                                            maxLines = 1,
+                                            softWrap = false
                                         )
                                     }
 
@@ -1261,25 +1273,42 @@ fun ReviewPage(
                                                 fontSize = 11.5.sp,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = Color(0xFF334155),
-                                                maxLines = 1
+                                                maxLines = 1,
+                                                softWrap = false
                                             )
                                         }
                                     }
 
                                     if (activeItem.ambiguityLabel != null) {
+                                        val displayLabel = if (activeItem.ambiguityLabel.equals("Needs Review", ignoreCase = true)) {
+                                            "To Review"
+                                        } else {
+                                            activeItem.ambiguityLabel
+                                        }
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
                                             color = Color(0xFFFEF3C7),
                                             border = BorderStroke(1.dp, Color(0xFFFDE68A))
                                         ) {
-                                            Text(
-                                                text = activeItem.ambiguityLabel,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFFB45309),
+                                            Row(
                                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                                                maxLines = 1
-                                            )
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(5.dp)
+                                                        .background(Color(0xFFD97706), CircleShape)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = displayLabel,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFFB45309),
+                                                    maxLines = 1,
+                                                    softWrap = false
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -1765,16 +1794,19 @@ fun ReviewPage(
                                             )
                                             Spacer(modifier = Modifier.weight(1f))
                                             if (nextItem.ambiguityLabel != null) {
+                                                val nextLabel = if (nextItem.ambiguityLabel.equals("Needs Review", ignoreCase = true)) "To Review" else nextItem.ambiguityLabel
                                                 Surface(
                                                     shape = RoundedCornerShape(4.dp),
                                                     color = Color(0xFFFEF3C7)
                                                 ) {
                                                     Text(
-                                                        text = nextItem.ambiguityLabel,
+                                                        text = nextLabel,
                                                         fontSize = 10.5.sp,
                                                         fontWeight = FontWeight.Bold,
                                                         color = Color(0xFFB45309),
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                        maxLines = 1,
+                                                        softWrap = false
                                                     )
                                                 }
                                             }
@@ -2092,56 +2124,78 @@ fun ReviewPage(
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 90.dp, start = 20.dp, end = 20.dp),
-                shape = RoundedCornerShape(28.dp),
+                    .padding(bottom = 90.dp, start = 16.dp, end = 16.dp),
+                shape = CircleShape,
                 color = Color(0xFF0F172A),
-                shadowElevation = 8.dp
+                shadowElevation = 10.dp,
+                border = BorderStroke(1.dp, Color(0xFF334155))
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(10.dp)
-                                .background(Color(0xFF10B981), CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                                .size(28.dp)
+                                .background(Color(0xFF047857), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${selectedAccountExpenseIds.size}",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "${selectedAccountExpenseIds.size} Selected",
+                            text = "Selected",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 13.5.sp
                         )
                     }
 
                     TextButton(
                         onClick = { selectedAccountExpenseIds = emptySet() }
                     ) {
-                        Text("Clear Selection", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                        Text(
+                            text = "Clear",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
 
                     Button(
                         onClick = { showBulkAssignDialog = true },
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38)),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .background(Color.White.copy(alpha = 0.25f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Bulk Assign",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
+                            fontSize = 13.5.sp,
                             color = Color.White
                         )
                     }
@@ -2385,6 +2439,36 @@ private fun ReviewTabPill(
     }
 }
 
+@Composable
+private fun CircleSelectionButton(
+    isSelected: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(26.dp)
+            .clip(CircleShape)
+            .background(if (isSelected) Color(0xFF047857) else Color.White)
+            .border(
+                width = if (isSelected) 0.dp else 2.dp,
+                color = if (isSelected) Color(0xFF047857) else Color(0xFFCBD5E1),
+                shape = CircleShape
+            )
+            .clickable { onToggle() },
+        contentAlignment = Alignment.Center
+    ) {
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Selected",
+                tint = Color.White,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
 // ONE BIG ACTIVE CARD for unlinked account triage
 @Composable
 private fun ActiveUnlinkedAccountCard(
@@ -2418,13 +2502,17 @@ private fun ActiveUnlinkedAccountCard(
 
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = Color.White,
+        color = if (isSelected) Color(0xFFF0FDF4) else Color.White,
         border = BorderStroke(
             if (isSelected) 1.5.dp else 1.dp,
-            if (isSelected) Color(0xFF055B38) else Color(0xFFE2E8F0)
+            if (isSelected) Color(0xFF047857) else Color(0xFFE2E8F0)
         ),
         shadowElevation = if (isSelected) 2.dp else 0.dp,
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (isSelectionMode) Modifier.clickable { onToggleSelect() } else Modifier
+            )
     ) {
         Column(
             modifier = Modifier
@@ -2437,14 +2525,10 @@ private fun ActiveUnlinkedAccountCard(
                 verticalAlignment = Alignment.Top
             ) {
                 if (isSelectionMode) {
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = { onToggleSelect() },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = Color(0xFF055B38),
-                            uncheckedColor = Color(0xFF94A3B8)
-                        ),
-                        modifier = Modifier.padding(end = 8.dp)
+                    CircleSelectionButton(
+                        isSelected = isSelected,
+                        onToggle = onToggleSelect,
+                        modifier = Modifier.padding(top = 9.dp, end = 10.dp)
                     )
                 }
 
@@ -2737,15 +2821,17 @@ private fun UnlinkedQueueCard(
 ) {
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = Color.White,
+        color = if (isSelected) Color(0xFFF0FDF4) else Color.White,
         border = BorderStroke(
             if (isSelected) 1.5.dp else 1.dp,
-            if (isSelected) Color(0xFF055B38) else Color(0xFFE2E8F0)
+            if (isSelected) Color(0xFF047857) else Color(0xFFE2E8F0)
         ),
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .clickable { onClick() }
+            .clickable {
+                if (isSelectionMode) onToggleSelect() else onClick()
+            }
     ) {
         Row(
             modifier = Modifier
@@ -2754,14 +2840,10 @@ private fun UnlinkedQueueCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (isSelectionMode) {
-                Checkbox(
-                    checked = isSelected,
-                    onCheckedChange = { onToggleSelect() },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = Color(0xFF055B38),
-                        uncheckedColor = Color(0xFF94A3B8)
-                    ),
-                    modifier = Modifier.padding(end = 6.dp)
+                CircleSelectionButton(
+                    isSelected = isSelected,
+                    onToggle = onToggleSelect,
+                    modifier = Modifier.padding(end = 10.dp)
                 )
             }
 
