@@ -531,7 +531,8 @@ fun ExpenseScreen() {
                 currentRoute != "SupportedApps" &&
                 currentRoute != "ClearAllData" &&
                 currentRoute != "IgnoreRules" &&
-                currentRoute != "DeveloperOptions"
+                currentRoute != "DeveloperOptions" &&
+                currentRoute != "RegexPatterns"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
@@ -607,7 +608,7 @@ fun ExpenseScreen() {
             val contentTopPadding = if (currentRoute in listOf(
                 "InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult",
                 "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules", "Backup",
-                "FinancialAccounts", "UnresolvedTransactions", "AccountTransactions", "DeveloperOptions"
+                "FinancialAccounts", "UnresolvedTransactions", "AccountTransactions", "DeveloperOptions", "RegexPatterns"
             )) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
@@ -790,7 +791,8 @@ fun ExpenseScreen() {
                         editingRegexRuleId = rule.id
                         editingRegexRuleCategory = rule.category
                         navigateTo("EditRegexPattern")
-                    }
+                    },
+                    onNavigateBack = { navigateBack() }
                 )
             } else if (currentRoute == "EditRegexPattern") {
                 com.subhashrelangi.arctracker.ui.EditRegexPatternScreen(
