@@ -7,6 +7,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -263,13 +265,16 @@ fun ReviewPage(
     var selectedAccountExpenseIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var singleItemToAssign by remember { mutableStateOf<UnlinkedAccountItem?>(null) }
     var showBulkAssignDialog by remember { mutableStateOf(false) }
+    var localHandledUnlinkedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var activeUnlinkedId by remember { mutableStateOf<Int?>(null) }
 
     // Live search query filtering for unlinked items
-    val filteredUnlinkedItems = remember(unlinkedAccountItems, searchQuery) {
-        if (searchQuery.isBlank()) unlinkedAccountItems
+    val filteredUnlinkedItems = remember(unlinkedAccountItems, localHandledUnlinkedIds, searchQuery) {
+        val remaining = unlinkedAccountItems.filter { it.id !in localHandledUnlinkedIds }
+        if (searchQuery.isBlank()) remaining
         else {
             val q = searchQuery.trim().lowercase(Locale.ROOT)
-            unlinkedAccountItems.filter {
+            remaining.filter {
                 it.merchant.lowercase(Locale.ROOT).contains(q) ||
                 it.amount.toString().contains(q) ||
                 (it.accountSuffix?.contains(q) == true) ||
@@ -277,6 +282,9 @@ fun ReviewPage(
             }
         }
     }
+
+    val activeUnlinkedItem = filteredUnlinkedItems.find { it.id == activeUnlinkedId } ?: filteredUnlinkedItems.firstOrNull()
+    val nextUnlinkedItems = filteredUnlinkedItems.filter { it.id != activeUnlinkedItem?.id }
 
     // Baseline mock items used for demo mode
     val baselinePending = remember {
@@ -331,8 +339,9 @@ fun ReviewPage(
             isDemoMode -> mutableStateOf(baselinePending)
             !isSetupCompleted -> mutableStateOf(emptyList<PendingReviewItem>())
             dbPendingExpenses.isNotEmpty() -> {
+                val categoryReady = dbPendingExpenses.filter { it.accountId != null || !it.accountSuffix.isNullOrBlank() }
                 mutableStateOf(
-                    dbPendingExpenses.mapIndexed { idx, exp ->
+                    categoryReady.mapIndexed { idx, exp ->
                         val isDining = exp.merchant.contains("Swiggy", ignoreCase = true) ||
                             exp.merchant.contains("Zomato", ignoreCase = true) ||
                             exp.merchant.contains("Coffee", ignoreCase = true) ||
@@ -413,60 +422,86 @@ fun ReviewPage(
         else maxOf(dbPendingExpenses.size + unlinkedAccountItems.size, 1)
     }
 
+    fun pushItemToCategoryQueue(item: UnlinkedAccountItem, account: KnownFinancialAccount) {
+        val catItem = PendingReviewItem(
+            id = item.id,
+            merchant = item.merchant,
+            amount = item.amount,
+            accountInfo = "${account.institutionName ?: "Bank"} ••${account.accountSuffix}",
+            dateInfo = item.dateInfo,
+            icon = Icons.Outlined.ReceiptLong,
+            badge = if (item.source.contains("SMS", ignoreCase = true)) "SMS" else "Push",
+            ambiguityLabel = "Needs Review",
+            patternTitle = "Account Linked: ${account.institutionName ?: "Bank"}",
+            patternDescription = "Local bank account reconciled (••${account.accountSuffix}). Select category to complete review.",
+            suggestedCategories = listOf("Food & Dining", "Shopping & Tech", "Transport", "Housing & Utilities"),
+            defaultTag = "#verified"
+        )
+        queueItems = queueItems + catItem
+    }
+
     fun assignAccountToItem(item: UnlinkedAccountItem, account: KnownFinancialAccount) {
+        localHandledUnlinkedIds = localHandledUnlinkedIds + item.id
         if (isDemoMode) {
             demoUnlinkedState.removeAll { it.id == item.id }
-            resolvedItems = listOf(
-                ResolvedReviewItem(
-                    id = item.id,
-                    merchant = item.merchant,
-                    amount = item.amount,
-                    subtitle = "Linked: ${account.institutionName} ••${account.accountSuffix}",
-                    icon = Icons.Outlined.CheckCircle
-                )
-            ) + resolvedItems
-            Toast.makeText(context, "Linked to ${account.institutionName} ••${account.accountSuffix}", Toast.LENGTH_SHORT).show()
         } else {
             scope.launch(Dispatchers.IO) {
                 try {
                     reconciliationManager.assignAccount(item.id, account.id)
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Linked to ${account.institutionName} ••${account.accountSuffix}", Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: Exception) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Failed to link account: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }
+                } catch (_: Exception) {}
             }
+        }
+
+        // Immediately push to category review queue
+        pushItemToCategoryQueue(item, account)
+
+        val remainingCount = filteredUnlinkedItems.count { it.id != item.id && it.id !in localHandledUnlinkedIds }
+        if (remainingCount == 0) {
+            if (currentTab == ReviewFilterTab.NEEDS_ACCOUNT) {
+                currentTab = ReviewFilterTab.NEEDS_CATEGORY
+            }
+            Toast.makeText(context, "All accounts linked! Pushed to Category Review.", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "Linked to ${account.institutionName} ••${account.accountSuffix}! Pushed to Category Review.", Toast.LENGTH_SHORT).show()
         }
     }
 
     fun ignoreItem(item: UnlinkedAccountItem) {
+        localHandledUnlinkedIds = localHandledUnlinkedIds + item.id
         if (isDemoMode) {
             demoUnlinkedState.removeAll { it.id == item.id }
-            Toast.makeText(context, "Transaction ignored", Toast.LENGTH_SHORT).show()
         } else {
             scope.launch(Dispatchers.IO) {
-                val exp = item.expense ?: expenseDao.getExpenseById(item.id)
-                if (exp != null) {
-                    expenseDao.update(exp.copy(isPending = false, note = (exp.note ?: "") + " [Ignored unlinked account]"))
-                }
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Transaction ignored", Toast.LENGTH_SHORT).show()
-                }
+                try {
+                    val exp = item.expense ?: expenseDao.getExpenseById(item.id)
+                    if (exp != null) {
+                        expenseDao.update(exp.copy(isPending = false, note = (exp.note ?: "") + " [Ignored unlinked account]"))
+                    }
+                } catch (_: Exception) {}
             }
         }
+        resolvedItems = listOf(
+            ResolvedReviewItem(
+                id = item.id,
+                merchant = item.merchant,
+                amount = item.amount,
+                subtitle = "Ignored unlinked account",
+                icon = Icons.Outlined.VisibilityOff
+            )
+        ) + resolvedItems
+
+        val remainingCount = filteredUnlinkedItems.count { it.id != item.id && it.id !in localHandledUnlinkedIds }
+        if (remainingCount == 0 && currentTab == ReviewFilterTab.NEEDS_ACCOUNT) {
+            currentTab = ReviewFilterTab.NEEDS_CATEGORY
+        }
+        Toast.makeText(context, "Transaction ignored", Toast.LENGTH_SHORT).show()
     }
 
     fun bulkAssignAccounts(account: KnownFinancialAccount) {
         val idsToAssign = selectedAccountExpenseIds.toList()
+        localHandledUnlinkedIds = localHandledUnlinkedIds + idsToAssign
         if (isDemoMode) {
             demoUnlinkedState.removeAll { it.id in idsToAssign }
-            selectedAccountExpenseIds = emptySet()
-            isSelectionMode = false
-            showBulkAssignDialog = false
-            Toast.makeText(context, "${idsToAssign.size} transactions linked to ${account.institutionName}", Toast.LENGTH_SHORT).show()
         } else {
             scope.launch(Dispatchers.IO) {
                 for (id in idsToAssign) {
@@ -474,14 +509,23 @@ fun ReviewPage(
                         reconciliationManager.assignAccount(id, account.id)
                     } catch (_: Exception) {}
                 }
-                withContext(Dispatchers.Main) {
-                    selectedAccountExpenseIds = emptySet()
-                    isSelectionMode = false
-                    showBulkAssignDialog = false
-                    Toast.makeText(context, "${idsToAssign.size} transactions linked to ${account.institutionName}", Toast.LENGTH_SHORT).show()
-                }
             }
         }
+
+        // Push all assigned to category queue
+        filteredUnlinkedItems.filter { it.id in idsToAssign }.forEach { item ->
+            pushItemToCategoryQueue(item, account)
+        }
+
+        selectedAccountExpenseIds = emptySet()
+        isSelectionMode = false
+        showBulkAssignDialog = false
+
+        val remainingCount = filteredUnlinkedItems.count { it.id !in idsToAssign && it.id !in localHandledUnlinkedIds }
+        if (remainingCount == 0 && currentTab == ReviewFilterTab.NEEDS_ACCOUNT) {
+            currentTab = ReviewFilterTab.NEEDS_CATEGORY
+        }
+        Toast.makeText(context, "${idsToAssign.size} transactions linked! Pushed to Category Review.", Toast.LENGTH_SHORT).show()
     }
 
     var showResolved by remember { mutableStateOf(true) }
@@ -624,13 +668,15 @@ fun ReviewPage(
 
             // Filter Tabs (All, Needs Account, Needs Category)
             item(key = "review_filter_tabs") {
+                val totalTriageCount = filteredUnlinkedItems.size + filteredQueue.size
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .horizontalScroll(rememberScrollState())
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val totalTriageCount = filteredUnlinkedItems.size + filteredQueue.size
                     ReviewTabPill(
                         text = "All ($totalTriageCount)",
                         isSelected = currentTab == ReviewFilterTab.ALL,
@@ -662,51 +708,76 @@ fun ReviewPage(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.weight(1f, fill = false),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(8.dp)
+                                        .size(7.dp)
                                         .background(Color(0xFFD97706), CircleShape)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "ACTION NEEDED: LINK BANK ACCOUNT",
-                                    fontSize = 11.5.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFFB45309),
-                                    letterSpacing = 0.8.sp
+                                    letterSpacing = 0.6.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = Color(0xFFFEF3C7)
                                 ) {
                                     Text(
                                         text = "${filteredUnlinkedItems.size} unlinked",
-                                        fontSize = 11.sp,
+                                        fontSize = 10.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFFB45309),
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        maxLines = 1
                                     )
                                 }
                             }
 
-                            Text(
-                                text = if (isSelectionMode) "Done" else "Select",
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF055B38),
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .clickable {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                val currentIdx = filteredUnlinkedItems.indexOfFirst { it.id == activeUnlinkedItem?.id }.let { if (it >= 0) it + 1 else 1 }
+                                Text(
+                                    text = "Item $currentIdx of ${filteredUnlinkedItems.size}",
+                                    fontSize = 11.5.sp,
+                                    color = Color(0xFF64748B),
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isSelectionMode) Color(0xFFECFDF5) else Color(0xFFF1F5F9),
+                                    border = BorderStroke(1.dp, if (isSelectionMode) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)),
+                                    modifier = Modifier.clickable {
                                         isSelectionMode = !isSelectionMode
                                         if (!isSelectionMode) selectedAccountExpenseIds = emptySet()
                                     }
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
+                                ) {
+                                    Text(
+                                        text = if (isSelectionMode) "Done" else "Select",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelectionMode) Color(0xFF047857) else Color(0xFF475569),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                            }
                         }
 
-                        // Triage Sub-Banner (matching mockup uploaded_media_1793084168021.png)
+                        // Triage Sub-Banner
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = Color(0xFFF8FAFC),
@@ -751,27 +822,86 @@ fun ReviewPage(
                     }
                 }
 
-                items(filteredUnlinkedItems, key = { "unresolved_${it.id}" }) { item ->
-                    UnlinkedAccountCard(
-                        item = item,
-                        isSelectionMode = isSelectionMode,
-                        isSelected = item.id in selectedAccountExpenseIds,
-                        onToggleSelect = {
-                            selectedAccountExpenseIds = if (item.id in selectedAccountExpenseIds) {
-                                selectedAccountExpenseIds - item.id
-                            } else {
-                                selectedAccountExpenseIds + item.id
+                // ONE BIG ACTIVE UNLINKED CARD
+                if (activeUnlinkedItem != null) {
+                    item(key = "active_unlinked_card_${activeUnlinkedItem.id}") {
+                        ActiveUnlinkedAccountCard(
+                            item = activeUnlinkedItem,
+                            isSelectionMode = isSelectionMode,
+                            isSelected = activeUnlinkedItem.id in selectedAccountExpenseIds,
+                            onToggleSelect = {
+                                selectedAccountExpenseIds = if (activeUnlinkedItem.id in selectedAccountExpenseIds) {
+                                    selectedAccountExpenseIds - activeUnlinkedItem.id
+                                } else {
+                                    selectedAccountExpenseIds + activeUnlinkedItem.id
+                                }
+                            },
+                            availableAccounts = effectiveKnownAccounts,
+                            canSkip = nextUnlinkedItems.isNotEmpty(),
+                            onAssignClick = { singleItemToAssign = activeUnlinkedItem },
+                            onQuickAssignAccount = { account ->
+                                assignAccountToItem(activeUnlinkedItem, account)
+                            },
+                            onIgnoreClick = {
+                                ignoreItem(activeUnlinkedItem)
+                            },
+                            onSkipClick = {
+                                activeUnlinkedId = nextUnlinkedItems.firstOrNull()?.id
                             }
-                        },
-                        availableAccounts = effectiveKnownAccounts,
-                        onAssignClick = { singleItemToAssign = item },
-                        onQuickAssignAccount = { account ->
-                            assignAccountToItem(item, account)
-                        },
-                        onIgnoreClick = {
-                            ignoreItem(item)
+                        )
+                    }
+                }
+
+                // UNLINKED QUEUE (NEXT IN LINE FOR UNLINKED ITEMS)
+                if (nextUnlinkedItems.isNotEmpty()) {
+                    item(key = "unlinked_queue_header") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "NEXT IN QUEUE",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF475569),
+                                letterSpacing = 0.8.sp
+                            )
+                            Text(
+                                text = if (isSelectionMode) "Select to bulk assign" else "Tap to review",
+                                fontSize = 11.5.sp,
+                                color = Color(0xFF64748B)
+                            )
                         }
-                    )
+                    }
+
+                    items(nextUnlinkedItems, key = { "unresolved_queue_${it.id}" }) { nextItem ->
+                        UnlinkedQueueCard(
+                            item = nextItem,
+                            isSelectionMode = isSelectionMode,
+                            isSelected = nextItem.id in selectedAccountExpenseIds,
+                            onToggleSelect = {
+                                selectedAccountExpenseIds = if (nextItem.id in selectedAccountExpenseIds) {
+                                    selectedAccountExpenseIds - nextItem.id
+                                } else {
+                                    selectedAccountExpenseIds + nextItem.id
+                                }
+                            },
+                            onClick = {
+                                if (isSelectionMode) {
+                                    selectedAccountExpenseIds = if (nextItem.id in selectedAccountExpenseIds) {
+                                        selectedAccountExpenseIds - nextItem.id
+                                    } else {
+                                        selectedAccountExpenseIds + nextItem.id
+                                    }
+                                } else {
+                                    activeUnlinkedId = nextItem.id
+                                }
+                            }
+                        )
+                    }
                 }
             }
 
@@ -1172,8 +1302,10 @@ fun ReviewPage(
                                         Text(
                                             text = "Confirm Category",
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 13.5.sp,
-                                            color = Color.White
+                                            fontSize = 12.sp,
+                                            color = Color.White,
+                                            maxLines = 1,
+                                            softWrap = false
                                         )
                                     }
 
@@ -1899,37 +2031,42 @@ private fun ReviewTabPill(
             .clickable { onClick() }
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = text,
-                fontSize = 12.sp,
+                fontSize = 12.5.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) Color.White else Color(0xFF475569)
+                color = if (isSelected) Color.White else Color(0xFF475569),
+                maxLines = 1,
+                softWrap = false
             )
             if (alertCount != null && alertCount > 0) {
                 Spacer(modifier = Modifier.width(6.dp))
                 Box(
                     modifier = Modifier
                         .size(7.dp)
-                        .background(Color(0xFFF59E0B), CircleShape)
+                        .background(Color(0xFFD97706), CircleShape)
                 )
             }
         }
     }
 }
 
+// ONE BIG ACTIVE CARD for unlinked account triage
 @Composable
-private fun UnlinkedAccountCard(
+private fun ActiveUnlinkedAccountCard(
     item: UnlinkedAccountItem,
     isSelectionMode: Boolean,
     isSelected: Boolean,
     onToggleSelect: () -> Unit,
     availableAccounts: List<KnownFinancialAccount>,
+    canSkip: Boolean,
     onAssignClick: () -> Unit,
     onQuickAssignAccount: (KnownFinancialAccount) -> Unit,
     onIgnoreClick: () -> Unit,
+    onSkipClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val merchantLower = item.merchant.lowercase(Locale.ROOT)
@@ -1956,20 +2093,17 @@ private fun UnlinkedAccountCard(
             if (isSelected) Color(0xFF055B38) else Color(0xFFE2E8F0)
         ),
         shadowElevation = if (isSelected) 2.dp else 0.dp,
-        modifier = modifier
-            .fillMaxWidth()
-            .then(if (isSelectionMode) Modifier.clickable { onToggleSelect() } else Modifier)
+        modifier = modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(16.dp)
         ) {
-            // Header Row: Checkbox (optional) + Icon + Merchant/Date + Amount/Debit
+            // Header Row: Avatar + Merchant & Date + Amount
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 if (isSelectionMode) {
                     Checkbox(
@@ -1985,15 +2119,15 @@ private fun UnlinkedAccountCard(
 
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(44.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFFF1F5F9)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = cardIcon,
-                        contentDescription = null,
-                        tint = Color(0xFF334155),
+                        contentDescription = item.merchant,
+                        tint = Color(0xFF0F172A),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -2003,13 +2137,13 @@ private fun UnlinkedAccountCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = item.merchant,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
                         color = Color(0xFF0F172A),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = item.dateInfo,
                         fontSize = 12.sp,
@@ -2020,20 +2154,21 @@ private fun UnlinkedAccountCard(
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "${if (item.isCredit) "+" else "-"}₹${formatAmount(item.amount)}",
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 15.5.sp,
-                        color = if (item.isCredit) Color(0xFF16A34A) else Color(0xFF0F172A)
+                        color = if (item.isCredit) Color(0xFF047857) else Color(0xFF0F172A)
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = if (item.isCredit) "Credit" else "Debit",
-                        fontSize = 11.sp,
+                        fontSize = 11.5.sp,
                         color = Color(0xFF64748B)
                     )
                 }
             }
 
-            // Suffix Pill & Source Badge Row
+            // Evidence Badges Row
+            Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -2046,14 +2181,14 @@ private fun UnlinkedAccountCard(
                         border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.CreditCard,
                                 contentDescription = null,
                                 tint = Color(0xFF475569),
-                                modifier = Modifier.size(12.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
@@ -2067,22 +2202,23 @@ private fun UnlinkedAccountCard(
                 } else {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFFEF3C7)
+                        color = Color(0xFFFFFBEB),
+                        border = BorderStroke(1.dp, Color(0xFFFEF3C7))
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.WarningAmber,
                                 contentDescription = null,
                                 tint = Color(0xFFB45309),
-                                modifier = Modifier.size(12.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "No Suffix Detected",
-                                fontSize = 11.sp,
+                                fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFB45309)
                             )
@@ -2096,19 +2232,19 @@ private fun UnlinkedAccountCard(
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = if (item.source.contains("SMS", ignoreCase = true)) Icons.Outlined.Chat else Icons.Outlined.Notifications,
+                            imageVector = if (item.source.contains("SMS", ignoreCase = true)) Icons.Outlined.Message else Icons.Outlined.Notifications,
                             contentDescription = null,
                             tint = Color(0xFF64748B),
-                            modifier = Modifier.size(11.dp)
+                            modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = item.source,
-                            fontSize = 11.sp,
+                            fontSize = 11.5.sp,
                             color = Color(0xFF64748B)
                         )
                     }
@@ -2117,6 +2253,7 @@ private fun UnlinkedAccountCard(
 
             // Raw Notification Snippet Box (Italic monospace)
             if (!item.rawText.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = Color(0xFFF8FAFC),
@@ -2135,83 +2272,120 @@ private fun UnlinkedAccountCard(
                 }
             }
 
-            // Action Row: Ignore + Compatible Chip / Assign Account Button
+            // Compatible 1-Tap Quick Link Chip
+            if (compatibleAccount != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFFECFDF5),
+                    border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onQuickAssignAccount(compatibleAccount) }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color(0xFF047857),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "1-Tap Link to ${compatibleAccount.institutionName ?: "Bank"} (••${compatibleAccount.accountSuffix})",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF047857)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = Color(0xFF047857),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+
+            // Action Buttons Row: Assign Account (Primary) + Ignore (Secondary) + Skip (Tertiary)
             if (!isSelectionMode) {
+                Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    TextButton(
-                        onClick = onIgnoreClick,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    Button(
+                        onClick = onAssignClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(46.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.VisibilityOff,
-                            contentDescription = "Ignore",
-                            tint = Color(0xFF64748B),
-                            modifier = Modifier.size(15.dp)
+                            imageVector = Icons.Outlined.Link,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(5.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Ignore",
-                            fontSize = 12.sp,
-                            color = Color(0xFF64748B),
-                            fontWeight = FontWeight.Medium
+                            text = "Assign Account",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color.White,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
 
-                    if (compatibleAccount != null) {
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = Color(0xFFECFDF5),
-                            border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .clickable { onQuickAssignAccount(compatibleAccount) }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Link,
-                                    contentDescription = null,
-                                    tint = Color(0xFF055B38),
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Text(
-                                    text = "Link ${compatibleAccount.institutionName} ••${compatibleAccount.accountSuffix}",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF055B38)
-                                )
-                            }
-                        }
-                    } else {
-                        OutlinedButton(
-                            onClick = onAssignClick,
-                            shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(1.dp, Color(0xFF055B38)),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color.White,
-                                contentColor = Color(0xFF055B38)
+                    Button(
+                        onClick = onIgnoreClick,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFF1F5F9),
+                            contentColor = Color(0xFF475569)
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.height(46.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp)
+                    ) {
+                        Text(
+                            text = "Ignore",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            color = Color(0xFF475569),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+
+                    if (canSkip) {
+                        Button(
+                            onClick = onSkipClick,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFF1F5F9),
+                                contentColor = Color(0xFF1E293B)
                             ),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(46.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Link,
-                                contentDescription = null,
-                                tint = Color(0xFF055B38),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Assign Account",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF055B38)
+                                text = "Skip",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                color = Color(0xFF1E293B),
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }
@@ -2220,6 +2394,116 @@ private fun UnlinkedAccountCard(
         }
     }
 }
+
+// COMPACT QUEUE CARD for Next in Line unlinked transactions
+@Composable
+private fun UnlinkedQueueCard(
+    item: UnlinkedAccountItem,
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
+    onToggleSelect: () -> Unit,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = Color.White,
+        border = BorderStroke(
+            if (isSelected) 1.5.dp else 1.dp,
+            if (isSelected) Color(0xFF055B38) else Color(0xFFE2E8F0)
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isSelectionMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onToggleSelect() },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = Color(0xFF055B38),
+                        uncheckedColor = Color(0xFF94A3B8)
+                    ),
+                    modifier = Modifier.padding(end = 6.dp)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFFF1F5F9)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.ReceiptLong,
+                    contentDescription = null,
+                    tint = Color(0xFF334155),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.merchant,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Color(0xFF0F172A),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = item.dateInfo,
+                        fontSize = 11.5.sp,
+                        color = Color(0xFF64748B)
+                    )
+                    if (!item.accountSuffix.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "• ••${item.accountSuffix}",
+                            fontSize = 11.5.sp,
+                            color = Color(0xFF047857),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "• No Suffix",
+                            fontSize = 11.sp,
+                            color = Color(0xFFB45309),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "${if (item.isCredit) "+" else "-"}₹${formatAmount(item.amount)}",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.5.sp,
+                    color = if (item.isCredit) Color(0xFF047857) else Color(0xFF0F172A)
+                )
+                Text(
+                    text = if (item.isCredit) "Credit" else "Debit",
+                    fontSize = 10.5.sp,
+                    color = Color(0xFF64748B)
+                )
+            }
+        }
+    }
+}
+
 
 @Composable
 private fun AccountSelectionDialog(
