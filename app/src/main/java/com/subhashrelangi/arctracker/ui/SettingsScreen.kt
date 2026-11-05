@@ -1,11 +1,16 @@
 package com.subhashrelangi.arctracker.ui
 
+import com.subhashrelangi.arctracker.ui.core.ArcFloatingAddExpenseButton
+
 import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -33,12 +38,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
+import kotlinx.coroutines.delay
 
 // Legacy Color & Component Tokens for backward compatibility with dependent screens
 val purpleColor = Color(0xFF673AB7)
@@ -177,6 +185,7 @@ fun SettingsSwitchRow(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onNavigate: (String) -> Unit = {},
@@ -192,6 +201,27 @@ fun SettingsScreen(
     val settingsRepo = remember {
         repository ?: MonitoringSettingsRepository.getInstance(context)
     }
+
+    var profileName by remember { mutableStateOf(settingsRepo.getProfileName()) }
+    var profileLabel by remember { mutableStateOf(settingsRepo.getProfileLabel()) }
+    var showEditProfileSheet by remember { mutableStateOf(false) }
+
+    var isDeveloperModeUnlocked by remember {
+        mutableStateOf(settingsRepo.isDeveloperModeUnlocked())
+    }
+    var aboutArcTapCount by remember { mutableIntStateOf(0) }
+    var lastAboutArcTapTimestamp by remember { mutableLongStateOf(0L) }
+    var activeToast by remember { mutableStateOf<Toast?>(null) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+
+    val initials = remember(profileName) {
+        val parts = profileName.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
+        when {
+            parts.size >= 2 -> "${parts[0].first().uppercase()}${parts[1].first().uppercase()}"
+            parts.size == 1 && parts[0].isNotEmpty() -> "${parts[0].first().uppercase()}"
+            else -> "V"
+        }
+    }
     val privacyManager = remember {
         com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(context)
     }
@@ -200,17 +230,13 @@ fun SettingsScreen(
     val knownAccounts by database.knownFinancialAccountDao().getAllFlow().collectAsState(initial = emptyList())
     val expenses by database.expenseDao().getAllExpenses().collectAsState(initial = emptyList())
 
-    val cardsCount = remember(knownAccounts) { if (knownAccounts.isNotEmpty()) knownAccounts.size else 3 }
-    val pendingCount = remember(expenses) {
-        val count = expenses.count { it.isPending }
-        if (count > 0) count else 3
-    }
+    val cardsCount = remember(knownAccounts) { knownAccounts.size }
+    val pendingCount = remember(expenses) { expenses.count { it.isPending } }
     val monitoredAppsCount = remember(settingsRepo) {
         try {
-            val apps = settingsRepo.getAllConfiguredApps()
-            if (apps.isNotEmpty()) apps.size else 12
+            settingsRepo.getAllConfiguredApps().size
         } catch (_: Exception) {
-            12
+            0
         }
     }
 
@@ -248,7 +274,7 @@ fun SettingsScreen(
     }
 
     val screenSecurity by privacyManager.screenSecurityFlow.collectAsState()
-    val accountMasking by privacyManager.accountMaskingFlow.collectAsState()
+    val appLockEnabled by privacyManager.appLockFlow.collectAsState()
 
     val effectiveListenerBound = isServiceConnected || isListenerConnected
     val effectiveAutoTracking = userPrefGlobalEnabled && hasNotifAccess && effectiveListenerBound
@@ -304,7 +330,7 @@ fun SettingsScreen(
             return terms.any { it.contains(q, ignoreCase = true) }
         }
 
-        val showProfile = matchesSearch("Profile", "Subhash Relangi", "subhashrelangi@gmail.com", "Primary Vault", "Accounts")
+        val showProfile = matchesSearch("Profile", profileName, profileLabel, "Primary Vault", "Accounts")
 
         val showFinancial = matchesSearch("Financial Accounts", "Bank", "Cards", "Vaults")
         val showUnresolved = matchesSearch("Unresolved Transactions", "Pending", "Account", "Category")
@@ -327,12 +353,12 @@ fun SettingsScreen(
         val showClear = matchesSearch("Clear All Data", "Reset", "Delete", "Fresh")
         val hasDataMatches = showDb || showImport || showBackup || showClear
 
+        val showAppLock = matchesSearch("App Lock", "Fingerprint", "Face ID", "Screen Lock", "Biometric", "PIN", "Lock")
         val showScreenSec = matchesSearch("Screen Security", "Screenshots", "FLAG_SECURE", "Recent apps")
-        val showMask = matchesSearch("Mask Account Numbers", "Mask", "Account details", "Safe suffixes")
         val showOffline = matchesSearch("100% Offline & Private", "Offline", "Private", "Zero network", "Zero telemetry")
-        val hasSecurityMatches = showScreenSec || showMask || showOffline
+        val hasSecurityMatches = showAppLock || showScreenSec || showOffline
 
-        val showDev = matchesSearch("Developer Options", "Developer", "Regex", "Onboarding", "Demo mode")
+        val showDev = isDeveloperModeUnlocked && matchesSearch("Developer Options", "Developer", "Regex", "Onboarding", "Demo mode")
 
         val showAbout = matchesSearch("About ArcTracker", "About", "Version", "Build", "Architecture")
         val showFeedback = matchesSearch("Feedback & Local Logs", "Feedback", "Diagnostics", "Report", "Review")
@@ -398,7 +424,7 @@ fun SettingsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onNavigate("FinancialAccounts") },
+                        .clickable { showEditProfileSheet = true },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
@@ -410,7 +436,7 @@ fun SettingsScreen(
                             .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Circle Avatar SR with check badge
+                        // Circle Avatar with initials & check badge
                         Box(
                             modifier = Modifier.size(46.dp)
                         ) {
@@ -422,7 +448,7 @@ fun SettingsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "SR",
+                                    text = initials,
                                     color = Color.White,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold
@@ -441,7 +467,7 @@ fun SettingsScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
-                                    contentDescription = "Verified",
+                                    contentDescription = "Verified Local",
                                     tint = Color.White,
                                     modifier = Modifier.size(9.dp)
                                 )
@@ -453,7 +479,7 @@ fun SettingsScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "Subhash Relangi",
+                                    text = profileName,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.5.sp,
                                     color = Color(0xFF0F172A),
@@ -478,15 +504,17 @@ fun SettingsScreen(
                             }
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "subhashrelangi@gmail.com",
+                                text = profileLabel,
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B)
+                                color = Color(0xFF64748B),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = "Profile",
+                            imageVector = Icons.Outlined.Edit,
+                            contentDescription = "Edit Profile",
                             tint = Color(0xFF94A3B8),
                             modifier = Modifier.size(16.dp)
                         )
@@ -504,7 +532,7 @@ fun SettingsScreen(
                             icon = Icons.Outlined.AccountBalance,
                             title = "Financial Accounts",
                             subtitle = "View discovered bank accounts, cards & vaults",
-                            badgeText = "$cardsCount cards",
+                            badgeText = if (cardsCount > 0) "$cardsCount ${if (cardsCount == 1) "card" else "cards"}" else null,
                             onClick = { onNavigate("FinancialAccounts") }
                         )
                     }
@@ -515,7 +543,7 @@ fun SettingsScreen(
                             iconTint = Color(0xFFD97706),
                             title = "Unresolved Transactions",
                             subtitle = "Transactions pending account or category linking",
-                            badgeText = "$pendingCount pending",
+                            badgeText = if (pendingCount > 0) "$pendingCount pending" else null,
                             badgeBgColor = Color(0xFFFEF3C7),
                             badgeTextColor = Color(0xFFB45309),
                             onClick = { onNavigate("UnresolvedTransactions") }
@@ -733,7 +761,7 @@ fun SettingsScreen(
                             icon = Icons.Outlined.Apps,
                             title = "Monitored Apps",
                             subtitle = "Choose which apps can be monitored",
-                            badgeText = "$monitoredAppsCount active",
+                            badgeText = if (monitoredAppsCount > 0) "$monitoredAppsCount active" else null,
                             badgeBgColor = Color(0xFFECFDF5),
                             badgeTextColor = Color(0xFF15803D),
                             enabled = effectiveAutoTracking && effectiveNotifTracking,
@@ -825,6 +853,53 @@ fun SettingsScreen(
                 SectionHeader(title = "SECURITY & PRIVACY")
 
                 SettingsGroupCard {
+                    if (showAppLock) {
+                        SettingsSwitchRowItem(
+                            icon = Icons.Outlined.Fingerprint,
+                            title = "App Lock (Biometrics & PIN)",
+                            subtitle = "Require Fingerprint, Face ID or PIN on cold start and after 5 minutes of inactivity",
+                            checked = appLockEnabled,
+                            onCheckedChange = { enabled ->
+                                val activity = context as? androidx.fragment.app.FragmentActivity
+                                if (activity != null) {
+                                    if (enabled) {
+                                        if (!com.subhashrelangi.arctracker.security.BiometricAuthHelper.canAuthenticate(context)) {
+                                            Toast.makeText(context, "No lock screen PIN, pattern, or biometrics set on this device", Toast.LENGTH_LONG).show()
+                                        } else {
+                                            com.subhashrelangi.arctracker.security.BiometricAuthHelper.authenticate(
+                                                activity = activity,
+                                                title = "Enable App Lock",
+                                                subtitle = "Confirm Fingerprint, Face ID, or PIN to protect your vault",
+                                                onSuccess = {
+                                                    privacyManager.setAppLockEnabled(true)
+                                                    privacyManager.setLastActiveTimestamp(System.currentTimeMillis())
+                                                    Toast.makeText(context, "App Lock enabled", Toast.LENGTH_SHORT).show()
+                                                },
+                                                onError = { err ->
+                                                    Toast.makeText(context, "Authentication failed: $err", Toast.LENGTH_SHORT).show()
+                                                }
+                                            )
+                                        }
+                                    } else {
+                                        com.subhashrelangi.arctracker.security.BiometricAuthHelper.authenticate(
+                                            activity = activity,
+                                            title = "Disable App Lock",
+                                            subtitle = "Confirm your identity to turn off App Lock",
+                                            onSuccess = {
+                                                privacyManager.setAppLockEnabled(false)
+                                                Toast.makeText(context, "App Lock disabled", Toast.LENGTH_SHORT).show()
+                                            },
+                                            onError = { err ->
+                                                Toast.makeText(context, "Authentication failed: $err", Toast.LENGTH_SHORT).show()
+                                            }
+                                        )
+                                    }
+                                } else {
+                                    privacyManager.setAppLockEnabled(enabled)
+                                }
+                            }
+                        )
+                    }
                     if (showScreenSec) {
                         SettingsSwitchRowItem(
                             icon = Icons.Outlined.ScreenLockPortrait,
@@ -833,17 +908,6 @@ fun SettingsScreen(
                             checked = screenSecurity,
                             onCheckedChange = { enabled ->
                                 privacyManager.setScreenSecurityEnabled(enabled)
-                            }
-                        )
-                    }
-                    if (showMask) {
-                        SettingsSwitchRowItem(
-                            icon = Icons.Outlined.VisibilityOff,
-                            title = "Mask Account Numbers",
-                            subtitle = "Hide full account details and display safe suffixes like ••4821",
-                            checked = accountMasking,
-                            onCheckedChange = { enabled ->
-                                privacyManager.setAccountMaskingEnabled(enabled)
                             }
                         )
                     }
@@ -871,8 +935,25 @@ fun SettingsScreen(
             }
 
             // 8. Section: DEVELOPER & ADVANCED
-            if (showDev) {
-                SectionHeader(title = "DEVELOPER & ADVANCED")
+            if (isDeveloperModeUnlocked && showDev) {
+                SectionHeader(
+                    title = "DEVELOPER & ADVANCED",
+                    rightContent = {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFFECFDF5))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "UNLOCKED",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF047857)
+                            )
+                        }
+                    }
+                )
 
                 SettingsGroupCard {
                     SettingsItemRow(
@@ -894,9 +975,45 @@ fun SettingsScreen(
                         SettingsItemRow(
                             icon = Icons.Outlined.Info,
                             title = "About ArcTracker",
-                            subtitle = "Version 1.0.0 (Build 5107a09) • Local-first architecture",
+                            subtitle = if (isDeveloperModeUnlocked) {
+                                "Version 1.0.0 (Build 5107a09) • Developer options unlocked"
+                            } else {
+                                "Version 1.0.0 (Build 5107a09) • Local-first architecture"
+                            },
                             badgeText = "v1.0.0",
-                            onClick = null
+                            onClick = {
+                                val now = System.currentTimeMillis()
+                                if (now - lastAboutArcTapTimestamp > 2000L) {
+                                    aboutArcTapCount = 1
+                                } else {
+                                    aboutArcTapCount++
+                                }
+                                lastAboutArcTapTimestamp = now
+
+                                // Cancel active toast immediately to eliminate queueing/lag
+                                activeToast?.cancel()
+
+                                if (isDeveloperModeUnlocked) {
+                                    activeToast = Toast.makeText(context, "Developer options are already enabled.", Toast.LENGTH_SHORT).also { it.show() }
+                                } else {
+                                    if (aboutArcTapCount >= 5) {
+                                        isDeveloperModeUnlocked = true
+                                        settingsRepo.setDeveloperModeUnlocked(true)
+                                        aboutArcTapCount = 0
+                                        activeToast = Toast.makeText(context, "🎉 You are now a developer! Developer options unlocked.", Toast.LENGTH_SHORT).also { it.show() }
+                                    } else if (aboutArcTapCount >= 2) {
+                                        val remaining = 5 - aboutArcTapCount
+                                        activeToast = Toast.makeText(
+                                            context,
+                                            "Tap $remaining more time${if (remaining == 1) "" else "s"} to unlock developer options",
+                                            Toast.LENGTH_SHORT
+                                        ).also { it.show() }
+                                    }
+                                }
+                            },
+                            onLongClick = {
+                                showUpdateDialog = true
+                            }
                         )
                     }
                     if (showFeedback) {
@@ -942,36 +1059,10 @@ fun SettingsScreen(
         }
 
         // 11. Floating "+ Add Expense" Pill Button on bottom-right
-        Surface(
+        ArcFloatingAddExpenseButton(
             onClick = onAddExpenseClick,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(end = 16.dp, bottom = 72.dp)
-                .shadow(elevation = 6.dp, shape = RoundedCornerShape(999.dp)),
-            shape = RoundedCornerShape(999.dp),
-            color = Color(0xFF0F172A),
-            border = BorderStroke(1.dp, Color(0xFF334155))
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Expense",
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Add Expense",
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
+            modifier = Modifier.align(Alignment.BottomEnd)
+        )
     }
 
     // Feedback & Local Logs Dialog
@@ -1013,6 +1104,430 @@ fun SettingsScreen(
             }
         )
     }
+
+    // App Update Bottom Sheet (Triggered by Long-Pressing "About ArcTracker")
+    if (showUpdateDialog) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        var isCheckingUpdate by remember { mutableStateOf(true) }
+
+        LaunchedEffect(isCheckingUpdate) {
+            if (isCheckingUpdate) {
+                delay(600L)
+                isCheckingUpdate = false
+            }
+        }
+
+        ModalBottomSheet(
+            onDismissRequest = { showUpdateDialog = false },
+            sheetState = sheetState,
+            containerColor = Color.White,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 12.dp, bottom = 8.dp)
+                        .width(36.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFCBD5E1))
+                )
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 36.dp)
+            ) {
+                // Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(RoundedCornerShape(13.dp))
+                                .background(Color(0xFFECFDF5))
+                                .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(13.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.SystemUpdate,
+                                contentDescription = "ArcTracker Update",
+                                tint = Color(0xFF047857),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "ArcTracker Update",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Latest stable build on GitHub",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    IconButton(
+                        onClick = { showUpdateDialog = false },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Close",
+                            tint = Color(0xFF64748B),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                if (isCheckingUpdate) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFFF8FAFC))
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(16.dp))
+                            .padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(28.dp),
+                            color = Color(0xFF047857),
+                            strokeWidth = 2.5.dp
+                        )
+                        Text(
+                            text = "Checking latest GitHub release...",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF475569)
+                        )
+                    }
+                } else {
+                    // Version Comparison Card
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFFF8FAFC))
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(16.dp))
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Installed Version",
+                                fontSize = 13.sp,
+                                color = Color(0xFF64748B)
+                            )
+                            Text(
+                                text = "v1.0.0 (5107a09)",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                        }
+
+                        HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "GitHub Channel",
+                                fontSize = 13.sp,
+                                color = Color(0xFF64748B)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFECFDF5))
+                                    .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(7.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF15803D))
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Latest Release",
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF15803D)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Primary Button: Install Latest Version from GitHub
+                Button(
+                    onClick = {
+                        val releaseUrl = "https://github.com/subhashrelangi/ArcTracker/releases/latest"
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(releaseUrl))
+                            context.startActivity(intent)
+                        } catch (_: Exception) {
+                            Toast.makeText(context, "No web browser found", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF047857),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.FileDownload,
+                        contentDescription = null,
+                        modifier = Modifier.size(19.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Install Latest Version",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Secondary Button: View in GitHub
+                OutlinedButton(
+                    onClick = {
+                        val githubUrl = "https://github.com/subhashrelangi/ArcTracker"
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl))
+                            context.startActivity(intent)
+                        } catch (_: Exception) {
+                            Toast.makeText(context, "No web browser found", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFF0F172A)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Code,
+                        contentDescription = null,
+                        modifier = Modifier.size(19.dp),
+                        tint = Color(0xFF334155)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "View in GitHub",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF0F172A)
+                    )
+                }
+            }
+        }
+    }
+
+    // Interactive Edit Local Profile & Vault Identity Modal Bottom Sheet
+    if (showEditProfileSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        var tempName by remember { mutableStateOf(profileName) }
+        var tempLabel by remember { mutableStateOf(profileLabel) }
+
+        ModalBottomSheet(
+            onDismissRequest = { showEditProfileSheet = false },
+            sheetState = sheetState,
+            containerColor = Color.White,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 36.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Local Vault Identity",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Customized for local device display & statement exports",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+
+                    IconButton(onClick = { showEditProfileSheet = false }) {
+                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = Color(0xFF64748B))
+                    }
+                }
+
+                // Avatar preview
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFF8FAFC))
+                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(12.dp))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    val previewInitials = remember(tempName) {
+                        val parts = tempName.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
+                        when {
+                            parts.size >= 2 -> "${parts[0].first().uppercase()}${parts[1].first().uppercase()}"
+                            parts.size == 1 && parts[0].isNotEmpty() -> "${parts[0].first().uppercase()}"
+                            else -> "V"
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF064E3B)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = previewInitials,
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Column {
+                        Text(
+                            text = tempName.ifBlank { "Personal Vault" },
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A)
+                        )
+                        Text(
+                            text = tempLabel.ifBlank { "Offline Local Ledger" },
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = tempName,
+                    onValueChange = { tempName = it },
+                    label = { Text("Display Name") },
+                    placeholder = { Text("e.g. Personal Wallet") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF047857),
+                        focusedLabelColor = Color(0xFF047857)
+                    )
+                )
+
+                OutlinedTextField(
+                    value = tempLabel,
+                    onValueChange = { tempLabel = it },
+                    label = { Text("Vault Label or Email") },
+                    placeholder = { Text("e.g. abc@gmail.com or Primary Vault") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF047857),
+                        focusedLabelColor = Color(0xFF047857)
+                    )
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFECFDF5))
+                        .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(10.dp))
+                        .padding(10.dp)
+                ) {
+                    Text(
+                        text = "🔒 100% On-Device: Stored strictly in your local Android sandbox. Never uploaded to remote servers.",
+                        fontSize = 11.5.sp,
+                        color = Color(0xFF065F46),
+                        lineHeight = 15.sp
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        val newName = tempName.trim().ifBlank { "Personal Vault" }
+                        val newLabel = tempLabel.trim().ifBlank { "Primary Offline Vault" }
+                        settingsRepo.setProfileName(newName)
+                        settingsRepo.setProfileLabel(newLabel)
+                        profileName = newName
+                        profileLabel = newLabel
+                        showEditProfileSheet = false
+                        Toast.makeText(context, "Profile updated", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
+                ) {
+                    Text(
+                        text = "Save Changes",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -1050,6 +1565,7 @@ private fun SettingsGroupCard(content: @Composable ColumnScope.() -> Unit) {
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SettingsItemRow(
     icon: ImageVector,
@@ -1064,14 +1580,25 @@ private fun SettingsItemRow(
     badgeBgColor: Color = Color(0xFFF1F5F9),
     badgeTextColor: Color = Color(0xFF475569),
     customTrailing: (@Composable () -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
     val alpha = if (enabled) 1f else 0.38f
+    val clickModifier = if (onClick != null || onLongClick != null) {
+        Modifier.combinedClickable(
+            enabled = enabled,
+            onClick = { onClick?.invoke() },
+            onLongClick = { onLongClick?.invoke() }
+        )
+    } else {
+        Modifier
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = enabled && onClick != null) { onClick?.invoke() }
+                .then(clickModifier)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
                 .alpha(alpha),
             verticalAlignment = Alignment.CenterVertically

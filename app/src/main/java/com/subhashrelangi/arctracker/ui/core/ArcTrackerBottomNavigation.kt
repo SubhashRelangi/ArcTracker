@@ -85,26 +85,31 @@ fun ArcTrackerBottomNavigationBar(
             color = navBackground,
             border = topBorder
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .height(58.dp)
-                    .padding(horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                ArcDestination.values().forEach { destination ->
-                    val isSelected = currentDestination == destination
-                    ArcBottomNavItem(
-                        destination = destination,
-                        isSelected = isSelected,
-                        isLightMode = isLightMode,
-                        badgeCount = if (destination == ArcDestination.REVIEW && reviewBadgeCount > 0) reviewBadgeCount else null,
-                        onClick = { onNavigate(destination) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                    )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(58.dp)
+                        .padding(horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ArcDestination.values().forEach { destination ->
+                        val isSelected = currentDestination == destination
+                        ArcBottomNavItem(
+                            destination = destination,
+                            isSelected = isSelected,
+                            isLightMode = isLightMode,
+                            badgeCount = if (destination == ArcDestination.REVIEW && reviewBadgeCount > 0) reviewBadgeCount else null,
+                            onClick = { onNavigate(destination) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        )
+                    }
                 }
             }
         }

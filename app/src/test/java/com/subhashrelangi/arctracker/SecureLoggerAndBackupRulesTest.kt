@@ -226,14 +226,9 @@ class SecureLoggerAndBackupRulesTest {
         assertTrue("Must exclude external domain '.'",
             excludedDomains.any { it.first == "external" && it.second == "." })
 
+        // Ensure excludes are enforced; includes are omitted to avoid release lint failures
         val includes = root.getElementsByTagName("include")
-        val includedDomains = mutableListOf<Pair<String, String>>()
-        for (i in 0 until includes.length) {
-            val el = includes.item(i) as Element
-            includedDomains.add(Pair(el.getAttribute("domain"), el.getAttribute("path")))
-        }
-        assertTrue("Must include sharedpref for preferences",
-            includedDomains.any { it.first == "sharedpref" && it.second == "." })
+        assertEquals("Includes should be empty to prevent release lint failures", 0, includes.length)
     }
 
     @Test

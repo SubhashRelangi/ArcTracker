@@ -52,6 +52,11 @@ fun RegexPatternsScreen(
 ) {
     val context = LocalContext.current
     var rules by remember { mutableStateOf(RegexPatternsManager.getRules(context)) }
+
+    LaunchedEffect(Unit) {
+        rules = RegexPatternsManager.getRules(context)
+    }
+
     var searchQuery by remember { mutableStateOf("") }
     var ruleToDelete by remember { mutableStateOf<RegexRule?>(null) }
 

@@ -206,35 +206,73 @@ object RegexPatternsManager {
             }
         }.toMutableList()
 
-        // Ensure newly defined system rules are present
-        val loadedIds = loaded.map { it.id }.toSet()
+        // 1. Strictly deduplicate loaded rules by ID
+        val deduplicated = loaded.distinctBy { it.id }.toMutableList()
+
+        // 2. Ensure default system rules are present exactly once
+        val loadedIds = deduplicated.map { it.id }.toSet()
         var updated = false
         for (defaultRule in defaultRules) {
             if (defaultRule.id !in loadedIds) {
-                loaded.add(defaultRule)
+                deduplicated.add(defaultRule)
                 updated = true
             }
         }
-        if (updated) {
-            saveRules(context, loaded)
+
+        // 3. Remove duplicate patterns in the same category to guarantee engine integrity
+        val uniqueRules = deduplicated.distinctBy { rule ->
+            rule.category.trim().lowercase() + "::" + rule.pattern.trim()
         }
 
-        return loaded.sortedBy { it.priority }
+        if (uniqueRules.size != loaded.size || updated) {
+            saveRules(context, uniqueRules)
+        }
+
+        return uniqueRules.sortedBy { it.priority }
     }
 
     fun saveRules(context: Context, rules: List<RegexRule>) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putStringSet(RULES_KEY, rules.map { it.toJson() }.toSet()).apply()
+        // Deduplicate before saving to ensure zero duplicate entries in SharedPreferences
+        val distinctRules = rules.distinctBy { it.id }.distinctBy { rule ->
+            rule.category.trim().lowercase() + "::" + rule.pattern.trim()
+        }
+        prefs.edit().putStringSet(RULES_KEY, distinctRules.map { it.toJson() }.toSet()).apply()
     }
     
     fun getRuleById(context: Context, id: String): RegexRule? {
         return getRules(context).find { it.id == id }
     }
     
-    fun addRule(context: Context, rule: RegexRule) {
+    fun addRule(context: Context, rule: RegexRule): Boolean {
         val rules = getRules(context).toMutableList()
+
+        // If rule with exact ID already exists, update it
+        val existingIndexById = rules.indexOfFirst { it.id == rule.id }
+        if (existingIndexById != -1) {
+            rules[existingIndexById] = rule
+            saveRules(context, rules)
+            return true
+        }
+
+        // If identical regex pattern already exists in this category, merge/update it without duplicating
+        val existingPatternIdx = rules.indexOfFirst {
+            it.category.trim().equals(rule.category.trim(), ignoreCase = true) &&
+            it.pattern.trim() == rule.pattern.trim()
+        }
+        if (existingPatternIdx != -1) {
+            rules[existingPatternIdx] = rules[existingPatternIdx].copy(
+                name = rule.name,
+                description = rule.description,
+                testMessage = rule.testMessage ?: rules[existingPatternIdx].testMessage
+            )
+            saveRules(context, rules)
+            return false
+        }
+
         rules.add(rule)
         saveRules(context, rules)
+        return true
     }
     
     fun updateRule(context: Context, rule: RegexRule) {

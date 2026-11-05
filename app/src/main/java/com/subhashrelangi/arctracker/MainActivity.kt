@@ -2,6 +2,8 @@ package com.subhashrelangi.arctracker
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import com.subhashrelangi.arctracker.ui.AppLockScreen
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
@@ -17,9 +19,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.core.view.WindowCompat
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -85,12 +86,45 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
+
+    private val isAppUnlockedState = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    private val screenOffReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            if (intent?.action == android.content.Intent.ACTION_SCREEN_OFF) {
+                val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this@MainActivity)
+                if (privacyManager.isAppLockEnabled()) {
+                    isAppUnlockedState.value = false
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Listen for screen-off events so the app locks immediately when the phone is locked
+        val filter = android.content.IntentFilter(android.content.Intent.ACTION_SCREEN_OFF)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(screenOffReceiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(screenOffReceiver, filter)
+        }
+
+        // Ensure clear visibility and high contrast for system bars (status bar & mobile navigation bar)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.isAppearanceLightStatusBars = true
+        insetsController.isAppearanceLightNavigationBars = true
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
+
+        // On launch: require biometric/PIN unlock if App Lock is enabled
+        isAppUnlockedState.value = !privacyManager.isAppLockEnabled()
+
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 privacyManager.screenSecurityFlow.collect { enabled ->
@@ -104,15 +138,82 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            val isAppLockEnabled by privacyManager.appLockFlow.collectAsState()
+            val isUnlocked by isAppUnlockedState.collectAsState()
+
+            // Inactivity ticker: automatically lock if left idle for 5 minutes
+            LaunchedEffect(isAppLockEnabled, isUnlocked) {
+                if (isAppLockEnabled && isUnlocked) {
+                    while (true) {
+                        kotlinx.coroutines.delay(5_000L)
+                        if (privacyManager.isSessionExpired()) {
+                            isAppUnlockedState.value = false
+                            break
+                        }
+                    }
+                }
+            }
+
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    ExpenseScreen()
+                    if (isAppLockEnabled && !isUnlocked) {
+                        AppLockScreen(
+                            onUnlockSuccess = {
+                                isAppUnlockedState.value = true
+                                privacyManager.setLastActiveTimestamp(System.currentTimeMillis())
+                            }
+                        )
+                    } else {
+                        ExpenseScreen()
+                    }
                 }
             }
         }
+    }
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
+        if (privacyManager.isAppLockEnabled() && isAppUnlockedState.value) {
+            privacyManager.setLastActiveTimestamp(System.currentTimeMillis())
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
+        if (privacyManager.isAppLockEnabled() && privacyManager.isSessionExpired()) {
+            isAppUnlockedState.value = false
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
+        if (privacyManager.isAppLockEnabled() && isAppUnlockedState.value) {
+            privacyManager.setLastActiveTimestamp(System.currentTimeMillis())
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        val keyguardManager = getSystemService(android.content.Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+        if (keyguardManager?.isKeyguardLocked == true) {
+            val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
+            if (privacyManager.isAppLockEnabled()) {
+                isAppUnlockedState.value = false
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(screenOffReceiver)
+        } catch (_: Exception) {}
     }
 }
 
@@ -533,7 +634,9 @@ fun ExpenseScreen() {
                 currentRoute != "ClearAllData" &&
                 currentRoute != "IgnoreRules" &&
                 currentRoute != "DeveloperOptions" &&
-                currentRoute != "RegexPatterns"
+                currentRoute != "RegexPatterns" &&
+                currentRoute != "EditRegexPattern" &&
+                currentRoute != "Database"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
@@ -608,7 +711,8 @@ fun ExpenseScreen() {
             val contentTopPadding = if (currentRoute in listOf(
                 "InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "SettingsSmsImport",
                 "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules", "Backup",
-                "FinancialAccounts", "UnresolvedTransactions", "AccountTransactions", "DeveloperOptions", "RegexPatterns"
+                "FinancialAccounts", "UnresolvedTransactions", "AccountTransactions", "DeveloperOptions", "RegexPatterns", "EditRegexPattern",
+                "Analytics", "CategoryRules", "MerchantAliases", "Database", "ApplyCategoryRules"
             )) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
@@ -693,7 +797,22 @@ fun ExpenseScreen() {
                         val wasCompleted = repo.isInitialSmsImportCompleted()
                         scope.launch(Dispatchers.IO) {
                             try {
-                                expenseDao.clearAll()
+                                val db = com.subhashrelangi.arctracker.data.AppDatabase.getDatabase(context)
+                                db.expenseDao().clearAll()
+                                db.knownFinancialAccountDao().deleteAll()
+                                db.userCategoryRuleDao().deleteAll()
+                                db.merchantAliasDao().deleteAll()
+                                db.budgetDao().clearAll()
+                                db.budgetDao().clearAllAlertStates()
+                                db.transactionCategoryDao().deleteCustomCategories()
+                                try {
+                                    db.openHelper.writableDatabase.execSQL("DELETE FROM deleted_transaction_tombstones;")
+                                    db.openHelper.writableDatabase.execSQL("VACUUM;")
+                                } catch (_: Exception) {}
+
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "All records wiped successfully", Toast.LENGTH_SHORT).show()
+                                }
                             } catch (e: Exception) {
                                 if (e is CancellationException) throw e
                                 SecureLogger.e("MainActivity", "Failed to clear all data", e)
@@ -759,7 +878,9 @@ fun ExpenseScreen() {
 
             } else if (currentRoute == "Database") {
 
-                com.subhashrelangi.arctracker.ui.DatabaseScreen()
+                com.subhashrelangi.arctracker.ui.DatabaseScreen(
+                    onNavigateBack = { navigateBack() }
+                )
 
             } else if (currentRoute == "IgnoreRules") {
 
@@ -1025,7 +1146,8 @@ fun ExpenseScreen() {
             "DeveloperOptions",
             "IgnoreRules",
             "RegexPatterns",
-            "EditRegexPattern"
+            "EditRegexPattern",
+            "Database"
         )
 
         if (showBottomNav) {
@@ -1429,34 +1551,6 @@ fun ExpenseScreen() {
                 },
                 onDismiss = { deleteConfirmExpense = null }
             )
-        }
-
-        if (currentRoute != "InitialOnboarding" && currentRoute != "LocalFirstSetup" && currentRoute != "SmsImport" && currentRoute != "SmsScan" && currentRoute != "SmsResult") {
-            if (!isNotificationAccessGranted && !hasDismissedNotificationPermissionDialog) {
-                NotificationPermissionDialog(
-                    onGrantClick = {
-                        pendingHomeNotificationGrant = true
-                        NotificationPermissionHelper.openNotificationAccessSettings(context)
-                    },
-                    onDismiss = {
-                        hasDismissedNotificationPermissionDialog = true
-                        settingsRepo.setGlobalEnabled(false)
-                        settingsRepo.setNotificationTrackingEnabled(false)
-                    }
-                )
-            } else if (!hasDismissedInitialSmsImportDialog && !SmsPermissionHelper.isInitialImportCompleted(context)) {
-                InitialSmsImportDialog(
-                    onDismiss = {
-                        hasDismissedInitialSmsImportDialog = true
-                        SmsPermissionHelper.setInitialImportCompleted(context, true)
-                    },
-                    onNavigateToImport = {
-                        hasDismissedInitialSmsImportDialog = true
-                        SmsPermissionHelper.setInitialImportCompleted(context, true)
-                        navigateTo("SmsImport")
-                    }
-                )
-            }
         }
     }
 }

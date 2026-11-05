@@ -1,5 +1,7 @@
 package com.subhashrelangi.arctracker.ui.ledger
 
+import com.subhashrelangi.arctracker.ui.core.ArcFloatingAddExpenseButton
+
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -474,36 +476,10 @@ fun LedgerPage(
         }
 
         // 7. Floating Pill Button on bottom-right: "+ Add Expense"
-        Surface(
+        ArcFloatingAddExpenseButton(
             onClick = onAddTransactionClick,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(end = 16.dp, bottom = 72.dp)
-                .shadow(elevation = 6.dp, shape = RoundedCornerShape(999.dp)),
-            shape = RoundedCornerShape(999.dp),
-            color = Color(0xFF0F172A),
-            border = BorderStroke(1.dp, Color(0xFF334155))
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Expense",
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Add Expense",
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
+            modifier = Modifier.align(Alignment.BottomEnd)
+        )
     }
 
     // Month Selector Dialog

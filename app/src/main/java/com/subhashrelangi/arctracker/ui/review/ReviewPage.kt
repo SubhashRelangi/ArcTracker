@@ -1,5 +1,7 @@
 package com.subhashrelangi.arctracker.ui.review
 
+import com.subhashrelangi.arctracker.ui.core.ArcFloatingAddExpenseButton
+
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
@@ -738,11 +740,11 @@ fun ReviewPage(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "ACTION NEEDED: LINK BANK ACCOUNT",
+                                    text = "LINK BANK ACCOUNT",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFFB45309),
-                                    letterSpacing = 0.6.sp,
+                                    letterSpacing = 0.3.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -2124,7 +2126,8 @@ fun ReviewPage(
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 90.dp, start = 16.dp, end = 16.dp),
+                    .navigationBarsPadding()
+                    .padding(bottom = 72.dp, start = 16.dp, end = 16.dp),
                 shape = CircleShape,
                 color = Color(0xFF0F172A),
                 shadowElevation = 10.dp,
@@ -2203,38 +2206,12 @@ fun ReviewPage(
             }
         }
 
-        // 7. Universal Black Floating Action Button (+ Add Expense, cleared above bottom nav)
+        // 7. Universal Black Floating Action Button (+ Add Expense, identical fixed position across all pages)
         if (!isSelectionMode || selectedAccountExpenseIds.isEmpty()) {
-        Surface(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 90.dp, end = 20.dp)
-                .shadow(elevation = 6.dp, shape = RoundedCornerShape(28.dp))
-                .clip(RoundedCornerShape(28.dp))
-                .clickable { onAddExpenseClick() },
-            color = Color(0xFF0F172A),
-            shape = RoundedCornerShape(28.dp),
-            border = BorderStroke(1.dp, Color(0xFF334155))
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Expense",
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Add Expense",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.5.sp
-                )
-            }
-        }
+            ArcFloatingAddExpenseButton(
+                onClick = onAddExpenseClick,
+                modifier = Modifier.align(Alignment.BottomEnd)
+            )
         }
     }
 
@@ -2744,19 +2721,20 @@ private fun ActiveUnlinkedAccountCard(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(46.dp)
+                            .height(46.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Link,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
                         Text(
                             text = "Assign Account",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
+                            fontSize = 12.5.sp,
                             color = Color.White,
                             maxLines = 1,
                             softWrap = false

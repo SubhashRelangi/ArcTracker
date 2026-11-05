@@ -95,7 +95,7 @@ fun DeveloperOptionsScreen(
                 }
                 pageCursor.close()
 
-                val dbFile = context.getDatabasePath("expense_database")
+                val dbFile = context.getDatabasePath("arctracker_database")
                 if (dbFile.exists() && dbFile.length() > 0) {
                     val kb = dbFile.length() / 1024.0
                     realDbSizeStr = String.format(Locale.US, "%.1f KB", kb)
@@ -184,15 +184,20 @@ fun DeveloperOptionsScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color.White)
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape),
+                                .background(Color(0xFFFEF2F2))
+                                .border(BorderStroke(1.dp, Color(0xFFFECACA)), CircleShape)
+                                .clickable {
+                                    settingsRepo.setDeveloperModeUnlocked(false)
+                                    Toast.makeText(context, "Developer options locked", Toast.LENGTH_SHORT).show()
+                                    onNavigateBack()
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.Shield,
-                                contentDescription = "Security Vault",
-                                tint = Color(0xFF055B38),
-                                modifier = Modifier.size(19.dp)
+                                imageVector = Icons.Outlined.Lock,
+                                contentDescription = "Lock Developer Options",
+                                tint = Color(0xFFDC2626),
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }

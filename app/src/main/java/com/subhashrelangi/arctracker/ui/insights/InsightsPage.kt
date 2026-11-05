@@ -1,5 +1,7 @@
 package com.subhashrelangi.arctracker.ui.insights
 
+import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Leaderboard
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -196,7 +199,7 @@ fun InsightsPage(
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 4.dp, bottom = 120.dp),
+                contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Condition A: User has NOT completed setup and is NOT in demo mode -> Show empty setup page
@@ -467,57 +470,48 @@ fun InsightsPage(
                     }
                 }
             }
-
-            // Floating "+ Add Expense" Pill Button on bottom-right
-            Surface(
-                onClick = onAddExpenseClick,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
-                    .padding(end = 16.dp, bottom = 72.dp)
-                    .shadow(elevation = 6.dp, shape = RoundedCornerShape(999.dp)),
-                shape = RoundedCornerShape(999.dp),
-                color = InsightsTheme.CharcoalDark,
-                border = BorderStroke(1.dp, Color(0xFF334155))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add Expense",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Add Expense",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.5.sp
-                    )
-                }
-            }
         }
     }
 
     if (showHeader) {
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "Analytics & Insights",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = InsightsTheme.LightTextPrimary
-                        )
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = InsightsTheme.LightBackground)
-                )
+                Surface(
+                    color = Color.White,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                ) {
+                    ArcTrackerHeader(
+                        title = "Analytics & Insights",
+                        subtitle = "Financial Statistics & Velocity",
+                        onBackClick = onNavigateBack,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White)
+                            .statusBarsPadding(),
+                        horizontalPadding = 16.dp,
+                        actions = {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.BarChart,
+                                    contentDescription = "Analytics",
+                                    tint = Color(0xFF047857),
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+                        }
+                    )
+                }
             },
-            containerColor = InsightsTheme.LightBackground,
+            containerColor = Color(0xFFF8FAFC),
             content = content
         )
     } else {
