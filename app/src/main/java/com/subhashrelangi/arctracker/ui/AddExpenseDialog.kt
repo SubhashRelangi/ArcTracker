@@ -342,9 +342,11 @@ fun AddExpenseDialog(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT
                 )
+                WindowCompat.setDecorFitsSystemWindows(window, false)
                 window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-                window.statusBarColor = android.graphics.Color.WHITE
-                window.navigationBarColor = android.graphics.Color.WHITE
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
+                window.navigationBarColor = android.graphics.Color.TRANSPARENT
+                window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
                 WindowCompat.getInsetsController(window, window.decorView)?.let { insetsController ->
                     insetsController.isAppearanceLightStatusBars = true
                     insetsController.isAppearanceLightNavigationBars = true
@@ -359,50 +361,29 @@ fun AddExpenseDialog(
             topBar = {
                 Surface(
                     color = Color.White,
-                    shadowElevation = 0.5.dp,
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.White)
                 ) {
-                    Column(
+                    ArcTrackerHeader(
+                        title = when {
+                            isEditMode -> "Edit Expense"
+                            rawText != null -> "Approve Expense"
+                            else -> "Add expenses"
+                        },
+                        subtitle = when {
+                            isEditMode -> "Update Ledger Record"
+                            rawText != null -> "Approve SMS Ingestion"
+                            else -> "New Transaction Entry"
+                        },
+                        onBackClick = onDismiss,
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(Color.White)
-                            .statusBarsPadding()
-                    ) {
-                        ArcTrackerHeader(
-                            title = when {
-                                isEditMode -> "Edit Expense"
-                                rawText != null -> "Approve Expense"
-                                else -> "Add expenses"
-                            },
-                            subtitle = null,
-                            onBackClick = onDismiss,
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalPadding = 16.dp,
-                            actions = {
-                                // Circular Shield Vault action button
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White)
-                                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
-                                        .clickable {
-                                            Toast.makeText(context, "ArcTracker Offline Vault • Private & Encrypted", Toast.LENGTH_SHORT).show()
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Shield,
-                                        contentDescription = "Security Shield Vault",
-                                        tint = Color(0xFF0F172A),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        )
-                    }
+                            .statusBarsPadding(),
+                        horizontalPadding = 16.dp,
+                        actions = {}
+                    )
                 }
             },
             bottomBar = {

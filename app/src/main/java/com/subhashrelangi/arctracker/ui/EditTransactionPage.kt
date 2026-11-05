@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
@@ -28,10 +29,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,6 +78,7 @@ fun EditTransactionPage(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
 
     // 1. Transaction Direction (Credit / Debit / Transfer)
     var isCredit by remember(expense.type) {
@@ -86,6 +91,17 @@ fun EditTransactionPage(
     // 2. Amount State
     var currentAmount by remember(expense.amount) {
         mutableDoubleStateOf(expense.amount)
+    }
+    var amountText by remember(expense.amount) {
+        mutableStateOf(
+            if (expense.amount > 0.0) {
+                if (expense.amount % 1.0 == 0.0) {
+                    String.format(Locale.US, "%.0f", expense.amount)
+                } else {
+                    String.format(Locale.US, "%.2f", expense.amount)
+                }
+            } else ""
+        )
     }
 
     // 3. Merchant State (Starts with real merchant, no fake default)
@@ -214,49 +230,61 @@ fun EditTransactionPage(
             // Header matching settings subsection pages: circular back button + title directly beside it + right circular vault icon
             Surface(
                 color = Color.White,
-                shadowElevation = 0.5.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.White)
             ) {
-                Column(
+                ArcTrackerHeader(
+                    title = "Log Session",
+                    subtitle = "Local Ledger Record",
+                    onBackClick = onBack,
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.White)
-                        .statusBarsPadding()
-                ) {
-                    ArcTrackerHeader(
-                        title = "Log Session",
-                        subtitle = null,
-                        onBackClick = onBack,
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalPadding = 16.dp,
-                        actions = {
-                            Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White)
-                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
-                                    .clickable {
-                                        Toast.makeText(
-                                            context,
-                                            "ArcTracker Offline Vault • Private & Encrypted",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Shield,
-                                    contentDescription = "Security Vault",
-                                    tint = Color(0xFF0F172A),
-                                    modifier = Modifier.size(19.dp)
-                                )
-                            }
+                        .statusBarsPadding(),
+                    horizontalPadding = 16.dp,
+                    actions = {
+                        // Circular @ Mention button
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .clickable {
+                                Toast.makeText(context, "Mention payee or category", Toast.LENGTH_SHORT).show()
+                            },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AlternateEmail,
+                                contentDescription = "Mention",
+                                tint = Color(0xFF0F172A),
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
-                    )
-                }
+
+                        // Circular A Font Formatting button
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .clickable {
+                                Toast.makeText(context, "Typography & formatting", Toast.LENGTH_SHORT).show()
+                            },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.TextFields,
+                                contentDescription = "Font formatting",
+                                tint = Color(0xFF0F172A),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                )
             }
         },
         bottomBar = {
@@ -272,7 +300,7 @@ fun EditTransactionPage(
                         modifier = Modifier
                             .fillMaxWidth()
                             .navigationBarsPadding()
-                            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 28.dp),
+                            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 40.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -550,67 +578,123 @@ fun EditTransactionPage(
                 }
             }
 
-            // 3. TRANSACTION VALUE (AMOUNT SECTION)
+            // 3. CARD 1: TRANSACTION AMOUNT (Exactly like AddExpenseDialog)
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = "TRANSACTION VALUE",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF64748B),
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    val formattedAmount = NumberFormat.getNumberInstance(Locale("en", "IN")).apply {
-                        minimumFractionDigits = 2
-                        maximumFractionDigits = 2
-                    }.format(currentAmount)
-
-                    Row(
+                    Column(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { showAmountEditDialog = true }
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .fillMaxWidth()
+                            .padding(vertical = 18.dp, horizontal = 16.dp),
+                        horizontalAlignment = Alignment.Start
                     ) {
                         Text(
-                            text = "$sign₹ $formattedAmount",
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color(0xFF0F172A)
+                            text = "TRANSACTION AMOUNT",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF64748B),
+                            letterSpacing = 0.8.sp
                         )
-                    }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                    // Currency Pill: INR (Indian Rupee)
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(Color(0xFFF1F5F9))
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                    ) {
+                        // Start-aligned Amount Input with tight symbol spacing
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            horizontalArrangement = Arrangement.Start
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CurrencyExchange,
-                                contentDescription = null,
-                                tint = Color(0xFF475569),
-                                modifier = Modifier.size(13.dp)
-                            )
                             Text(
-                                text = "INR (Indian Rupee)",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF475569)
+                                text = "₹",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (amountText.isNotEmpty()) Color(0xFF0F172A) else Color(0xFF94A3B8),
+                                modifier = Modifier.padding(bottom = 2.dp)
                             )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            BasicTextField(
+                                value = amountText,
+                                onValueChange = { input ->
+                                    // Allow digits and up to one decimal point
+                                    val clean = input.filter { it.isDigit() || it == '.' }
+                                    if (clean.count { it == '.' } <= 1) {
+                                        amountText = clean
+                                        currentAmount = clean.toDoubleOrNull() ?: 0.0
+                                    }
+                                },
+                                textStyle = TextStyle(
+                                    fontSize = 34.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F172A),
+                                    textAlign = TextAlign.Start
+                                ),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Decimal,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { focusManager.clearFocus() }
+                                ),
+                                singleLine = true,
+                                cursorBrush = SolidColor(Color(0xFF047857)),
+                                decorationBox = { innerTextField ->
+                                    Box(contentAlignment = Alignment.CenterStart) {
+                                        if (amountText.isEmpty()) {
+                                            Text(
+                                                text = "0.00",
+                                                fontSize = 34.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF94A3B8)
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
+                                }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Quick Increment Chips (+₹100, +₹500, +₹1,000, +₹2,000)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            listOf(100.0 to "+₹100", 500.0 to "+₹500", 1000.0 to "+₹1,000", 2000.0 to "+₹2,000").forEach { (inc, label) ->
+                                Surface(
+                                    onClick = {
+                                        val current = amountText.toDoubleOrNull() ?: 0.0
+                                        val newVal = current + inc
+                                        amountText = if (newVal % 1.0 == 0.0) {
+                                            String.format(Locale.US, "%.0f", newVal)
+                                        } else {
+                                            String.format(Locale.US, "%.2f", newVal)
+                                        }
+                                        currentAmount = newVal
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color(0xFFF1F5F9)
+                                ) {
+                                    Box(
+                                        modifier = Modifier.padding(vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF0F172A),
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -1225,6 +1309,7 @@ fun EditTransactionPage(
             initialAmount = currentAmount,
             onConfirm = {
                 currentAmount = it
+                amountText = if (it % 1.0 == 0.0) String.format(Locale.US, "%.0f", it) else String.format(Locale.US, "%.2f", it)
                 showAmountEditDialog = false
             },
             onDismiss = { showAmountEditDialog = false }

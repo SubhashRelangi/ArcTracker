@@ -231,9 +231,11 @@ fun TransactionDetailDialog(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT
                 )
+                WindowCompat.setDecorFitsSystemWindows(window, false)
                 window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-                window.statusBarColor = android.graphics.Color.WHITE
-                window.navigationBarColor = android.graphics.Color.WHITE
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
+                window.navigationBarColor = android.graphics.Color.TRANSPARENT
+                window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
                 WindowCompat.getInsetsController(window, window.decorView)?.let { insetsController ->
                     insetsController.isAppearanceLightStatusBars = true
                     insetsController.isAppearanceLightNavigationBars = true
@@ -283,53 +285,92 @@ fun TransactionDetailDialog(
             Scaffold(
                 containerColor = Color(0xFFF8FAFC),
                 topBar = {
-                    // Header matching AddExpenseDialog layout and styling
+                    var menuExpanded by remember { mutableStateOf(false) }
+
                     Surface(
                         color = Color.White,
-                        shadowElevation = 0.5.dp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(Color.White)
                     ) {
-                        Column(
+                        ArcTrackerHeader(
+                            title = "Transaction Details",
+                            subtitle = "Immutable Local Vault",
+                            onBackClick = onDismiss,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(Color.White)
-                                .statusBarsPadding()
-                        ) {
-                            ArcTrackerHeader(
-                                title = "Transaction Details",
-                                subtitle = null,
-                                onBackClick = onDismiss,
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalPadding = 16.dp,
-                                actions = {
-                                    // Circular Shield Vault action button
+                                .statusBarsPadding(),
+                            horizontalPadding = 16.dp,
+                            actions = {
+                                // Circular Share Button
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White)
+                                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                        .clickable {
+                                            exportTransactionReceipt(context, expense, linkedAccount, txnCode, upiRef)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Share,
+                                        contentDescription = "Share",
+                                        tint = Color(0xFF0F172A),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                // Circular 3-Dots More Menu
+                                Box {
                                     Box(
                                         modifier = Modifier
                                             .size(38.dp)
                                             .clip(CircleShape)
                                             .background(Color.White)
                                             .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
-                                            .clickable {
-                                                Toast.makeText(
-                                                    context,
-                                                    "ArcTracker Offline Vault • Private & Encrypted",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            },
+                                            .clickable { menuExpanded = true },
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Outlined.Shield,
-                                            contentDescription = "Security Shield Vault",
+                                            imageVector = Icons.Default.MoreVert,
+                                            contentDescription = "More Options",
                                             tint = Color(0xFF0F172A),
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(19.dp)
+                                        )
+                                    }
+
+                                    DropdownMenu(
+                                        expanded = menuExpanded,
+                                        onDismissRequest = { menuExpanded = false },
+                                        modifier = Modifier.background(Color.White)
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("Edit Transaction", color = Color(0xFF0F172A), fontWeight = FontWeight.Medium) },
+                                            onClick = {
+                                                menuExpanded = false
+                                                isEditMode = true
+                                            },
+                                            leadingIcon = {
+                                                Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF047857), modifier = Modifier.size(18.dp))
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Delete Transaction", color = Color(0xFFDC2626), fontWeight = FontWeight.Medium) },
+                                            onClick = {
+                                                menuExpanded = false
+                                                showDeleteConfirmDialog = true
+                                            },
+                                            leadingIcon = {
+                                                Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(18.dp))
+                                            }
                                         )
                                     }
                                 }
-                            )
-                        }
+                            }
+                        )
                     }
                 }
             ) { innerPadding ->
