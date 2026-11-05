@@ -1,5 +1,7 @@
 package com.subhashrelangi.arctracker.ui.review
 
+import com.subhashrelangi.arctracker.ui.core.ArcFloatingAddExpenseButton
+
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
@@ -2124,7 +2126,8 @@ fun ReviewPage(
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 90.dp, start = 16.dp, end = 16.dp),
+                    .navigationBarsPadding()
+                    .padding(bottom = 72.dp, start = 16.dp, end = 16.dp),
                 shape = CircleShape,
                 color = Color(0xFF0F172A),
                 shadowElevation = 10.dp,
@@ -2203,38 +2206,12 @@ fun ReviewPage(
             }
         }
 
-        // 7. Universal Black Floating Action Button (+ Add Expense, cleared above bottom nav)
+        // 7. Universal Black Floating Action Button (+ Add Expense, identical fixed position across all pages)
         if (!isSelectionMode || selectedAccountExpenseIds.isEmpty()) {
-        Surface(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 90.dp, end = 20.dp)
-                .shadow(elevation = 6.dp, shape = RoundedCornerShape(28.dp))
-                .clip(RoundedCornerShape(28.dp))
-                .clickable { onAddExpenseClick() },
-            color = Color(0xFF0F172A),
-            shape = RoundedCornerShape(28.dp),
-            border = BorderStroke(1.dp, Color(0xFF334155))
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Expense",
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Add Expense",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.5.sp
-                )
-            }
-        }
+            ArcFloatingAddExpenseButton(
+                onClick = onAddExpenseClick,
+                modifier = Modifier.align(Alignment.BottomEnd)
+            )
         }
     }
 

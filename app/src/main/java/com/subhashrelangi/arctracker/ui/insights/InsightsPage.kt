@@ -1,5 +1,7 @@
 package com.subhashrelangi.arctracker.ui.insights
 
+import com.subhashrelangi.arctracker.ui.core.ArcFloatingAddExpenseButton
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -469,36 +471,10 @@ fun InsightsPage(
             }
 
             // Floating "+ Add Expense" Pill Button on bottom-right
-            Surface(
+            ArcFloatingAddExpenseButton(
                 onClick = onAddExpenseClick,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
-                    .padding(end = 16.dp, bottom = 72.dp)
-                    .shadow(elevation = 6.dp, shape = RoundedCornerShape(999.dp)),
-                shape = RoundedCornerShape(999.dp),
-                color = InsightsTheme.CharcoalDark,
-                border = BorderStroke(1.dp, Color(0xFF334155))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add Expense",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Add Expense",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.5.sp
-                    )
-                }
-            }
+                modifier = Modifier.align(Alignment.BottomEnd)
+            )
         }
     }
 
