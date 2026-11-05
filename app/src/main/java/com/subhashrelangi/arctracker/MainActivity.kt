@@ -2,6 +2,8 @@ package com.subhashrelangi.arctracker
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import com.subhashrelangi.arctracker.ui.AppLockScreen
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
@@ -84,7 +86,9 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
+
+    private val isAppUnlockedState = kotlinx.coroutines.flow.MutableStateFlow(true)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,6 +102,14 @@ class MainActivity : ComponentActivity() {
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
 
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
+
+        // On launch: if app lock is enabled and session expired, require biometric/PIN unlock
+        if (privacyManager.isAppLockEnabled() && privacyManager.isSessionExpired()) {
+            isAppUnlockedState.value = false
+        } else {
+            isAppUnlockedState.value = true
+        }
+
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 privacyManager.screenSecurityFlow.collect { enabled ->
@@ -111,14 +123,42 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            val isAppLockEnabled by privacyManager.appLockFlow.collectAsState()
+            val isUnlocked by isAppUnlockedState.collectAsState()
+
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    ExpenseScreen()
+                    if (isAppLockEnabled && !isUnlocked) {
+                        AppLockScreen(
+                            onUnlockSuccess = {
+                                isAppUnlockedState.value = true
+                                privacyManager.setLastActiveTimestamp(System.currentTimeMillis())
+                            }
+                        )
+                    } else {
+                        ExpenseScreen()
+                    }
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
+        if (privacyManager.isAppLockEnabled() && privacyManager.isSessionExpired()) {
+            isAppUnlockedState.value = false
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
+        if (privacyManager.isAppLockEnabled()) {
+            privacyManager.setLastActiveTimestamp(System.currentTimeMillis())
         }
     }
 }

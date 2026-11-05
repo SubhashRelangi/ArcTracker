@@ -275,6 +275,7 @@ fun SettingsScreen(
 
     val screenSecurity by privacyManager.screenSecurityFlow.collectAsState()
     val accountMasking by privacyManager.accountMaskingFlow.collectAsState()
+    val appLockEnabled by privacyManager.appLockFlow.collectAsState()
 
     val effectiveListenerBound = isServiceConnected || isListenerConnected
     val effectiveAutoTracking = userPrefGlobalEnabled && hasNotifAccess && effectiveListenerBound
@@ -353,10 +354,11 @@ fun SettingsScreen(
         val showClear = matchesSearch("Clear All Data", "Reset", "Delete", "Fresh")
         val hasDataMatches = showDb || showImport || showBackup || showClear
 
+        val showAppLock = matchesSearch("App Lock", "Fingerprint", "Face ID", "Screen Lock", "Biometric", "PIN", "Lock")
         val showScreenSec = matchesSearch("Screen Security", "Screenshots", "FLAG_SECURE", "Recent apps")
         val showMask = matchesSearch("Mask Account Numbers", "Mask", "Account details", "Safe suffixes")
         val showOffline = matchesSearch("100% Offline & Private", "Offline", "Private", "Zero network", "Zero telemetry")
-        val hasSecurityMatches = showScreenSec || showMask || showOffline
+        val hasSecurityMatches = showAppLock || showScreenSec || showMask || showOffline
 
         val showDev = isDeveloperModeUnlocked && matchesSearch("Developer Options", "Developer", "Regex", "Onboarding", "Demo mode")
 
@@ -853,6 +855,53 @@ fun SettingsScreen(
                 SectionHeader(title = "SECURITY & PRIVACY")
 
                 SettingsGroupCard {
+                    if (showAppLock) {
+                        SettingsSwitchRowItem(
+                            icon = Icons.Outlined.Fingerprint,
+                            title = "App Lock (Biometrics & PIN)",
+                            subtitle = "Lock ArcTracker after 5 minutes of inactivity with Fingerprint, Face ID or PIN",
+                            checked = appLockEnabled,
+                            onCheckedChange = { enabled ->
+                                val activity = context as? androidx.fragment.app.FragmentActivity
+                                if (activity != null) {
+                                    if (enabled) {
+                                        if (!com.subhashrelangi.arctracker.security.BiometricAuthHelper.canAuthenticate(context)) {
+                                            Toast.makeText(context, "No lock screen PIN, pattern, or biometrics set on this device", Toast.LENGTH_LONG).show()
+                                        } else {
+                                            com.subhashrelangi.arctracker.security.BiometricAuthHelper.authenticate(
+                                                activity = activity,
+                                                title = "Enable App Lock",
+                                                subtitle = "Confirm Fingerprint, Face ID, or PIN to protect your vault",
+                                                onSuccess = {
+                                                    privacyManager.setAppLockEnabled(true)
+                                                    privacyManager.setLastActiveTimestamp(System.currentTimeMillis())
+                                                    Toast.makeText(context, "App Lock enabled (locks after 5 min)", Toast.LENGTH_SHORT).show()
+                                                },
+                                                onError = { err ->
+                                                    Toast.makeText(context, "Authentication failed: $err", Toast.LENGTH_SHORT).show()
+                                                }
+                                            )
+                                        }
+                                    } else {
+                                        com.subhashrelangi.arctracker.security.BiometricAuthHelper.authenticate(
+                                            activity = activity,
+                                            title = "Disable App Lock",
+                                            subtitle = "Confirm your identity to turn off App Lock",
+                                            onSuccess = {
+                                                privacyManager.setAppLockEnabled(false)
+                                                Toast.makeText(context, "App Lock disabled", Toast.LENGTH_SHORT).show()
+                                            },
+                                            onError = { err ->
+                                                Toast.makeText(context, "Authentication failed: $err", Toast.LENGTH_SHORT).show()
+                                            }
+                                        )
+                                    }
+                                } else {
+                                    privacyManager.setAppLockEnabled(enabled)
+                                }
+                            }
+                        )
+                    }
                     if (showScreenSec) {
                         SettingsSwitchRowItem(
                             icon = Icons.Outlined.ScreenLockPortrait,

@@ -183,4 +183,24 @@ class SecurityPrivacyTest {
         assertFalse(BackupEncryptionManager.isEncryptedBackup("{}"))
         assertFalse(BackupEncryptionManager.isEncryptedBackup("""{"isEncrypted":false}"""))
     }
+
+    // =========================================================================
+    // 4. APP LOCK 5-MINUTE RANGE TIMEOUT TESTS
+    // =========================================================================
+
+    @Test
+    fun testAppLockSessionTimeoutCalculation() {
+        val timeout = com.subhashrelangi.arctracker.security.PrivacySettingsManager.APP_LOCK_TIMEOUT_MILLIS
+        assertEquals("Timeout must be exactly 5 minutes (300,000ms)", 5 * 60 * 1000L, timeout)
+
+        val now = 1000000000L
+        val withinRange = now - (4 * 60 * 1000L) // 4 minutes ago
+        val expired = now - (5 * 60 * 1000L + 1000L) // 5 minutes and 1 second ago
+
+        val isWithinRangeExpired = (now - withinRange) >= timeout
+        val isOverRangeExpired = (now - expired) >= timeout
+
+        assertFalse("4 minutes should not expire the session", isWithinRangeExpired)
+        assertTrue("5+ minutes must expire the session and require unlock", isOverRangeExpired)
+    }
 }

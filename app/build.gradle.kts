@@ -103,6 +103,7 @@ dependencies {
 
     // JSON serialization for Export/Import/Backup (Milestone 15)
     implementation("com.google.code.gson:gson:2.10.1")
+    implementation("androidx.biometric:biometric:1.1.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
