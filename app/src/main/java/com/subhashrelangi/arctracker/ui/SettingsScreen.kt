@@ -274,7 +274,6 @@ fun SettingsScreen(
     }
 
     val screenSecurity by privacyManager.screenSecurityFlow.collectAsState()
-    val accountMasking by privacyManager.accountMaskingFlow.collectAsState()
     val appLockEnabled by privacyManager.appLockFlow.collectAsState()
 
     val effectiveListenerBound = isServiceConnected || isListenerConnected
@@ -356,9 +355,8 @@ fun SettingsScreen(
 
         val showAppLock = matchesSearch("App Lock", "Fingerprint", "Face ID", "Screen Lock", "Biometric", "PIN", "Lock")
         val showScreenSec = matchesSearch("Screen Security", "Screenshots", "FLAG_SECURE", "Recent apps")
-        val showMask = matchesSearch("Mask Account Numbers", "Mask", "Account details", "Safe suffixes")
         val showOffline = matchesSearch("100% Offline & Private", "Offline", "Private", "Zero network", "Zero telemetry")
-        val hasSecurityMatches = showAppLock || showScreenSec || showMask || showOffline
+        val hasSecurityMatches = showAppLock || showScreenSec || showOffline
 
         val showDev = isDeveloperModeUnlocked && matchesSearch("Developer Options", "Developer", "Regex", "Onboarding", "Demo mode")
 
@@ -859,7 +857,7 @@ fun SettingsScreen(
                         SettingsSwitchRowItem(
                             icon = Icons.Outlined.Fingerprint,
                             title = "App Lock (Biometrics & PIN)",
-                            subtitle = "Lock ArcTracker after 5 minutes of inactivity with Fingerprint, Face ID or PIN",
+                            subtitle = "Require Fingerprint, Face ID or PIN on cold start and after 5 minutes of inactivity",
                             checked = appLockEnabled,
                             onCheckedChange = { enabled ->
                                 val activity = context as? androidx.fragment.app.FragmentActivity
@@ -875,7 +873,7 @@ fun SettingsScreen(
                                                 onSuccess = {
                                                     privacyManager.setAppLockEnabled(true)
                                                     privacyManager.setLastActiveTimestamp(System.currentTimeMillis())
-                                                    Toast.makeText(context, "App Lock enabled (locks after 5 min)", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "App Lock enabled", Toast.LENGTH_SHORT).show()
                                                 },
                                                 onError = { err ->
                                                     Toast.makeText(context, "Authentication failed: $err", Toast.LENGTH_SHORT).show()
@@ -910,17 +908,6 @@ fun SettingsScreen(
                             checked = screenSecurity,
                             onCheckedChange = { enabled ->
                                 privacyManager.setScreenSecurityEnabled(enabled)
-                            }
-                        )
-                    }
-                    if (showMask) {
-                        SettingsSwitchRowItem(
-                            icon = Icons.Outlined.VisibilityOff,
-                            title = "Mask Account Numbers",
-                            subtitle = "Hide full account details and display safe suffixes like ••4821",
-                            checked = accountMasking,
-                            onCheckedChange = { enabled ->
-                                privacyManager.setAccountMaskingEnabled(enabled)
                             }
                         )
                     }

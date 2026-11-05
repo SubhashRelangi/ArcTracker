@@ -88,10 +88,29 @@ import java.util.UUID
 
 class MainActivity : FragmentActivity() {
 
-    private val isAppUnlockedState = kotlinx.coroutines.flow.MutableStateFlow(true)
+    private val isAppUnlockedState = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    private val screenOffReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            if (intent?.action == android.content.Intent.ACTION_SCREEN_OFF) {
+                val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this@MainActivity)
+                if (privacyManager.isAppLockEnabled()) {
+                    isAppUnlockedState.value = false
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Listen for screen-off events so the app locks immediately when the phone is locked
+        val filter = android.content.IntentFilter(android.content.Intent.ACTION_SCREEN_OFF)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(screenOffReceiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(screenOffReceiver, filter)
+        }
 
         // Ensure clear visibility and high contrast for system bars (status bar & mobile navigation bar)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -103,12 +122,8 @@ class MainActivity : FragmentActivity() {
 
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
 
-        // On launch: if app lock is enabled and session expired, require biometric/PIN unlock
-        if (privacyManager.isAppLockEnabled() && privacyManager.isSessionExpired()) {
-            isAppUnlockedState.value = false
-        } else {
-            isAppUnlockedState.value = true
-        }
+        // On launch: require biometric/PIN unlock if App Lock is enabled
+        isAppUnlockedState.value = !privacyManager.isAppLockEnabled()
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -125,6 +140,19 @@ class MainActivity : FragmentActivity() {
         setContent {
             val isAppLockEnabled by privacyManager.appLockFlow.collectAsState()
             val isUnlocked by isAppUnlockedState.collectAsState()
+
+            // Inactivity ticker: automatically lock if left idle for 5 minutes
+            LaunchedEffect(isAppLockEnabled, isUnlocked) {
+                if (isAppLockEnabled && isUnlocked) {
+                    while (true) {
+                        kotlinx.coroutines.delay(5_000L)
+                        if (privacyManager.isSessionExpired()) {
+                            isAppUnlockedState.value = false
+                            break
+                        }
+                    }
+                }
+            }
 
             MaterialTheme {
                 Surface(
@@ -146,6 +174,14 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
+        if (privacyManager.isAppLockEnabled() && isAppUnlockedState.value) {
+            privacyManager.setLastActiveTimestamp(System.currentTimeMillis())
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
@@ -157,9 +193,27 @@ class MainActivity : FragmentActivity() {
     override fun onPause() {
         super.onPause()
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
-        if (privacyManager.isAppLockEnabled()) {
+        if (privacyManager.isAppLockEnabled() && isAppUnlockedState.value) {
             privacyManager.setLastActiveTimestamp(System.currentTimeMillis())
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        val keyguardManager = getSystemService(android.content.Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+        if (keyguardManager?.isKeyguardLocked == true) {
+            val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
+            if (privacyManager.isAppLockEnabled()) {
+                isAppUnlockedState.value = false
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(screenOffReceiver)
+        } catch (_: Exception) {}
     }
 }
 

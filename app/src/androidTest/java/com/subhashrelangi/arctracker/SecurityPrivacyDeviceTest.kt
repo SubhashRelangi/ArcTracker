@@ -109,6 +109,22 @@ class SecurityPrivacyDeviceTest {
         privacyManager.setAccountMaskingEnabled(true)
         assertTrue(privacyManager.isAccountMaskingEnabled())
         assertTrue(privacyManager.accountMaskingFlow.first())
+
+        // Test App Lock toggle and session expiration
+        privacyManager.setAppLockEnabled(true)
+        assertTrue(privacyManager.isAppLockEnabled())
+        assertTrue(privacyManager.appLockFlow.first())
+
+        privacyManager.setLastActiveTimestamp(System.currentTimeMillis())
+        assertFalse("Immediately active session should not be expired", privacyManager.isSessionExpired())
+
+        // Simulate 6 minutes ago
+        privacyManager.setLastActiveTimestamp(System.currentTimeMillis() - (6 * 60 * 1000L))
+        assertTrue("Session older than 5 minutes must be expired", privacyManager.isSessionExpired())
+
+        privacyManager.setAppLockEnabled(false)
+        assertFalse(privacyManager.isAppLockEnabled())
+        assertFalse(privacyManager.appLockFlow.first())
     }
 
     // =========================================================================
