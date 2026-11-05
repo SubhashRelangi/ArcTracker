@@ -533,7 +533,8 @@ fun ExpenseScreen() {
                 currentRoute != "ClearAllData" &&
                 currentRoute != "IgnoreRules" &&
                 currentRoute != "DeveloperOptions" &&
-                currentRoute != "RegexPatterns"
+                currentRoute != "RegexPatterns" &&
+                currentRoute != "EditRegexPattern"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
