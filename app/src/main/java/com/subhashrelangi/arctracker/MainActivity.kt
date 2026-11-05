@@ -541,7 +541,8 @@ fun ExpenseScreen() {
                 currentRoute != "IgnoreRules" &&
                 currentRoute != "DeveloperOptions" &&
                 currentRoute != "RegexPatterns" &&
-                currentRoute != "EditRegexPattern"
+                currentRoute != "EditRegexPattern" &&
+                currentRoute != "Database"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
@@ -617,7 +618,7 @@ fun ExpenseScreen() {
                 "InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "SettingsSmsImport",
                 "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules", "Backup",
                 "FinancialAccounts", "UnresolvedTransactions", "AccountTransactions", "DeveloperOptions", "RegexPatterns", "EditRegexPattern",
-                "Analytics", "CategoryRules", "MerchantAliases"
+                "Analytics", "CategoryRules", "MerchantAliases", "Database", "ApplyCategoryRules"
             )) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
@@ -768,7 +769,9 @@ fun ExpenseScreen() {
 
             } else if (currentRoute == "Database") {
 
-                com.subhashrelangi.arctracker.ui.DatabaseScreen()
+                com.subhashrelangi.arctracker.ui.DatabaseScreen(
+                    onNavigateBack = { navigateBack() }
+                )
 
             } else if (currentRoute == "IgnoreRules") {
 
@@ -1034,7 +1037,8 @@ fun ExpenseScreen() {
             "DeveloperOptions",
             "IgnoreRules",
             "RegexPatterns",
-            "EditRegexPattern"
+            "EditRegexPattern",
+            "Database"
         )
 
         if (showBottomNav) {

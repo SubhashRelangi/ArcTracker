@@ -120,7 +120,12 @@ fun HistoricalRuleApplicationScreen(
                 ArcTrackerHeader(
                     title = "Apply Category Rules",
                     subtitle = if (initialRuleId != null) "Re-categorize by selected rule" else "Historical re-categorization",
-                    onBackClick = onNavigateBack
+                    onBackClick = onNavigateBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .statusBarsPadding(),
+                    horizontalPadding = 16.dp
                 )
             }
         }

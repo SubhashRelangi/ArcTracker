@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Message
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.*
@@ -37,6 +39,7 @@ import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
 import com.subhashrelangi.arctracker.service.AccountReconciliationManager
+import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,6 +47,14 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+private val emeraldPrimary = Color(0xFF047857)
+private val emeraldLight = Color(0xFFECFDF5)
+private val emeraldBorder = Color(0xFFA7F3D0)
+private val slateTitle = Color(0xFF0F172A)
+private val slateSub = Color(0xFF64748B)
+private val cardBorder = Color(0xFFE2E8F0)
+private val lightBg = Color(0xFFF8FAFC)
 
 enum class UnresolvedFilter {
     ALL,
@@ -93,8 +104,117 @@ fun UnresolvedTransactionsScreen(
     val noSuffixCount = unresolvedExpenses.count { it.accountSuffix.isNullOrBlank() }
 
     Scaffold(
+        containerColor = lightBg,
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color(0xFFF8FAFC)
+        topBar = {
+            Surface(
+                color = Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+            ) {
+                ArcTrackerHeader(
+                    title = if (isSelectionMode) "${selectedExpenseIds.size} Selected" else "Unresolved Transactions",
+                    subtitle = if (isSelectionMode) "Select transactions to bulk assign" else "Pending Account Reconciliation",
+                    onBackClick = {
+                        if (isSelectionMode) {
+                            isSelectionMode = false
+                            selectedExpenseIds = emptySet()
+                        } else {
+                            onNavigateBack()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .statusBarsPadding(),
+                    horizontalPadding = 16.dp,
+                    actions = {
+                        if (unresolvedExpenses.isNotEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSelectionMode) emeraldPrimary else Color.White)
+                                    .border(
+                                        BorderStroke(1.dp, if (isSelectionMode) emeraldPrimary else cardBorder),
+                                        CircleShape
+                                    )
+                                    .clickable {
+                                        isSelectionMode = !isSelectionMode
+                                        if (!isSelectionMode) selectedExpenseIds = emptySet()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isSelectionMode) Icons.Filled.Check else Icons.Outlined.Checklist,
+                                    contentDescription = if (isSelectionMode) "Done" else "Select Multiple",
+                                    tint = if (isSelectionMode) Color.White else slateTitle,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+                        }
+                    }
+                )
+            }
+        },
+        bottomBar = {
+            if (isSelectionMode && selectedExpenseIds.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, cardBorder)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = { selectedExpenseIds = emptySet() },
+                            border = BorderStroke(1.dp, cardBorder),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(46.dp)
+                        ) {
+                            Text(
+                                "Clear",
+                                color = slateSub,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.5.sp
+                            )
+                        }
+
+                        Button(
+                            onClick = { showBulkAssignDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(2f)
+                                .height(46.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Bulk Assign (${selectedExpenseIds.size})",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.5.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -108,96 +228,16 @@ fun UnresolvedTransactionsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(
                     top = 16.dp,
-                    bottom = if (isSelectionMode && selectedExpenseIds.isNotEmpty()) 100.dp else 24.dp
+                    bottom = if (isSelectionMode && selectedExpenseIds.isNotEmpty()) 16.dp else 24.dp
                 )
             ) {
-                // 1. ArcTracker Header
-                item(key = "unresolved_header") {
+                // 1. Triage Tag & Filter Controls
+                item(key = "unresolved_header_controls") {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color.White,
-                                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(CircleShape)
-                                        .clickable {
-                                            if (isSelectionMode) {
-                                                isSelectionMode = false
-                                                selectedExpenseIds = emptySet()
-                                            } else {
-                                                onNavigateBack()
-                                            }
-                                        }
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = "Back",
-                                            tint = Color(0xFF0F172A),
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Column {
-                                    Text(
-                                        text = "Unresolved Transactions",
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = "Pending Account Reconciliation",
-                                        fontSize = 12.sp,
-                                        color = Color(0xFF64748B)
-                                    )
-                                }
-                            }
-
-                            // Active Status Badge
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFFECFDF5),
-                                border = BorderStroke(1.dp, Color(0xFFA7F3D0))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .background(Color(0xFF047857), CircleShape)
-                                    )
-                                    Spacer(modifier = Modifier.width(5.dp))
-                                    Text(
-                                        text = "Active",
-                                        color = Color(0xFF047857),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-
-                        // Sub-header Row: Vault Triage Tag & Select Button
+                        // Sub-header Row: Vault Triage Tag & Active Status Pill
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -207,7 +247,7 @@ fun UnresolvedTransactionsScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.Shield,
                                     contentDescription = null,
-                                    tint = Color(0xFF047857),
+                                    tint = emeraldPrimary,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -220,39 +260,34 @@ fun UnresolvedTransactionsScreen(
                                 )
                             }
 
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelectionMode) Color(0xFFECFDF5) else Color(0xFFF1F5F9),
-                                border = BorderStroke(1.dp, if (isSelectionMode) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)),
+                            // Active Status Badge
+                            Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        isSelectionMode = !isSelectionMode
-                                        if (!isSelectionMode) selectedExpenseIds = emptySet()
-                                    }
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(emeraldLight)
+                                    .border(BorderStroke(1.dp, emeraldBorder), RoundedCornerShape(999.dp))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = if (isSelectionMode) Icons.Default.Close else Icons.Outlined.Checklist,
-                                        contentDescription = null,
-                                        tint = if (isSelectionMode) Color(0xFF047857) else Color(0xFF475569),
-                                        modifier = Modifier.size(14.dp)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(emeraldPrimary)
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Spacer(modifier = Modifier.width(5.dp))
                                     Text(
-                                        text = if (isSelectionMode) "Done" else "Select",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSelectionMode) Color(0xFF047857) else Color(0xFF475569)
+                                        text = "Active",
+                                        color = emeraldPrimary,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
                         }
 
-                        // Filter Pills
+                        // Filter Pills (Segmented style)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -260,193 +295,148 @@ fun UnresolvedTransactionsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             ArcUnresolvedFilterPill(
-                                text = "All ${unresolvedExpenses.size}",
+                                text = "All (${unresolvedExpenses.size})",
                                 isSelected = currentFilter == UnresolvedFilter.ALL,
                                 onClick = { currentFilter = UnresolvedFilter.ALL }
                             )
                             ArcUnresolvedFilterPill(
-                                text = "With Suffix $withSuffixCount",
+                                text = "With Suffix ($withSuffixCount)",
                                 isSelected = currentFilter == UnresolvedFilter.WITH_SUFFIX,
                                 onClick = { currentFilter = UnresolvedFilter.WITH_SUFFIX }
                             )
                             ArcUnresolvedFilterPill(
-                                text = "No Suffix $noSuffixCount",
+                                text = "No Suffix ($noSuffixCount)",
                                 isSelected = currentFilter == UnresolvedFilter.NO_SUFFIX,
                                 onClick = { currentFilter = UnresolvedFilter.NO_SUFFIX }
                             )
                         }
 
-                        // Top Bulk Action Card (when in selection mode)
+                        // Multi-Selection Controller Bar (When in Selection Mode)
                         if (isSelectionMode) {
                             Surface(
+                                color = Color.White,
                                 shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFFF0FDF4),
-                                border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(8.dp)
-                                                    .background(Color(0xFF047857), CircleShape)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = "${selectedExpenseIds.size} of ${filteredExpenses.size} Selected",
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F172A)
-                                            )
-                                        }
-
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Text(
-                                                text = if (selectedExpenseIds.size == filteredExpenses.size && filteredExpenses.isNotEmpty()) "Deselect All" else "Select All",
-                                                fontSize = 11.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF047857),
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .clickable {
-                                                        selectedExpenseIds = if (selectedExpenseIds.size == filteredExpenses.size) {
-                                                            emptySet()
-                                                        } else {
-                                                            filteredExpenses.map { it.id }.toSet()
-                                                        }
-                                                    }
-                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-
-                                            Surface(
-                                                shape = RoundedCornerShape(6.dp),
-                                                color = Color(0xFFF1F5F9),
-                                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                                modifier = Modifier.clickable {
-                                                    isSelectionMode = false
-                                                    selectedExpenseIds = emptySet()
-                                                }
-                                            ) {
-                                                Text(
-                                                    text = "Cancel",
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = Color(0xFF64748B),
-                                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    Button(
-                                        onClick = { showBulkAssignDialog = true },
-                                        enabled = selectedExpenseIds.isNotEmpty(),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(44.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFF047857),
-                                            disabledContainerColor = Color(0xFFCBD5E1)
-                                        ),
-                                        shape = CircleShape,
-                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(20.dp)
-                                                .background(if (selectedExpenseIds.isNotEmpty()) Color.White.copy(alpha = 0.25f) else Color.Transparent, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(13.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = if (selectedExpenseIds.isNotEmpty()) {
-                                                "Bulk Assign (${selectedExpenseIds.size} Selected)"
-                                            } else {
-                                                "Select Transactions to Bulk Assign"
-                                            },
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp,
-                                            color = Color.White
-                                        )
-                                    }
-                                }
-                            }
-                        } else {
-                            // Vault Overview Info Card
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFFF8FAFC),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                border = BorderStroke(1.dp, cardBorder),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(12.dp),
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.clickable {
+                                            selectedExpenseIds = if (selectedExpenseIds.size == filteredExpenses.size) {
+                                                emptySet()
+                                            } else {
+                                                filteredExpenses.map { it.id }.toSet()
+                                            }
+                                        }
+                                    ) {
+                                        Checkbox(
+                                            checked = selectedExpenseIds.size == filteredExpenses.size && filteredExpenses.isNotEmpty(),
+                                            onCheckedChange = { checked ->
+                                                selectedExpenseIds = if (checked) {
+                                                    filteredExpenses.map { it.id }.toSet()
+                                                } else {
+                                                    emptySet()
+                                                }
+                                            },
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = emeraldPrimary,
+                                                uncheckedColor = Color(0xFF94A3B8)
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "${selectedExpenseIds.size} of ${filteredExpenses.size} selected",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = slateTitle
+                                        )
+                                    }
+
+                                    TextButton(
+                                        onClick = {
+                                            selectedExpenseIds = if (selectedExpenseIds.size == filteredExpenses.size) {
+                                                emptySet()
+                                            } else {
+                                                filteredExpenses.map { it.id }.toSet()
+                                            }
+                                        }
+                                    ) {
+                                        Text(
+                                            text = if (selectedExpenseIds.size == filteredExpenses.size && filteredExpenses.isNotEmpty()) "Deselect All" else "Select All",
+                                            fontSize = 12.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = emeraldPrimary
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            // Vault Overview Info Card (Normal Mode)
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color.White,
+                                border = BorderStroke(1.dp, cardBorder),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(36.dp)
-                                            .background(Color(0xFFECFDF5), CircleShape),
+                                            .size(42.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(emeraldLight),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Outlined.Sensors,
                                             contentDescription = null,
-                                            tint = Color(0xFF047857),
-                                            modifier = Modifier.size(20.dp)
+                                            tint = emeraldPrimary,
+                                            modifier = Modifier.size(22.dp)
                                         )
                                     }
-                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Spacer(modifier = Modifier.width(12.dp))
                                     Column(modifier = Modifier.weight(1f)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(
                                                 text = "${filteredExpenses.size} unlinked transactions",
-                                                fontSize = 13.sp,
+                                                fontSize = 13.5.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F172A)
+                                                color = slateTitle
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Surface(
-                                                shape = RoundedCornerShape(4.dp),
-                                                color = Color(0xFFF1F5F9)
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(Color(0xFFF1F5F9))
+                                                    .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(6.dp))
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                                                contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
                                                     text = "Pending Match",
                                                     fontSize = 10.sp,
                                                     fontWeight = FontWeight.SemiBold,
-                                                    color = Color(0xFF475569),
-                                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                                    color = slateSub
                                                 )
                                             }
                                         }
-                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Spacer(modifier = Modifier.height(3.dp))
                                         Text(
                                             text = "Detected from SMS & system notifications waiting for local vault verification.",
                                             fontSize = 11.5.sp,
-                                            color = Color(0xFF64748B),
-                                            lineHeight = 15.sp
+                                            color = slateSub,
+                                            lineHeight = 15.5.sp
                                         )
                                     }
                                 }
@@ -459,9 +449,9 @@ fun UnresolvedTransactionsScreen(
                 if (filteredExpenses.isEmpty()) {
                     item(key = "empty_state") {
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(18.dp),
                             color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            border = BorderStroke(1.dp, cardBorder),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 32.dp)
@@ -476,33 +466,35 @@ fun UnresolvedTransactionsScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(56.dp)
-                                        .background(Color(0xFFECFDF5), CircleShape),
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(emeraldLight),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.CheckCircle,
                                         contentDescription = null,
-                                        tint = Color(0xFF047857),
+                                        tint = emeraldPrimary,
                                         modifier = Modifier.size(28.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(14.dp))
                                 Text(
                                     text = if (unresolvedExpenses.isEmpty()) "All Transactions Reconciled" else "No Transactions in this Filter",
-                                    fontSize = 15.sp,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = slateTitle
                                 )
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = if (unresolvedExpenses.isEmpty()) {
-                                        "Every transaction in your vault is linked to a known bank account."
+                                        "Every transaction in your vault is linked to a known financial account."
                                     } else {
                                         "Try switching filter chips above to see other unlinked records."
                                     },
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF64748B),
-                                    lineHeight = 16.sp
+                                    fontSize = 12.5.sp,
+                                    color = slateSub,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    lineHeight = 17.sp
                                 )
                             }
                         }
@@ -539,95 +531,10 @@ fun UnresolvedTransactionsScreen(
                     }
                 }
             }
-
-            // 4. Floating Stadium Bar (when in selection mode)
-            if (isSelectionMode && selectedExpenseIds.isNotEmpty()) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                        .padding(bottom = 20.dp, start = 16.dp, end = 16.dp),
-                    shape = CircleShape,
-                    color = Color(0xFF0F172A),
-                    shadowElevation = 10.dp,
-                    border = BorderStroke(1.dp, Color(0xFF334155))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .background(Color(0xFF047857), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "${selectedExpenseIds.size}",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Selected",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.5.sp
-                            )
-                        }
-
-                        TextButton(
-                            onClick = { selectedExpenseIds = emptySet() }
-                        ) {
-                            Text(
-                                text = "Clear",
-                                color = Color(0xFF94A3B8),
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-
-                        Button(
-                            onClick = { showBulkAssignDialog = true },
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
-                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .background(Color.White.copy(alpha = 0.25f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Bulk Assign",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.5.sp,
-                                color = Color.White
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 
-    // 5. Single Item Account Assignment Dialog
+    // 4. Single Item Account Assignment Dialog
     singleTransactionToAssign?.let { expense ->
         val candidateAccounts = remember(expense, allKnownAccounts) {
             val s = expense.accountSuffix?.trim()
@@ -657,7 +564,7 @@ fun UnresolvedTransactionsScreen(
         )
     }
 
-    // 6. Bulk Assignment Dialog
+    // 5. Bulk Assignment Dialog
     if (showBulkAssignDialog) {
         ArcAccountAssignmentDialog(
             title = "Bulk Assign Accounts",
@@ -693,20 +600,23 @@ private fun ArcUnresolvedFilterPill(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    Surface(
-        shape = CircleShape,
-        color = if (isSelected) Color(0xFF0F172A) else Color.White,
-        border = BorderStroke(1.dp, if (isSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0)),
+    Box(
         modifier = Modifier
-            .clip(CircleShape)
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (isSelected) emeraldPrimary else Color(0xFFF1F5F9))
+            .border(
+                BorderStroke(1.dp, if (isSelected) emeraldPrimary else cardBorder),
+                RoundedCornerShape(999.dp)
+            )
             .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
             fontSize = 12.5.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = if (isSelected) Color.White else Color(0xFF475569),
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+            color = if (isSelected) Color.White else slateSub
         )
     }
 }
@@ -729,63 +639,49 @@ fun UnresolvedTransactionCard(
         color = if (isSelected) Color(0xFFF0FDF4) else Color.White,
         border = BorderStroke(
             if (isSelected) 1.5.dp else 1.dp,
-            if (isSelected) Color(0xFF047857) else Color(0xFFE2E8F0)
+            if (isSelected) emeraldPrimary else cardBorder
         ),
-        shadowElevation = if (isSelected) 2.dp else 0.dp,
+        shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (isSelectionMode) Modifier.clickable { onToggleSelection() } else Modifier
-            )
+            .clickable {
+                if (isSelectionMode) onToggleSelection()
+            }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Header: Icon + Merchant & Date + Amount
+            // Header: Checkbox (if selection mode) + Icon + Merchant & Date + Amount
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 if (isSelectionMode) {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 9.dp, end = 10.dp)
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(if (isSelected) Color(0xFF047857) else Color.White)
-                            .border(
-                                width = if (isSelected) 0.dp else 2.dp,
-                                color = if (isSelected) Color(0xFF047857) else Color(0xFFCBD5E1),
-                                shape = CircleShape
-                            )
-                            .clickable { onToggleSelection() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Selected",
-                                tint = Color.White,
-                                modifier = Modifier.size(15.dp)
-                            )
-                        }
-                    }
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onToggleSelection() },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = emeraldPrimary,
+                            uncheckedColor = Color(0xFF94A3B8)
+                        ),
+                        modifier = Modifier.padding(end = 6.dp)
+                    )
                 }
 
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(44.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF1F5F9)),
+                        .background(if (isCredit) emeraldLight else Color(0xFFF1F5F9)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = cardIcon,
                         contentDescription = expense.merchant,
-                        tint = Color(0xFF0F172A),
-                        modifier = Modifier.size(20.dp)
+                        tint = if (isCredit) emeraldPrimary else slateTitle,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -796,7 +692,7 @@ fun UnresolvedTransactionCard(
                         text = if (expense.merchant.isNotBlank()) expense.merchant else "Transaction",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A),
+                        color = slateTitle,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -804,22 +700,22 @@ fun UnresolvedTransactionCard(
                     Text(
                         text = dateFormat.format(Date(expense.dateMillis)),
                         fontSize = 12.sp,
-                        color = Color(0xFF64748B)
+                        color = slateSub
                     )
                 }
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "${if (isCredit) "+" else "-"}₹${formatUnresolvedAmount(expense.amount)}",
-                        fontSize = 17.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isCredit) Color(0xFF047857) else Color(0xFF0F172A)
+                        color = if (isCredit) emeraldPrimary else slateTitle
                     )
                     Spacer(modifier = Modifier.height(1.dp))
                     Text(
                         text = if (isCredit) "Credit" else "Debit",
                         fontSize = 11.sp,
-                        color = Color(0xFF64748B)
+                        color = slateSub
                     )
                 }
             }
@@ -835,15 +731,15 @@ fun UnresolvedTransactionCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (!expense.accountSuffix.isNullOrBlank()) {
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFF1F5F9),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFF1F5F9))
+                            .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 7.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Outlined.CreditCard,
                                 contentDescription = null,
@@ -861,15 +757,15 @@ fun UnresolvedTransactionCard(
                         }
                     }
                 } else {
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFFEF3C7),
-                        border = BorderStroke(1.dp, Color(0xFFFDE68A))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFFEF3C7))
+                            .border(BorderStroke(1.dp, Color(0xFFFDE68A)), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 7.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Outlined.WarningAmber,
                                 contentDescription = null,
@@ -888,39 +784,39 @@ fun UnresolvedTransactionCard(
                     }
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFFF8FAFC))
+                        .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 7.dp, vertical = 3.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = if (expense.source.contains("SMS", ignoreCase = true)) Icons.Outlined.Message else Icons.Outlined.Notifications,
+                            imageVector = if (expense.source.contains("SMS", ignoreCase = true)) Icons.AutoMirrored.Outlined.Message else Icons.Outlined.Notifications,
                             contentDescription = null,
-                            tint = Color(0xFF64748B),
+                            tint = slateSub,
                             modifier = Modifier.size(12.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = if (expense.source.contains("SMS", ignoreCase = true)) "SMS Parse" else "Push Parse",
                             fontSize = 11.sp,
-                            color = Color(0xFF64748B),
+                            color = slateSub,
                             maxLines = 1
                         )
                     }
                 }
             }
 
-            // Raw Text Snippet Box (matching screenshot)
+            // Raw Text Snippet Box
             if (!expense.rawText.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    border = BorderStroke(1.dp, cardBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     val rawClean = expense.rawText?.trim().orEmpty()
@@ -935,7 +831,7 @@ fun UnresolvedTransactionCard(
                 }
             }
 
-            // Action Buttons: Ignore & Assign Account
+            // Action Buttons: Ignore & Assign Account (only in normal mode)
             if (!isSelectionMode) {
                 Spacer(modifier = Modifier.height(14.dp))
                 Row(
@@ -945,7 +841,7 @@ fun UnresolvedTransactionCard(
                     OutlinedButton(
                         onClick = onIgnoreClick,
                         shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        border = BorderStroke(1.dp, cardBorder),
                         colors = ButtonDefaults.outlinedButtonColors(
                             containerColor = Color(0xFFF8FAFC),
                             contentColor = Color(0xFF475569)
@@ -956,7 +852,7 @@ fun UnresolvedTransactionCard(
                         Icon(
                             imageVector = Icons.Outlined.VisibilityOff,
                             contentDescription = null,
-                            tint = Color(0xFF64748B),
+                            tint = slateSub,
                             modifier = Modifier.size(15.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -972,17 +868,17 @@ fun UnresolvedTransactionCard(
                         onClick = onAssignClick,
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFECFDF5),
-                            contentColor = Color(0xFF047857)
+                            containerColor = emeraldLight,
+                            contentColor = emeraldPrimary
                         ),
-                        border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+                        border = BorderStroke(1.dp, emeraldBorder),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                         modifier = Modifier.weight(1.3f)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Link,
                             contentDescription = null,
-                            tint = Color(0xFF047857),
+                            tint = emeraldPrimary,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -990,7 +886,7 @@ fun UnresolvedTransactionCard(
                             text = "Assign Account",
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF047857)
+                            color = emeraldPrimary
                         )
                     }
                 }
@@ -1020,8 +916,8 @@ private fun ArcAccountAssignmentDialog(
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-            shadowElevation = 12.dp,
+            border = BorderStroke(1.dp, cardBorder),
+            shadowElevation = 0.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
@@ -1042,12 +938,12 @@ private fun ArcAccountAssignmentDialog(
                             text = title,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                         Text(
                             text = subtitle,
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                     }
 
@@ -1058,7 +954,7 @@ private fun ArcAccountAssignmentDialog(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color(0xFF64748B),
+                            tint = slateSub,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1077,7 +973,7 @@ private fun ArcAccountAssignmentDialog(
                         Text(
                             text = "No registered accounts found in local registry.",
                             fontSize = 12.5.sp,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                     }
                 } else {
@@ -1091,10 +987,10 @@ private fun ArcAccountAssignmentDialog(
                             val isSelected = selectedAccount?.id == account.id
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (isSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
+                                color = if (isSelected) Color(0xFFF0FDF4) else Color(0xFFF8FAFC),
                                 border = BorderStroke(
                                     1.dp,
-                                    if (isSelected) Color(0xFF047857) else Color(0xFFE2E8F0)
+                                    if (isSelected) emeraldPrimary else cardBorder
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1114,14 +1010,15 @@ private fun ArcAccountAssignmentDialog(
                                     ) {
                                         Box(
                                             modifier = Modifier
-                                                .size(34.dp)
-                                                .background(if (isSelected) Color(0xFFD1FAE5) else Color(0xFFE2E8F0), CircleShape),
+                                                .size(36.dp)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(if (isSelected) emeraldLight else Color(0xFFE2E8F0)),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Outlined.AccountBalance,
                                                 contentDescription = null,
-                                                tint = if (isSelected) Color(0xFF047857) else Color(0xFF475569),
+                                                tint = if (isSelected) emeraldPrimary else Color(0xFF475569),
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -1133,12 +1030,12 @@ private fun ArcAccountAssignmentDialog(
                                                 text = account.institutionName ?: "Unknown Bank",
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 13.5.sp,
-                                                color = if (isSelected) Color(0xFF047857) else Color(0xFF0F172A)
+                                                color = if (isSelected) emeraldPrimary else slateTitle
                                             )
                                             Text(
                                                 text = "Account ending in ••••${account.accountSuffix}",
                                                 fontSize = 11.5.sp,
-                                                color = Color(0xFF64748B)
+                                                color = slateSub
                                             )
                                         }
                                     }
@@ -1148,10 +1045,10 @@ private fun ArcAccountAssignmentDialog(
                                         modifier = Modifier
                                             .size(20.dp)
                                             .clip(CircleShape)
-                                            .background(if (isSelected) Color(0xFF047857) else Color.White)
+                                            .background(if (isSelected) emeraldPrimary else Color.White)
                                             .border(
                                                 width = if (isSelected) 0.dp else 1.5.dp,
-                                                color = if (isSelected) Color(0xFF047857) else Color(0xFFCBD5E1),
+                                                color = if (isSelected) emeraldPrimary else Color(0xFFCBD5E1),
                                                 shape = CircleShape
                                             ),
                                         contentAlignment = Alignment.Center
@@ -1182,9 +1079,9 @@ private fun ArcAccountAssignmentDialog(
                         onClick = onDismiss,
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1f),
-                        border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                        border = BorderStroke(1.dp, cardBorder)
                     ) {
-                        Text("Cancel", color = Color(0xFF475569), fontSize = 13.sp)
+                        Text("Cancel", color = slateSub, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
 
                     Button(
@@ -1195,7 +1092,7 @@ private fun ArcAccountAssignmentDialog(
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1.3f),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF047857),
+                            containerColor = emeraldPrimary,
                             disabledContainerColor = Color(0xFFCBD5E1)
                         )
                     ) {
@@ -1223,6 +1120,6 @@ private fun getUnresolvedCardIcon(merchant: String): ImageVector {
         m.contains("kirana") || m.contains("mart") || m.contains("grocery") -> Icons.Outlined.Storefront
         m.contains("uber") || m.contains("ola") || m.contains("ride") || m.contains("transit") -> Icons.Outlined.DirectionsCar
         m.contains("card") -> Icons.Outlined.CreditCard
-        else -> Icons.Outlined.ReceiptLong
+        else -> Icons.AutoMirrored.Outlined.ReceiptLong
     }
 }
