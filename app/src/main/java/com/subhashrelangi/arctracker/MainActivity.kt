@@ -703,7 +703,22 @@ fun ExpenseScreen() {
                         val wasCompleted = repo.isInitialSmsImportCompleted()
                         scope.launch(Dispatchers.IO) {
                             try {
-                                expenseDao.clearAll()
+                                val db = com.subhashrelangi.arctracker.data.AppDatabase.getDatabase(context)
+                                db.expenseDao().clearAll()
+                                db.knownFinancialAccountDao().deleteAll()
+                                db.userCategoryRuleDao().deleteAll()
+                                db.merchantAliasDao().deleteAll()
+                                db.budgetDao().clearAll()
+                                db.budgetDao().clearAllAlertStates()
+                                db.transactionCategoryDao().deleteCustomCategories()
+                                try {
+                                    db.openHelper.writableDatabase.execSQL("DELETE FROM deleted_transaction_tombstones;")
+                                    db.openHelper.writableDatabase.execSQL("VACUUM;")
+                                } catch (_: Exception) {}
+
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "All records wiped successfully", Toast.LENGTH_SHORT).show()
+                                }
                             } catch (e: Exception) {
                                 if (e is CancellationException) throw e
                                 SecureLogger.e("MainActivity", "Failed to clear all data", e)

@@ -92,7 +92,7 @@ fun DatabaseScreen(
 
     fun refreshTelemetry() {
         scope.launch(Dispatchers.IO) {
-            val dbFile = context.getDatabasePath("expense_database")
+            val dbFile = context.getDatabasePath("arctracker_database")
             val sizeStr = if (dbFile != null && dbFile.exists()) {
                 val bytes = dbFile.length()
                 val kb = bytes / 1024.0

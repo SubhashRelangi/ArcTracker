@@ -95,7 +95,7 @@ fun DeveloperOptionsScreen(
                 }
                 pageCursor.close()
 
-                val dbFile = context.getDatabasePath("expense_database")
+                val dbFile = context.getDatabasePath("arctracker_database")
                 if (dbFile.exists() && dbFile.length() > 0) {
                     val kb = dbFile.length() / 1024.0
                     realDbSizeStr = String.format(Locale.US, "%.1f KB", kb)
