@@ -3,6 +3,7 @@ package com.subhashrelangi.arctracker.ui
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -37,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -49,6 +51,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import android.view.WindowManager
+import androidx.core.view.WindowCompat
+import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
 import com.subhashrelangi.arctracker.data.BuiltInCategories
 import com.subhashrelangi.arctracker.data.CategoryVisuals
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
@@ -312,7 +318,8 @@ fun AddExpenseDialog(
         )
     }
 
-    // Full Screen Edge-to-Edge Dialog
+    BackHandler(onBack = onDismiss)
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -320,102 +327,219 @@ fun AddExpenseDialog(
             decorFitsSystemWindows = false
         )
     ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFFF8FAFC)),
-            color = Color(0xFFF8FAFC)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .imePadding()
-            ) {
-                // 1. TOP APP BAR
-                Row(
+        val dialogView = LocalView.current
+        SideEffect {
+            var parent = dialogView.parent
+            while (parent != null && parent !is DialogWindowProvider) {
+                parent = parent.parent
+            }
+            (parent as? DialogWindowProvider)?.window?.let { window ->
+                window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                window.setDimAmount(0f)
+                window.setLayout(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                )
+                window.statusBarColor = android.graphics.Color.WHITE
+                window.navigationBarColor = android.graphics.Color.WHITE
+                WindowCompat.getInsetsController(window, window.decorView)?.let { insetsController ->
+                    insetsController.isAppearanceLightStatusBars = true
+                    insetsController.isAppearanceLightNavigationBars = true
+                }
+            }
+        }
+
+        Scaffold(
+            containerColor = Color(0xFFF8FAFC),
+            topBar = {
+                Surface(
+                    color = Color.White,
+                    shadowElevation = 0.5.dp,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .background(Color.White)
                 ) {
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(40.dp)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White)
+                            .statusBarsPadding()
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color(0xFF0F172A),
-                            modifier = Modifier.size(22.dp)
+                        ArcTrackerHeader(
+                            title = when {
+                                isEditMode -> "Edit Expense"
+                                rawText != null -> "Approve Expense"
+                                else -> "Add expenses"
+                            },
+                            subtitle = null,
+                            onBackClick = onDismiss,
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalPadding = 16.dp,
+                            actions = {
+                                // Circular Shield Vault action button
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White)
+                                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                        .clickable {
+                                            Toast.makeText(context, "ArcTracker Offline Vault • Private & Encrypted", Toast.LENGTH_SHORT).show()
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Shield,
+                                        contentDescription = "Security Shield Vault",
+                                        tint = Color(0xFF0F172A),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                         )
                     }
-
-                    Text(
-                        text = when {
-                            isEditMode -> "Edit Session"
-                            rawText != null -> "Approve Session"
-                            else -> "Log Session"
-                        },
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
-                    )
-
+                }
+            },
+        bottomBar = {
+            // Pinned Bottom Action Bar (matching ArcTracker standards)
+            Surface(
+                color = Color.White,
+                shadowElevation = 8.dp,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        IconButton(
-                            onClick = {
-                                Toast.makeText(context, "ArcTracker Smart Receipt Radar active", Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.TrackChanges,
-                                contentDescription = "Scan / Radar",
-                                tint = Color(0xFF334155),
-                                modifier = Modifier.size(20.dp)
-                            )
+                        // If in edit / approve mode and onDelete is provided
+                        if (onDelete != null) {
+                            Surface(
+                                onClick = onDelete,
+                                modifier = Modifier
+                                    .weight(0.7f)
+                                    .height(50.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color(0xFFFEE2E2),
+                                border = BorderStroke(1.dp, Color(0xFFFECACA))
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxSize(),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = "Delete",
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Delete",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.5.sp,
+                                        color = Color(0xFFDC2626)
+                                    )
+                                }
+                            }
                         }
 
-                        Box(
+                        // Commit to Ledger Button
+                        Button(
+                            onClick = {
+                                val parsedAmount = amountText.toDoubleOrNull() ?: 0.0
+                                if (parsedAmount <= 0.0) {
+                                    amountError = true
+                                    Toast.makeText(context, "Please enter a valid amount", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+                                amountError = false
+
+                                val resolvedMerchant = if (merchant.isNotBlank()) merchant.trim() else "Unknown Merchant"
+                                val resolvedTag = if (selectedTags.isNotEmpty()) selectedTags.joinToString(", ") else selectedCategoryName
+
+                                if (onAddFull != null) {
+                                    onAddFull(
+                                        parsedAmount,
+                                        resolvedMerchant,
+                                        effectiveType,
+                                        resolvedTag,
+                                        note,
+                                        dateMillis,
+                                        selectedAccountId,
+                                        selectedAccountSuffix,
+                                        selectedCategoryId
+                                    )
+                                } else {
+                                    onAdd(
+                                        parsedAmount,
+                                        resolvedMerchant,
+                                        effectiveType,
+                                        resolvedTag,
+                                        note,
+                                        dateMillis
+                                    )
+                                }
+                            },
                             modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .clickable {
-                                    Toast.makeText(context, "ArcTracker Engine v2.0 • Local Ledger", Toast.LENGTH_SHORT).show()
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "A",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontStyle = FontStyle.Italic,
-                                fontFamily = FontFamily.Serif,
-                                color = Color(0xFF0F172A)
+                                .weight(if (onDelete != null) 1.3f else 1f)
+                                .height(50.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF047857)
                             )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = when {
+                                        isEditMode -> "Save Changes"
+                                        rawText != null -> "Commit Approval"
+                                        else -> "Commit to Ledger"
+                                    },
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = Color.White
+                                )
+                            }
                         }
                     }
                 }
-
-                // SCROLLABLE CONTENT BODY
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(scrollState)
-                        .padding(horizontal = 18.dp)
-                        .padding(top = 8.dp, bottom = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
+            }
+        }
+    ) { innerPadding ->
+        // SCROLLABLE CONTENT BODY
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .imePadding()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp)
+                .padding(top = 12.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
                     // 2. TRANSACTION TYPE SEGMENTED SWITCHER
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = Color(0xFFF1F5F9),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -432,9 +556,9 @@ fun AddExpenseDialog(
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(38.dp),
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = RoundedCornerShape(10.dp),
                                     color = if (isSelected) Color.White else Color.Transparent,
-                                    shadowElevation = if (isSelected) 1.5.dp else 0.dp
+                                    shadowElevation = if (isSelected) 1.dp else 0.dp
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxSize(),
@@ -445,7 +569,7 @@ fun AddExpenseDialog(
                                             Box(
                                                 modifier = Modifier
                                                     .size(6.dp)
-                                                    .background(Color(0xFF047857), CircleShape)
+                                                    .background(Color(0xFF059669), CircleShape)
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                         }
@@ -471,12 +595,12 @@ fun AddExpenseDialog(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 20.dp, horizontal = 16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .padding(vertical = 18.dp, horizontal = 16.dp),
+                            horizontalAlignment = Alignment.Start
                         ) {
                             Text(
                                 text = "TRANSACTION AMOUNT",
-                                fontSize = 11.5.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF64748B),
                                 letterSpacing = 0.8.sp
@@ -484,20 +608,20 @@ fun AddExpenseDialog(
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // Big Amount Display / Field
+                            // Start-aligned Amount Input with tight symbol spacing
                             Row(
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier.fillMaxWidth()
+                                horizontalArrangement = Arrangement.Start
                             ) {
                                 Text(
                                     text = "₹",
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF64748B),
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (amountText.isNotEmpty()) Color(0xFF0F172A) else Color(0xFF94A3B8),
                                     modifier = Modifier.padding(bottom = 2.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
                                 BasicTextField(
                                     value = amountText,
                                     onValueChange = { input ->
@@ -524,15 +648,17 @@ fun AddExpenseDialog(
                                     singleLine = true,
                                     cursorBrush = SolidColor(Color(0xFF047857)),
                                     decorationBox = { innerTextField ->
-                                        if (amountText.isEmpty()) {
-                                            Text(
-                                                text = "0.00",
-                                                fontSize = 34.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF94A3B8)
-                                            )
+                                        Box(contentAlignment = Alignment.CenterStart) {
+                                            if (amountText.isEmpty()) {
+                                                Text(
+                                                    text = "0.00",
+                                                    fontSize = 34.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF94A3B8)
+                                                )
+                                            }
+                                            innerTextField()
                                         }
-                                        innerTextField()
                                     }
                                 )
                             }
@@ -540,7 +666,9 @@ fun AddExpenseDialog(
                             Spacer(modifier = Modifier.height(16.dp))
 
                             // Quick Increment Chips (+₹100, +₹500, +₹1,000, +₹2,000)
+                            // Flexible Row with weight so buttons evenly distribute and never shrink/wrap
                             Row(
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -556,16 +684,22 @@ fun AddExpenseDialog(
                                             }
                                             amountError = false
                                         },
-                                        shape = RoundedCornerShape(16.dp),
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(12.dp),
                                         color = Color(0xFFF1F5F9)
                                     ) {
-                                        Text(
-                                            text = label,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF0F172A),
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                        )
+                                        Box(
+                                            modifier = Modifier.padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                fontSize = 11.5.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color(0xFF0F172A),
+                                                maxLines = 1
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -726,30 +860,12 @@ fun AddExpenseDialog(
                                     )
                                 }
 
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = Color(0xFFF1F5F9)
-                                    ) {
-                                        Text(
-                                            text = "Daily",
-                                            fontSize = 11.5.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF475569),
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                        )
-                                    }
-
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                        contentDescription = "Change Category",
-                                        tint = Color(0xFF64748B),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = "Change Category",
+                                    tint = Color(0xFF64748B),
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
 
                             HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
@@ -956,7 +1072,7 @@ fun AddExpenseDialog(
                                             if (note.isEmpty()) {
                                                 Text(
                                                     text = "Client kickoff coffees (optional memo)",
-                                                    fontSize = 14.5.sp,
+                                                    fontSize = 14.sp,
                                                     color = Color(0xFF94A3B8)
                                                 )
                                             }
@@ -1111,14 +1227,14 @@ fun AddExpenseDialog(
                     // 6. SECURITY BANNER
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFF1F5F9).copy(alpha = 0.8f),
+                        color = Color(0xFFF1F5F9).copy(alpha = 0.85f),
                         border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
@@ -1126,155 +1242,25 @@ fun AddExpenseDialog(
                                 imageVector = Icons.Outlined.Lock,
                                 contentDescription = null,
                                 tint = Color(0xFF047857),
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Local-first encrypted ledger • Zero telemetry • Private key storage",
-                                fontSize = 11.sp,
+                                text = "100% Local-First Ledger • Offline Encrypted Vault",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
                                 color = Color(0xFF475569),
-                                textAlign = TextAlign.Center
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
 
-                    // 7. PRIMARY ACTION BUTTON & SUBTEXT
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            // If in edit / approve mode and onDelete is provided
-                            if (onDelete != null) {
-                                Surface(
-                                    onClick = onDelete,
-                                    modifier = Modifier
-                                        .weight(0.7f)
-                                        .height(52.dp),
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = Color(0xFFFEE2E2),
-                                    border = BorderStroke(1.dp, Color(0xFFFECACA))
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxSize(),
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.DeleteOutline,
-                                            contentDescription = "Delete",
-                                            tint = Color(0xFFDC2626),
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = "Delete",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.5.sp,
-                                            color = Color(0xFFDC2626)
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Commit to Ledger Button
-                            Button(
-                                onClick = {
-                                    val parsedAmount = amountText.toDoubleOrNull() ?: 0.0
-                                    if (parsedAmount <= 0.0) {
-                                        amountError = true
-                                        Toast.makeText(context, "Please enter a valid amount", Toast.LENGTH_SHORT).show()
-                                        return@Button
-                                    }
-                                    amountError = false
-
-                                    val resolvedMerchant = if (merchant.isNotBlank()) merchant.trim() else "Unknown Merchant"
-                                    val resolvedTag = if (selectedTags.isNotEmpty()) selectedTags.joinToString(", ") else selectedCategoryName
-
-                                    if (onAddFull != null) {
-                                        onAddFull(
-                                            parsedAmount,
-                                            resolvedMerchant,
-                                            effectiveType,
-                                            resolvedTag,
-                                            note,
-                                            dateMillis,
-                                            selectedAccountId,
-                                            selectedAccountSuffix,
-                                            selectedCategoryId
-                                        )
-                                    } else {
-                                        onAdd(
-                                            parsedAmount,
-                                            resolvedMerchant,
-                                            effectiveType,
-                                            resolvedTag,
-                                            note,
-                                            dateMillis
-                                        )
-                                    }
-                                },
-                                modifier = Modifier
-                                    .weight(1.3f)
-                                    .height(52.dp),
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF047857)
-                                )
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.CheckCircle,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = when {
-                                            isEditMode -> "Save Changes"
-                                            rawText != null -> "Commit Approval"
-                                            else -> "Commit to Ledger"
-                                        },
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.5.sp,
-                                        color = Color.White
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Under-button Subtext
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .background(Color(0xFF10B981), CircleShape)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Auto-categorized based on merchant history",
-                                fontSize = 11.5.sp,
-                                color = Color(0xFF64748B)
-                            )
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
             }
         }
     }
-}
 
 /**
  * Modern Light-themed Category Picker Dialog matching ArcTracker Emerald aesthetic.

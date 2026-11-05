@@ -180,35 +180,39 @@ fun FinancialAccountsScreen(
                     .fillMaxWidth()
                     .background(Color.White)
             ) {
-                ArcTrackerHeader(
-                    title = "Financial Accounts",
-                    subtitle = "Discovered Cards & Bank Accounts",
-                    onBackClick = onNavigateBack,
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.White)
-                        .statusBarsPadding(),
-                    horizontalPadding = 16.dp,
-                    actions = {
-                        // Circular "+" button to manually add account
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(Color.White)
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
-                                .clickable { showAddAccountDialog = true },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Add,
-                                contentDescription = "Add Account Manually",
-                                tint = Color(0xFF0F172A),
-                                modifier = Modifier.size(20.dp)
-                            )
+                        .statusBarsPadding()
+                ) {
+                    ArcTrackerHeader(
+                        title = "Financial Accounts",
+                        subtitle = "Discovered Cards & Bank Accounts",
+                        onBackClick = onNavigateBack,
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalPadding = 16.dp,
+                        actions = {
+                            // Circular "+" button to manually add account
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                    .clickable { showAddAccountDialog = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = "Add Account Manually",
+                                    tint = Color(0xFF0F172A),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
         }
     ) { innerPadding ->
