@@ -1110,15 +1110,16 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(14.dp))
+                                .size(46.dp)
+                                .clip(RoundedCornerShape(13.dp))
                                 .background(Color(0xFFECFDF5))
-                                .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(14.dp)),
+                                .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(13.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -1128,38 +1129,23 @@ fun SettingsScreen(
                                 modifier = Modifier.size(24.dp)
                             )
                         }
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "ArcTracker Update",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(Color(0xFFECFDF5))
-                                        .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(6.dp))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = "Official Release",
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF047857)
-                                    )
-                                }
-                            }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "ArcTracker Update",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Latest stable build published on GitHub",
+                                text = "Latest stable build on GitHub",
                                 fontSize = 12.sp,
                                 color = Color(0xFF64748B)
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.width(12.dp))
 
                     IconButton(
                         onClick = { showUpdateDialog = false },
@@ -1236,7 +1222,7 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Latest Release on GitHub",
+                                text = "GitHub Channel",
                                 fontSize = 13.sp,
                                 color = Color(0xFF64748B)
                             )
@@ -1256,7 +1242,7 @@ fun SettingsScreen(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "v1.0.6 (Latest)",
+                                        text = "Latest Release",
                                         fontSize = 12.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF15803D)
@@ -1265,39 +1251,14 @@ fun SettingsScreen(
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Release Highlights
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFF1F5F9))
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = "Release Highlights (v1.0.6):",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF334155)
-                        )
-                        Text(
-                            text = "• Zero-latency regex & notification parsing pipelines\n• Air-gapped AES-256 SQLCipher local database\n• Screen security guard & developer lock features",
-                            fontSize = 11.5.sp,
-                            color = Color(0xFF475569),
-                            lineHeight = 16.sp
-                        )
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Primary Button: Install ArcTracker v1.0.6
+                // Primary Button: Install Latest Version from GitHub
                 Button(
                     onClick = {
-                        val releaseUrl = "https://github.com/subhashrelangi/ArcTracker/releases/tag/v1.0.6"
+                        val releaseUrl = "https://github.com/subhashrelangi/ArcTracker/releases/latest"
                         try {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(releaseUrl))
                             context.startActivity(intent)
@@ -1321,7 +1282,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Install ArcTracker v1.0.6",
+                        text = "Install Latest Version",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
