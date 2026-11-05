@@ -740,11 +740,11 @@ fun ReviewPage(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "ACTION NEEDED: LINK BANK ACCOUNT",
+                                    text = "LINK BANK ACCOUNT",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFFB45309),
-                                    letterSpacing = 0.6.sp,
+                                    letterSpacing = 0.3.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -2721,19 +2721,20 @@ private fun ActiveUnlinkedAccountCard(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(46.dp)
+                            .height(46.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Link,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
                         Text(
                             text = "Assign Account",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
+                            fontSize = 12.5.sp,
                             color = Color.White,
                             maxLines = 1,
                             softWrap = false
