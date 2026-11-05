@@ -180,20 +180,34 @@ fun DeveloperOptionsScreen(
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(Color.White)
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape),
-                            contentAlignment = Alignment.Center
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFFEF2F2),
+                            border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                            modifier = Modifier.clickable {
+                                settingsRepo.setDeveloperModeUnlocked(false)
+                                Toast.makeText(context, "Developer options locked", Toast.LENGTH_SHORT).show()
+                                onNavigateBack()
+                            }
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Shield,
-                                contentDescription = "Security Vault",
-                                tint = Color(0xFF055B38),
-                                modifier = Modifier.size(19.dp)
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Lock,
+                                    contentDescription = "Lock Developer Options",
+                                    tint = Color(0xFFDC2626),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Lock",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFDC2626)
+                                )
+                            }
                         }
                     }
                 )

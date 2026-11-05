@@ -198,6 +198,16 @@ interface MonitoringSettingsRepository {
      */
     fun setProfileLabel(label: String) {}
 
+    /**
+     * Returns whether developer options are unlocked by the user.
+     */
+    fun isDeveloperModeUnlocked(): Boolean = false
+
+    /**
+     * Sets whether developer options are unlocked by the user.
+     */
+    fun setDeveloperModeUnlocked(unlocked: Boolean) {}
+
     companion object {
         const val PREFS_NAME = "ArcTrackerPrefs"
         const val KEY_GLOBAL_ENABLED = "monitoring_global_enabled"
@@ -213,6 +223,7 @@ interface MonitoringSettingsRepository {
         const val KEY_IS_DEMO_MODE = "is_demo_mode"
         const val KEY_PROFILE_NAME = "user_profile_name"
         const val KEY_PROFILE_LABEL = "user_profile_label"
+        const val KEY_DEVELOPER_MODE_UNLOCKED = "developer_mode_unlocked"
 
         @Volatile
         private var INSTANCE: MonitoringSettingsRepository? = null
@@ -570,6 +581,14 @@ class SharedPreferencesMonitoringSettingsRepository(
         prefs.edit().putString(MonitoringSettingsRepository.KEY_PROFILE_LABEL, label.trim()).apply()
     }
 
+    override fun isDeveloperModeUnlocked(): Boolean = synchronized(lock) {
+        prefs.getBoolean(MonitoringSettingsRepository.KEY_DEVELOPER_MODE_UNLOCKED, false)
+    }
+
+    override fun setDeveloperModeUnlocked(unlocked: Boolean): Unit = synchronized(lock) {
+        prefs.edit().putBoolean(MonitoringSettingsRepository.KEY_DEVELOPER_MODE_UNLOCKED, unlocked).apply()
+    }
+
     override fun resetToDefaults(): Unit = synchronized(lock) {
         val wasInitialCompleted = prefs.getBoolean(MonitoringSettingsRepository.KEY_INITIAL_SMS_IMPORT_COMPLETED, false)
         prefs.edit()
@@ -769,6 +788,16 @@ class InMemoryMonitoringSettingsRepository(
 
     override fun setProfileLabel(label: String): Unit = synchronized(lock) {
         profileLabel = label.trim()
+    }
+
+    private var isDeveloperModeUnlocked: Boolean = false
+
+    override fun isDeveloperModeUnlocked(): Boolean = synchronized(lock) {
+        isDeveloperModeUnlocked
+    }
+
+    override fun setDeveloperModeUnlocked(unlocked: Boolean): Unit = synchronized(lock) {
+        isDeveloperModeUnlocked = unlocked
     }
 
     override fun resetToDefaults(): Unit = synchronized(lock) {

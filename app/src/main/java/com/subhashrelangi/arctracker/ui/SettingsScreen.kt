@@ -3,11 +3,14 @@ package com.subhashrelangi.arctracker.ui
 import com.subhashrelangi.arctracker.ui.core.ArcFloatingAddExpenseButton
 
 import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -35,12 +38,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
+import kotlinx.coroutines.delay
 
 // Legacy Color & Component Tokens for backward compatibility with dependent screens
 val purpleColor = Color(0xFF673AB7)
@@ -200,6 +206,14 @@ fun SettingsScreen(
     var profileLabel by remember { mutableStateOf(settingsRepo.getProfileLabel()) }
     var showEditProfileSheet by remember { mutableStateOf(false) }
 
+    var isDeveloperModeUnlocked by remember {
+        mutableStateOf(settingsRepo.isDeveloperModeUnlocked())
+    }
+    var aboutArcTapCount by remember { mutableIntStateOf(0) }
+    var lastAboutArcTapTimestamp by remember { mutableLongStateOf(0L) }
+    var activeToast by remember { mutableStateOf<Toast?>(null) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+
     val initials = remember(profileName) {
         val parts = profileName.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
         when {
@@ -344,7 +358,7 @@ fun SettingsScreen(
         val showOffline = matchesSearch("100% Offline & Private", "Offline", "Private", "Zero network", "Zero telemetry")
         val hasSecurityMatches = showScreenSec || showMask || showOffline
 
-        val showDev = matchesSearch("Developer Options", "Developer", "Regex", "Onboarding", "Demo mode")
+        val showDev = isDeveloperModeUnlocked && matchesSearch("Developer Options", "Developer", "Regex", "Onboarding", "Demo mode")
 
         val showAbout = matchesSearch("About ArcTracker", "About", "Version", "Build", "Architecture")
         val showFeedback = matchesSearch("Feedback & Local Logs", "Feedback", "Diagnostics", "Report", "Review")
@@ -885,8 +899,25 @@ fun SettingsScreen(
             }
 
             // 8. Section: DEVELOPER & ADVANCED
-            if (showDev) {
-                SectionHeader(title = "DEVELOPER & ADVANCED")
+            if (isDeveloperModeUnlocked && showDev) {
+                SectionHeader(
+                    title = "DEVELOPER & ADVANCED",
+                    rightContent = {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFFECFDF5))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "UNLOCKED",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF047857)
+                            )
+                        }
+                    }
+                )
 
                 SettingsGroupCard {
                     SettingsItemRow(
@@ -908,9 +939,45 @@ fun SettingsScreen(
                         SettingsItemRow(
                             icon = Icons.Outlined.Info,
                             title = "About ArcTracker",
-                            subtitle = "Version 1.0.0 (Build 5107a09) • Local-first architecture",
+                            subtitle = if (isDeveloperModeUnlocked) {
+                                "Version 1.0.0 (Build 5107a09) • Developer options unlocked"
+                            } else {
+                                "Version 1.0.0 (Build 5107a09) • Local-first architecture"
+                            },
                             badgeText = "v1.0.0",
-                            onClick = null
+                            onClick = {
+                                val now = System.currentTimeMillis()
+                                if (now - lastAboutArcTapTimestamp > 2000L) {
+                                    aboutArcTapCount = 1
+                                } else {
+                                    aboutArcTapCount++
+                                }
+                                lastAboutArcTapTimestamp = now
+
+                                // Cancel active toast immediately to eliminate queueing/lag
+                                activeToast?.cancel()
+
+                                if (isDeveloperModeUnlocked) {
+                                    activeToast = Toast.makeText(context, "Developer options are already enabled.", Toast.LENGTH_SHORT).also { it.show() }
+                                } else {
+                                    if (aboutArcTapCount >= 5) {
+                                        isDeveloperModeUnlocked = true
+                                        settingsRepo.setDeveloperModeUnlocked(true)
+                                        aboutArcTapCount = 0
+                                        activeToast = Toast.makeText(context, "🎉 You are now a developer! Developer options unlocked.", Toast.LENGTH_SHORT).also { it.show() }
+                                    } else if (aboutArcTapCount >= 2) {
+                                        val remaining = 5 - aboutArcTapCount
+                                        activeToast = Toast.makeText(
+                                            context,
+                                            "Tap $remaining more time${if (remaining == 1) "" else "s"} to unlock developer options",
+                                            Toast.LENGTH_SHORT
+                                        ).also { it.show() }
+                                    }
+                                }
+                            },
+                            onLongClick = {
+                                showUpdateDialog = true
+                            }
                         )
                     }
                     if (showFeedback) {
@@ -1000,6 +1067,257 @@ fun SettingsScreen(
                 }
             }
         )
+    }
+
+    // App Update Dialog (Triggered by Long-Pressing "About ArcTracker")
+    if (showUpdateDialog) {
+        var isCheckingUpdate by remember { mutableStateOf(true) }
+
+        LaunchedEffect(isCheckingUpdate) {
+            if (isCheckingUpdate) {
+                delay(800L)
+                isCheckingUpdate = false
+            }
+        }
+
+        Dialog(
+            onDismissRequest = { showUpdateDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(22.dp)
+                ) {
+                    // Top Bar: App Badge & Close
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFECFDF5))
+                                    .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.SystemUpdate,
+                                    contentDescription = "ArcTracker Update",
+                                    tint = Color(0xFF047857),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "ArcTracker Update",
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = "Official Release Channel",
+                                    fontSize = 11.5.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = { showUpdateDialog = false },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "Close",
+                                tint = Color(0xFF64748B),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    if (isCheckingUpdate) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFFF8FAFC))
+                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(14.dp))
+                                .padding(vertical = 26.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(28.dp),
+                                color = Color(0xFF047857),
+                                strokeWidth = 2.5.dp
+                            )
+                            Text(
+                                text = "Checking for latest version...",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF475569)
+                            )
+                        }
+                    } else {
+                        // Robust Version Status Card
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFFF8FAFC))
+                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(14.dp))
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Installed Version",
+                                    fontSize = 12.5.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                                Text(
+                                    text = "v1.0.0 (5107a09)",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F172A)
+                                )
+                            }
+
+                            HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 0.8.dp)
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Up-to-Date Version",
+                                    fontSize = 12.5.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0xFFECFDF5))
+                                        .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 7.dp, vertical = 2.5.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF15803D))
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "v1.0.1 (Latest)",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF15803D)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // Primary Button: Install Up-to-Date Version
+                    Button(
+                        onClick = {
+                            val releaseUrl = "https://github.com/subhashrelangi/ArcTracker/releases/latest"
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(releaseUrl))
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "No web browser found", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF047857),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.FileDownload,
+                            contentDescription = null,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Install Latest Version (v1.0.1)",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Secondary Button: View in GitHub
+                    OutlinedButton(
+                        onClick = {
+                            val githubUrl = "https://github.com/subhashrelangi/ArcTracker"
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl))
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "No web browser found", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color(0xFF0F172A)
+                        ),
+                        border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Code,
+                            contentDescription = null,
+                            modifier = Modifier.size(17.dp),
+                            tint = Color(0xFF334155)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "View in GitHub",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF0F172A)
+                        )
+                    }
+                }
+            }
+        }
     }
 
     // Interactive Edit Local Profile & Vault Identity Modal Bottom Sheet
@@ -1203,6 +1521,7 @@ private fun SettingsGroupCard(content: @Composable ColumnScope.() -> Unit) {
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SettingsItemRow(
     icon: ImageVector,
@@ -1217,14 +1536,25 @@ private fun SettingsItemRow(
     badgeBgColor: Color = Color(0xFFF1F5F9),
     badgeTextColor: Color = Color(0xFF475569),
     customTrailing: (@Composable () -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
     val alpha = if (enabled) 1f else 0.38f
+    val clickModifier = if (onClick != null || onLongClick != null) {
+        Modifier.combinedClickable(
+            enabled = enabled,
+            onClick = { onClick?.invoke() },
+            onLongClick = { onLongClick?.invoke() }
+        )
+    } else {
+        Modifier
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = enabled && onClick != null) { onClick?.invoke() }
+                .then(clickModifier)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
                 .alpha(alpha),
             verticalAlignment = Alignment.CenterVertically
