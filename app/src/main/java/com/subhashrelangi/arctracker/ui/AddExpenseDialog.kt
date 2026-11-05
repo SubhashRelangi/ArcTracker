@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
@@ -400,143 +401,143 @@ fun AddExpenseDialog(
                     }
                 }
             },
-        bottomBar = {
-            // Pinned Bottom Action Bar (matching ArcTracker standards)
-            Surface(
-                color = Color.White,
-                shadowElevation = 8.dp,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+            bottomBar = {
+                // Solid Bottom Action Section sticking flush at the bottom of the screen
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.White,
+                    shadowElevation = 10.dp,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 40.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // If in edit / approve mode and onDelete is provided
-                        if (onDelete != null) {
-                            Surface(
-                                onClick = onDelete,
-                                modifier = Modifier
-                                    .weight(0.7f)
-                                    .height(50.dp),
-                                shape = RoundedCornerShape(14.dp),
-                                color = Color(0xFFFEE2E2),
-                                border = BorderStroke(1.dp, Color(0xFFFECACA))
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxSize(),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // If in edit / approve mode and onDelete is provided
+                            if (onDelete != null) {
+                                Surface(
+                                    onClick = onDelete,
+                                    modifier = Modifier
+                                        .weight(0.7f)
+                                        .height(52.dp),
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = Color(0xFFFEE2E2),
+                                    border = BorderStroke(1.dp, Color(0xFFFECACA))
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.DeleteOutline,
-                                        contentDescription = "Delete",
-                                        tint = Color(0xFFDC2626),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "Delete",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.5.sp,
-                                        color = Color(0xFFDC2626)
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxSize(),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DeleteOutline,
+                                            contentDescription = "Delete",
+                                            tint = Color(0xFFDC2626),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Delete",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.5.sp,
+                                            color = Color(0xFFDC2626)
+                                        )
+                                    }
                                 }
                             }
-                        }
 
-                        // Commit to Ledger Button
-                        Button(
-                            onClick = {
-                                val parsedAmount = amountText.toDoubleOrNull() ?: 0.0
-                                if (parsedAmount <= 0.0) {
-                                    amountError = true
-                                    Toast.makeText(context, "Please enter a valid amount", Toast.LENGTH_SHORT).show()
-                                    return@Button
-                                }
-                                amountError = false
+                            // Commit to Ledger Button
+                            Button(
+                                onClick = {
+                                    val parsedAmount = amountText.toDoubleOrNull() ?: 0.0
+                                    if (parsedAmount <= 0.0) {
+                                        amountError = true
+                                        Toast.makeText(context, "Please enter a valid amount", Toast.LENGTH_SHORT).show()
+                                        return@Button
+                                    }
+                                    amountError = false
 
-                                val resolvedMerchant = if (merchant.isNotBlank()) merchant.trim() else "Unknown Merchant"
-                                val resolvedTag = if (selectedTags.isNotEmpty()) selectedTags.joinToString(", ") else selectedCategoryName
+                                    val resolvedMerchant = if (merchant.isNotBlank()) merchant.trim() else "Unknown Merchant"
+                                    val resolvedTag = if (selectedTags.isNotEmpty()) selectedTags.joinToString(", ") else selectedCategoryName
 
-                                if (onAddFull != null) {
-                                    onAddFull(
-                                        parsedAmount,
-                                        resolvedMerchant,
-                                        effectiveType,
-                                        resolvedTag,
-                                        note,
-                                        dateMillis,
-                                        selectedAccountId,
-                                        selectedAccountSuffix,
-                                        selectedCategoryId
-                                    )
-                                } else {
-                                    onAdd(
-                                        parsedAmount,
-                                        resolvedMerchant,
-                                        effectiveType,
-                                        resolvedTag,
-                                        note,
-                                        dateMillis
-                                    )
-                                }
-                            },
-                            modifier = Modifier
-                                .weight(if (onDelete != null) 1.3f else 1f)
-                                .height(50.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF047857)
-                            )
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                                    if (onAddFull != null) {
+                                        onAddFull(
+                                            parsedAmount,
+                                            resolvedMerchant,
+                                            effectiveType,
+                                            resolvedTag,
+                                            note,
+                                            dateMillis,
+                                            selectedAccountId,
+                                            selectedAccountSuffix,
+                                            selectedCategoryId
+                                        )
+                                    } else {
+                                        onAdd(
+                                            parsedAmount,
+                                            resolvedMerchant,
+                                            effectiveType,
+                                            resolvedTag,
+                                            note,
+                                            dateMillis
+                                        )
+                                    }
+                                },
+                                modifier = Modifier
+                                    .weight(if (onDelete != null) 1.3f else 1f)
+                                    .height(52.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF047857)
+                                )
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.CheckCircle,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = when {
-                                        isEditMode -> "Save Changes"
-                                        rawText != null -> "Commit Approval"
-                                        else -> "Commit to Ledger"
-                                    },
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp,
-                                    color = Color.White
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.CheckCircle,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = when {
+                                            isEditMode -> "Save Changes"
+                                            rawText != null -> "Commit Approval"
+                                            else -> "Commit to Ledger"
+                                        },
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = Color.White
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
-        }
-    ) { innerPadding ->
-        // SCROLLABLE CONTENT BODY
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .imePadding()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp)
-                .padding(top = 12.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
+        ) { innerPadding ->
+            // SCROLLABLE CONTENT BODY
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .imePadding()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 12.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                     // 2. TRANSACTION TYPE SEGMENTED SWITCHER
                     Surface(
                         shape = RoundedCornerShape(14.dp),
@@ -1256,11 +1257,11 @@ fun AddExpenseDialog(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
+                    Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }
+}
 
 /**
  * Modern Light-themed Category Picker Dialog matching ArcTracker Emerald aesthetic.
