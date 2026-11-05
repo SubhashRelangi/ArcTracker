@@ -2,18 +2,22 @@ package com.subhashrelangi.arctracker.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -23,11 +27,14 @@ import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.data.MerchantAlias
 import com.subhashrelangi.arctracker.service.MerchantAliasManager
 import com.subhashrelangi.arctracker.service.MerchantNormalizer
+import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
 import kotlinx.coroutines.launch
 
-private val primaryColor = Color(0xFF6750A4)
-private val cardBorderColor = Color(0xFFE0E0E0)
-private val textSubColor = Color(0xFF757575)
+private val emeraldPrimary = Color(0xFF047857)
+private val slateTitle = Color(0xFF0F172A)
+private val slateSub = Color(0xFF64748B)
+private val cardBorder = Color(0xFFE2E8F0)
+private val lightBg = Color(0xFFF8FAFC)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,37 +63,44 @@ fun MerchantAliasesScreen(
     var resolvedPreview by remember { mutableStateOf<Pair<String?, MerchantAlias?>?>(null) }
 
     Scaffold(
+        containerColor = lightBg,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "Merchant Aliases",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Normalize merchant variations to canonical names",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = textSubColor
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                containerColor = primaryColor,
-                contentColor = Color.White
+            Surface(
+                color = Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Alias")
+                ArcTrackerHeader(
+                    title = "Merchant Aliases",
+                    subtitle = "Canonical Payee Normalization",
+                    onBackClick = onNavigateBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .statusBarsPadding(),
+                    horizontalPadding = 16.dp,
+                    actions = {
+                        // Add Alias Button
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .border(BorderStroke(1.dp, cardBorder), CircleShape)
+                                .clickable { showAddDialog = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = "Add Alias",
+                                tint = slateTitle,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
+                )
             }
         }
     ) { innerPadding ->
@@ -95,73 +109,204 @@ fun MerchantAliasesScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Tester Card
-            Card(
+            // Tester & Live Resolver Card
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
-                border = BorderStroke(1.dp, cardBorderColor)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, cardBorder)
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text("Alias Tester & Resolver", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Spacer(modifier = Modifier.height(6.dp))
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Header Row with Live Indicator
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        OutlinedTextField(
-                            value = testMerchantInput,
-                            onValueChange = {
-                                testMerchantInput = it
-                                resolvedPreview = null
-                            },
-                            placeholder = { Text("e.g. AMZN Mktp...", fontSize = 12.sp) },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = {
-                                if (testMerchantInput.isNotBlank()) {
-                                    resolvedPreview = aManager.resolveAlias(testMerchantInput, activeAliases)
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("Resolve", fontSize = 12.sp)
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(emeraldPrimary, CircleShape)
+                            )
+                            Text(
+                                text = "Alias Tester & Live Resolver",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = slateTitle
+                            )
+                        }
+
+                        Text(
+                            text = "${activeAliases.size} Active",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = emeraldPrimary
+                        )
+                    }
+
+                    Text(
+                        text = "Enter any raw merchant or transaction description below to preview real-time canonical resolution.",
+                        fontSize = 12.sp,
+                        color = slateSub,
+                        lineHeight = 17.sp
+                    )
+
+                    // Clear & Attractive Full-Width Input Box
+                    OutlinedTextField(
+                        value = testMerchantInput,
+                        onValueChange = {
+                            testMerchantInput = it
+                            resolvedPreview = null
+                        },
+                        placeholder = {
+                            Text(
+                                "e.g. AMZN Mktp, SWIGGY BANGALORE, UBER TRIP...",
+                                fontSize = 13.sp,
+                                color = slateSub.copy(alpha = 0.7f)
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Storefront,
+                                contentDescription = null,
+                                tint = if (testMerchantInput.isNotBlank()) emeraldPrimary else slateSub,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        trailingIcon = {
+                            if (testMerchantInput.isNotEmpty()) {
+                                IconButton(
+                                    onClick = {
+                                        testMerchantInput = ""
+                                        resolvedPreview = null
+                                    },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = "Clear input",
+                                        tint = slateSub,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = LocalTextStyle.current.copy(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = slateTitle
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = emeraldPrimary,
+                            unfocusedBorderColor = cardBorder,
+                            focusedContainerColor = Color(0xFFF8FAFC),
+                            unfocusedContainerColor = Color(0xFFF8FAFC),
+                            cursorColor = emeraldPrimary
+                        )
+                    )
+
+                    // Button Moved Down Below the Input Box
+                    Button(
+                        onClick = {
+                            if (testMerchantInput.isNotBlank()) {
+                                resolvedPreview = aManager.resolveAlias(testMerchantInput, activeAliases)
+                            }
+                        },
+                        enabled = testMerchantInput.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = emeraldPrimary,
+                            disabledContainerColor = Color(0xFFF1F5F9),
+                            contentColor = Color.White,
+                            disabledContentColor = Color(0xFF94A3B8)
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "Resolve Merchant Alias",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
 
+                    // Resolution Result Card
                     resolvedPreview?.let { (canonical, matched) ->
-                        Spacer(modifier = Modifier.height(8.dp))
+                        val isMatched = matched != null
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (matched != null) Color(0xFFE8F5E9) else Color(0xFFF5F5F5)
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isMatched) Color(0xFFECFDF5) else Color(0xFFF1F5F9),
+                            border = BorderStroke(1.dp, if (isMatched) Color(0xFFA7F3D0) else cardBorder)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Icon(
-                                    imageVector = if (matched != null) Icons.Filled.CheckCircle else Icons.Filled.Info,
-                                    contentDescription = null,
-                                    tint = if (matched != null) Color(0xFF2E7D32) else Color.Gray,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = if (matched != null) {
-                                        "Resolved: \"$testMerchantInput\" → \"$canonical\""
-                                    } else {
-                                        "No alias matched. Will use: \"$testMerchantInput\""
-                                    },
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isMatched) Icons.Filled.CheckCircle else Icons.Filled.Info,
+                                        contentDescription = null,
+                                        tint = if (isMatched) emeraldPrimary else slateSub,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = if (isMatched) "ALIAS MATCH IDENTIFIED" else "DEFAULT CANONICAL NORMALIZATION",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.5.sp,
+                                        color = if (isMatched) emeraldPrimary else slateSub
+                                    )
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "\"$testMerchantInput\"",
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = slateTitle
+                                    )
+                                    Text(
+                                        text = "➜",
+                                        fontSize = 13.sp,
+                                        color = if (isMatched) emeraldPrimary else slateSub
+                                    )
+                                    Text(
+                                        text = "\"${canonical ?: testMerchantInput}\"",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isMatched) emeraldPrimary else slateTitle
+                                    )
+                                }
                             }
                         }
                     }
@@ -176,26 +321,41 @@ fun MerchantAliasesScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Filled.Storefront,
-                            contentDescription = null,
-                            tint = Color.Gray,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text("No merchant aliases created", fontWeight = FontWeight.Medium, color = textSubColor)
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFECFDF5))
+                                .border(1.dp, Color(0xFFA7F3D0), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Storefront,
+                                contentDescription = null,
+                                tint = emeraldPrimary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(14.dp))
                         Text(
-                            text = "Tap + to normalize merchant variations (e.g. 'AMZN' → 'Amazon')",
-                            fontSize = 12.sp,
-                            color = textSubColor
+                            text = "No merchant aliases configured",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = slateTitle
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Tap + to normalize variations (e.g. 'AMZN' → 'Amazon')",
+                            fontSize = 12.5.sp,
+                            color = slateSub
                         )
                     }
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(aliases, key = { it.id }) { alias ->
                         AliasCard(
@@ -258,9 +418,23 @@ fun MerchantAliasesScreen(
     aliasToDelete?.let { alias ->
         AlertDialog(
             onDismissRequest = { aliasToDelete = null },
-            title = { Text("Delete Alias", fontWeight = FontWeight.Bold) },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color.White,
+            title = {
+                Text(
+                    text = "Delete Alias",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    color = slateTitle
+                )
+            },
             text = {
-                Text("Delete alias \"${alias.alias}\" → \"${alias.canonicalMerchant}\"? Existing transactions will remain unchanged.")
+                Text(
+                    text = "Delete alias \"${alias.alias}\" → \"${alias.canonicalMerchant}\"? Existing transactions will remain unchanged.",
+                    fontSize = 13.5.sp,
+                    color = slateSub,
+                    lineHeight = 19.sp
+                )
             },
             confirmButton = {
                 Button(
@@ -276,14 +450,15 @@ fun MerchantAliasesScreen(
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Delete")
+                    Text("Delete Alias", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { aliasToDelete = null }) {
-                    Text("Cancel")
+                    Text("Cancel", color = slateSub, fontSize = 13.sp)
                 }
             }
         )
@@ -297,28 +472,30 @@ fun AliasCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, cardBorderColor)
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, cardBorder)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .background(primaryColor.copy(alpha = 0.12f), CircleShape),
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFECFDF5))
+                    .border(1.dp, Color(0xFFA7F3D0), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Filled.Storefront,
                     contentDescription = null,
-                    tint = primaryColor,
+                    tint = emeraldPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -329,31 +506,57 @@ fun AliasCard(
                 Text(
                     text = alias.alias,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    fontSize = 14.5.sp,
+                    color = slateTitle
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Resolves to: ", fontSize = 11.sp, color = textSubColor)
+                    Text("Resolves to: ", fontSize = 11.5.sp, color = slateSub)
                     Text(
                         text = alias.canonicalMerchant,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = primaryColor
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = emeraldPrimary
                     )
                 }
             }
 
+            // Toggle Switch
             Switch(
                 checked = alias.isEnabled,
-                onCheckedChange = onToggle
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = emeraldPrimary,
+                    uncheckedThumbColor = Color(0xFF94A3B8),
+                    uncheckedTrackColor = Color(0xFFE2E8F0)
+                )
             )
 
-            IconButton(onClick = onEdit) {
-                Icon(Icons.Filled.Edit, contentDescription = "Edit", modifier = Modifier.size(20.dp))
+            // Edit Button
+            IconButton(
+                onClick = onEdit,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(
+                    Icons.Outlined.Edit,
+                    contentDescription = "Edit",
+                    tint = slateSub,
+                    modifier = Modifier.size(18.dp)
+                )
             }
 
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = Color(0xFFD32F2F), modifier = Modifier.size(20.dp))
+            // Delete Button
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(
+                    Icons.Outlined.DeleteOutline,
+                    contentDescription = "Delete",
+                    tint = Color(0xFFDC2626),
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }
@@ -371,8 +574,15 @@ fun AliasEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = Color.White,
         title = {
-            Text(if (existing != null) "Edit Merchant Alias" else "Add Merchant Alias", fontWeight = FontWeight.Bold)
+            Text(
+                text = if (existing != null) "Edit Merchant Alias" else "New Merchant Alias",
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                color = slateTitle
+            )
         },
         text = {
             Column(
@@ -386,9 +596,15 @@ fun AliasEditorDialog(
                         errorMessage = null
                     },
                     label = { Text("Alias / Raw Variation *") },
-                    placeholder = { Text("e.g. AMZN Mktp") },
+                    placeholder = { Text("e.g. AMZN Mktp, SWIGGY BLR") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = emeraldPrimary,
+                        unfocusedBorderColor = cardBorder,
+                        focusedLabelColor = emeraldPrimary
+                    )
                 )
 
                 OutlinedTextField(
@@ -398,22 +614,29 @@ fun AliasEditorDialog(
                         errorMessage = null
                     },
                     label = { Text("Canonical Merchant Name *") },
-                    placeholder = { Text("e.g. Amazon") },
+                    placeholder = { Text("e.g. Amazon, Swiggy") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = emeraldPrimary,
+                        unfocusedBorderColor = cardBorder,
+                        focusedLabelColor = emeraldPrimary
+                    )
                 )
 
                 if (aliasText.isNotBlank() && canonicalText.isNotBlank()) {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFFEDE7F6)
+                        color = Color(0xFFECFDF5),
+                        border = BorderStroke(1.dp, Color(0xFFA7F3D0))
                     ) {
                         Text(
                             text = "Preview: \"${aliasText.trim()}\" → \"${canonicalText.trim()}\"",
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = primaryColor,
+                            fontWeight = FontWeight.Bold,
+                            color = emeraldPrimary,
                             modifier = Modifier.padding(8.dp)
                         )
                     }
@@ -423,7 +646,7 @@ fun AliasEditorDialog(
                     Text(
                         text = "⚠ $err",
                         fontSize = 12.sp,
-                        color = Color(0xFFC62828)
+                        color = Color(0xFFDC2626)
                     )
                 }
             }
@@ -449,14 +672,15 @@ fun AliasEditorDialog(
                     }
                     onSave(a, c)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+                colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Text("Save")
+                Text("Save Alias", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Cancel", color = slateSub, fontSize = 13.sp)
             }
         }
     )

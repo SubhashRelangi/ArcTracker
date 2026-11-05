@@ -2,18 +2,24 @@ package com.subhashrelangi.arctracker.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.AutoFixHigh
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -21,13 +27,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.*
 import com.subhashrelangi.arctracker.service.*
-import kotlinx.coroutines.Dispatchers
+import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-private val primaryColor = Color(0xFF6750A4)
-private val cardBorderColor = Color(0xFFE0E0E0)
-private val textSubColor = Color(0xFF757575)
+private val emeraldPrimary = Color(0xFF047857)
+private val slateTitle = Color(0xFF0F172A)
+private val slateSub = Color(0xFF64748B)
+private val cardBorder = Color(0xFFE2E8F0)
+private val lightBg = Color(0xFFF8FAFC)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,46 +74,62 @@ fun CategoryRulesScreen(
     var testResult by remember { mutableStateOf<CategoryInferenceResult?>(null) }
 
     Scaffold(
+        containerColor = lightBg,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "Category Rules",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "User-defined merchant categorization rules",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = textSubColor
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { onNavigateToApplyRules(null) }) {
-                        Icon(
-                            imageVector = Icons.Filled.AutoFixHigh,
-                            contentDescription = "Apply Rules to Existing Transactions",
-                            tint = primaryColor
-                        )
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                containerColor = primaryColor,
-                contentColor = Color.White
+            Surface(
+                color = Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Rule")
+                ArcTrackerHeader(
+                    title = "Category Rules",
+                    subtitle = "Automated Categorization Engine",
+                    onBackClick = onNavigateBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .statusBarsPadding(),
+                    horizontalPadding = 16.dp,
+                    actions = {
+                        // Apply Rules to Existing Transactions Button
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .border(BorderStroke(1.dp, cardBorder), CircleShape)
+                                .clickable { onNavigateToApplyRules(null) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.AutoFixHigh,
+                                contentDescription = "Apply Rules",
+                                tint = emeraldPrimary,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+
+                        // Add Rule Button
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .border(BorderStroke(1.dp, cardBorder), CircleShape)
+                                .clickable { showAddDialog = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = "Add Rule",
+                                tint = slateTitle,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
+                )
             }
         }
     ) { innerPadding ->
@@ -116,74 +139,207 @@ fun CategoryRulesScreen(
                 .padding(innerPadding)
         ) {
             // Interactive Test & Preview Bar
-            Card(
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
-                border = BorderStroke(1.dp, cardBorderColor)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, cardBorder)
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = "Rule Tester & Preview",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        OutlinedTextField(
-                            value = testMerchant,
-                            onValueChange = {
-                                testMerchant = it
-                                testResult = null
-                            },
-                            placeholder = { Text("Enter merchant name to test...", fontSize = 12.sp) },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(emeraldPrimary, CircleShape)
+                            )
+                            Text(
+                                text = "Rule Tester & Live Preview",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = slateTitle
+                            )
+                        }
+
+                        Text(
+                            text = "${activeRules.size} Active",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = emeraldPrimary
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = {
-                                if (testMerchant.isNotBlank()) {
-                                    val engine = CategoryInferenceEngine()
-                                    testResult = engine.inferCategory(
-                                        CategoryInferenceInput(
-                                            merchant = testMerchant,
-                                            availableCategoryIds = activeCategories.map { it.id }.toSet(),
-                                            userRules = activeRules
-                                        )
+                    }
+
+                    Text(
+                        text = "Enter a merchant name or SMS alert keyword to test category matching accuracy.",
+                        fontSize = 12.sp,
+                        color = slateSub,
+                        lineHeight = 17.sp
+                    )
+
+                    // Clear & Attractive Full-Width Input Box
+                    OutlinedTextField(
+                        value = testMerchant,
+                        onValueChange = {
+                            testMerchant = it
+                            testResult = null
+                        },
+                        placeholder = { Text("e.g. Swiggy, Netflix, Uber, Shell Fuel...", fontSize = 13.sp, color = slateSub.copy(alpha = 0.7f)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Storefront,
+                                contentDescription = null,
+                                tint = if (testMerchant.isNotBlank()) emeraldPrimary else slateSub,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        trailingIcon = {
+                            if (testMerchant.isNotEmpty()) {
+                                IconButton(
+                                    onClick = {
+                                        testMerchant = ""
+                                        testResult = null
+                                    },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = "Clear input",
+                                        tint = slateSub,
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = LocalTextStyle.current.copy(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = slateTitle
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = emeraldPrimary,
+                            unfocusedBorderColor = cardBorder,
+                            focusedContainerColor = Color(0xFFF8FAFC),
+                            unfocusedContainerColor = Color(0xFFF8FAFC),
+                            cursorColor = emeraldPrimary
+                        )
+                    )
+
+                    // Button Moved Down Below the Input Box
+                    Button(
+                        onClick = {
+                            if (testMerchant.isNotBlank()) {
+                                val engine = CategoryInferenceEngine()
+                                testResult = engine.inferCategory(
+                                    CategoryInferenceInput(
+                                        merchant = testMerchant,
+                                        availableCategoryIds = activeCategories.map { it.id }.toSet(),
+                                        userRules = activeRules
+                                    )
+                                )
+                            }
+                        },
+                        enabled = testMerchant.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = emeraldPrimary,
+                            disabledContainerColor = Color(0xFFF1F5F9),
+                            contentColor = Color.White,
+                            disabledContentColor = Color(0xFF94A3B8)
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("Test", fontSize = 12.sp)
+                            Icon(
+                                imageVector = Icons.Filled.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "Test Category Rule",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
 
                     testResult?.let { res ->
-                        Spacer(modifier = Modifier.height(8.dp))
+                        val isHighConfidence = res.status == CategoryInferenceStatus.HIGH_CONFIDENCE
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (res.status == CategoryInferenceStatus.HIGH_CONFIDENCE) Color(0xFFE8F5E9) else Color(0xFFFFF3E0)
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isHighConfidence) Color(0xFFECFDF5) else Color(0xFFFFFBEB),
+                            border = BorderStroke(1.dp, if (isHighConfidence) Color(0xFFA7F3D0) else Color(0xFFFDE68A))
                         ) {
-                            Column(modifier = Modifier.padding(8.dp)) {
-                                Text(
-                                    text = "Inferred: ${res.suggestedCategoryName ?: "Uncategorized"} (${res.status})",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = if (res.status == CategoryInferenceStatus.HIGH_CONFIDENCE) Color(0xFF2E7D32) else Color(0xFFE65100)
-                                )
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isHighConfidence) Icons.Filled.CheckCircle else Icons.Filled.Info,
+                                        contentDescription = null,
+                                        tint = if (isHighConfidence) emeraldPrimary else Color(0xFFB45309),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = "INFERENCE: ${res.status}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.5.sp,
+                                        color = if (isHighConfidence) emeraldPrimary else Color(0xFFB45309)
+                                    )
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "\"$testMerchant\"",
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = slateTitle
+                                    )
+                                    Text(
+                                        text = "➜",
+                                        fontSize = 13.sp,
+                                        color = if (isHighConfidence) emeraldPrimary else Color(0xFFB45309)
+                                    )
+                                    Text(
+                                        text = res.suggestedCategoryName ?: "Uncategorized",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isHighConfidence) emeraldPrimary else Color(0xFFB45309)
+                                    )
+                                }
+
                                 Text(
                                     text = res.reason,
-                                    fontSize = 11.sp,
-                                    color = Color.DarkGray
+                                    fontSize = 12.sp,
+                                    color = slateSub
                                 )
                             }
                         }
@@ -191,21 +347,63 @@ fun CategoryRulesScreen(
                 }
             }
 
-            // Tabs for Active vs Inactive
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.surface
+            // Segmented Tab Pill Selector: Active vs Inactive
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
+                    .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(12.dp))
+                    .padding(4.dp)
             ) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text("Active (${activeRules.size})", fontWeight = FontWeight.SemiBold) }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text("Inactive (${inactiveRules.size})", fontWeight = FontWeight.SemiBold) }
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Active Tab
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (selectedTab == 0) Color.White else Color.Transparent)
+                            .then(
+                                if (selectedTab == 0) Modifier.border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(10.dp))
+                                else Modifier
+                            )
+                            .clickable { selectedTab = 0 }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Active (${activeRules.size})",
+                            fontSize = 13.sp,
+                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
+                            color = if (selectedTab == 0) slateTitle else slateSub
+                        )
+                    }
+
+                    // Inactive Tab
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (selectedTab == 1) Color.White else Color.Transparent)
+                            .then(
+                                if (selectedTab == 1) Modifier.border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(10.dp))
+                                else Modifier
+                            )
+                            .clickable { selectedTab = 1 }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Inactive (${inactiveRules.size})",
+                            fontSize = 13.sp,
+                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
+                            color = if (selectedTab == 1) slateTitle else slateSub
+                        )
+                    }
+                }
             }
 
             val currentList = if (selectedTab == 0) activeRules else inactiveRules
@@ -218,30 +416,41 @@ fun CategoryRulesScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Filled.Rule,
-                            contentDescription = null,
-                            tint = Color.Gray,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFECFDF5))
+                                .border(1.dp, Color(0xFFA7F3D0), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Rule,
+                                contentDescription = null,
+                                tint = emeraldPrimary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(14.dp))
                         Text(
                             text = if (selectedTab == 0) "No active category rules" else "No inactive rules",
-                            fontWeight = FontWeight.Medium,
-                            color = textSubColor
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = slateTitle
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Tap + to teach ArcTracker custom merchant rules",
-                            fontSize = 12.sp,
-                            color = textSubColor
+                            fontSize = 12.5.sp,
+                            color = slateSub
                         )
                     }
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(currentList, key = { it.id }) { rule ->
                         val targetCat = categories.find { it.id == rule.categoryId }
@@ -323,9 +532,23 @@ fun CategoryRulesScreen(
     ruleToDelete?.let { rule ->
         AlertDialog(
             onDismissRequest = { ruleToDelete = null },
-            title = { Text("Delete Rule", fontWeight = FontWeight.Bold) },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color.White,
+            title = {
+                Text(
+                    text = "Delete Rule",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    color = slateTitle
+                )
+            },
             text = {
-                Text("Delete category rule for \"${rule.pattern}\"? Existing transaction categories will not be changed.")
+                Text(
+                    text = "Delete category rule for \"${rule.pattern}\"? Existing transaction categories will not be changed.",
+                    fontSize = 13.5.sp,
+                    color = slateSub,
+                    lineHeight = 19.sp
+                )
             },
             confirmButton = {
                 Button(
@@ -341,14 +564,15 @@ fun CategoryRulesScreen(
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Delete")
+                    Text("Delete Rule", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { ruleToDelete = null }) {
-                    Text("Cancel")
+                    Text("Cancel", color = slateSub, fontSize = 13.sp)
                 }
             }
         )
@@ -366,24 +590,26 @@ fun RuleCard(
     onDelete: () -> Unit,
     onApplyToTransactions: () -> Unit = {}
 ) {
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, if (isInvalid) Color(0xFFE57373) else cardBorderColor)
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, if (isInvalid) Color(0xFFEF4444) else cardBorder)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon
+            // Category Avatar Icon
             val catColor = targetCategory?.let { CategoryVisuals.getColor(it.colorKey) } ?: Color.Gray
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .background(catColor.copy(alpha = 0.15f), CircleShape),
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(catColor.copy(alpha = 0.12f))
+                    .border(1.dp, catColor.copy(alpha = 0.25f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -400,23 +626,25 @@ fun RuleCard(
                 Text(
                     text = rule.name ?: rule.pattern,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    fontSize = 14.5.sp,
+                    color = slateTitle
                 )
                 if (rule.name != null) {
                     Text(
                         text = "Pattern: ${rule.pattern}",
-                        fontSize = 11.sp,
-                        color = textSubColor
+                        fontSize = 11.5.sp,
+                        color = slateSub
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(5.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     // Match Type Badge
                     Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = Color(0xFFEDE7F6)
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFFECFDF5),
+                        border = BorderStroke(1.dp, Color(0xFFA7F3D0))
                     ) {
                         Text(
                             text = when (rule.matchType) {
@@ -426,51 +654,85 @@ fun RuleCard(
                                 UserRuleMatchType.TRANSACTION_TEXT_CONTAINS -> "Text Contains"
                                 else -> rule.matchType
                             },
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = primaryColor,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = emeraldPrimary,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
 
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("→", fontSize = 11.sp, color = textSubColor)
+                    Text("→", fontSize = 11.sp, color = slateSub)
                     Spacer(modifier = Modifier.width(6.dp))
 
                     Text(
                         text = targetCategory?.name ?: "Unknown Category",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isInvalid) Color(0xFFC62828) else Color.Unspecified
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isInvalid) Color(0xFFDC2626) else slateTitle
                     )
                 }
 
                 if (isInvalid && invalidReason != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "⚠ $invalidReason",
                         fontSize = 11.sp,
-                        color = Color(0xFFC62828)
+                        color = Color(0xFFDC2626)
                     )
                 }
             }
 
-            // Actions
-            IconButton(onClick = onApplyToTransactions) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = "Apply to transactions", tint = primaryColor, modifier = Modifier.size(20.dp))
+            // Quick Execution Action
+            IconButton(
+                onClick = onApplyToTransactions,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(
+                    Icons.Filled.PlayArrow,
+                    contentDescription = "Apply to transactions",
+                    tint = emeraldPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
             }
 
+            // Toggle Switch
             Switch(
                 checked = rule.isEnabled && !isInvalid,
                 onCheckedChange = onToggle,
-                enabled = !isInvalid
+                enabled = !isInvalid,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = emeraldPrimary,
+                    uncheckedThumbColor = Color(0xFF94A3B8),
+                    uncheckedTrackColor = Color(0xFFE2E8F0)
+                )
             )
 
-            IconButton(onClick = onEdit) {
-                Icon(Icons.Filled.Edit, contentDescription = "Edit", modifier = Modifier.size(20.dp))
+            // Edit Button
+            IconButton(
+                onClick = onEdit,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(
+                    Icons.Outlined.Edit,
+                    contentDescription = "Edit",
+                    tint = slateSub,
+                    modifier = Modifier.size(18.dp)
+                )
             }
 
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = Color(0xFFD32F2F), modifier = Modifier.size(20.dp))
+            // Delete Button
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(
+                    Icons.Outlined.DeleteOutline,
+                    contentDescription = "Delete",
+                    tint = Color(0xFFDC2626),
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }
@@ -496,8 +758,15 @@ fun RuleEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = Color.White,
         title = {
-            Text(if (existingRule != null) "Edit Category Rule" else "Add Category Rule", fontWeight = FontWeight.Bold)
+            Text(
+                text = if (existingRule != null) "Edit Category Rule" else "New Category Rule",
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                color = slateTitle
+            )
         },
         text = {
             Column(
@@ -510,9 +779,15 @@ fun RuleEditorDialog(
                         pattern = it
                         errorMessage = null
                     },
-                    label = { Text("Merchant / Pattern *") },
+                    label = { Text("Merchant / Keyword Pattern *") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = emeraldPrimary,
+                        unfocusedBorderColor = cardBorder,
+                        focusedLabelColor = emeraldPrimary
+                    )
                 )
 
                 OutlinedTextField(
@@ -520,13 +795,21 @@ fun RuleEditorDialog(
                     onValueChange = { name = it },
                     label = { Text("Rule Label (Optional)") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = emeraldPrimary,
+                        unfocusedBorderColor = cardBorder,
+                        focusedLabelColor = emeraldPrimary
+                    )
                 )
 
                 // Match Type Dropdown
                 Box {
                     OutlinedButton(
                         onClick = { matchTypeExpanded = true },
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
@@ -537,15 +820,17 @@ fun RuleEditorDialog(
                                 UserRuleMatchType.TRANSACTION_TEXT_CONTAINS -> "Transaction Text Contains"
                                 else -> selectedMatchType
                             },
-                            fontSize = 13.sp
+                            fontSize = 13.sp,
+                            color = slateTitle
                         )
                         Spacer(modifier = Modifier.weight(1f))
-                        Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+                        Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = slateSub)
                     }
 
                     DropdownMenu(
                         expanded = matchTypeExpanded,
-                        onDismissRequest = { matchTypeExpanded = false }
+                        onDismissRequest = { matchTypeExpanded = false },
+                        modifier = Modifier.background(Color.White)
                     ) {
                         UserRuleMatchType.ALL.forEach { mt ->
                             DropdownMenuItem(
@@ -557,7 +842,8 @@ fun RuleEditorDialog(
                                             UserRuleMatchType.MERCHANT_CONTAINS -> "Merchant Contains (e.g. 'Coffee')"
                                             UserRuleMatchType.TRANSACTION_TEXT_CONTAINS -> "Transaction Text Contains"
                                             else -> mt
-                                        }
+                                        },
+                                        color = slateTitle
                                     )
                                 },
                                 onClick = {
@@ -574,19 +860,23 @@ fun RuleEditorDialog(
                     val currentCat = activeCategories.find { it.id == selectedCategoryId }
                     OutlinedButton(
                         onClick = { categoryExpanded = true },
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = "Category: ${currentCat?.name ?: "Select Category"}",
-                            fontSize = 13.sp
+                            fontSize = 13.sp,
+                            color = slateTitle
                         )
                         Spacer(modifier = Modifier.weight(1f))
-                        Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+                        Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = slateSub)
                     }
 
                     DropdownMenu(
                         expanded = categoryExpanded,
-                        onDismissRequest = { categoryExpanded = false }
+                        onDismissRequest = { categoryExpanded = false },
+                        modifier = Modifier.background(Color.White)
                     ) {
                         activeCategories.forEach { cat ->
                             DropdownMenuItem(
@@ -599,7 +889,7 @@ fun RuleEditorDialog(
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(cat.name)
+                                        Text(cat.name, color = slateTitle)
                                     }
                                 },
                                 onClick = {
@@ -616,7 +906,7 @@ fun RuleEditorDialog(
                     Text(
                         text = "Normalized Pattern: \"${MerchantNormalizer.normalize(pattern, stripPrefixes = false)}\"",
                         fontSize = 11.sp,
-                        color = textSubColor
+                        color = slateSub
                     )
                 }
 
@@ -624,7 +914,7 @@ fun RuleEditorDialog(
                     Text(
                         text = "⚠ $err",
                         fontSize = 12.sp,
-                        color = Color(0xFFC62828)
+                        color = Color(0xFFDC2626)
                     )
                 }
             }
@@ -642,14 +932,15 @@ fun RuleEditorDialog(
                     }
                     onSave(pattern.trim(), selectedCategoryId, selectedMatchType, priority, name.trim().ifBlank { null })
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+                colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Text("Save")
+                Text("Save Rule", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Cancel", color = slateSub, fontSize = 13.sp)
             }
         }
     )
