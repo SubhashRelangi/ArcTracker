@@ -1,6 +1,8 @@
 package com.subhashrelangi.arctracker.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,6 +21,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -73,6 +77,7 @@ fun DatabaseScreen(
     var isVacuuming by remember { mutableStateOf(false) }
     var isReindexing by remember { mutableStateOf(false) }
     var isCheckingIntegrity by remember { mutableStateOf(false) }
+    var successAction by remember { mutableStateOf<String?>(null) }
     var lastIntegrityResult by remember { mutableStateOf<String?>(null) }
     var lastActionStatus by remember { mutableStateOf<String?>(null) }
 
@@ -233,19 +238,25 @@ fun DatabaseScreen(
                 isVacuuming = isVacuuming,
                 isReindexing = isReindexing,
                 isCheckingIntegrity = isCheckingIntegrity,
-                lastIntegrityResult = lastIntegrityResult,
-                lastActionStatus = lastActionStatus,
+                successAction = successAction,
                 onCompact = {
                     if (!isVacuuming && !isRunningFullOptimization) {
                         isVacuuming = true
                         scope.launch(Dispatchers.IO) {
+                            val start = System.currentTimeMillis()
                             try {
                                 val db = AppDatabase.getDatabase(context)
                                 db.openHelper.writableDatabase.execSQL("VACUUM;")
+                                val elapsed = System.currentTimeMillis() - start
+                                if (elapsed < 900) delay(900 - elapsed)
                                 refreshTelemetry()
                                 withContext(Dispatchers.Main) {
-                                    lastActionStatus = "Compacted"
+                                    successAction = "compact"
                                     snackbarHostState.showSnackbar("Storage compacted: unallocated pages defragmented.")
+                                }
+                                delay(2500)
+                                withContext(Dispatchers.Main) {
+                                    if (successAction == "compact") successAction = null
                                 }
                             } catch (e: Exception) {
                                 withContext(Dispatchers.Main) {
@@ -261,12 +272,19 @@ fun DatabaseScreen(
                     if (!isReindexing && !isRunningFullOptimization) {
                         isReindexing = true
                         scope.launch(Dispatchers.IO) {
+                            val start = System.currentTimeMillis()
                             try {
                                 val db = AppDatabase.getDatabase(context)
                                 db.openHelper.writableDatabase.execSQL("REINDEX;")
+                                val elapsed = System.currentTimeMillis() - start
+                                if (elapsed < 900) delay(900 - elapsed)
                                 withContext(Dispatchers.Main) {
-                                    lastActionStatus = "Indices Rebuilt"
+                                    successAction = "reindex"
                                     snackbarHostState.showSnackbar("B-Tree indices recomputed for instant search lookups.")
+                                }
+                                delay(2500)
+                                withContext(Dispatchers.Main) {
+                                    if (successAction == "reindex") successAction = null
                                 }
                             } catch (e: Exception) {
                                 withContext(Dispatchers.Main) {
@@ -282,6 +300,7 @@ fun DatabaseScreen(
                     if (!isCheckingIntegrity && !isRunningFullOptimization) {
                         isCheckingIntegrity = true
                         scope.launch(Dispatchers.IO) {
+                            val start = System.currentTimeMillis()
                             try {
                                 val db = AppDatabase.getDatabase(context)
                                 val cursor = db.openHelper.readableDatabase.query("PRAGMA integrity_check;")
@@ -290,9 +309,16 @@ fun DatabaseScreen(
                                     status = cursor.getString(0) ?: "ok"
                                 }
                                 cursor.close()
+                                val elapsed = System.currentTimeMillis() - start
+                                if (elapsed < 900) delay(900 - elapsed)
                                 withContext(Dispatchers.Main) {
                                     lastIntegrityResult = status
+                                    successAction = "integrity"
                                     snackbarHostState.showSnackbar("Integrity status: $status (0 corruption found)")
+                                }
+                                delay(2500)
+                                withContext(Dispatchers.Main) {
+                                    if (successAction == "integrity") successAction = null
                                 }
                             } catch (e: Exception) {
                                 withContext(Dispatchers.Main) {
@@ -998,8 +1024,7 @@ private fun DatabaseMaintenanceCard(
     isVacuuming: Boolean,
     isReindexing: Boolean,
     isCheckingIntegrity: Boolean,
-    lastIntegrityResult: String?,
-    lastActionStatus: String?,
+    successAction: String?,
     onCompact: () -> Unit,
     onRebuildIndices: () -> Unit,
     onCheckIntegrity: () -> Unit,
@@ -1027,7 +1052,8 @@ private fun DatabaseMaintenanceCard(
                 title = "Compact & Defragment Storage",
                 subtitle = "Reclaims disk space left by deleted transactions (VACUUM)",
                 isLoading = isVacuuming,
-                badgeText = if (isVacuuming) "Compacting..." else null,
+                isSuccess = successAction == "compact",
+                pulseIcon = true,
                 onClick = onCompact
             )
 
@@ -1042,7 +1068,8 @@ private fun DatabaseMaintenanceCard(
                 title = "Rebuild Query Indices",
                 subtitle = "Recompute B-Tree indexes for fast searches & sorting (REINDEX)",
                 isLoading = isReindexing,
-                badgeText = if (isReindexing) "Rebuilding..." else null,
+                isSuccess = successAction == "reindex",
+                spinIcon = true,
                 onClick = onRebuildIndices
             )
 
@@ -1057,7 +1084,8 @@ private fun DatabaseMaintenanceCard(
                 title = "Run Deep Integrity Audit",
                 subtitle = "Verifies schema parity and zero sector corruption (integrity_check)",
                 isLoading = isCheckingIntegrity,
-                badgeText = if (isCheckingIntegrity) "Auditing..." else lastIntegrityResult?.let { "Status: $it" },
+                isSuccess = successAction == "integrity",
+                pulseIcon = true,
                 onClick = onCheckIntegrity
             )
 
@@ -1072,7 +1100,6 @@ private fun DatabaseMaintenanceCard(
                 title = "Explore Table Schemas & Export",
                 subtitle = "View row distribution across entities & copy diagnostics report",
                 isLoading = false,
-                badgeText = null,
                 onClick = onInspectSchema
             )
         }
@@ -1085,83 +1112,162 @@ private fun InteractiveActionRow(
     title: String,
     subtitle: String,
     isLoading: Boolean,
-    badgeText: String?,
+    isSuccess: Boolean = false,
+    spinIcon: Boolean = false,
+    pulseIcon: Boolean = false,
     onClick: () -> Unit
 ) {
-    Row(
+    val infiniteTransition = rememberInfiniteTransition(label = "actionTransition")
+
+    val rotation by if (isLoading && spinIcon) {
+        infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "iconRotation"
+        )
+    } else {
+        remember { mutableFloatStateOf(0f) }
+    }
+
+    val scale by if (isLoading && pulseIcon) {
+        infiniteTransition.animateFloat(
+            initialValue = 0.90f,
+            targetValue = 1.10f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(600, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "iconPulse"
+        )
+    } else {
+        remember { mutableFloatStateOf(1f) }
+    }
+
+    val rowBg by animateColorAsState(
+        targetValue = when {
+            isLoading -> Color(0xFFF0FDF4)
+            isSuccess -> Color(0xFFECFDF5)
+            else -> Color.Transparent
+        },
+        animationSpec = tween(300),
+        label = "rowBg"
+    )
+
+    val iconBoxBg by animateColorAsState(
+        targetValue = when {
+            isLoading || isSuccess -> emeraldLight
+            else -> Color(0xFFF1F5F9)
+        },
+        animationSpec = tween(300),
+        label = "iconBoxBg"
+    )
+
+    val iconTint by animateColorAsState(
+        targetValue = when {
+            isLoading || isSuccess -> emeraldPrimary
+            else -> slateTitle
+        },
+        animationSpec = tween(300),
+        label = "iconTint"
+    )
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !isLoading, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .background(rowBg)
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(11.dp))
-                .background(Color(0xFFF1F5F9)),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .clickable(enabled = !isLoading, onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = slateTitle,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(iconBoxBg),
+                contentAlignment = Alignment.Center
             ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .scale(scale)
+                        .rotate(rotation)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     fontSize = 13.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = slateTitle
                 )
-                if (badgeText != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = 11.5.sp,
+                    color = slateSub,
+                    lineHeight = 15.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Box(
+                modifier = Modifier.size(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = emeraldPrimary
+                    )
+                } else if (isSuccess) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(emeraldLight)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(emeraldPrimary),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = badgeText,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = emeraldPrimary
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(13.dp)
                         )
                     }
+                } else {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = Color(0xFF94A3B8),
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                fontSize = 11.5.sp,
-                color = slateSub,
-                lineHeight = 15.sp
-            )
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
-
         if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(16.dp),
-                strokeWidth = 2.dp,
-                color = emeraldPrimary
-            )
-        } else {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color(0xFF94A3B8),
-                modifier = Modifier.size(18.dp)
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.dp),
+                color = emeraldPrimary,
+                trackColor = Color.Transparent
             )
         }
     }
