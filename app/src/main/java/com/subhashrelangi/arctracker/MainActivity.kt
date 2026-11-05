@@ -1443,34 +1443,6 @@ fun ExpenseScreen() {
                 onDismiss = { deleteConfirmExpense = null }
             )
         }
-
-        if (currentRoute != "InitialOnboarding" && currentRoute != "LocalFirstSetup" && currentRoute != "SmsImport" && currentRoute != "SmsScan" && currentRoute != "SmsResult") {
-            if (!isNotificationAccessGranted && !hasDismissedNotificationPermissionDialog) {
-                NotificationPermissionDialog(
-                    onGrantClick = {
-                        pendingHomeNotificationGrant = true
-                        NotificationPermissionHelper.openNotificationAccessSettings(context)
-                    },
-                    onDismiss = {
-                        hasDismissedNotificationPermissionDialog = true
-                        settingsRepo.setGlobalEnabled(false)
-                        settingsRepo.setNotificationTrackingEnabled(false)
-                    }
-                )
-            } else if (!hasDismissedInitialSmsImportDialog && !SmsPermissionHelper.isInitialImportCompleted(context)) {
-                InitialSmsImportDialog(
-                    onDismiss = {
-                        hasDismissedInitialSmsImportDialog = true
-                        SmsPermissionHelper.setInitialImportCompleted(context, true)
-                    },
-                    onNavigateToImport = {
-                        hasDismissedInitialSmsImportDialog = true
-                        SmsPermissionHelper.setInitialImportCompleted(context, true)
-                        navigateTo("SmsImport")
-                    }
-                )
-            }
-        }
     }
 }
 
