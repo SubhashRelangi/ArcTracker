@@ -179,6 +179,7 @@ fun SettingsSwitchRow(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onNavigate: (String) -> Unit = {},
@@ -193,6 +194,19 @@ fun SettingsScreen(
 
     val settingsRepo = remember {
         repository ?: MonitoringSettingsRepository.getInstance(context)
+    }
+
+    var profileName by remember { mutableStateOf(settingsRepo.getProfileName()) }
+    var profileLabel by remember { mutableStateOf(settingsRepo.getProfileLabel()) }
+    var showEditProfileSheet by remember { mutableStateOf(false) }
+
+    val initials = remember(profileName) {
+        val parts = profileName.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
+        when {
+            parts.size >= 2 -> "${parts[0].first().uppercase()}${parts[1].first().uppercase()}"
+            parts.size == 1 && parts[0].isNotEmpty() -> "${parts[0].first().uppercase()}"
+            else -> "V"
+        }
     }
     val privacyManager = remember {
         com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(context)
@@ -306,7 +320,7 @@ fun SettingsScreen(
             return terms.any { it.contains(q, ignoreCase = true) }
         }
 
-        val showProfile = matchesSearch("Profile", "Subhash Relangi", "subhashrelangi@gmail.com", "Primary Vault", "Accounts")
+        val showProfile = matchesSearch("Profile", profileName, profileLabel, "Primary Vault", "Accounts")
 
         val showFinancial = matchesSearch("Financial Accounts", "Bank", "Cards", "Vaults")
         val showUnresolved = matchesSearch("Unresolved Transactions", "Pending", "Account", "Category")
@@ -400,7 +414,7 @@ fun SettingsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onNavigate("FinancialAccounts") },
+                        .clickable { showEditProfileSheet = true },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
@@ -412,7 +426,7 @@ fun SettingsScreen(
                             .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Circle Avatar SR with check badge
+                        // Circle Avatar with initials & check badge
                         Box(
                             modifier = Modifier.size(46.dp)
                         ) {
@@ -424,7 +438,7 @@ fun SettingsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "SR",
+                                    text = initials,
                                     color = Color.White,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold
@@ -443,7 +457,7 @@ fun SettingsScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
-                                    contentDescription = "Verified",
+                                    contentDescription = "Verified Local",
                                     tint = Color.White,
                                     modifier = Modifier.size(9.dp)
                                 )
@@ -455,7 +469,7 @@ fun SettingsScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "Subhash Relangi",
+                                    text = profileName,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.5.sp,
                                     color = Color(0xFF0F172A),
@@ -480,15 +494,17 @@ fun SettingsScreen(
                             }
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "subhashrelangi@gmail.com",
+                                text = profileLabel,
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B)
+                                color = Color(0xFF64748B),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = "Profile",
+                            imageVector = Icons.Outlined.Edit,
+                            contentDescription = "Edit Profile",
                             tint = Color(0xFF94A3B8),
                             modifier = Modifier.size(16.dp)
                         )
@@ -988,6 +1004,171 @@ fun SettingsScreen(
                 }
             }
         )
+    }
+
+    // Interactive Edit Local Profile & Vault Identity Modal Bottom Sheet
+    if (showEditProfileSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        var tempName by remember { mutableStateOf(profileName) }
+        var tempLabel by remember { mutableStateOf(profileLabel) }
+
+        ModalBottomSheet(
+            onDismissRequest = { showEditProfileSheet = false },
+            sheetState = sheetState,
+            containerColor = Color.White,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 36.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Local Vault Identity",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Customized for local device display & statement exports",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+
+                    IconButton(onClick = { showEditProfileSheet = false }) {
+                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = Color(0xFF64748B))
+                    }
+                }
+
+                // Avatar preview
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFF8FAFC))
+                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(12.dp))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    val previewInitials = remember(tempName) {
+                        val parts = tempName.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
+                        when {
+                            parts.size >= 2 -> "${parts[0].first().uppercase()}${parts[1].first().uppercase()}"
+                            parts.size == 1 && parts[0].isNotEmpty() -> "${parts[0].first().uppercase()}"
+                            else -> "V"
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF064E3B)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = previewInitials,
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Column {
+                        Text(
+                            text = tempName.ifBlank { "Personal Vault" },
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A)
+                        )
+                        Text(
+                            text = tempLabel.ifBlank { "Offline Local Ledger" },
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = tempName,
+                    onValueChange = { tempName = it },
+                    label = { Text("Display Name") },
+                    placeholder = { Text("e.g. Personal Wallet") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF047857),
+                        focusedLabelColor = Color(0xFF047857)
+                    )
+                )
+
+                OutlinedTextField(
+                    value = tempLabel,
+                    onValueChange = { tempLabel = it },
+                    label = { Text("Vault Label or Email") },
+                    placeholder = { Text("e.g. abc@gmail.com or Primary Vault") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF047857),
+                        focusedLabelColor = Color(0xFF047857)
+                    )
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFECFDF5))
+                        .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(10.dp))
+                        .padding(10.dp)
+                ) {
+                    Text(
+                        text = "🔒 100% On-Device: Stored strictly in your local Android sandbox. Never uploaded to remote servers.",
+                        fontSize = 11.5.sp,
+                        color = Color(0xFF065F46),
+                        lineHeight = 15.sp
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        val newName = tempName.trim().ifBlank { "Personal Vault" }
+                        val newLabel = tempLabel.trim().ifBlank { "Primary Offline Vault" }
+                        settingsRepo.setProfileName(newName)
+                        settingsRepo.setProfileLabel(newLabel)
+                        profileName = newName
+                        profileLabel = newLabel
+                        showEditProfileSheet = false
+                        Toast.makeText(context, "Profile updated", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
+                ) {
+                    Text(
+                        text = "Save Changes",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
     }
 }
 
