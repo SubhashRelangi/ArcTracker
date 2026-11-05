@@ -966,8 +966,12 @@ fun EditRegexPatternScreen(
                         )
 
                         if (ruleId.isNullOrEmpty()) {
-                            RegexPatternsManager.addRule(context, ruleToSave)
-                            Toast.makeText(context, "New regex pattern added", Toast.LENGTH_SHORT).show()
+                            val wasNew = RegexPatternsManager.addRule(context, ruleToSave)
+                            if (wasNew) {
+                                Toast.makeText(context, "New regex pattern added", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Existing matching pattern updated", Toast.LENGTH_SHORT).show()
+                            }
                         } else {
                             RegexPatternsManager.updateRule(context, ruleToSave)
                             Toast.makeText(context, "Regex pattern updated", Toast.LENGTH_SHORT).show()

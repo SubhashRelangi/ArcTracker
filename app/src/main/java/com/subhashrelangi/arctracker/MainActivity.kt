@@ -609,7 +609,7 @@ fun ExpenseScreen() {
             val contentTopPadding = if (currentRoute in listOf(
                 "InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "SettingsSmsImport",
                 "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules", "Backup",
-                "FinancialAccounts", "UnresolvedTransactions", "AccountTransactions", "DeveloperOptions", "RegexPatterns"
+                "FinancialAccounts", "UnresolvedTransactions", "AccountTransactions", "DeveloperOptions", "RegexPatterns", "EditRegexPattern"
             )) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
