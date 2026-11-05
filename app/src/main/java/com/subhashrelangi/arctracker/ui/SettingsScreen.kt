@@ -216,17 +216,13 @@ fun SettingsScreen(
     val knownAccounts by database.knownFinancialAccountDao().getAllFlow().collectAsState(initial = emptyList())
     val expenses by database.expenseDao().getAllExpenses().collectAsState(initial = emptyList())
 
-    val cardsCount = remember(knownAccounts) { if (knownAccounts.isNotEmpty()) knownAccounts.size else 3 }
-    val pendingCount = remember(expenses) {
-        val count = expenses.count { it.isPending }
-        if (count > 0) count else 3
-    }
+    val cardsCount = remember(knownAccounts) { knownAccounts.size }
+    val pendingCount = remember(expenses) { expenses.count { it.isPending } }
     val monitoredAppsCount = remember(settingsRepo) {
         try {
-            val apps = settingsRepo.getAllConfiguredApps()
-            if (apps.isNotEmpty()) apps.size else 12
+            settingsRepo.getAllConfiguredApps().size
         } catch (_: Exception) {
-            12
+            0
         }
     }
 
@@ -522,7 +518,7 @@ fun SettingsScreen(
                             icon = Icons.Outlined.AccountBalance,
                             title = "Financial Accounts",
                             subtitle = "View discovered bank accounts, cards & vaults",
-                            badgeText = "$cardsCount cards",
+                            badgeText = if (cardsCount > 0) "$cardsCount ${if (cardsCount == 1) "card" else "cards"}" else null,
                             onClick = { onNavigate("FinancialAccounts") }
                         )
                     }
@@ -533,7 +529,7 @@ fun SettingsScreen(
                             iconTint = Color(0xFFD97706),
                             title = "Unresolved Transactions",
                             subtitle = "Transactions pending account or category linking",
-                            badgeText = "$pendingCount pending",
+                            badgeText = if (pendingCount > 0) "$pendingCount pending" else null,
                             badgeBgColor = Color(0xFFFEF3C7),
                             badgeTextColor = Color(0xFFB45309),
                             onClick = { onNavigate("UnresolvedTransactions") }
@@ -751,7 +747,7 @@ fun SettingsScreen(
                             icon = Icons.Outlined.Apps,
                             title = "Monitored Apps",
                             subtitle = "Choose which apps can be monitored",
-                            badgeText = "$monitoredAppsCount active",
+                            badgeText = if (monitoredAppsCount > 0) "$monitoredAppsCount active" else null,
                             badgeBgColor = Color(0xFFECFDF5),
                             badgeTextColor = Color(0xFF15803D),
                             enabled = effectiveAutoTracking && effectiveNotifTracking,
