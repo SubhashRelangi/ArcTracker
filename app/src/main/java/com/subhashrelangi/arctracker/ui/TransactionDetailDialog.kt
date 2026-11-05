@@ -42,6 +42,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import com.subhashrelangi.arctracker.data.*
 import com.subhashrelangi.arctracker.service.AccountReconciliationManager
+import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -50,25 +51,15 @@ import java.util.Locale
 /**
  * Transaction Details & Evidence Screen for ArcTracker.
  *
- * ArcTracker Emerald Light Theme matching Ui-Designs/TrasactionDeatilsPage.png:
- * - Pure white top app bar with status bar insets, clean back navigation, bold title, share action,
- *   overflow menu, and emerald circular user avatar.
- * - Top status pills: "• Verified & Committed" (mint/emerald) and "🔒 On-Device Encrypted" (slate pill).
- * - Hero Transaction Card: Merchant avatar squircle with verified checkmark badge, merchant title,
- *   location pin + secondary location/description, direction pill badge (Expense / Income / Transfer),
- *   and inner settled amount card showing amount, sign, and formatted calendar timestamp.
- * - Action Buttons: Primary emerald green "Edit Transaction" button and 3 secondary outline pills
- *   (Category, Split Bill, Delete).
- * - Section 1: "Payment & Settlement" with card icon, Reconciled badge, account details container,
- *   Balance After Transaction, Payment Channel, and Bank Reference/UTR with one-tap copy pill.
- * - Section 2: "Classification & Notes" with shapes icon, Re-assign action, category row with chevron,
- *   Auto-categorized rule link, Semantic Tags (#WeeklyGroceries, #Household, #TaxDeductible, + Add Tag),
- *   and Memo / Ledger Note preview card.
- * - Section 3: "Local Ingestion & Audit" with terminal icon, Local Pipeline badge, Source Protocol &
- *   Origin Sender ID stats, Parser Resolution Time with latency pill, monospace RAW INGESTION SNIPPET,
- *   and SHA-256 Ledger Verified badge.
- * - Bottom Actions: Light "Export Receipt / CSV Row" button and centered "Report Parsing Mismatch" link.
- * - All supporting picker and confirmation dialogs styled in matching ArcTracker Light Emerald theme.
+ * ArcTracker Emerald Light Theme:
+ * - Header matches AddExpenseDialog layout with circular back button, bold title, and circular security vault icon.
+ * - Simple, clean inline status indicators ("• Verified & Reconciled" and "🔒 On-Device Encrypted") without bulky badges.
+ * - Hero Card displays authentic transaction values with zero hardcoded dummy data.
+ * - Action buttons: Full-width "Edit Transaction" and two side-by-side pills: "Category" and "Delete" (Split Bill removed).
+ * - Payment & Settlement section only displays fields that exist for the transaction (balance, reference, and channel are omitted when absent).
+ * - Classification & Notes section displays real category, authentic tags only, and real memo/ledger note.
+ * - Manual transactions omit sender ID, parser latency, raw SMS snippets, and mismatch reporting.
+ * - Light-themed modal dialogs for account assignment, category picking, tags, and deletion.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,7 +95,7 @@ fun TransactionDetailDialog(
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showAddTagDialog by remember { mutableStateOf(false) }
 
-    // Tags State
+    // Tags State (Only real extracted tags)
     var currentTags by remember(expense.note, expense.tag, editedNote, editedCategory) {
         mutableStateOf(extractTags(editedNote.ifBlank { expense.note }, editedCategory.ifBlank { expense.tag }))
     }
@@ -131,50 +122,59 @@ fun TransactionDetailDialog(
     }
     val txnCode = "#TXN-$dateCode-${expense.id.toString().padStart(4, '0')}"
 
+    // Merchant title: Use actual merchant; if blank, fallback to category or generic "Expense" (no dummy data)
     val transactionTitle = remember(expense.merchant, expense.category, expense.tag, editedMerchant) {
         val currentMerchant = if (editedMerchant.isNotBlank()) editedMerchant else expense.merchant
         when {
             currentMerchant.isNotBlank() && currentMerchant != "-" -> currentMerchant
             !expense.category.isNullOrBlank() -> expense.category!!
             !expense.tag.isNullOrBlank() -> expense.tag!!
-            else -> "Nature's Basket"
+            else -> "Expense Transaction"
         }
     }
 
-    // Extraction of UPI Ref, Balance, Source
+    // Is this a manual entry (or an entry without SMS evidence)?
+    val isManualEntry = remember(expense.source, expense.rawText, expense.notificationKey) {
+        expense.source.contains("MANUAL", ignoreCase = true) ||
+            (expense.rawText.isNullOrBlank() && expense.notificationKey.isNullOrBlank())
+    }
+
+    // Extraction of UPI Ref, Balance, Source (real data only, no dummy fallback)
     val upiRef = remember(expense.rawText, expense.note, expense.notificationKey) {
-        val extracted = extractUpiRef(expense.rawText, expense.note, expense.notificationKey)
-        if (extracted != "-") extracted else "HDFC-TXN-9028419203"
+        extractUpiRef(expense.rawText, expense.note, expense.notificationKey)
     }
 
     val postTxnBalance = remember(expense.rawText) {
-        val extracted = extractBalance(expense.rawText)
-        if (!extracted.isNullOrBlank()) extracted else "₹84,210.00"
+        extractBalance(expense.rawText)
     }
 
-    val humanizedSource = remember(expense.source) {
+    val humanizedSource = remember(expense.source, isManualEntry) {
         when {
-            expense.source.contains("NOTIFICATION", ignoreCase = true) -> "SMS Notification"
+            isManualEntry -> "Manual Entry"
+            expense.source.contains("NOTIFICATION", ignoreCase = true) -> "Payment Notification"
             expense.source.contains("SMS", ignoreCase = true) -> "SMS Notification"
-            expense.source.contains("MANUAL", ignoreCase = true) -> "Manual Entry"
             expense.source.isNotBlank() -> expense.source
-            else -> "SMS Notification"
+            else -> "Local Ingestion"
         }
     }
 
-    // Origin Sender ID
-    val originSenderId = remember(expense.rawText, expense.notificationKey) {
-        val raw = expense.rawText ?: ""
+    // Origin Sender ID: Extract only from actual raw text or notification key
+    val originSenderId = remember(expense.rawText, expense.notificationKey, isManualEntry) {
+        if (isManualEntry) null else extractSenderId(expense.rawText, expense.notificationKey)
+    }
+
+    // Payment Channel: Deduce only from real data if present
+    val paymentChannel = remember(expense.rawText, expense.source, isManualEntry) {
         when {
-            raw.contains("HDFC", ignoreCase = true) -> "VM-HDFCBK"
-            raw.contains("SBI", ignoreCase = true) -> "VM-SBIINB"
-            raw.contains("ICICI", ignoreCase = true) -> "VM-ICICIB"
-            raw.contains("AXIS", ignoreCase = true) -> "VM-AXISBK"
-            !expense.notificationKey.isNullOrBlank() -> {
-                val cleaned = expense.notificationKey!!.take(10).uppercase()
-                "VM-$cleaned"
-            }
-            else -> "VM-HDFCBK"
+            isManualEntry -> "Manual Ledger Entry"
+            expense.rawText?.contains("POS", ignoreCase = true) == true ||
+                expense.rawText?.contains("ending", ignoreCase = true) == true -> "POS Terminal / Card"
+            expense.rawText?.contains("UPI", ignoreCase = true) == true -> "UPI / Instant Transfer"
+            expense.rawText?.contains("ATM", ignoreCase = true) == true -> "ATM Cash Withdrawal"
+            expense.rawText?.contains("NetBanking", ignoreCase = true) == true ||
+                expense.rawText?.contains("IMPS", ignoreCase = true) == true -> "Net Banking / IMPS"
+            expense.source.isNotBlank() && !expense.source.equals("SMS", true) -> expense.source
+            else -> null
         }
     }
 
@@ -185,37 +185,16 @@ fun TransactionDetailDialog(
     }
     val categoryIconKey = resolvedCategory?.iconKey ?: "restaurant"
     val categoryDisplayName = resolvedCategory?.name
-        ?: editedCategory.ifBlank { expense.category ?: expense.tag ?: "Groceries" }
+        ?: editedCategory.ifBlank { expense.category ?: expense.tag ?: "Uncategorized" }
 
-    // Secondary Description / Location
+    // Secondary Description / Location: Only show real location or category if distinct from merchant title
     val secondaryDescription = remember(expense.merchant, categoryDisplayName, expense.category, expense.tag) {
         when {
-            !expense.category.isNullOrBlank() && expense.category != transactionTitle -> expense.category!!
-            !expense.tag.isNullOrBlank() && expense.tag != transactionTitle -> expense.tag!!
+            !expense.category.isNullOrBlank() && expense.category != transactionTitle -> expense.category
+            !expense.tag.isNullOrBlank() && expense.tag != transactionTitle -> expense.tag
             categoryDisplayName.isNotBlank() && categoryDisplayName != "-" && categoryDisplayName != transactionTitle -> categoryDisplayName
-            else -> "Indiranagar, Bengaluru"
+            else -> null
         }
-    }
-
-    // Raw ingestion text snippet
-    val rawTextSnippet = remember(expense.rawText, expense.amount, expense.accountSuffix, expense.merchant, dateMillis) {
-        if (!expense.rawText.isNullOrBlank()) {
-            expense.rawText!!
-        } else {
-            val amountFormatted = NumberFormat.getNumberInstance(Locale("en", "IN")).apply {
-                minimumFractionDigits = 2
-                maximumFractionDigits = 2
-            }.format(expense.amount)
-            val suffix = expense.accountSuffix ?: linkedAccount?.accountSuffix ?: "4092"
-            val dateStamp = SimpleDateFormat("dd-MMM-yy", Locale.US).format(Date(dateMillis)).uppercase()
-            "\"HDFC Bank: Alert! ₹$amountFormatted spent on Card ending $suffix at Nature's Basket Groceries on $dateStamp. Avl Lmt: Rs 1,42,800.00.\""
-        }
-    }
-
-    // Memo note preview
-    val memoNoteText = remember(editedNote, expense.note) {
-        val current = editedNote.ifBlank { expense.note ?: "" }
-        if (current.isNotBlank()) current else "Weekly pantry restock, fresh vegetables, organic curd, and artisan coffee beans."
     }
 
     BackHandler {
@@ -262,11 +241,11 @@ fun TransactionDetailDialog(
             }
         }
 
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = Color(0xFFF8FAFC)
-        ) {
-            if (isEditMode) {
+        if (isEditMode) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = Color(0xFFF8FAFC)
+            ) {
                 EditTransactionPage(
                     expense = expense.copy(
                         merchant = editedMerchant.ifBlank { expense.merchant },
@@ -299,343 +278,341 @@ fun TransactionDetailDialog(
                     onAssignAccount = onAssignAccount,
                     onReassignAccount = onReassignAccount
                 )
-            } else {
-                Column(
+            }
+        } else {
+            Scaffold(
+                containerColor = Color(0xFFF8FAFC),
+                topBar = {
+                    // Header matching AddExpenseDialog layout and styling
+                    Surface(
+                        color = Color.White,
+                        shadowElevation = 0.5.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White)
+                                .statusBarsPadding()
+                        ) {
+                            ArcTrackerHeader(
+                                title = "Transaction Details",
+                                subtitle = null,
+                                onBackClick = onDismiss,
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalPadding = 16.dp,
+                                actions = {
+                                    // Circular Shield Vault action button
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.White)
+                                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                            .clickable {
+                                                Toast.makeText(
+                                                    context,
+                                                    "ArcTracker Offline Vault • Private & Encrypted",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Shield,
+                                            contentDescription = "Security Shield Vault",
+                                            tint = Color(0xFF0F172A),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            ) { innerPadding ->
+                // SCROLLABLE CONTENT
+                LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .statusBarsPadding()
-                        .navigationBarsPadding()
+                        .padding(innerPadding)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp)
                 ) {
-                    // 1. TOP APP BAR / HEADER
-                    TransactionDetailsHeader(
-                        onBackClick = onDismiss,
-                        onShareClick = {
-                            exportTransactionReceipt(context, expense, linkedAccount, txnCode, upiRef)
-                        },
-                        onEditClick = { isEditMode = true },
-                        onDeleteClick = { showDeleteConfirmDialog = true }
-                    )
-
-                    // 2. SCROLLABLE CONTENT
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        contentPadding = PaddingValues(top = 10.dp, bottom = 32.dp)
-                    ) {
-                        // 2a. TOP STATUS PILLS ROW
-                        item {
+                    // 1. SIMPLE & CLEAN STATUS INDICATORS ROW
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp, vertical = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Left: Verified & Reconciled / Committed status
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                // Verified & Committed Pill
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(50))
-                                        .background(Color(0xFFDCFCE7))
-                                        .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(50))
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp)
-                                                .clip(CircleShape)
-                                                .background(Color(0xFF15803D))
-                                        )
-                                        Text(
-                                            text = "Verified & Committed",
-                                            fontSize = 11.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF15803D)
-                                        )
-                                    }
-                                }
-
-                                // On-Device Encrypted Pill
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(50))
-                                        .background(Color(0xFFF1F5F9))
-                                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(50))
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Lock,
-                                            contentDescription = null,
-                                            tint = Color(0xFF475569),
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                        Text(
-                                            text = "On-Device Encrypted",
-                                            fontSize = 11.5.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF475569)
-                                        )
-                                    }
-                                }
+                                        .size(7.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF059669))
+                                )
+                                Text(
+                                    text = if (expense.accountId != null) "Verified & Reconciled" else "Committed to Ledger",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF047857)
+                                )
                             }
-                        }
 
-                        // 2b. HERO TRANSACTION CARD
-                        item {
-                            TransactionHeroCard(
-                                transactionTitle = transactionTitle,
-                                secondaryDescription = secondaryDescription,
-                                isCredit = isCredit,
-                                isTransfer = isTransfer,
-                                sign = sign,
-                                amount = expense.amount,
-                                formattedHeroDate = formattedHeroDate,
-                                categoryIconKey = categoryIconKey
-                            )
-                        }
-
-                        // 2c. ACTION BUTTONS (Edit + Category + Split Bill + Delete)
-                        item {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            // Right: On-Device Encrypted
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                // Primary Emerald Edit Button
-                                Button(
-                                    onClick = { isEditMode = true },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(48.dp),
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF047857),
-                                        contentColor = Color.White
-                                    ),
-                                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "Edit Transaction",
-                                            fontSize = 14.5.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-
-                                // 3 Secondary Action Pills
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    // 1. Category Pill
-                                    OutlinedButton(
-                                        onClick = { showCategoryPickerDialog = true },
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(40.dp),
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            containerColor = Color.White,
-                                            contentColor = Color(0xFF0F172A)
-                                        ),
-                                        contentPadding = PaddingValues(horizontal = 4.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.Label,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(15.dp),
-                                                tint = Color(0xFF0F172A)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = "Category",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
-                                    }
-
-                                    // 2. Split Bill Pill
-                                    OutlinedButton(
-                                        onClick = {
-                                            Toast.makeText(context, "Split Bill coming soon", Toast.LENGTH_SHORT).show()
-                                        },
-                                        modifier = Modifier
-                                            .weight(1.1f)
-                                            .height(40.dp),
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            containerColor = Color.White,
-                                            contentColor = Color(0xFF0F172A)
-                                        ),
-                                        contentPadding = PaddingValues(horizontal = 4.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.CallSplit,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(15.dp),
-                                                tint = Color(0xFF0F172A)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = "Split Bill",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
-                                    }
-
-                                    // 3. Delete Pill
-                                    OutlinedButton(
-                                        onClick = { showDeleteConfirmDialog = true },
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(40.dp),
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, Color(0xFFFECACA)),
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            containerColor = Color(0xFFFEF2F2),
-                                            contentColor = Color(0xFFDC2626)
-                                        ),
-                                        contentPadding = PaddingValues(horizontal = 4.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.DeleteOutline,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(15.dp),
-                                                tint = Color(0xFFDC2626)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = "Delete",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
-                                    }
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = Color(0xFF64748B),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = "On-Device Encrypted",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF64748B)
+                                )
                             }
                         }
+                    }
 
-                        // 2d. SECTION 1: "PAYMENT & SETTLEMENT"
-                        item {
-                            TransactionAccountSection(
-                                linkedAccount = linkedAccount,
-                                accountSuffix = expense.accountSuffix,
-                                isPending = expense.isPending,
-                                postTxnBalance = postTxnBalance,
-                                upiRef = upiRef,
-                                onAccountClick = {
-                                    isReassignPicker = linkedAccount != null
-                                    showAccountPickerDialog = true
-                                },
-                                onCopyUpiRef = {
-                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clip = ClipData.newPlainText("Reference / UTR", upiRef)
-                                    clipboard.setPrimaryClip(clip)
-                                    Toast.makeText(context, "Reference / UTR copied to clipboard", Toast.LENGTH_SHORT).show()
-                                }
-                            )
-                        }
+                    // 2. HERO TRANSACTION CARD
+                    item {
+                        TransactionHeroCard(
+                            transactionTitle = transactionTitle,
+                            secondaryDescription = secondaryDescription,
+                            isCredit = isCredit,
+                            isTransfer = isTransfer,
+                            sign = sign,
+                            amount = expense.amount,
+                            formattedHeroDate = formattedHeroDate,
+                            categoryIconKey = categoryIconKey,
+                            isReconciled = expense.accountId != null
+                        )
+                    }
 
-                        // 2e. SECTION 2: "CLASSIFICATION & NOTES"
-                        item {
-                            TransactionCategorySection(
-                                categoryDisplayName = categoryDisplayName,
-                                categoryIconKey = categoryIconKey,
-                                tags = currentTags,
-                                memoNote = memoNoteText,
-                                onReassignClick = { showCategoryPickerDialog = true },
-                                onAddTagClick = { showAddTagDialog = true },
-                                onEditMemoClick = { isEditMode = true }
-                            )
-                        }
-
-                        // 2f. SECTION 3: "LOCAL INGESTION & AUDIT"
-                        item {
-                            TransactionSourceEvidenceSection(
-                                sourceProtocol = humanizedSource,
-                                originSenderId = originSenderId,
-                                parserTimestamp = formattedParserDate,
-                                rawSnippet = rawTextSnippet
-                            )
-                        }
-
-                        // 2g. BOTTOM ACTIONS: EXPORT & REPORT LINK
-                        item {
-                            Column(
+                    // 3. ACTION BUTTONS (Edit + Category + Delete, Split Bill removed)
+                    item {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Primary Emerald Edit Button
+                            Button(
+                                onClick = { isEditMode = true },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 4.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF047857),
+                                    contentColor = Color.White
+                                ),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
                             ) {
-                                // Light Export Receipt / CSV Row Button
-                                Button(
-                                    onClick = {
-                                        exportTransactionReceipt(context, expense, linkedAccount, txnCode, upiRef)
-                                    },
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Edit Transaction",
+                                        fontSize = 14.5.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            // 2 Secondary Action Pills: Category & Delete (Split Bill Removed)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                // 1. Category Pill
+                                OutlinedButton(
+                                    onClick = { showCategoryPickerDialog = true },
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(46.dp),
+                                        .weight(1f)
+                                        .height(42.dp),
                                     shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFFF1F5F9),
-                                        contentColor = Color(0xFF1E293B)
-                                    ),
                                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = Color.White,
+                                        contentColor = Color(0xFF0F172A)
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 8.dp)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.Center
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Upload,
+                                            imageVector = Icons.AutoMirrored.Filled.Label,
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp),
-                                            tint = Color(0xFF1E293B)
+                                            tint = Color(0xFF0F172A)
                                         )
-                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "Export Receipt / CSV Row",
-                                            fontSize = 13.5.sp,
+                                            text = "Category",
+                                            fontSize = 13.sp,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                     }
                                 }
 
-                                // Centered Report Parsing Mismatch
+                                // 2. Delete Pill
+                                OutlinedButton(
+                                    onClick = { showDeleteConfirmDialog = true },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(42.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = Color(0xFFFEF2F2),
+                                        contentColor = Color(0xFFDC2626)
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 8.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DeleteOutline,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = Color(0xFFDC2626)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Delete",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 4. SECTION 1: "PAYMENT & SETTLEMENT"
+                    item {
+                        TransactionAccountSection(
+                            linkedAccount = linkedAccount,
+                            accountSuffix = expense.accountSuffix,
+                            isPending = expense.isPending,
+                            postTxnBalance = postTxnBalance,
+                            paymentChannel = paymentChannel,
+                            upiRef = if (upiRef != "-") upiRef else null,
+                            onAccountClick = {
+                                isReassignPicker = linkedAccount != null
+                                showAccountPickerDialog = true
+                            },
+                            onCopyUpiRef = {
+                                if (upiRef != "-") {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText("Reference / UTR", upiRef)
+                                    clipboard.setPrimaryClip(clip)
+                                    Toast.makeText(context, "Reference / UTR copied to clipboard", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
+                    }
+
+                    // 5. SECTION 2: "CLASSIFICATION & NOTES"
+                    item {
+                        TransactionCategorySection(
+                            categoryDisplayName = categoryDisplayName,
+                            categoryIconKey = categoryIconKey,
+                            categorySubtitle = if (resolvedCategory?.isSystem == true) "System Category" else null,
+                            isAutoCategorized = expense.categorySource != "USER_ASSIGNED" && !expense.category.isNullOrBlank(),
+                            tags = currentTags,
+                            memoNote = editedNote.ifBlank { expense.note ?: "" },
+                            onReassignClick = { showCategoryPickerDialog = true },
+                            onAddTagClick = { showAddTagDialog = true },
+                            onEditMemoClick = { isEditMode = true }
+                        )
+                    }
+
+                    // 6. SECTION 3: "LOCAL INGESTION & AUDIT"
+                    item {
+                        TransactionSourceEvidenceSection(
+                            isManualEntry = isManualEntry,
+                            sourceProtocol = humanizedSource,
+                            originSenderId = originSenderId,
+                            parserTimestamp = if (!isManualEntry) formattedParserDate else null,
+                            rawSnippet = expense.rawText?.takeIf { it.isNotBlank() }
+                        )
+                    }
+
+                    // 7. BOTTOM ACTIONS: EXPORT & (OPTIONAL) REPORT LINK
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Light Export Receipt / CSV Row Button
+                            Button(
+                                onClick = {
+                                    exportTransactionReceipt(context, expense, linkedAccount, txnCode, upiRef)
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(46.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFF1F5F9),
+                                    contentColor = Color(0xFF1E293B)
+                                ),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Upload,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = Color(0xFF1E293B)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Export Receipt / CSV Row",
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+
+                            // Centered Report Parsing Mismatch (Only shown when raw SMS/notification evidence exists)
+                            if (!expense.rawText.isNullOrBlank()) {
                                 Row(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
@@ -762,146 +739,20 @@ fun TransactionDetailDialog(
 }
 
 // ==========================================
-// 1. TOP APP BAR / HEADER
-// ==========================================
-
-@Composable
-private fun TransactionDetailsHeader(
-    modifier: Modifier = Modifier,
-    onBackClick: () -> Unit,
-    onShareClick: () -> Unit,
-    onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit
-) {
-    var menuExpanded by remember { mutableStateOf(false) }
-
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-        shadowElevation = 0.5.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Clean Back Navigation Arrow
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier.size(42.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color(0xFF0F172A),
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            // Screen Title
-            Text(
-                text = "Transaction Details",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A),
-                modifier = Modifier.weight(1f)
-            )
-
-            // Share Action
-            IconButton(
-                onClick = onShareClick,
-                modifier = Modifier.size(38.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = "Share",
-                    tint = Color(0xFF0F172A),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            // 3-Dots More Menu
-            Box {
-                IconButton(
-                    onClick = { menuExpanded = true },
-                    modifier = Modifier.size(38.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "More",
-                        tint = Color(0xFF0F172A),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                    modifier = Modifier.background(Color.White)
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Edit Transaction", color = Color(0xFF0F172A), fontWeight = FontWeight.Medium) },
-                        onClick = {
-                            menuExpanded = false
-                            onEditClick()
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF047857), modifier = Modifier.size(18.dp))
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Delete Transaction", color = Color(0xFFDC2626), fontWeight = FontWeight.Medium) },
-                        onClick = {
-                            menuExpanded = false
-                            onDeleteClick()
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(18.dp))
-                        }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            // Emerald Circular User Avatar
-            Box(
-                modifier = Modifier
-                    .padding(end = 8.dp)
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF059669)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "User Profile",
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-    }
-}
-
-// ==========================================
-// 2. HERO TRANSACTION CARD
+// 1. HERO TRANSACTION CARD
 // ==========================================
 
 @Composable
 private fun TransactionHeroCard(
     transactionTitle: String,
-    secondaryDescription: String,
+    secondaryDescription: String?,
     isCredit: Boolean,
     isTransfer: Boolean,
     sign: String,
     amount: Double,
     formattedHeroDate: String,
-    categoryIconKey: String
+    categoryIconKey: String,
+    isReconciled: Boolean
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -913,12 +764,12 @@ private fun TransactionHeroCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // Top Row: Merchant Squircle + Verified checkmark + Merchant details + Direction Badge
+            // Top Row: Merchant Squircle + Verified checkmark (if reconciled) + Merchant details + Direction Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Merchant Icon Squircle with circular green checkmark badge
+                // Merchant Icon Squircle
                 Box(
                     modifier = Modifier.size(48.dp)
                 ) {
@@ -937,28 +788,30 @@ private fun TransactionHeroCard(
                         )
                     }
 
-                    // Green check badge on bottom right
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF059669))
-                            .border(BorderStroke(1.5.dp, Color.White), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Verified",
-                            tint = Color.White,
-                            modifier = Modifier.size(10.dp)
-                        )
+                    // Green check badge on bottom right if reconciled
+                    if (isReconciled) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(16.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF059669))
+                                .border(BorderStroke(1.5.dp, Color.White), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Verified",
+                                tint = Color.White,
+                                modifier = Modifier.size(10.dp)
+                            )
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // Merchant Name & Location Subtitle
+                // Merchant Name & Secondary Subtitle (if available)
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
@@ -970,24 +823,26 @@ private fun TransactionHeroCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null,
-                            tint = Color(0xFF64748B),
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = secondaryDescription,
-                            fontSize = 12.sp,
-                            color = Color(0xFF64748B),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    if (!secondaryDescription.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Category,
+                                contentDescription = null,
+                                tint = Color(0xFF64748B),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = secondaryDescription,
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
 
@@ -1073,7 +928,7 @@ private fun TransactionHeroCard(
 }
 
 // ==========================================
-// 3. PAYMENT & SETTLEMENT SECTION
+// 2. PAYMENT & SETTLEMENT SECTION
 // ==========================================
 
 @Composable
@@ -1081,8 +936,9 @@ private fun TransactionAccountSection(
     linkedAccount: KnownFinancialAccount?,
     accountSuffix: String?,
     isPending: Boolean,
-    postTxnBalance: String,
-    upiRef: String,
+    postTxnBalance: String?,
+    paymentChannel: String?,
+    upiRef: String?,
     onAccountClick: () -> Unit,
     onCopyUpiRef: () -> Unit
 ) {
@@ -1112,14 +968,18 @@ private fun TransactionAccountSection(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(Color(0xFFDCFCE7))
+                    .background(if (linkedAccount != null) Color(0xFFDCFCE7) else Color(0xFFF1F5F9))
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(
-                    text = if (isPending) "Pending" else "Reconciled",
+                    text = when {
+                        isPending -> "Pending"
+                        linkedAccount != null -> "Reconciled"
+                        else -> "Unlinked"
+                    },
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF166534)
+                    color = if (linkedAccount != null) Color(0xFF166534) else Color(0xFF64748B)
                 )
             }
         }
@@ -1136,18 +996,21 @@ private fun TransactionAccountSection(
                 modifier = Modifier.padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Account Row Box
+                // Account Row Box (Shows real account or prompt to assign)
                 val displayAccountName = when {
-                    !linkedAccount?.institutionName.isNullOrBlank() -> "${linkedAccount!!.institutionName} Millennia Credit Card"
-                    !linkedAccount?.institutionId.isNullOrBlank() -> "${linkedAccount!!.institutionId} Account"
-                    else -> "HDFC Millennia Credit Card"
+                    !linkedAccount?.institutionName.isNullOrBlank() -> linkedAccount!!.institutionName!!
+                    !linkedAccount?.institutionId.isNullOrBlank() -> linkedAccount!!.institutionId!!
+                    !accountSuffix.isNullOrBlank() -> "Linked Account"
+                    else -> "No Account Linked"
                 }
                 val displayAccountType = if (linkedAccount != null) {
                     AccountReconciliationManager.formatAccountType(linkedAccount.instrumentType, linkedAccount.accountSuffix)
+                } else if (!accountSuffix.isNullOrBlank()) {
+                    "Account"
                 } else {
-                    "Primary Card"
+                    "Tap to link an account"
                 }
-                val suffix = accountSuffix ?: linkedAccount?.accountSuffix ?: "4092"
+                val suffix = accountSuffix ?: linkedAccount?.accountSuffix
 
                 Row(
                     modifier = Modifier
@@ -1192,108 +1055,123 @@ private fun TransactionAccountSection(
                         )
                     }
 
-                    Text(
-                        text = "•••• $suffix",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        color = Color(0xFF0F172A)
-                    )
+                    if (!suffix.isNullOrBlank()) {
+                        Text(
+                            text = "•••• $suffix",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = Color(0xFF0F172A)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = "Assign",
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
 
-                // Balance After Transaction
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Balance After Transaction",
-                        fontSize = 13.sp,
-                        color = Color(0xFF64748B)
-                    )
-                    Text(
-                        text = postTxnBalance,
-                        fontSize = 13.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
-                    )
-                }
-
-                // Payment Channel
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Payment Channel",
-                        fontSize = 13.sp,
-                        color = Color(0xFF64748B)
-                    )
+                // Balance After Transaction (Only shown if authentic balance was extracted)
+                if (!postTxnBalance.isNullOrBlank()) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Contactless,
-                            contentDescription = null,
-                            tint = Color(0xFF64748B),
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = "POS Terminal / Chip & PIN",
+                            text = "Balance After Transaction",
                             fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF64748B)
+                        )
+                        Text(
+                            text = postTxnBalance,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color(0xFF0F172A)
                         )
                     }
                 }
 
-                // Reference / UTR
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
+                // Payment Channel (Only shown if identified)
+                if (!paymentChannel.isNullOrBlank()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = "Reference / UTR",
+                            text = "Payment Channel",
                             fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF0F172A)
-                        )
-                        Text(
-                            text = "Bank Ledger Identifier",
-                            fontSize = 11.sp,
                             color = Color(0xFF64748B)
                         )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFF1F5F9))
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(8.dp))
-                            .clickable { onCopyUpiRef() }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = upiRef,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = Color(0xFF334155)
+                            Icon(
+                                imageVector = Icons.Default.Contactless,
+                                contentDescription = null,
+                                tint = Color(0xFF64748B),
+                                modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(5.dp))
-                            Icon(
-                                imageVector = Icons.Default.ContentCopy,
-                                contentDescription = "Copy",
-                                tint = Color(0xFF64748B),
-                                modifier = Modifier.size(12.dp)
+                            Text(
+                                text = paymentChannel,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF0F172A)
                             )
+                        }
+                    }
+                }
+
+                // Reference / UTR (Only shown if authentic reference is present)
+                if (!upiRef.isNullOrBlank()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Reference / UTR",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF0F172A)
+                            )
+                            Text(
+                                text = "Bank Ledger Identifier",
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF1F5F9))
+                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(8.dp))
+                                .clickable { onCopyUpiRef() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = upiRef,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF334155)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = "Copy",
+                                    tint = Color(0xFF64748B),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -1303,13 +1181,15 @@ private fun TransactionAccountSection(
 }
 
 // ==========================================
-// 4. CLASSIFICATION & NOTES SECTION
+// 3. CLASSIFICATION & NOTES SECTION
 // ==========================================
 
 @Composable
 private fun TransactionCategorySection(
     categoryDisplayName: String,
     categoryIconKey: String,
+    categorySubtitle: String?,
+    isAutoCategorized: Boolean,
     tags: List<String>,
     memoNote: String,
     onReassignClick: () -> Unit,
@@ -1399,11 +1279,13 @@ private fun TransactionCategorySection(
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF0F172A)
                         )
-                        Text(
-                            text = "Supermarket & Essentials",
-                            fontSize = 11.5.sp,
-                            color = Color(0xFF64748B)
-                        )
+                        if (!categorySubtitle.isNullOrBlank()) {
+                            Text(
+                                text = categorySubtitle,
+                                fontSize = 11.5.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
                     }
 
                     Icon(
@@ -1414,24 +1296,26 @@ private fun TransactionCategorySection(
                     )
                 }
 
-                // Auto-categorized Rule row
-                Row(
-                    modifier = Modifier.padding(start = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SmartToy,
-                        contentDescription = null,
-                        tint = Color(0xFF059669),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Auto-categorized by Merchant Rule #14 ↗",
-                        fontSize = 12.sp,
-                        color = Color(0xFF047857),
-                        fontWeight = FontWeight.Medium
-                    )
+                // Auto-categorized Rule row (Only shown if auto-categorized)
+                if (isAutoCategorized) {
+                    Row(
+                        modifier = Modifier.padding(start = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SmartToy,
+                            contentDescription = null,
+                            tint = Color(0xFF059669),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Auto-categorized by Category Rules ↗",
+                            fontSize = 12.sp,
+                            color = Color(0xFF047857),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(2.dp))
@@ -1445,56 +1329,26 @@ private fun TransactionCategorySection(
                     letterSpacing = 0.5.sp
                 )
 
-                // Semantic Tags Row
-                val displayedTags = if (tags.isNotEmpty()) tags else listOf("WeeklyGroceries", "Household", "TaxDeductible")
+                // Semantic Tags Row (Only displays actual tags from this transaction)
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items(displayedTags) { tag ->
-                        val isTax = tag.contains("Tax", ignoreCase = true)
-                        if (isTax) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFFECFDF5))
-                                    .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(50))
-                                    .padding(horizontal = 10.dp, vertical = 5.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = Color(0xFF059669),
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                    Text(
-                                        text = "#$tag",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF047857)
-                                    )
-                                }
-                            }
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFFF1F5F9))
-                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(50))
-                                    .padding(horizontal = 10.dp, vertical = 5.dp)
-                            ) {
-                                Text(
-                                    text = "#$tag",
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF475569)
-                                )
-                            }
+                    items(tags) { tag ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(Color(0xFFF1F5F9))
+                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(50))
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = "#$tag",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF475569)
+                            )
                         }
                     }
 
@@ -1527,7 +1381,7 @@ private fun TransactionCategorySection(
                     letterSpacing = 0.5.sp
                 )
 
-                // Memo Preview Card
+                // Memo Preview Card (Shows actual note or clean placeholder)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1549,9 +1403,9 @@ private fun TransactionCategorySection(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = memoNote,
+                            text = if (memoNote.isNotBlank()) memoNote else "Tap to add a note or ledger memo...",
                             fontSize = 12.5.sp,
-                            color = Color(0xFF334155),
+                            color = if (memoNote.isNotBlank()) Color(0xFF334155) else Color(0xFF94A3B8),
                             lineHeight = 18.sp
                         )
                     }
@@ -1562,15 +1416,16 @@ private fun TransactionCategorySection(
 }
 
 // ==========================================
-// 5. LOCAL INGESTION & AUDIT SECTION
+// 4. LOCAL INGESTION & AUDIT SECTION
 // ==========================================
 
 @Composable
 private fun TransactionSourceEvidenceSection(
+    isManualEntry: Boolean,
     sourceProtocol: String,
-    originSenderId: String,
-    parserTimestamp: String,
-    rawSnippet: String
+    originSenderId: String?,
+    parserTimestamp: String?,
+    rawSnippet: String?
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -1602,7 +1457,7 @@ private fun TransactionSourceEvidenceSection(
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(
-                    text = "⚙ Local Pipeline",
+                    text = if (isManualEntry) "Local Ledger" else "⚙ Local Pipeline",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF047857)
@@ -1622,12 +1477,12 @@ private fun TransactionSourceEvidenceSection(
                 modifier = Modifier.padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Two Stat Boxes: Source Protocol & Origin Sender ID
+                // Source Protocol (and Sender ID if present)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Left Box: Source Protocol
+                    // Source Protocol
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -1645,10 +1500,10 @@ private fun TransactionSourceEvidenceSection(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ChatBubbleOutline,
+                                imageVector = if (isManualEntry) Icons.Default.EditNote else Icons.Default.ChatBubbleOutline,
                                 contentDescription = null,
                                 tint = Color(0xFF059669),
-                                modifier = Modifier.size(13.dp)
+                                modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
@@ -1662,102 +1517,95 @@ private fun TransactionSourceEvidenceSection(
                         }
                     }
 
-                    // Right Box: Origin Sender ID
+                    // Origin Sender ID (Only displayed when real sender ID is present)
+                    if (!originSenderId.isNullOrBlank()) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFF8FAFC))
+                                .padding(10.dp)
+                        ) {
+                            Text(
+                                text = "Origin Sender ID",
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = originSenderId,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+
+                // Parser Resolution Time (Omitted for manual transactions)
+                if (!isManualEntry && !parserTimestamp.isNullOrBlank()) {
                     Column(
                         modifier = Modifier
-                            .weight(1f)
+                            .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(Color(0xFFF8FAFC))
                             .padding(10.dp)
                     ) {
                         Text(
-                            text = "Origin Sender ID",
+                            text = "Parser Resolution Time",
                             fontSize = 11.sp,
                             color = Color(0xFF64748B)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = originSenderId,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-
-                // Parser Resolution Time Box
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF8FAFC))
-                        .padding(10.dp)
-                ) {
-                    Text(
-                        text = "Parser Resolution Time",
-                        fontSize = 11.sp,
-                        color = Color(0xFF64748B)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
                         Text(
                             text = parserTimestamp,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF0F172A)
                         )
-                        Spacer(modifier = Modifier.weight(1f))
-                        Text(
-                            text = "⚡ 0.04s latency",
-                            fontSize = 11.sp,
-                            color = Color(0xFF047857),
-                            fontWeight = FontWeight.SemiBold,
-                            fontFamily = FontFamily.Monospace
-                        )
                     }
                 }
 
-                // Raw Ingestion Snippet
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "RAW INGESTION SNIPPET",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF64748B),
-                        letterSpacing = 0.5.sp
-                    )
-                    Text(
-                        text = "UTF-8 Plaintext",
-                        fontSize = 11.sp,
-                        color = Color(0xFF94A3B8),
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
+                // Raw Ingestion Snippet (Omitted for manual transactions or when absent)
+                if (!isManualEntry && !rawSnippet.isNullOrBlank()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "RAW INGESTION SNIPPET",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF64748B),
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = "UTF-8 Plaintext",
+                            fontSize = 11.sp,
+                            color = Color(0xFF94A3B8),
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF8FAFC))
-                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(12.dp))
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        text = rawSnippet,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.5.sp,
-                        color = Color(0xFF334155),
-                        lineHeight = 16.sp
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF8FAFC))
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(12.dp))
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = rawSnippet,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.5.sp,
+                            color = Color(0xFF334155),
+                            lineHeight = 16.sp
+                        )
+                    }
                 }
 
                 // Bottom Audit Badge
@@ -1785,7 +1633,7 @@ private fun TransactionSourceEvidenceSection(
                             color = Color(0xFF047857)
                         )
                         Text(
-                            text = "Zero Cloud Transmission • Air-gapped Sandbox",
+                            text = if (isManualEntry) "Zero Cloud Transmission • Private Local Storage" else "Zero Cloud Transmission • Air-gapped Sandbox",
                             fontSize = 10.5.sp,
                             color = Color(0xFF059669)
                         )
@@ -1856,7 +1704,7 @@ internal fun DarkAccountPickerDialog(
                             ) {
                                 Column {
                                     Text(
-                                        text = acc.institutionName ?: "Bank",
+                                        text = acc.institutionName ?: acc.institutionId ?: "Bank",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
                                         color = Color(0xFF0F172A)
@@ -2179,6 +2027,24 @@ internal fun extractBalance(rawText: String?): String? {
     val balPattern = Regex("""(?:Bal(?:ance)?|Avl\s*Bal|Avail\s*Bal)(?:\s*(?:is|INR|Rs\.?))?[:\s]*([0-9,]+(?:\.[0-9]{2})?)""", RegexOption.IGNORE_CASE)
     val match = balPattern.find(rawText)
     return match?.groupValues?.get(1)?.let { "₹$it" }
+}
+
+internal fun extractSenderId(rawText: String?, notificationKey: String?): String? {
+    if (!notificationKey.isNullOrBlank()) {
+        val parts = notificationKey.split(":", "|", "_")
+        for (part in parts) {
+            if (part.matches(Regex("""[A-Za-z]{2}-[A-Za-z0-9]{4,8}"""))) {
+                return part.uppercase()
+            }
+        }
+    }
+    if (!rawText.isNullOrBlank()) {
+        val match = Regex("""\b([A-Za-z]{2}-[A-Za-z0-9]{4,8})\b""").find(rawText)
+        if (match != null) {
+            return match.groupValues[1].uppercase()
+        }
+    }
+    return null
 }
 
 private fun exportTransactionReceipt(
