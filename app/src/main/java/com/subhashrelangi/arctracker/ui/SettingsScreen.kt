@@ -1069,252 +1069,299 @@ fun SettingsScreen(
         )
     }
 
-    // App Update Dialog (Triggered by Long-Pressing "About ArcTracker")
+    // App Update Bottom Sheet (Triggered by Long-Pressing "About ArcTracker")
     if (showUpdateDialog) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         var isCheckingUpdate by remember { mutableStateOf(true) }
 
         LaunchedEffect(isCheckingUpdate) {
             if (isCheckingUpdate) {
-                delay(800L)
+                delay(600L)
                 isCheckingUpdate = false
             }
         }
 
-        Dialog(
+        ModalBottomSheet(
             onDismissRequest = { showUpdateDialog = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+            sheetState = sheetState,
+            containerColor = Color.White,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 12.dp, bottom = 8.dp)
+                        .width(36.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFCBD5E1))
+                )
+            }
         ) {
-            Card(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 36.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(22.dp)
+                // Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Top Bar: App Badge & Close
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFECFDF5))
-                                    .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(12.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.SystemUpdate,
-                                    contentDescription = "ArcTracker Update",
-                                    tint = Color(0xFF047857),
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "ArcTracker Update",
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
-                                )
-                                Text(
-                                    text = "Official Release Channel",
-                                    fontSize = 11.5.sp,
-                                    color = Color(0xFF64748B)
-                                )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = { showUpdateDialog = false },
-                            modifier = Modifier.size(32.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFFECFDF5))
+                                .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(14.dp)),
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.Close,
-                                contentDescription = "Close",
-                                tint = Color(0xFF64748B),
-                                modifier = Modifier.size(18.dp)
+                                imageVector = Icons.Outlined.SystemUpdate,
+                                contentDescription = "ArcTracker Update",
+                                tint = Color(0xFF047857),
+                                modifier = Modifier.size(24.dp)
                             )
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    if (isCheckingUpdate) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color(0xFFF8FAFC))
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(14.dp))
-                                .padding(vertical = 26.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(28.dp),
-                                color = Color(0xFF047857),
-                                strokeWidth = 2.5.dp
-                            )
-                            Text(
-                                text = "Checking for latest version...",
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF475569)
-                            )
-                        }
-                    } else {
-                        // Robust Version Status Card
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color(0xFFF8FAFC))
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(14.dp))
-                                .padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "Installed Version",
-                                    fontSize = 12.5.sp,
-                                    color = Color(0xFF64748B)
-                                )
-                                Text(
-                                    text = "v1.0.0 (5107a09)",
-                                    fontSize = 13.sp,
+                                    text = "ArcTracker Update",
+                                    fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF0F172A)
                                 )
-                            }
-
-                            HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 0.8.dp)
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Up-to-Date Version",
-                                    fontSize = 12.5.sp,
-                                    color = Color(0xFF64748B)
-                                )
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
                                         .background(Color(0xFFECFDF5))
                                         .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(6.dp))
-                                        .padding(horizontal = 7.dp, vertical = 2.5.dp)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp)
-                                                .clip(CircleShape)
-                                                .background(Color(0xFF15803D))
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = "v1.0.1 (Latest)",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF15803D)
-                                        )
-                                    }
+                                    Text(
+                                        text = "Official Release",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF047857)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Latest stable build published on GitHub",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = { showUpdateDialog = false },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Close",
+                            tint = Color(0xFF64748B),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                if (isCheckingUpdate) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFFF8FAFC))
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(16.dp))
+                            .padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(28.dp),
+                            color = Color(0xFF047857),
+                            strokeWidth = 2.5.dp
+                        )
+                        Text(
+                            text = "Checking latest GitHub release...",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF475569)
+                        )
+                    }
+                } else {
+                    // Version Comparison Card
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFFF8FAFC))
+                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(16.dp))
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Installed Version",
+                                fontSize = 13.sp,
+                                color = Color(0xFF64748B)
+                            )
+                            Text(
+                                text = "v1.0.0 (5107a09)",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                        }
+
+                        HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Latest Release on GitHub",
+                                fontSize = 13.sp,
+                                color = Color(0xFF64748B)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFECFDF5))
+                                    .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(7.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF15803D))
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "v1.0.6 (Latest)",
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF15803D)
+                                    )
                                 }
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // Primary Button: Install Up-to-Date Version
-                    Button(
-                        onClick = {
-                            val releaseUrl = "https://github.com/subhashrelangi/ArcTracker/releases/latest"
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(releaseUrl))
-                                context.startActivity(intent)
-                            } catch (_: Exception) {
-                                Toast.makeText(context, "No web browser found", Toast.LENGTH_SHORT).show()
-                            }
-                        },
+                    // Release Highlights
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(46.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF047857),
-                            contentColor = Color.White
-                        )
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF1F5F9))
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.FileDownload,
-                            contentDescription = null,
-                            modifier = Modifier.size(17.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Install Latest Version (v1.0.1)",
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.Bold
+                            text = "Release Highlights (v1.0.6):",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF334155)
+                        )
+                        Text(
+                            text = "• Zero-latency regex & notification parsing pipelines\n• Air-gapped AES-256 SQLCipher local database\n• Screen security guard & developer lock features",
+                            fontSize = 11.5.sp,
+                            color = Color(0xFF475569),
+                            lineHeight = 16.sp
                         )
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                    // Secondary Button: View in GitHub
-                    OutlinedButton(
-                        onClick = {
-                            val githubUrl = "https://github.com/subhashrelangi/ArcTracker"
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl))
-                                context.startActivity(intent)
-                            } catch (_: Exception) {
-                                Toast.makeText(context, "No web browser found", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color(0xFF0F172A)
-                        ),
-                        border = BorderStroke(1.dp, Color(0xFFCBD5E1))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Code,
-                            contentDescription = null,
-                            modifier = Modifier.size(17.dp),
-                            tint = Color(0xFF334155)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "View in GitHub",
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF0F172A)
-                        )
-                    }
+                // Primary Button: Install ArcTracker v1.0.6
+                Button(
+                    onClick = {
+                        val releaseUrl = "https://github.com/subhashrelangi/ArcTracker/releases/tag/v1.0.6"
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(releaseUrl))
+                            context.startActivity(intent)
+                        } catch (_: Exception) {
+                            Toast.makeText(context, "No web browser found", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF047857),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.FileDownload,
+                        contentDescription = null,
+                        modifier = Modifier.size(19.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Install ArcTracker v1.0.6",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Secondary Button: View in GitHub
+                OutlinedButton(
+                    onClick = {
+                        val githubUrl = "https://github.com/subhashrelangi/ArcTracker"
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl))
+                            context.startActivity(intent)
+                        } catch (_: Exception) {
+                            Toast.makeText(context, "No web browser found", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFF0F172A)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Code,
+                        contentDescription = null,
+                        modifier = Modifier.size(19.dp),
+                        tint = Color(0xFF334155)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "View in GitHub",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF0F172A)
+                    )
                 }
             }
         }
