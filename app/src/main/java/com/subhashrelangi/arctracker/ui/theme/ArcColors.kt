@@ -3,85 +3,103 @@ package com.subhashrelangi.arctracker.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Universal ArcTracker Fintech Dark Design Tokens.
- * Derived from the verified LedgerPage and HomePage designs.
+ * Universal ArcTracker Industrial-Grade Design Tokens & Global Color Palette.
  * Serves as the single source of truth for the entire application.
+ *
+ * Theme Architecture: ArcTracker Emerald Light Aesthetic
+ * - Canvas Backgrounds: Clean, breathable light slate (#F8FAFC) & pure white (#FFFFFF)
+ * - Brand Accents: Emerald Green (#047857), Mint (#ECFDF5), Emerald Border (#A7F3D0)
+ * - Typography: Deep slate primary (#0F172A), medium slate (#475569), muted slate (#64748B)
+ * - Semantic Indicators: Credit (#047857), Debit (#0F172A / #DC2626), Warning (#D97706)
+ * - Geometry Convention: All buttons, pills & icon touch targets use CircleShape
  */
 object ArcColors {
-    // Primary Backgrounds
-    val Background = Color(0xFF090C10)
-    val Surface = Color(0xFF121620)
-    val SurfaceElevated = Color(0xFF161A24)
-    val SurfaceHighlight = Color(0xFF1F2432)
-    val SurfaceMuted = Color(0xFF1F2432)
-    val CardBackground = Color(0xFF131721)
-    val SurfaceCard = Color(0xFF131721)
+    // Brand Emerald Accents
+    val Primary = Color(0xFF047857)
+    val PrimaryDark = Color(0xFF065F46)
+    val PrimaryLight = Color(0xFFECFDF5)
+    val PrimaryBorder = Color(0xFFA7F3D0)
+    val EmeraldPrimary = Color(0xFF047857)
 
-    // Borders
-    val Border = Color(0xFF1E2432)
-    val BorderSubtle = Color(0xFF262C36)
-    val BorderLight = Color(0xFF30363D)
-    val SurfaceCardBorder = Color(0xFF1E2330)
+    // Primary Canvas & Surface Backgrounds
+    val Background = Color(0xFFF8FAFC)
+    val LightBg = Color(0xFFF8FAFC)
+    val Surface = Color(0xFFFFFFFF)
+    val SurfaceElevated = Color(0xFFFFFFFF)
+    val SurfaceHighlight = Color(0xFFF1F5F9)
+    val SurfaceMuted = Color(0xFFF1F5F9)
+    val CardBackground = Color(0xFFFFFFFF)
+    val SurfaceCard = Color(0xFFFFFFFF)
+
+    // Borders & Dividers
+    val Border = Color(0xFFE2E8F0)
+    val BorderSubtle = Color(0xFFF1F5F9)
+    val BorderLight = Color(0xFFE2E8F0)
+    val SurfaceCardBorder = Color(0xFFE2E8F0)
+    val CardBorder = Color(0xFFE2E8F0)
 
     // Typography
-    val TextPrimary = Color(0xFFFFFFFF)
-    val TextSecondary = Color(0xFF94A3B8)
+    val TextPrimary = Color(0xFF0F172A)
+    val TextSecondary = Color(0xFF475569)
     val TextMuted = Color(0xFF64748B)
-    val TextMutedLight = Color(0xFF8B949E)
+    val TextMutedLight = Color(0xFF94A3B8)
+    val SlateTitle = Color(0xFF0F172A)
+    val SlateSub = Color(0xFF64748B)
 
-    // Financial indicators - Debits & Credits
-    val Debit = Color(0xFFF43F5E) // Bright red / rose
-    val DebitBg = Color(0xFF2C1317)
-    val DebitBorder = Color(0xFF4A1E24)
+    // Financial Indicators - Debits & Credits
+    val Debit = Color(0xFF0F172A)
+    val DebitDanger = Color(0xFFDC2626)
+    val DebitBg = Color(0xFFFEF2F2)
+    val DebitBorder = Color(0xFFFECACA)
 
-    val Credit = Color(0xFF00E676) // Bright emerald green
+    val Credit = Color(0xFF047857)
     val CreditMuted = Color(0xFF10B981)
-    val CreditBg = Color(0xFF0C2419)
-    val CreditBorder = Color(0xFF134C34)
+    val CreditBg = Color(0xFFECFDF5)
+    val CreditBorder = Color(0xFFA7F3D0)
 
     // Status - Review & Warning
-    val Warning = Color(0xFFF59E0B)
-    val WarningLight = Color(0xFFFBBF24)
-    val WarningAmber = Color(0xFFFBBF24)
+    val Warning = Color(0xFFD97706)
+    val WarningLight = Color(0xFFF59E0B)
+    val WarningAmber = Color(0xFFD97706)
     val WarningAmberDot = Color(0xFFF59E0B)
-    val WarningAmberBg = Color(0xFF2B1F09)
-    val WarningAmberBorder = Color(0xFF4A3612)
-    val WarningContainer = Color(0xFF281D0B)
-    val WarningBorder = Color(0xFF45300F)
+    val WarningAmberBg = Color(0xFFFFFBEB)
+    val WarningAmberBorder = Color(0xFFFDE68A)
+    val WarningContainer = Color(0xFFFFFBEB)
+    val WarningBorder = Color(0xFFFDE68A)
 
     // Status - Success & Danger
-    val Success = Color(0xFF10B981)
-    val SuccessContainer = Color(0xFF0D2218)
-    val SuccessBorder = Color(0xFF1B4D35)
+    val Success = Color(0xFF047857)
+    val SuccessContainer = Color(0xFFECFDF5)
+    val SuccessBorder = Color(0xFFA7F3D0)
 
-    val Danger = Color(0xFFEF4444)
-    val DangerContainer = Color(0xFF2C1418)
-    val DangerBorder = Color(0xFF4C1D24)
+    val Danger = Color(0xFFDC2626)
+    val DangerContainer = Color(0xFFFEF2F2)
+    val DangerBorder = Color(0xFFFECACA)
 
     // Status - Unresolved
-    val Unresolved = Color(0xFFF87171)
-    val UnresolvedBg = Color(0xFF2C1317)
-    val UnresolvedBorder = Color(0xFF4A1E24)
+    val Unresolved = Color(0xFFD97706)
+    val UnresolvedBg = Color(0xFFFFFBEB)
+    val UnresolvedBorder = Color(0xFFFDE68A)
 
-    // Badges & Navigation
-    val UpiBadgeBg = Color(0xFF21262D)
-    val UpiBadgeText = Color(0xFFC9D1D9)
+    // Badges & Filter Chips
+    val UpiBadgeBg = Color(0xFFEFF6FF)
+    val UpiBadgeText = Color(0xFF2563EB)
 
-    val FilterChipBg = Color(0xFF161A24)
-    val FilterChipSelectedBg = Color(0xFFFFFFFF)
-    val FilterChipSelectedText = Color(0xFF0F141C)
+    val FilterChipBg = Color(0xFFF1F5F9)
+    val FilterChipSelectedBg = Color(0xFF0F172A)
+    val FilterChipSelectedText = Color(0xFFFFFFFF)
 
-    val ChipBackground = Color(0xFF181C26)
-    val ChipBorder = Color(0xFF252B3A)
+    val ChipBackground = Color(0xFFF1F5F9)
+    val ChipBorder = Color(0xFFE2E8F0)
 
-    val TelemetryBackground = Color(0xFF0C0E14)
-    val TelemetryBorder = Color(0xFF1B202D)
+    val TelemetryBackground = Color(0xFFF8FAFC)
+    val TelemetryBorder = Color(0xFFE2E8F0)
 
     // Navigation Bar Tokens
-    val BottomNavBackground = Color(0xFF13161F)
-    val BottomNavBorder = Color(0xFF1F2432)
-    val BottomNavPillSelected = Color(0xFF262C38)
-    val BottomNavTextActive = Color.White
-    val BottomNavTextInactive = Color(0xFF94A3B8)
-    val BottomNavBadgeAmber = Color(0xFFF59E0B)
+    val BottomNavBackground = Color(0xFFFFFFFF)
+    val BottomNavBorder = Color(0xFFE2E8F0)
+    val BottomNavPillSelected = Color(0xFF0F172A)
+    val BottomNavTextActive = Color(0xFF047857)
+    val BottomNavTextInactive = Color(0xFF64748B)
+    val BottomNavBadgeAmber = Color(0xFFD97706)
 }

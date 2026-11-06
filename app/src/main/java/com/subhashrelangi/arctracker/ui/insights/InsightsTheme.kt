@@ -31,29 +31,6 @@ object InsightsTheme {
     val AmberBadge = Color(0xFFFEF3C7)
     val CharcoalDark = Color(0xFF0F172A)
 
-    // Surfaces & Containers (Legacy / Dark)
-    val Background = Color(0xFF090C10)
-    val CardBackground = Color(0xFF161B22)
-    val CardBorder = Color(0xFF30363D)
-    val SubCardBackground = Color(0xFF0D1117)
-    val SubCardBorder = Color(0xFF21262D)
-
-    // Financial & Status Indicators
-    val PositiveGreen = Color(0xFF00E676)
-    val PositiveGreenSubtle = Color(0xFF3FB950)
-    val PositiveGreenContainer = Color(0xFF0D3320)
-    val NegativeRed = Color(0xFFF85149)
-    val NegativeRedSubtle = Color(0xFFFF7B72)
-    val WarningAmber = Color(0xFFE3B341)
-    val WarningAmberContainer = Color(0xFF2D2200)
-    val PrimaryBlue = Color(0xFF58A6FF)
-    val BlueContainer = Color(0xFF0C2D6B)
-
-    // Typography Colors
-    val TextPrimary = Color(0xFFFFFFFF)
-    val TextSecondary = Color(0xFF8B949E)
-    val TextTertiary = Color(0xFF6E7681)
-
     // Category Semantic Colors (as per reference design)
     val CategoryFood = Color(0xFFE3B341)           // Amber / Yellow
     val CategoryShopping = Color(0xFF58A6FF)       // Blue

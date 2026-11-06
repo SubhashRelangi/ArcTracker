@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.withStyle
@@ -326,7 +327,7 @@ fun BackupScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Shield,
                                 contentDescription = "Security Vault",
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(19.dp)
                             )
                         }
@@ -375,7 +376,7 @@ fun BackupScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.Lock,
                                     contentDescription = null,
-                                    tint = Color(0xFF055B38),
+                                    tint = ArcColors.Primary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -399,7 +400,7 @@ fun BackupScreen(
                                         text = "On-Device Android Keystore",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = Color(0xFF055B38)
+                                        color = ArcColors.Primary
                                     )
                                 }
                             }
@@ -439,7 +440,7 @@ fun BackupScreen(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
                                     contentDescription = null,
-                                    tint = Color(0xFF055B38),
+                                    tint = ArcColors.Primary,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(5.dp))
@@ -457,7 +458,7 @@ fun BackupScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.AccountBalance,
                                     contentDescription = null,
-                                    tint = Color(0xFF055B38),
+                                    tint = ArcColors.Primary,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(5.dp))
@@ -475,7 +476,7 @@ fun BackupScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.LocalOffer,
                                     contentDescription = null,
-                                    tint = Color(0xFF055B38),
+                                    tint = ArcColors.Primary,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(5.dp))
@@ -504,7 +505,7 @@ fun BackupScreen(
                             Icon(
                                 imageVector = Icons.Outlined.TableChart,
                                 contentDescription = null,
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -564,7 +565,7 @@ fun BackupScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.CalendarToday,
                                         contentDescription = null,
-                                        tint = Color(0xFF055B38),
+                                        tint = ArcColors.Primary,
                                         modifier = Modifier.size(15.dp)
                                     )
                                 }
@@ -603,14 +604,14 @@ fun BackupScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.GppGood,
                                     contentDescription = null,
-                                    tint = Color(0xFF055B38),
+                                    tint = ArcColors.Primary,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "Includes ISO timestamps, category slugs, and masked accounts.",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF055B38)
+                                    color = ArcColors.Primary
                                 )
                             }
 
@@ -660,7 +661,7 @@ fun BackupScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Lock,
                                 contentDescription = null,
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -680,7 +681,7 @@ fun BackupScreen(
                                 text = "Encrypted",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF055B38)
+                                color = ArcColors.Primary
                             )
                         }
                     }
@@ -729,7 +730,7 @@ fun BackupScreen(
                                     )
                                 }
 
-                                ArcTrackerMockSwitch(
+                                ArcTrackerCustomSwitch(
                                     checked = isHardwareEncryptionEnabled,
                                     onCheckedChange = { isHardwareEncryptionEnabled = it }
                                 )
@@ -753,7 +754,7 @@ fun BackupScreen(
                                         text = "Zero-Knowledge",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF055B38)
+                                        color = ArcColors.Primary
                                     )
                                 }
 
@@ -779,7 +780,7 @@ fun BackupScreen(
                                             color = Color(0xFF0F172A),
                                             fontFamily = FontFamily.Monospace
                                         ),
-                                        cursorBrush = SolidColor(Color(0xFF055B38)),
+                                        cursorBrush = SolidColor(ArcColors.Primary),
                                         visualTransformation = if (isPassphraseVisible) VisualTransformation.None else PasswordVisualTransformation(),
                                         keyboardOptions = KeyboardOptions(
                                             keyboardType = KeyboardType.Password,
@@ -850,7 +851,7 @@ fun BackupScreen(
                                     .height(46.dp),
                                 shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF055B38),
+                                    containerColor = ArcColors.Primary,
                                     contentColor = Color.White
                                 ),
                                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
@@ -885,7 +886,7 @@ fun BackupScreen(
                             Icon(
                                 imageVector = Icons.Outlined.RestorePage,
                                 contentDescription = null,
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -943,7 +944,7 @@ fun BackupScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.NoteAdd,
                                         contentDescription = null,
-                                        tint = Color(0xFF055B38),
+                                        tint = ArcColors.Primary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -958,7 +959,7 @@ fun BackupScreen(
                                 Text(
                                     text = if (selectedSnapshotFileName != null) "Payload inspected and ready for restore" else "Accepts .arcvault or plain .json schemas",
                                     fontSize = 11.sp,
-                                    color = if (selectedSnapshotFileName != null) Color(0xFF055B38) else Color(0xFF64748B),
+                                    color = if (selectedSnapshotFileName != null) ArcColors.Primary else Color(0xFF64748B),
                                     fontWeight = if (selectedSnapshotFileName != null) FontWeight.SemiBold else FontWeight.Normal
                                 )
                             }
@@ -1013,7 +1014,7 @@ fun BackupScreen(
                                                     text = "Recommended",
                                                     fontSize = 10.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF055B38)
+                                                    color = ArcColors.Primary
                                                 )
                                             }
                                         }
@@ -1222,7 +1223,7 @@ fun BackupScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         CircularProgressIndicator(
-                            color = Color(0xFF055B38),
+                            color = ArcColors.Primary,
                             strokeWidth = 3.dp,
                             modifier = Modifier.size(36.dp)
                         )
@@ -1267,7 +1268,7 @@ fun BackupScreen(
                             Icon(
                                 imageVector = Icons.Outlined.CalendarToday,
                                 contentDescription = null,
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -1324,7 +1325,7 @@ fun BackupScreen(
                                 color = if (isSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
                                 border = BorderStroke(
                                     1.5.dp,
-                                    if (isSelected) Color(0xFF055B38) else Color(0xFFE2E8F0)
+                                    if (isSelected) ArcColors.Primary else Color(0xFFE2E8F0)
                                 )
                             ) {
                                 Row(
@@ -1345,7 +1346,7 @@ fun BackupScreen(
                                         Icon(
                                             imageVector = opt.icon,
                                             contentDescription = null,
-                                            tint = if (isSelected) Color(0xFF055B38) else Color(0xFF64748B),
+                                            tint = if (isSelected) ArcColors.Primary else Color(0xFF64748B),
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -1364,7 +1365,7 @@ fun BackupScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(22.dp)
-                                                .background(Color(0xFF055B38), CircleShape),
+                                                .background(ArcColors.Primary, CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
@@ -1407,7 +1408,7 @@ fun BackupScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Lock,
                                 contentDescription = null,
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -1499,7 +1500,7 @@ fun BackupScreen(
                                 .height(44.dp),
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF055B38),
+                                containerColor = ArcColors.Primary,
                                 contentColor = Color.White
                             )
                         ) {
@@ -1533,7 +1534,7 @@ fun BackupScreen(
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = null,
-                            tint = Color(0xFF055B38),
+                            tint = ArcColors.Primary,
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -1559,7 +1560,7 @@ fun BackupScreen(
                             .height(44.dp),
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF055B38),
+                            containerColor = ArcColors.Primary,
                             contentColor = Color.White
                         )
                     ) {
@@ -1653,7 +1654,7 @@ private fun calculatePasswordStrength(passphrase: String): Triple<Int, String, C
         score <= 1 -> Triple(1, "Weak", Color(0xFFEF4444))
         score == 2 -> Triple(2, "Fair", Color(0xFFF59E0B))
         score in 3..4 -> Triple(3, "Good", Color(0xFF10B981))
-        else -> Triple(4, "Strong", Color(0xFF055B38))
+        else -> Triple(4, "Strong", ArcColors.Primary)
     }
 }
 
@@ -1662,7 +1663,7 @@ private fun calculatePasswordStrength(passphrase: String): Triple<Int, String, C
  * Forest green background when checked, white thumb containing dark green checkmark.
  */
 @Composable
-fun ArcTrackerMockSwitch(
+fun ArcTrackerCustomSwitch(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -1677,7 +1678,7 @@ fun ArcTrackerMockSwitch(
             .width(52.dp)
             .height(30.dp)
             .clip(CircleShape)
-            .background(if (checked) Color(0xFF055B38) else Color(0xFFCBD5E1))
+            .background(if (checked) ArcColors.Primary else Color(0xFFCBD5E1))
             .clickable { onCheckedChange(!checked) }
             .padding(2.dp),
         contentAlignment = Alignment.CenterStart
@@ -1693,7 +1694,7 @@ fun ArcTrackerMockSwitch(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    tint = Color(0xFF055B38),
+                    tint = ArcColors.Primary,
                     modifier = Modifier.size(15.dp)
                 )
             }

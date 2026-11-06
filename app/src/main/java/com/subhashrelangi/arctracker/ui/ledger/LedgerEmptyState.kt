@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 
 @Composable
 fun LedgerEmptyState(
@@ -100,8 +101,8 @@ fun LedgerEmptyState(
                         onClick = onAddTransaction,
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black
+                            containerColor = ArcColors.Primary,
+                            contentColor = Color.White
                         )
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))

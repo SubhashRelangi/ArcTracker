@@ -39,6 +39,7 @@ import com.subhashrelangi.arctracker.service.FinancialClassifier
 import com.subhashrelangi.arctracker.service.NotificationNormalizer
 import com.subhashrelangi.arctracker.service.StructuredTransactionExtractor
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.utils.IgnoreRulesManager
 import com.subhashrelangi.arctracker.utils.RegexPatternsManager
 import com.subhashrelangi.arctracker.utils.RegexRule
@@ -207,7 +208,7 @@ fun RegexPatternsScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Shield,
                                 contentDescription = "Security Vault",
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(19.dp)
                             )
                         }
@@ -292,7 +293,7 @@ fun RegexPatternsScreen(
 
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = if (isSelected) Color(0xFF055B38) else Color(0xFFF1F5F9),
+                        color = if (isSelected) ArcColors.Primary else Color(0xFFF1F5F9),
                         border = if (isSelected) null else BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         modifier = Modifier.clickable { selectedCategory = cat }
                     ) {
@@ -352,7 +353,7 @@ fun RegexPatternsScreen(
                                     fontWeight = FontWeight.Medium
                                 ),
                                 singleLine = true,
-                                cursorBrush = SolidColor(Color(0xFF055B38)),
+                                cursorBrush = SolidColor(ArcColors.Primary),
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -388,7 +389,7 @@ fun RegexPatternsScreen(
                     Icon(
                         imageVector = Icons.Outlined.AddCircleOutline,
                         contentDescription = null,
-                        tint = Color(0xFF055B38),
+                        tint = ArcColors.Primary,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -422,7 +423,7 @@ fun RegexPatternsScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Terminal,
                                 contentDescription = null,
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -474,7 +475,7 @@ fun RegexPatternsScreen(
                                 text = "Insert Sample UPI",
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF055B38),
+                                color = ArcColors.Primary,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
                         }
@@ -499,7 +500,7 @@ fun RegexPatternsScreen(
                                 lineHeight = 17.sp,
                                 fontFamily = FontFamily.SansSerif
                             ),
-                            cursorBrush = SolidColor(Color(0xFF055B38)),
+                            cursorBrush = SolidColor(ArcColors.Primary),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 72.dp)
@@ -550,7 +551,7 @@ fun RegexPatternsScreen(
                         Button(
                             onClick = { evaluatePayload(rawMessagePayload) },
                             shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38)),
+                            colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                             modifier = Modifier.height(36.dp)
                         ) {
@@ -604,7 +605,7 @@ fun RegexPatternsScreen(
                             TokenExtractionBox(
                                 label = "Captured Amount",
                                 value = detectedAmount,
-                                valueColor = Color(0xFF055B38),
+                                valueColor = ArcColors.Primary,
                                 isMonospace = true
                             )
                         }
@@ -864,7 +865,7 @@ private fun RegexRuleCard(
                     Icon(
                         imageVector = iconVector,
                         contentDescription = null,
-                        tint = Color(0xFF055B38),
+                        tint = ArcColors.Primary,
                         modifier = Modifier.size(19.dp)
                     )
                 }
@@ -928,7 +929,7 @@ private fun RegexRuleCard(
                     onCheckedChange = onToggleActive,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF055B38),
+                        checkedTrackColor = ArcColors.Primary,
                         uncheckedThumbColor = Color.White,
                         uncheckedTrackColor = Color(0xFFCBD5E1),
                         uncheckedBorderColor = Color.Transparent
@@ -1017,7 +1018,7 @@ private fun RegexRuleCard(
                             text = "Test",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF055B38),
+                            color = ArcColors.Primary,
                             modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.dp)
                         )
                     }
@@ -1124,7 +1125,7 @@ fun TestRuleDialog(rule: RegexRule, onDismiss: () -> Unit) {
         confirmButton = {
             Button(
                 onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38)),
+                colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
                 shape = CircleShape
             ) {
                 Text("Close", color = Color.White)

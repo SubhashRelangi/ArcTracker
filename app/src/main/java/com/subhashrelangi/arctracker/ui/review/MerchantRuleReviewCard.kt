@@ -98,13 +98,13 @@ fun MerchantRuleReviewCard(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF141F2B)),
+                            .background(Color(0xFFE0F2FE)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.DirectionsCar,
                             contentDescription = null,
-                            tint = Color(0xFF38BDF8),
+                            tint = Color(0xFF0284C7),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -172,8 +172,8 @@ fun MerchantRuleReviewCard(
             // Box 1: INGESTED VPA STRING
             Surface(
                 shape = RoundedCornerShape(10.dp),
-                color = Color(0xFF0F1219),
-                border = BorderStroke(1.dp, Color(0xFF1B202D)),
+                color = ArcColors.Background,
+                border = BorderStroke(1.dp, ArcColors.Border),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -182,7 +182,7 @@ fun MerchantRuleReviewCard(
                 ) {
                     Text(
                         text = "INGESTED VPA STRING:",
-                        color = Color(0xFF64748B),
+                        color = ArcColors.TextMuted,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -196,7 +196,7 @@ fun MerchantRuleReviewCard(
                     ) {
                         Text(
                             text = vpaString,
-                            color = Color(0xFFCBD5E1),
+                            color = ArcColors.TextPrimary,
                             fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace,
                             maxLines = 1,
@@ -210,13 +210,13 @@ fun MerchantRuleReviewCard(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
-                                tint = Color(0xFF10B981),
+                                tint = ArcColors.Success,
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "\"$canonicalMerchant\"",
-                                color = Color(0xFF10B981),
+                                color = ArcColors.Success,
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -228,8 +228,8 @@ fun MerchantRuleReviewCard(
             // Box 2: Remember Rule Box with Switch
             Surface(
                 shape = RoundedCornerShape(10.dp),
-                color = Color(0xFF181C26),
-                border = BorderStroke(1.dp, Color(0xFF242A3A)),
+                color = ArcColors.Background,
+                border = BorderStroke(1.dp, ArcColors.Border),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -242,14 +242,14 @@ fun MerchantRuleReviewCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Remember Rule",
-                            color = Color.White,
+                            color = ArcColors.TextPrimary,
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Auto-alias '$patternString' to '$canonicalMerchant'",
-                            color = Color(0xFF94A3B8),
+                            color = ArcColors.TextSecondary,
                             fontSize = 11.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -263,10 +263,10 @@ fun MerchantRuleReviewCard(
                         onCheckedChange = { rememberRule = it },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
-                            checkedTrackColor = Color(0xFF10B981),
-                            uncheckedThumbColor = Color(0xFF94A3B8),
-                            uncheckedTrackColor = Color(0xFF242A3A),
-                            uncheckedBorderColor = Color(0xFF333D52)
+                            checkedTrackColor = ArcColors.Success,
+                            uncheckedThumbColor = ArcColors.TextMuted,
+                            uncheckedTrackColor = ArcColors.BorderSubtle,
+                            uncheckedBorderColor = ArcColors.Border
                         )
                     )
                 }
@@ -287,10 +287,10 @@ fun MerchantRuleReviewCard(
                             onApproveOnce(expense, canonicalMerchant)
                         }
                     },
-                    shape = ArcShapes.Button,
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Black
+                        containerColor = ArcColors.Success,
+                        contentColor = Color.White
                     ),
                     modifier = Modifier
                         .weight(1f)
@@ -304,14 +304,14 @@ fun MerchantRuleReviewCard(
                             imageVector = Icons.Default.SwapHoriz,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = Color.Black
+                            tint = Color.White
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Approve & Save Rule",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.5.sp,
-                            color = Color.Black
+                            color = Color.White
                         )
                     }
                 }
@@ -319,12 +319,12 @@ fun MerchantRuleReviewCard(
                 // Secondary: Once
                 OutlinedButton(
                     onClick = { onApproveOnce(expense, canonicalMerchant) },
-                    shape = ArcShapes.Button,
+                    shape = CircleShape,
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color(0xFF1B202D),
-                        contentColor = Color.White
+                        containerColor = ArcColors.Surface,
+                        contentColor = ArcColors.TextPrimary
                     ),
-                    border = BorderStroke(1.dp, Color(0xFF283044)),
+                    border = BorderStroke(1.dp, ArcColors.Border),
                     modifier = Modifier
                         .width(82.dp)
                         .height(44.dp),
@@ -334,7 +334,7 @@ fun MerchantRuleReviewCard(
                         text = "Once",
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp,
-                        color = Color.White
+                        color = ArcColors.TextPrimary
                     )
                 }
             }

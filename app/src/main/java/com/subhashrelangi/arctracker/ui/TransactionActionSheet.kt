@@ -3,19 +3,17 @@ package com.subhashrelangi.arctracker.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -23,6 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.Expense
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -35,6 +34,7 @@ data class MonthOption(val key: String, val label: String)
 
 /**
  * Bottom action sheet displaying quick details and actions (Edit / Delete) for a tapped transaction.
+ * Styled in ArcTracker Emerald Light theme with circular buttons.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,7 +46,7 @@ fun TransactionActionSheet(
 ) {
     val isCredit = expense.type.equals("Credit", ignoreCase = true)
     val sign = if (isCredit) "+" else "-"
-    val amountColor = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444)
+    val amountColor = if (isCredit) ArcColors.Credit else ArcColors.TextPrimary
     val formattedDateTime = remember(expense.dateMillis) {
         if (expense.dateMillis > 0) {
             val dateStr = SimpleDateFormat("dd MMM yyyy", Locale.US).format(Date(expense.dateMillis))
@@ -69,7 +69,7 @@ fun TransactionActionSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF141722),
+        containerColor = Color.White,
         windowInsets = WindowInsets(0, 0, 0, 0),
         dragHandle = {
             Box(
@@ -77,40 +77,41 @@ fun TransactionActionSheet(
                     .padding(top = 12.dp, bottom = 8.dp)
                     .width(36.dp)
                     .height(4.dp)
-                    .background(Color(0xFF333D52), RoundedCornerShape(2.dp))
+                    .clip(CircleShape)
+                    .background(Color(0xFFCBD5E1))
             )
         },
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-        tonalElevation = 8.dp
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        tonalElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 16.dp)
+                .padding(bottom = 20.dp)
         ) {
             // Header summary row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 6.dp),
+                    .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = if (expense.merchant.isNotBlank() && expense.merchant != "-") expense.merchant else (expense.category ?: "Transaction"),
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = Color.White,
+                        fontSize = 17.sp,
+                        color = ArcColors.TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = formattedDateTime,
-                        fontSize = 11.5.sp,
-                        color = Color(0xFF8E9BAE)
+                        fontSize = 12.sp,
+                        color = ArcColors.TextMuted
                     )
                 }
 
@@ -119,7 +120,7 @@ fun TransactionActionSheet(
                 Text(
                     text = "$sign$amountFormatted",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
+                    fontSize = 18.sp,
                     color = amountColor,
                     fontFamily = FontFamily.Monospace
                 )
@@ -127,80 +128,62 @@ fun TransactionActionSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(Color(0xFF222938))
-            )
+            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Small and clean quick action buttons side-by-side
+            // Action Buttons with strict CircleShape
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Small & clean Edit Button
-                Surface(
+                // Edit Button
+                Button(
                     onClick = onEdit,
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
                     modifier = Modifier
                         .weight(1f)
-                        .height(44.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFF1A1F2C),
-                    border = BorderStroke(1.dp, Color(0xFF283245))
+                        .height(46.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = null,
-                            tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Edit",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
-                            color = Color.White
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Edit",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Color.White
+                    )
                 }
 
-                // Small & clean Delete Button
-                Surface(
+                // Delete Button
+                OutlinedButton(
                     onClick = onDelete,
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFFEF2F2)),
                     modifier = Modifier
                         .weight(1f)
-                        .height(44.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFF241418),
-                    border = BorderStroke(1.dp, Color(0xFF4A1E24))
+                        .height(46.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = null,
-                            tint = Color(0xFFEF4444),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Delete",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
-                            color = Color(0xFFEF4444)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.DeleteOutline,
+                        contentDescription = "Delete",
+                        tint = Color(0xFFDC2626),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Delete",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Color(0xFFDC2626)
+                    )
                 }
             }
         }

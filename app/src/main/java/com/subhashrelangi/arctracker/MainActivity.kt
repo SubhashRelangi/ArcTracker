@@ -1377,49 +1377,76 @@ fun ExpenseScreen() {
 
         if (showCompleteAllDialog) {
             val pendingExpenses = expenses.filter { it.isPending }
-            AlertDialog(
-                onDismissRequest = { showCompleteAllDialog = false },
-                title = {
-                    Text("Complete all pending transactions?")
-                },
-                text = {
-                    Text("This will approve all pending transactions currently waiting for review.")
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showCompleteAllDialog = false
-                            val toComplete = expenses.filter { it.isPending }
-                            val ids = toComplete.map { it.id }
-                            if (ids.isEmpty()) return@TextButton
-                            scope.launch {
-                                try {
-                                    val updatedCount = withContext(Dispatchers.IO) {
-                                        expenseDao.approvePendingTransactions(ids)
+            androidx.compose.ui.window.Dialog(onDismissRequest = { showCompleteAllDialog = false }) {
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(22.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            text = "Complete all pending transactions?",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A)
+                        )
+                        Text(
+                            text = "This will approve all pending transactions currently waiting for review and commit them to the ledger.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF64748B),
+                            lineHeight = 18.sp
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { showCompleteAllDialog = false },
+                                shape = CircleShape,
+                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                modifier = Modifier.weight(1f).height(44.dp)
+                            ) {
+                                Text("Cancel", color = Color(0xFF475569), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            }
+                            Button(
+                                onClick = {
+                                    showCompleteAllDialog = false
+                                    val toComplete = expenses.filter { it.isPending }
+                                    val ids = toComplete.map { it.id }
+                                    if (ids.isEmpty()) return@Button
+                                    scope.launch {
+                                        try {
+                                            val updatedCount = withContext(Dispatchers.IO) {
+                                                expenseDao.approvePendingTransactions(ids)
+                                            }
+                                            refreshTrigger++
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(context, "Completed all $updatedCount pending transactions", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            if (e is CancellationException) throw e
+                                            SecureLogger.e("MainActivity", "Failed to batch approve pending transactions", e)
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(context, "Failed to complete pending transactions", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
                                     }
-                                    refreshTrigger++
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(context, "Completed all $updatedCount pending transactions", Toast.LENGTH_SHORT).show()
-                                    }
-                                } catch (e: Exception) {
-                                    if (e is CancellationException) throw e
-                                    SecureLogger.e("MainActivity", "Failed to batch approve pending transactions", e)
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(context, "Failed to complete pending transactions", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
+                                },
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
+                                modifier = Modifier.weight(1.3f).height(44.dp)
+                            ) {
+                                Text("Complete All", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
-                    ) {
-                        Text("Complete All")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showCompleteAllDialog = false }) {
-                        Text("Cancel")
                     }
                 }
-            )
+            }
         }
 
         actionSheetExpense?.let { sheetExpense ->

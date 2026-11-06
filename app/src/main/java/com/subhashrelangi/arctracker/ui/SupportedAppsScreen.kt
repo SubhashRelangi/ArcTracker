@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -145,7 +146,7 @@ fun detectAppCategory(packageName: String, displayName: String): AppCategory? {
 /**
  * Resolves the primary forest emerald accent color matching the design mockup (#046941).
  */
-fun getCategoryAccentColor(category: AppCategory?): Color = Color(0xFF046941)
+fun getCategoryAccentColor(category: AppCategory?): Color = ArcColors.Primary
 
 /**
  * Resolves soft background and crisp text colors for category pill badges.
@@ -157,7 +158,7 @@ fun getCategoryBadgeColors(category: AppCategory?): Pair<Color, Color> {
 /**
  * Resolves the unified forest emerald toggle accent color (#046941) for application toggles.
  */
-fun getAppAccentColor(packageName: String, category: AppCategory?): Color = Color(0xFF046941)
+fun getAppAccentColor(packageName: String, category: AppCategory?): Color = ArcColors.Primary
 
 /**
  * Renders an application icon that fills the entire container without inner spacing.
@@ -603,13 +604,13 @@ fun SupportedAppsScreen(
                         Box(
                             modifier = Modifier
                                 .size(6.dp)
-                                .background(if (isListenerConnected) Color(0xFF046941) else Color(0xFF94A3B8), CircleShape)
+                                .background(if (isListenerConnected) ArcColors.Primary else Color(0xFF94A3B8), CircleShape)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Filled.CheckCircle,
                             contentDescription = null,
-                            tint = if (isListenerConnected) Color(0xFF046941) else Color(0xFF64748B),
+                            tint = if (isListenerConnected) ArcColors.Primary else Color(0xFF64748B),
                             modifier = Modifier.size(17.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -617,7 +618,7 @@ fun SupportedAppsScreen(
                             text = if (isListenerConnected) "Notification Listener: Connected" else "Notification Listener: Enable Permission",
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF046941),
+                            color = ArcColors.Primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
@@ -634,7 +635,7 @@ fun SupportedAppsScreen(
                                 text = "Sandboxed",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF046941)
+                                color = ArcColors.Primary
                             )
                         }
                     }
@@ -671,14 +672,14 @@ fun SupportedAppsScreen(
                                     Box(
                                         modifier = Modifier
                                             .size(5.dp)
-                                            .background(if (masterEnabled) Color(0xFF046941) else Color(0xFF94A3B8), CircleShape)
+                                            .background(if (masterEnabled) ArcColors.Primary else Color(0xFF94A3B8), CircleShape)
                                     )
                                     Spacer(modifier = Modifier.width(5.dp))
                                     Text(
                                         text = if (masterEnabled) "Active" else "Disabled",
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = if (masterEnabled) Color(0xFF046941) else Color(0xFF64748B)
+                                        color = if (masterEnabled) ArcColors.Primary else Color(0xFF64748B)
                                     )
                                     Text(
                                         text = " • ",
@@ -705,7 +706,7 @@ fun SupportedAppsScreen(
                                     }
                                 },
                                 colors = SwitchDefaults.colors(
-                                    checkedTrackColor = Color(0xFF046941),
+                                    checkedTrackColor = ArcColors.Primary,
                                     checkedThumbColor = Color.White,
                                     uncheckedTrackColor = Color(0xFFCBD5E1),
                                     uncheckedThumbColor = Color.White
@@ -771,11 +772,11 @@ fun SupportedAppsScreen(
                                 enabled = masterEnabled,
                                 modifier = Modifier.scale(0.8f),
                                 colors = SwitchDefaults.colors(
-                                    checkedTrackColor = Color(0xFF046941),
+                                    checkedTrackColor = ArcColors.Primary,
                                     checkedThumbColor = Color.White,
                                     uncheckedTrackColor = Color(0xFFCBD5E1),
                                     uncheckedThumbColor = Color.White,
-                                    disabledCheckedTrackColor = Color(0xFF046941).copy(alpha = 0.4f),
+                                    disabledCheckedTrackColor = ArcColors.Primary.copy(alpha = 0.4f),
                                     disabledUncheckedTrackColor = Color(0xFFCBD5E1).copy(alpha = 0.4f)
                                 )
                             )
@@ -818,7 +819,7 @@ fun SupportedAppsScreen(
                                             },
                                             onEdit = if (isUserApp) { { appToEdit = app } } else null,
                                             onRemove = if (isUserApp) { { appToRemove = app } } else null,
-                                            switchAccentColor = Color(0xFF046941)
+                                            switchAccentColor = ArcColors.Primary
                                         )
 
                                         if (index < appsInCategory.size - 1) {
@@ -882,7 +883,7 @@ fun SupportedAppsScreen(
                                 Icon(
                                     imageVector = Icons.Filled.Add,
                                     contentDescription = "Add Custom App",
-                                    tint = Color(0xFF046941),
+                                    tint = ArcColors.Primary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -999,7 +1000,7 @@ private fun MonitoredAppRow(
     onToggle: (Boolean) -> Unit,
     onEdit: (() -> Unit)? = null,
     onRemove: (() -> Unit)? = null,
-    switchAccentColor: Color = Color(0xFF046941)
+    switchAccentColor: Color = ArcColors.Primary
 ) {
     val fallbackIcon = remember(app.packageName, app.category) {
         getAppVectorFallback(app.packageName, app.category)

@@ -48,6 +48,7 @@ import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.data.TransactionCategory
 import com.subhashrelangi.arctracker.service.AccountReconciliationManager
 import com.subhashrelangi.arctracker.service.CategoryManager
@@ -192,7 +193,7 @@ fun ReviewPage(
     }
 
     val effectiveKnownAccounts = remember(dbKnownAccounts, isDemoMode) {
-        if (dbKnownAccounts.isNotEmpty()) dbKnownAccounts else fallbackDemoAccounts
+        if (dbKnownAccounts.isNotEmpty()) dbKnownAccounts else if (isDemoMode) fallbackDemoAccounts else emptyList()
     }
 
     val demoUnlinkedState = remember {
@@ -936,7 +937,7 @@ fun ReviewPage(
                                         Icon(
                                             imageVector = Icons.Outlined.Link,
                                             contentDescription = null,
-                                            tint = Color(0xFF055B38),
+                                            tint = ArcColors.Primary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -2973,7 +2974,7 @@ private fun AccountSelectionDialog(
                             Icon(
                                 imageVector = Icons.Outlined.CheckCircle,
                                 contentDescription = null,
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -3016,7 +3017,7 @@ private fun AccountSelectionDialog(
                                 color = if (isSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
                                 border = BorderStroke(
                                     if (isSelected) 1.5.dp else 1.dp,
-                                    if (isSelected) Color(0xFF055B38) else Color(0xFFE2E8F0)
+                                    if (isSelected) ArcColors.Primary else Color(0xFFE2E8F0)
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -3041,7 +3042,7 @@ private fun AccountSelectionDialog(
                                             Icon(
                                                 imageVector = if (acc.instrumentType == InstrumentType.CARD) Icons.Outlined.CreditCard else Icons.Outlined.AccountBalance,
                                                 contentDescription = null,
-                                                tint = if (isSelected) Color(0xFF055B38) else Color(0xFF475569),
+                                                tint = if (isSelected) ArcColors.Primary else Color(0xFF475569),
                                                 modifier = Modifier.size(17.dp)
                                             )
                                         }
@@ -3067,7 +3068,7 @@ private fun AccountSelectionDialog(
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Selected",
-                                            tint = Color(0xFF055B38),
+                                            tint = ArcColors.Primary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -3099,7 +3100,7 @@ private fun AccountSelectionDialog(
                         shape = CircleShape,
                         modifier = Modifier.weight(1.3f),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF055B38),
+                            containerColor = ArcColors.Primary,
                             disabledContainerColor = Color(0xFF94A3B8)
                         )
                     ) {

@@ -1827,51 +1827,109 @@ internal fun DarkDeleteConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Color.White,
-        title = {
-            Text("Delete this transaction?", color = Color(0xFF0F172A), fontWeight = FontWeight.Bold)
-        },
-        text = {
-            Column {
-                val formattedAmount = NumberFormat.getNumberInstance(Locale("en", "IN")).apply {
-                    minimumFractionDigits = 2
-                    maximumFractionDigits = 2
-                }.format(expense.amount)
-                Text(
-                    text = "$sign ₹$formattedAmount",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = Color(0xFFDC2626)
-                )
-                Text(
-                    text = expense.merchant.ifEmpty { "Unknown Merchant" },
-                    fontSize = 14.sp,
-                    color = Color(0xFF0F172A)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "This removes the transaction permanently from your ArcTracker ledger.",
-                    fontSize = 12.sp,
-                    color = Color(0xFF64748B)
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(22.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            shadowElevation = 8.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(22.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text("Delete", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFF64748B))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFEE2E2)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = null,
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Delete Transaction?",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A)
+                        )
+                        Text(
+                            text = "Permanently removes from local ledger.",
+                            fontSize = 11.5.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFF8FAFC),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        val formattedAmount = NumberFormat.getNumberInstance(Locale("en", "IN")).apply {
+                            minimumFractionDigits = 2
+                            maximumFractionDigits = 2
+                        }.format(expense.amount)
+                        Text(
+                            text = "$sign ₹$formattedAmount",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = Color(0xFFDC2626)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = expense.merchant.ifEmpty { "Unknown Merchant" },
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF0F172A)
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        shape = CircleShape,
+                        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                    ) {
+                        Text("Cancel", color = Color(0xFF475569), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    }
+
+                    Button(
+                        onClick = onConfirm,
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                    ) {
+                        Text("Delete", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
             }
         }
-    )
+    }
 }
 
 @Composable
@@ -1882,83 +1940,105 @@ internal fun DarkCategoryPickerDialog(
     onCategorySelected: (TransactionCategory) -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Color.White,
-        title = {
-            Text("Select Category", color = Color(0xFF0F172A), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        },
-        text = {
-            val categories = remember(allCategories) {
-                if (allCategories.isNotEmpty()) {
-                    allCategories.filter { !it.isArchived }
-                } else {
-                    BuiltInCategories.ALL
-                }
-            }
-
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(22.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            shadowElevation = 8.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp)
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 320.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                categories.forEach { cat ->
-                    val isSelected = cat.id == currentCategoryId || cat.name.equals(currentCategoryName, ignoreCase = true)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC))
-                            .border(1.dp, if (isSelected) Color(0xFFA7F3D0) else Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
-                            .clickable { onCategorySelected(cat) }
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
+                Text(
+                    text = "Select Category",
+                    color = Color(0xFF0F172A),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+
+                val categories = remember(allCategories) {
+                    if (allCategories.isNotEmpty()) {
+                        allCategories.filter { !it.isArchived }
+                    } else {
+                        BuiltInCategories.ALL
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    categories.forEach { cat ->
+                        val isSelected = cat.id == currentCategoryId || cat.name.equals(currentCategoryName, ignoreCase = true)
+                        Row(
                             modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(CategoryVisuals.getContainerColor(cat.colorKey).copy(alpha = 0.25f)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC))
+                                .border(1.dp, if (isSelected) Color(0xFFA7F3D0) else Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                                .clickable { onCategorySelected(cat) }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = CategoryVisuals.getIcon(cat.iconKey),
-                                contentDescription = null,
-                                tint = CategoryVisuals.getColor(cat.colorKey),
-                                modifier = Modifier.size(15.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(CategoryVisuals.getContainerColor(cat.colorKey).copy(alpha = 0.25f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = CategoryVisuals.getIcon(cat.iconKey),
+                                    contentDescription = null,
+                                    tint = CategoryVisuals.getColor(cat.colorKey),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(10.dp))
+
+                            Text(
+                                text = cat.name,
+                                fontSize = 13.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = Color(0xFF0F172A),
+                                modifier = Modifier.weight(1f)
                             )
-                        }
 
-                        Spacer(modifier = Modifier.width(10.dp))
-
-                        Text(
-                            text = cat.name,
-                            fontSize = 13.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = Color(0xFF0F172A),
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Selected",
-                                tint = Color(0xFF059669),
-                                modifier = Modifier.size(16.dp)
-                            )
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = Color(0xFF059669),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFF64748B))
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                ) {
+                    Text("Cancel", color = Color(0xFF475569), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                }
             }
         }
-    )
+    }
 }
 
 @Composable
@@ -1968,44 +2048,74 @@ internal fun DarkAddTagDialog(
 ) {
     var tagInput by remember { mutableStateOf("") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Color.White,
-        title = {
-            Text("Add Tag", color = Color(0xFF0F172A), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        },
-        text = {
-            Column {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(22.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            shadowElevation = 8.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = "Add Custom Tag",
+                    color = Color(0xFF0F172A),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+
                 OutlinedTextField(
                     value = tagInput,
                     onValueChange = { tagInput = it },
                     placeholder = { Text("e.g. Personal, Food, Travel", color = Color(0xFF94A3B8)) },
                     singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF059669),
+                        focusedBorderColor = Color(0xFF047857),
                         unfocusedBorderColor = Color(0xFFE2E8F0),
                         focusedTextColor = Color(0xFF0F172A),
                         unfocusedTextColor = Color(0xFF0F172A)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onAddTag(tagInput) },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
-                enabled = tagInput.isNotBlank()
-            ) {
-                Text("Add", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFF64748B))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        shape = CircleShape,
+                        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                    ) {
+                        Text("Cancel", color = Color(0xFF475569), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    }
+
+                    Button(
+                        onClick = { onAddTag(tagInput) },
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
+                        enabled = tagInput.isNotBlank(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                    ) {
+                        Text("Add", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
             }
         }
-    )
+    }
 }
 
 // ==========================================

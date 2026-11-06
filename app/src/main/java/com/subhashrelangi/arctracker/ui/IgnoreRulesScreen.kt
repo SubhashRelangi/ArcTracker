@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.utils.IgnoreRule
 import com.subhashrelangi.arctracker.utils.IgnoreRulesManager
 import java.util.UUID
@@ -125,7 +126,7 @@ fun IgnoreRulesScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Shield,
                                 contentDescription = "Security Vault",
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(19.dp)
                             )
                         }
@@ -170,7 +171,7 @@ fun IgnoreRulesScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Shield,
                                 contentDescription = null,
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -189,7 +190,7 @@ fun IgnoreRulesScreen(
                                 text = if (isEnabled) "Active & Suppressing Noise" else "Suppression Engine Paused",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = if (isEnabled) Color(0xFF055B38) else Color(0xFF64748B)
+                                color = if (isEnabled) ArcColors.Primary else Color(0xFF64748B)
                             )
                         }
 
@@ -239,7 +240,7 @@ fun IgnoreRulesScreen(
                             Icon(
                                 imageVector = Icons.Outlined.MarkChatRead,
                                 contentDescription = null,
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(5.dp))
@@ -283,7 +284,7 @@ fun IgnoreRulesScreen(
                         Icon(
                             imageVector = Icons.Outlined.Tune,
                             contentDescription = null,
-                            tint = Color(0xFF055B38),
+                            tint = ArcColors.Primary,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -332,7 +333,7 @@ fun IgnoreRulesScreen(
                                         .weight(1f)
                                         .height(38.dp)
                                         .clip(CircleShape)
-                                        .background(if (isSelected) Color(0xFF055B38) else Color(0xFFF1F5F9))
+                                        .background(if (isSelected) ArcColors.Primary else Color(0xFFF1F5F9))
                                         .clickable(enabled = isEnabled) {
                                             selectedTargetType = type
                                             if (type == "Regex") {
@@ -394,7 +395,7 @@ fun IgnoreRulesScreen(
                                             text = logic,
                                             fontSize = 12.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) Color(0xFF055B38) else Color(0xFF64748B)
+                                            color = if (isSelected) ArcColors.Primary else Color(0xFF64748B)
                                         )
                                     }
                                 }
@@ -421,7 +422,7 @@ fun IgnoreRulesScreen(
                         Icon(
                             imageVector = Icons.Outlined.Search,
                             contentDescription = null,
-                            tint = Color(0xFF055B38),
+                            tint = ArcColors.Primary,
                             modifier = Modifier.size(17.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
@@ -444,7 +445,7 @@ fun IgnoreRulesScreen(
                                     color = Color(0xFF0F172A),
                                     fontFamily = if (selectedTargetType == "Regex") FontFamily.Monospace else FontFamily.Default
                                 ),
-                                cursorBrush = SolidColor(Color(0xFF055B38)),
+                                cursorBrush = SolidColor(ArcColors.Primary),
                                 singleLine = true
                             )
                         }
@@ -490,9 +491,9 @@ fun IgnoreRulesScreen(
                             .height(46.dp),
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF055B38),
+                            containerColor = ArcColors.Primary,
                             contentColor = Color.White,
-                            disabledContainerColor = Color(0xFF055B38).copy(alpha = 0.4f),
+                            disabledContainerColor = ArcColors.Primary.copy(alpha = 0.4f),
                             disabledContentColor = Color.White.copy(alpha = 0.8f)
                         ),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
@@ -576,7 +577,7 @@ fun IgnoreRulesScreen(
                                 .border(
                                     BorderStroke(
                                         1.dp,
-                                        if (isSelected) Color(0xFF055B38) else Color(0xFFE2E8F0)
+                                        if (isSelected) ArcColors.Primary else Color(0xFFE2E8F0)
                                     ),
                                     CircleShape
                                 )
@@ -588,7 +589,7 @@ fun IgnoreRulesScreen(
                                 text = label,
                                 fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) Color(0xFF055B38) else Color(0xFF475569)
+                                color = if (isSelected) ArcColors.Primary else Color(0xFF475569)
                             )
                         }
                     }
@@ -680,7 +681,7 @@ fun IgnoreRulesScreen(
                                         else -> Icon(
                                             imageVector = Icons.Outlined.TextFields,
                                             contentDescription = null,
-                                            tint = Color(0xFF055B38),
+                                            tint = ArcColors.Primary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -726,7 +727,7 @@ fun IgnoreRulesScreen(
                                                     text = "CUSTOM",
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF055B38)
+                                                    color = ArcColors.Primary
                                                 )
                                             }
                                         }
@@ -899,7 +900,7 @@ fun IgnoreRulesScreen(
                                         text = if (rule.isSystem) "SYSTEM" else "CUSTOM",
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (rule.isSystem) Color(0xFF64748B) else Color(0xFF055B38)
+                                        color = if (rule.isSystem) Color(0xFF64748B) else ArcColors.Primary
                                     )
                                 }
                             }
@@ -994,7 +995,7 @@ fun IgnoreRulesMockSwitch(
             .width(52.dp)
             .height(30.dp)
             .clip(CircleShape)
-            .background(if (checked) Color(0xFF055B38) else Color(0xFFCBD5E1))
+            .background(if (checked) ArcColors.Primary else Color(0xFFCBD5E1))
             .clickable { onCheckedChange(!checked) }
             .padding(2.dp),
         contentAlignment = Alignment.CenterStart
@@ -1010,7 +1011,7 @@ fun IgnoreRulesMockSwitch(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    tint = Color(0xFF055B38),
+                    tint = ArcColors.Primary,
                     modifier = Modifier.size(15.dp)
                 )
             }

@@ -51,18 +51,18 @@ class UniversalFoundationTest {
     @Test
     fun testTokenCentralizationAndDelegation() {
         // Backgrounds
-        assertEquals(Color(0xFF090C10), ArcColors.Background)
+        assertEquals(Color(0xFFF8FAFC), ArcColors.Background)
         assertEquals(Color(0xFFF8FAFC), LedgerColors.Background)
         assertEquals(com.subhashrelangi.arctracker.ui.review.ArcColors.Background, ArcColors.Background)
 
         // Financial indicator colors
-        assertEquals(Color(0xFFF43F5E), ArcColors.Debit)
+        assertEquals(Color(0xFF0F172A), ArcColors.Debit)
         assertEquals(Color(0xFF0F172A), LedgerColors.Debit)
-        assertEquals(Color(0xFF00E676), ArcColors.Credit)
+        assertEquals(Color(0xFF047857), ArcColors.Credit)
         assertEquals(Color(0xFF059669), LedgerColors.Credit)
 
         // Warning / Amber
-        assertEquals(Color(0xFFFBBF24), ArcColors.WarningAmber)
+        assertEquals(Color(0xFFD97706), ArcColors.WarningAmber)
         assertEquals(Color(0xFFD97706), LedgerColors.WarningAmber)
 
         // Spacing & Shapes

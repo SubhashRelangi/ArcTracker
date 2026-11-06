@@ -116,8 +116,8 @@ private val ALL_CATEGORY_TONES = listOf(
 // In-memory cache to ensure instant frame-1 rendering when navigating between Rules/Aliases and Categories
 private var cachedCategoriesState: List<TransactionCategory> = BuiltInCategories.ALL
 private var cachedCategoryCountsState: Map<String, Int> = emptyMap()
-private var cachedRulesCountState: Int = 14
-private var cachedAliasesCountState: Int = 28
+private var cachedRulesCountState: Int = 0
+private var cachedAliasesCountState: Int = 0
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -151,23 +151,8 @@ fun CategoryManagementScreen(
     val activeRules by ruleDao.getActiveRulesFlow().collectAsState(initial = emptyList())
     val activeAliases by aliasDao.getActiveAliasesFlow().collectAsState(initial = emptyList())
 
-    val rulesCount = remember(activeRules) {
-        if (activeRules.isNotEmpty()) {
-            cachedRulesCountState = activeRules.size
-            activeRules.size
-        } else {
-            cachedRulesCountState
-        }
-    }
-
-    val aliasesCount = remember(activeAliases) {
-        if (activeAliases.isNotEmpty()) {
-            cachedAliasesCountState = activeAliases.size
-            activeAliases.size
-        } else {
-            cachedAliasesCountState
-        }
-    }
+    val rulesCount = activeRules.size
+    val aliasesCount = activeAliases.size
 
     // Ensure built-in categories exist
     LaunchedEffect(Unit) {
@@ -520,7 +505,7 @@ fun CategoryManagementScreen(
                         Column(modifier = Modifier.fillMaxWidth()) {
                             displayedList.forEachIndexed { index, category ->
                                 val count = categoryCounts[category.id] ?: 0
-                                CategoryMockRow(
+                                CategoryRowItem(
                                     category = category,
                                     transactionCount = count,
                                     onEdit = { categoryToEdit = category },
@@ -778,7 +763,7 @@ fun CategoryManagementScreen(
  * Sleek, proportionate font sizes and clean spacing with divider support.
  */
 @Composable
-private fun CategoryMockRow(
+private fun CategoryRowItem(
     category: TransactionCategory,
     transactionCount: Int,
     onEdit: () -> Unit,

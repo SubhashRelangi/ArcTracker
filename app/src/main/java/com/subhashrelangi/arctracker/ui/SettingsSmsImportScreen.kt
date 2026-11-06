@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.service.DedupDecision
 import com.subhashrelangi.arctracker.service.FinancialAccountGroup
 import com.subhashrelangi.arctracker.service.FinancialAccountGrouper
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.service.HistoricalSmsImportManager
 import com.subhashrelangi.arctracker.service.InstrumentType
 import com.subhashrelangi.arctracker.service.ScannedTransactionItem
@@ -452,7 +453,7 @@ fun SettingsSmsImportScreen(
                         Icon(
                             imageVector = Icons.Outlined.Shield,
                             contentDescription = "Air-Gapped Vault",
-                            tint = Color(0xFF055B38),
+                            tint = ArcColors.Primary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -484,7 +485,7 @@ fun SettingsSmsImportScreen(
                                     .height(50.dp),
                                 shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF055B38),
+                                    containerColor = ArcColors.Primary,
                                     contentColor = Color.White
                                 )
                             ) {
@@ -557,7 +558,7 @@ fun SettingsSmsImportScreen(
                                     .height(50.dp),
                                 shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF055B38),
+                                    containerColor = ArcColors.Primary,
                                     contentColor = Color.White
                                 ),
                                 enabled = !isImporting && countToImport > 0
@@ -612,7 +613,7 @@ fun SettingsSmsImportScreen(
                                     .height(50.dp),
                                 shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF055B38),
+                                    containerColor = ArcColors.Primary,
                                     contentColor = Color.White
                                 )
                             ) {
@@ -702,7 +703,7 @@ fun SettingsSmsImportScreen(
                                         Icon(
                                             imageVector = Icons.Outlined.Forum,
                                             contentDescription = "SMS Scanner",
-                                            tint = Color(0xFF055B38),
+                                            tint = ArcColors.Primary,
                                             modifier = Modifier.size(22.dp)
                                         )
                                     }
@@ -755,14 +756,14 @@ fun SettingsSmsImportScreen(
                                         Icon(
                                             imageVector = Icons.Outlined.History,
                                             contentDescription = "Sync History",
-                                            tint = Color(0xFF055B38),
+                                            tint = ArcColors.Primary,
                                             modifier = Modifier.size(13.dp)
                                         )
                                         Text(
                                             text = "Zero Cloud Sync",
                                             fontSize = 11.5.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF055B38)
+                                            color = ArcColors.Primary
                                         )
                                     }
                                 }
@@ -777,10 +778,10 @@ fun SettingsSmsImportScreen(
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .clip(CircleShape)
-                                                .background(if (isSelected) Color(0xFF055B38) else Color.White)
+                                                .background(if (isSelected) ArcColors.Primary else Color.White)
                                                 .border(
                                                     1.dp,
-                                                    if (isSelected) Color(0xFF055B38) else Color(0xFFE2E8F0),
+                                                    if (isSelected) ArcColors.Primary else Color(0xFFE2E8F0),
                                                     CircleShape
                                                 )
                                                 .clickable { selectHorizon(index) }
@@ -865,7 +866,7 @@ fun SettingsSmsImportScreen(
                                     Icon(
                                         imageVector = Icons.Default.Edit,
                                         contentDescription = "Edit Dates",
-                                        tint = Color(0xFF055B38),
+                                        tint = ArcColors.Primary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -893,7 +894,7 @@ fun SettingsSmsImportScreen(
                                         Icon(
                                             imageVector = Icons.Outlined.Shield,
                                             contentDescription = "Security",
-                                            tint = Color(0xFF055B38),
+                                            tint = ArcColors.Primary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Text(
@@ -955,7 +956,7 @@ fun SettingsSmsImportScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Refresh,
                                                 contentDescription = "Scanning",
-                                                tint = Color(0xFF055B38),
+                                                tint = ArcColors.Primary,
                                                 modifier = Modifier
                                                     .size(24.dp)
                                                     .rotate(rotationAngle)
@@ -1005,7 +1006,7 @@ fun SettingsSmsImportScreen(
                                         text = "${(scanProgressFloat * 100).toInt()}%",
                                         fontSize = 22.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF055B38)
+                                        color = ArcColors.Primary
                                     )
                                 }
 
@@ -1024,7 +1025,7 @@ fun SettingsSmsImportScreen(
                                             .fillMaxWidth(scanProgressFloat.coerceIn(0f, 1f))
                                             .fillMaxHeight()
                                             .clip(CircleShape)
-                                            .background(Color(0xFF055B38))
+                                            .background(ArcColors.Primary)
                                     )
                                 }
 
@@ -1042,7 +1043,7 @@ fun SettingsSmsImportScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.Shield,
                                         contentDescription = null,
-                                        tint = Color(0xFF055B38),
+                                        tint = ArcColors.Primary,
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -1089,7 +1090,7 @@ fun SettingsSmsImportScreen(
                                 Text(
                                     text = scanStatusText,
                                     fontSize = 12.5.sp,
-                                    color = Color(0xFF055B38),
+                                    color = ArcColors.Primary,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
@@ -1152,7 +1153,7 @@ fun SettingsSmsImportScreen(
                                         Icon(
                                             imageVector = Icons.Default.CheckCircle,
                                             contentDescription = "Discovered",
-                                            tint = Color(0xFF055B38),
+                                            tint = ArcColors.Primary,
                                             modifier = Modifier.size(22.dp)
                                         )
                                         Column {
@@ -1196,7 +1197,7 @@ fun SettingsSmsImportScreen(
                                             text = "Total Volume",
                                             fontSize = 10.5.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF055B38)
+                                            color = ArcColors.Primary
                                         )
                                     }
                                 }
@@ -1263,7 +1264,7 @@ fun SettingsSmsImportScreen(
                                     text = "${selectedItemIds.size} of ${items.size} Selected",
                                     fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF055B38)
+                                    color = ArcColors.Primary
                                 )
 
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1342,7 +1343,7 @@ fun SettingsSmsImportScreen(
                                             onClick = { currentStage = SmsImportStage.TIME_SELECTION },
                                             shape = CircleShape,
                                             colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color(0xFF055B38),
+                                                containerColor = ArcColors.Primary,
                                                 contentColor = Color.White
                                             )
                                         ) {
@@ -1432,7 +1433,7 @@ fun SettingsSmsImportScreen(
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "Success",
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(52.dp)
                             )
                         }
@@ -1488,7 +1489,7 @@ fun SettingsSmsImportScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(text = "Total Cumulative Volume", fontSize = 13.sp, color = Color(0xFF64748B))
-                                    Text(text = formattedVolume, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFF055B38))
+                                    Text(text = formattedVolume, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = ArcColors.Primary)
                                 }
 
                                 HorizontalDivider(color = Color(0xFFF1F5F9))
@@ -1508,7 +1509,7 @@ fun SettingsSmsImportScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(text = "Privacy Guarantee", fontSize = 13.sp, color = Color(0xFF64748B))
-                                    Text(text = "100% On-Device", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF055B38))
+                                    Text(text = "100% On-Device", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ArcColors.Primary)
                                 }
                             }
                         }
@@ -1564,7 +1565,7 @@ private fun StageProgressIndicator(
                         modifier = Modifier
                             .size(8.dp)
                             .background(
-                                if (currentStage == SmsImportStage.COMPLETE) Color(0xFF10B981) else Color(0xFF055B38),
+                                if (currentStage == SmsImportStage.COMPLETE) Color(0xFF10B981) else ArcColors.Primary,
                                 CircleShape
                             )
                     )
@@ -1597,7 +1598,7 @@ private fun StageProgressIndicator(
                         .weight(1f)
                         .height(5.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF055B38))
+                        .background(ArcColors.Primary)
                 )
                 // Step 2: Scan
                 Box(
@@ -1605,7 +1606,7 @@ private fun StageProgressIndicator(
                         .weight(1f)
                         .height(5.dp)
                         .clip(CircleShape)
-                        .background(if (stageNumber >= 2) Color(0xFF055B38) else Color(0xFFE2E8F0))
+                        .background(if (stageNumber >= 2) ArcColors.Primary else Color(0xFFE2E8F0))
                 )
                 // Step 3: Review
                 Box(
@@ -1613,7 +1614,7 @@ private fun StageProgressIndicator(
                         .weight(1f)
                         .height(5.dp)
                         .clip(CircleShape)
-                        .background(if (stageNumber >= 3) Color(0xFF055B38) else Color(0xFFE2E8F0))
+                        .background(if (stageNumber >= 3) ArcColors.Primary else Color(0xFFE2E8F0))
                 )
             }
 
@@ -1627,19 +1628,19 @@ private fun StageProgressIndicator(
                     text = "1. Range",
                     fontSize = 10.5.sp,
                     fontWeight = if (stageNumber == 1) FontWeight.Bold else FontWeight.Medium,
-                    color = if (stageNumber >= 1) Color(0xFF055B38) else Color(0xFF94A3B8)
+                    color = if (stageNumber >= 1) ArcColors.Primary else Color(0xFF94A3B8)
                 )
                 Text(
                     text = "2. Scan",
                     fontSize = 10.5.sp,
                     fontWeight = if (stageNumber == 2) FontWeight.Bold else FontWeight.Medium,
-                    color = if (stageNumber >= 2) Color(0xFF055B38) else Color(0xFF94A3B8)
+                    color = if (stageNumber >= 2) ArcColors.Primary else Color(0xFF94A3B8)
                 )
                 Text(
                     text = "3. Review",
                     fontSize = 10.5.sp,
                     fontWeight = if (stageNumber == 3) FontWeight.Bold else FontWeight.Medium,
-                    color = if (stageNumber >= 3) Color(0xFF055B38) else Color(0xFF94A3B8)
+                    color = if (stageNumber >= 3) ArcColors.Primary else Color(0xFF94A3B8)
                 )
             }
         }
@@ -1833,7 +1834,7 @@ private fun RealScannedItemCard(
                 Icon(
                     imageVector = icon,
                     contentDescription = merchant,
-                    tint = if (isCredit) Color(0xFF055B38) else Color(0xFF475569),
+                    tint = if (isCredit) ArcColors.Primary else Color(0xFF475569),
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -1884,7 +1885,7 @@ private fun RealScannedItemCard(
                     text = if (isCredit) "+$formattedAmount" else "-$formattedAmount",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isCredit) Color(0xFF055B38) else Color(0xFF0F172A)
+                    color = if (isCredit) ArcColors.Primary else Color(0xFF0F172A)
                 )
 
                 Spacer(modifier = Modifier.height(2.dp))
@@ -1947,7 +1948,7 @@ private fun ArcTrackerCheckbox(
                 modifier = Modifier
                     .size(20.dp)
                     .clip(RoundedCornerShape(5.dp))
-                    .background(Color(0xFF055B38)),
+                    .background(ArcColors.Primary),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

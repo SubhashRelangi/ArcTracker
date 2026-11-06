@@ -29,6 +29,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -37,7 +38,9 @@ import androidx.compose.ui.window.Dialog
 import com.subhashrelangi.arctracker.data.*
 import com.subhashrelangi.arctracker.service.AndroidBudgetAlertNotifier
 import com.subhashrelangi.arctracker.service.BudgetManager
+import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -101,12 +104,14 @@ fun BudgetsScreen(
     val totalDaysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
     val daysRemaining = (totalDaysInMonth - currentDayOfMonth).coerceAtLeast(0)
 
+    val isDemoMode = remember { MonitoringSettingsRepository.getInstance(context).isDemoMode() }
+
     // Calculate aggregated overall progress
     val overallBudgetProgress = budgetsProgress.find { it.budget.isOverallBudget }
     val hasRealBudgets = budgetsProgress.isNotEmpty()
 
-    val capTarget = overallBudgetProgress?.limit ?: if (hasRealBudgets) budgetsProgress.sumOf { it.limit } else 50000.0
-    val totalSpent = overallBudgetProgress?.spent ?: if (hasRealBudgets) budgetsProgress.sumOf { it.spent } else 36750.0
+    val capTarget = overallBudgetProgress?.limit ?: if (hasRealBudgets) budgetsProgress.sumOf { it.limit } else (if (isDemoMode) 50000.0 else 0.0)
+    val totalSpent = overallBudgetProgress?.spent ?: if (hasRealBudgets) budgetsProgress.sumOf { it.spent } else (if (isDemoMode) 36750.0 else 0.0)
     val remaining = (capTarget - totalSpent).coerceAtLeast(0.0)
     val percentAllocated = if (capTarget > 0) ((totalSpent / capTarget) * 100.0).coerceIn(0.0, 100.0) else 0.0
 
@@ -165,7 +170,7 @@ fun BudgetsScreen(
                             Icon(
                                 imageVector = Icons.Outlined.AccountBalanceWallet,
                                 contentDescription = "Budgets",
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(19.dp)
                             )
                         }
@@ -226,7 +231,7 @@ fun BudgetsScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF055B38))
+                                .background(ArcColors.Primary)
                                 .clickable { showMonthlyCapDialog = true },
                             contentAlignment = Alignment.Center
                         ) {
@@ -333,7 +338,7 @@ fun BudgetsScreen(
                                 .fillMaxWidth((percentAllocated / 100f).toFloat().coerceIn(0f, 1f))
                                 .fillMaxHeight()
                                 .clip(CircleShape)
-                                .background(Color(0xFF055B38))
+                                .background(ArcColors.Primary)
                         )
                     }
 
@@ -519,9 +524,9 @@ fun BudgetsScreen(
                 budgetsProgress.filter { !it.budget.isOverallBudget }
             }
 
-            val totalCategorySpent = if (activeCategoryBudgets.isNotEmpty()) activeCategoryBudgets.sumOf { it.spent } else 33350.0
-            val totalCategoryLimit = if (activeCategoryBudgets.isNotEmpty()) activeCategoryBudgets.sumOf { it.limit } else 42000.0
-            val envelopeCount = if (activeCategoryBudgets.isNotEmpty()) activeCategoryBudgets.size else 4
+            val totalCategorySpent = if (activeCategoryBudgets.isNotEmpty()) activeCategoryBudgets.sumOf { it.spent } else (if (isDemoMode) 33350.0 else 0.0)
+            val totalCategoryLimit = if (activeCategoryBudgets.isNotEmpty()) activeCategoryBudgets.sumOf { it.limit } else (if (isDemoMode) 42000.0 else 0.0)
+            val envelopeCount = if (activeCategoryBudgets.isNotEmpty()) activeCategoryBudgets.size else (if (isDemoMode) 4 else 0)
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
@@ -578,14 +583,14 @@ fun BudgetsScreen(
                             progressColor = when {
                                 progress.isExceeded -> Color(0xFFDC2626)
                                 progress.isWarning -> Color(0xFF92400E)
-                                else -> Color(0xFF055B38)
+                                else -> ArcColors.Primary
                             },
                             onEdit = { editingBudget = progress.budget },
                             onDelete = { deletingBudget = progress.budget }
                         )
                     }
-                } else {
-                    // Benchmark envelopes strictly matching the mockup
+                } else if (isDemoMode) {
+                    // Benchmark envelopes strictly matching the mockup for demo mode
                     CategoryEnvelopeCard(
                         title = "Food & Dining",
                         icon = Icons.Outlined.Restaurant,
@@ -615,7 +620,7 @@ fun BudgetsScreen(
                         statusText = "On Track",
                         statusBg = Color(0xFFDCFCE7),
                         statusColor = Color(0xFF16A34A),
-                        progressColor = Color(0xFF055B38),
+                        progressColor = ArcColors.Primary,
                         onEdit = {
                             val cat = allCategories.find { it.id == "bills_utilities" }
                             quickSelectedCategory = cat
@@ -634,7 +639,7 @@ fun BudgetsScreen(
                         statusText = "Healthy",
                         statusBg = Color(0xFFDCFCE7),
                         statusColor = Color(0xFF16A34A),
-                        progressColor = Color(0xFF055B38),
+                        progressColor = ArcColors.Primary,
                         onEdit = {
                             val cat = allCategories.find { it.id == "shopping" }
                             quickSelectedCategory = cat
@@ -661,6 +666,51 @@ fun BudgetsScreen(
                         },
                         onDelete = { /* sample item */ }
                     )
+                } else {
+                    // Clean Empty State when no budgets are configured
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color.White,
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFF1F5F9)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.PieChart,
+                                    contentDescription = null,
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "No category budgets configured",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Create category envelopes below to set monthly spending caps.",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
                 }
             }
 
@@ -680,7 +730,7 @@ fun BudgetsScreen(
                         Icon(
                             imageVector = Icons.Outlined.Tune,
                             contentDescription = null,
-                            tint = Color(0xFF055B38),
+                            tint = ArcColors.Primary,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -800,7 +850,7 @@ fun BudgetsScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF111827)
                             ),
-                            cursorBrush = SolidColor(Color(0xFF055B38)),
+                            cursorBrush = SolidColor(ArcColors.Primary),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true
                         )
@@ -831,7 +881,7 @@ fun BudgetsScreen(
                             text = "${(quickThresholdSlider * 100).toInt()}%",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF055B38)
+                            color = ArcColors.Primary
                         )
                     }
 
@@ -840,8 +890,8 @@ fun BudgetsScreen(
                         onValueChange = { quickThresholdSlider = it },
                         valueRange = 0.50f..1.00f,
                         colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFF055B38),
-                            activeTrackColor = Color(0xFF055B38),
+                            thumbColor = ArcColors.Primary,
+                            activeTrackColor = ArcColors.Primary,
                             inactiveTrackColor = Color(0xFFE5E7EB)
                         ),
                         modifier = Modifier.height(28.dp)
@@ -884,7 +934,7 @@ fun BudgetsScreen(
                             .height(48.dp),
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF055B38),
+                            containerColor = ArcColors.Primary,
                             contentColor = Color.White
                         ),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
@@ -949,7 +999,7 @@ fun BudgetsScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Speed,
                                 contentDescription = null,
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -1026,7 +1076,7 @@ fun BudgetsScreen(
                                     text = "₹",
                                     fontSize = 28.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF055B38)
+                                    color = ArcColors.Primary
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 BasicTextField(
@@ -1040,7 +1090,7 @@ fun BudgetsScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF111827)
                                     ),
-                                    cursorBrush = SolidColor(Color(0xFF055B38)),
+                                    cursorBrush = SolidColor(ArcColors.Primary),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
@@ -1064,7 +1114,7 @@ fun BudgetsScreen(
                                             .border(
                                                 BorderStroke(
                                                     1.dp,
-                                                    if (isSelected) Color(0xFF055B38) else Color(0xFFE2E8F0)
+                                                    if (isSelected) ArcColors.Primary else Color(0xFFE2E8F0)
                                                 ),
                                                 CircleShape
                                             )
@@ -1075,7 +1125,7 @@ fun BudgetsScreen(
                                             text = label,
                                             fontSize = 11.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) Color(0xFF055B38) else Color(0xFF334155),
+                                            color = if (isSelected) ArcColors.Primary else Color(0xFF334155),
                                             modifier = Modifier.padding(vertical = 6.dp)
                                         )
                                     }
@@ -1129,8 +1179,8 @@ fun BudgetsScreen(
                                 onValueChange = { capWarningThresholdSlider = it },
                                 valueRange = 0.50f..1.00f,
                                 colors = SliderDefaults.colors(
-                                    thumbColor = Color(0xFF055B38),
-                                    activeTrackColor = Color(0xFF055B38),
+                                    thumbColor = ArcColors.Primary,
+                                    activeTrackColor = ArcColors.Primary,
                                     inactiveTrackColor = Color(0xFFE2E8F0)
                                 ),
                                 modifier = Modifier.height(28.dp)
@@ -1189,7 +1239,7 @@ fun BudgetsScreen(
                             .height(48.dp),
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF055B38),
+                            containerColor = ArcColors.Primary,
                             contentColor = Color.White
                         ),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
@@ -1243,7 +1293,7 @@ fun BudgetsScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Category,
                                 contentDescription = null,
-                                tint = Color(0xFF055B38),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -1305,7 +1355,7 @@ fun BudgetsScreen(
                                 color = if (isSelected) Color(0xFFF0FDF4) else Color(0xFFF9FAFB),
                                 border = BorderStroke(
                                     1.dp,
-                                    if (isSelected) Color(0xFF055B38) else Color(0xFFE5E7EB)
+                                    if (isSelected) ArcColors.Primary else Color(0xFFE5E7EB)
                                 )
                             ) {
                                 Row(
@@ -1345,7 +1395,7 @@ fun BudgetsScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(24.dp)
-                                                .background(Color(0xFF055B38), CircleShape),
+                                                .background(ArcColors.Primary, CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
@@ -1394,32 +1444,94 @@ fun BudgetsScreen(
 
     // Delete Confirmation Dialog
     deletingBudget?.let { budget ->
-        AlertDialog(
-            onDismissRequest = { deletingBudget = null },
-            icon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("Delete Budget?") },
-            text = {
-                Text("Are you sure you want to delete the budget \"${budget.name}\"?\n\nYour transactions and spending records will remain completely untouched.")
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        scope.launch {
-                            budgetManager.deleteBudget(budget.id)
-                            deletingBudget = null
-                        }
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+        androidx.compose.ui.window.Dialog(onDismissRequest = { deletingBudget = null }) {
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                shadowElevation = 8.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(22.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Text("Delete")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { deletingBudget = null }) {
-                    Text("Cancel")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFFEE2E2)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = null,
+                                tint = Color(0xFFDC2626),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Delete Budget?",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                            Text(
+                                text = "Remove spending cap for ${budget.name}",
+                                fontSize = 11.5.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Are you sure you want to delete this budget limit? Your transactions and spending records will remain completely untouched.",
+                        fontSize = 12.5.sp,
+                        color = Color(0xFF475569),
+                        lineHeight = 17.sp
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { deletingBudget = null },
+                            shape = CircleShape,
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                        ) {
+                            Text("Cancel", color = Color(0xFF475569), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    budgetManager.deleteBudget(budget.id)
+                                    deletingBudget = null
+                                }
+                            },
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                        ) {
+                            Text("Delete", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
                 }
             }
-        )
+        }
     }
 
     // Detail Dialog
@@ -1718,14 +1830,19 @@ fun BudgetEditDialog(
                         budget?.isEnabled ?: true
                     )
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38))
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
             ) {
-                Text("Save")
+                Text("Save", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
+            OutlinedButton(
+                onClick = onDismiss,
+                shape = CircleShape,
+                border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+            ) {
+                Text("Cancel", color = Color(0xFF475569))
             }
         }
     )
@@ -1793,8 +1910,12 @@ fun BudgetDetailDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
+            Button(
+                onClick = onDismiss,
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
+            ) {
+                Text("Close", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     )

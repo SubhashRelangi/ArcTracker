@@ -143,13 +143,13 @@ fun AccountMissingReviewCard(
                             modifier = Modifier
                                 .size(42.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF281E12)),
+                                .background(Color(0xFFFEF3C7)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Storefront,
                                 contentDescription = null,
-                                tint = Color(0xFFF59E0B),
+                                tint = Color(0xFFD97706),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -340,12 +340,12 @@ fun AccountMissingReviewCard(
                             }
                         },
                         enabled = selectedAccount != null,
-                        shape = ArcShapes.Button,
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black,
-                            disabledContainerColor = Color.White.copy(alpha = 0.4f),
-                            disabledContentColor = Color.Black.copy(alpha = 0.5f)
+                            containerColor = Color(0xFF047857),
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFFE2E8F0),
+                            disabledContentColor = Color(0xFF94A3B8)
                         ),
                         modifier = Modifier
                             .weight(1f)
@@ -359,23 +359,23 @@ fun AccountMissingReviewCard(
                                 imageVector = Icons.Default.CheckCircleOutline,
                                 contentDescription = null,
                                 modifier = Modifier.size(17.dp),
-                                tint = Color.Black
+                                tint = if (selectedAccount != null) Color.White else Color(0xFF94A3B8)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Assign & Approve",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
-                                color = Color.Black
+                                color = if (selectedAccount != null) Color.White else Color(0xFF94A3B8)
                             )
                         }
                     }
 
                     // Cancel / dismiss button
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF1B202D),
-                        border = BorderStroke(1.dp, Color(0xFF283044)),
+                        shape = CircleShape,
+                        color = Color(0xFFF1F5F9),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         modifier = Modifier
                             .size(44.dp)
                             .clickable { onDismissItem(expense) }
@@ -384,7 +384,7 @@ fun AccountMissingReviewCard(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Dismiss",
-                                tint = Color(0xFFCBD5E1),
+                                tint = Color(0xFF0F172A),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -413,11 +413,11 @@ private fun AccountChoicePill(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = if (isSelected) Color(0xFF1D2638) else Color(0xFF161A26),
+        shape = CircleShape,
+        color = if (isSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
         border = BorderStroke(
             1.dp,
-            if (isSelected) Color(0xFF3B82F6) else Color(0xFF242A3A)
+            if (isSelected) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)
         ),
         modifier = modifier
             .height(38.dp)
@@ -426,13 +426,13 @@ private fun AccountChoicePill(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 10.dp),
+                .padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = label,
-                color = if (isSelected) Color.White else Color(0xFFE2E8F0),
+                color = if (isSelected) Color(0xFF047857) else Color(0xFF0F172A),
                 fontSize = 11.5.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
@@ -447,7 +447,7 @@ private fun AccountChoicePill(
                     .clip(CircleShape)
                     .border(
                         1.5.dp,
-                        if (isSelected) Color(0xFF3B82F6) else Color(0xFF64748B),
+                        if (isSelected) Color(0xFF047857) else Color(0xFFCBD5E1),
                         CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -457,7 +457,7 @@ private fun AccountChoicePill(
                         modifier = Modifier
                             .size(7.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF3B82F6))
+                            .background(Color(0xFF047857))
                     )
                 }
             }
@@ -471,9 +471,9 @@ private fun NewWalletButton(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = Color(0xFF1C2230),
-        border = BorderStroke(1.dp, Color(0xFF283146)),
+        shape = CircleShape,
+        color = Color(0xFFF1F5F9),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
         modifier = modifier
             .height(38.dp)
             .clickable { onClick() }
@@ -484,7 +484,7 @@ private fun NewWalletButton(
         ) {
             Text(
                 text = "+ New Wallet",
-                color = Color(0xFFCBD5E1),
+                color = Color(0xFF0F172A),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )

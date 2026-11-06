@@ -115,13 +115,13 @@ fun ReviewTransactionCard(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF28171A)),
+                            .background(Color(0xFFFEF3C7)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = categoryVisualIcon,
                             contentDescription = null,
-                            tint = Color(0xFFF59E0B),
+                            tint = Color(0xFFD97706),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -217,25 +217,25 @@ fun ReviewTransactionCard(
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFF1B202D),
-                        border = BorderStroke(1.dp, Color(0xFF283044)),
+                        shape = CircleShape,
+                        color = Color(0xFFF1F5F9),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         modifier = Modifier.clickable { showCategoryPicker = true }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = categoryVisualIcon,
                                 contentDescription = null,
-                                tint = Color(0xFFF59E0B),
+                                tint = Color(0xFF047857),
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = categoryName,
-                                color = Color.White,
+                                color = Color(0xFF0F172A),
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
@@ -245,7 +245,7 @@ fun ReviewTransactionCard(
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowDown,
                                 contentDescription = "Change Category",
-                                tint = Color(0xFF94A3B8),
+                                tint = Color(0xFF64748B),
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -275,13 +275,13 @@ fun ReviewTransactionCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Primary Approve Button (Dominant White Pill)
+                // Primary Approve Button (Emerald Pill)
                 Button(
                     onClick = { onApprove(expense) },
-                    shape = ArcShapes.Button,
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Black
+                        containerColor = Color(0xFF047857),
+                        contentColor = Color.White
                     ),
                     modifier = Modifier
                         .weight(1f)
@@ -295,23 +295,23 @@ fun ReviewTransactionCard(
                             imageVector = Icons.Default.Check,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = Color.Black
+                            tint = Color.White
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Approve",
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
-                            color = Color.Black
+                            color = Color.White
                         )
                     }
                 }
 
                 // Edit Button
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFF1B202D),
-                    border = BorderStroke(1.dp, Color(0xFF283044)),
+                    shape = CircleShape,
+                    color = Color(0xFFF1F5F9),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                     modifier = Modifier
                         .size(44.dp)
                         .clickable { onEdit(expense) }
@@ -320,7 +320,7 @@ fun ReviewTransactionCard(
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Edit Transaction",
-                            tint = Color(0xFFCBD5E1),
+                            tint = Color(0xFF0F172A),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -328,9 +328,9 @@ fun ReviewTransactionCard(
 
                 // Delete Button
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFF281418),
-                    border = BorderStroke(1.dp, Color(0xFF4C1D24)),
+                    shape = CircleShape,
+                    color = Color(0xFFFEF2F2),
+                    border = BorderStroke(1.dp, Color(0xFFFECACA)),
                     modifier = Modifier
                         .size(44.dp)
                         .clickable { onDelete(expense) }
@@ -339,7 +339,7 @@ fun ReviewTransactionCard(
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Delete Transaction",
-                            tint = Color(0xFFEF4444),
+                            tint = Color(0xFFDC2626),
                             modifier = Modifier.size(18.dp)
                         )
                     }

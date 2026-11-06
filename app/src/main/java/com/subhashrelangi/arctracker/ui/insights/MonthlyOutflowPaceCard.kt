@@ -224,7 +224,7 @@ fun MonthlyOutflowPaceCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
-                if (isDemoMode || weeklyOutflows.isEmpty()) {
+                if (isDemoMode) {
                     // W1
                     Column(
                         modifier = Modifier.weight(1f),

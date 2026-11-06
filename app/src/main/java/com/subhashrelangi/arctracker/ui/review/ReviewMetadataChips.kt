@@ -58,7 +58,7 @@ fun ReviewMetadataChips(
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = sourceText,
-                    color = Color(0xFFE2E8F0),
+                    color = ArcColors.TextSecondary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -85,7 +85,7 @@ fun ReviewMetadataChips(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = accountLabel,
-                        color = Color(0xFFE2E8F0),
+                        color = ArcColors.TextSecondary,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Medium

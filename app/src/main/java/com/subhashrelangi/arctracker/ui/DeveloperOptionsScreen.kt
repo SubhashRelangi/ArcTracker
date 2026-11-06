@@ -43,6 +43,7 @@ import com.subhashrelangi.arctracker.service.NotificationNormalizer
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import com.subhashrelangi.arctracker.service.StructuredTransactionExtractor
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
 import com.subhashrelangi.arctracker.utils.IgnoreRulesManager
 import com.subhashrelangi.arctracker.utils.RegexPatternsManager
@@ -371,7 +372,7 @@ fun DeveloperOptionsScreen(
                         Icon(
                             imageVector = Icons.Outlined.Tune,
                             contentDescription = null,
-                            tint = Color(0xFF055B38),
+                            tint = ArcColors.Primary,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -379,7 +380,7 @@ fun DeveloperOptionsScreen(
                             text = "v2.4 Core",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF055B38)
+                            color = ArcColors.Primary
                         )
                     }
                 }
@@ -801,7 +802,7 @@ fun DeveloperOptionsScreen(
                                 },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
-                                    checkedTrackColor = Color(0xFF055B38),
+                                    checkedTrackColor = ArcColors.Primary,
                                     uncheckedThumbColor = Color.White,
                                     uncheckedTrackColor = Color(0xFFCBD5E1),
                                     uncheckedBorderColor = Color.Transparent
@@ -843,7 +844,7 @@ fun DeveloperOptionsScreen(
                                 },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
-                                    checkedTrackColor = Color(0xFF055B38),
+                                    checkedTrackColor = ArcColors.Primary,
                                     uncheckedThumbColor = Color.White,
                                     uncheckedTrackColor = Color(0xFFCBD5E1),
                                     uncheckedBorderColor = Color.Transparent
@@ -1033,7 +1034,7 @@ fun DeveloperOptionsScreen(
                             },
                             modifier = Modifier.weight(1f),
                             shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38))
+                            colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
                         ) {
                             Text("Copy SQL", color = Color.White)
                         }
@@ -1106,7 +1107,7 @@ fun DeveloperOptionsScreen(
                         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.5.sp),
                         shape = RoundedCornerShape(8.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF055B38),
+                            focusedBorderColor = ArcColors.Primary,
                             unfocusedBorderColor = Color(0xFFCBD5E1)
                         )
                     )
@@ -1167,7 +1168,7 @@ fun DeveloperOptionsScreen(
                             .fillMaxWidth()
                             .height(40.dp),
                         shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38))
+                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
                     ) {
                         Text("Parse Message (Real Engine)", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
@@ -1316,7 +1317,7 @@ fun DeveloperOptionsScreen(
                             .fillMaxWidth()
                             .height(40.dp),
                         shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38))
+                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
                     ) {
                         Text("Done", color = Color.White)
                     }
@@ -1442,7 +1443,7 @@ fun DeveloperOptionsScreen(
                             .fillMaxWidth()
                             .height(40.dp),
                         shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38))
+                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
                     ) {
                         Text("Dismiss", color = Color.White)
                     }
@@ -1478,7 +1479,7 @@ fun DeveloperOptionsScreen(
                         settingsRepo.setInitialOnboardingCompleted(false)
                         onNavigate("InitialOnboarding")
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38)),
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
                     shape = CircleShape
                 ) {
                     Text("Replay", color = Color.White)
