@@ -48,6 +48,7 @@ fun ArcTrackerHeader(
     isSearchActive: Boolean = false,
     showAdd: Boolean = false,
     showProfile: Boolean = false,
+    profileInitials: String = "",
     onSearchClick: () -> Unit = {},
     onAddClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
@@ -178,21 +179,37 @@ fun ArcTrackerHeader(
                 }
 
                 if (showProfile) {
+                    val hasInitials = profileInitials.isNotBlank()
                     Box(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(Color.White)
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .background(if (hasInitials) Color(0xFFECFDF5) else Color.White)
+                            .border(
+                                BorderStroke(
+                                    1.dp,
+                                    if (hasInitials) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)
+                                ),
+                                CircleShape
+                            )
                             .clickable(onClick = onProfileClick),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Person,
-                            contentDescription = "Profile & Accounts",
-                            tint = Color(0xFF0F172A),
-                            modifier = Modifier.size(19.dp)
-                        )
+                        if (hasInitials) {
+                            Text(
+                                text = profileInitials.take(2).uppercase(),
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF047857)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Outlined.Person,
+                                contentDescription = "Profile & Accounts",
+                                tint = Color(0xFF0F172A),
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
                     }
                 }
             }

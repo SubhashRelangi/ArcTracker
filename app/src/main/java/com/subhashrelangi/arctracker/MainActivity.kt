@@ -561,7 +561,16 @@ fun ExpenseScreen() {
         topBar = {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
                 val showSearch = currentRoute in listOf("Home", "Insights", "Analytics", "Settings", "Pending", "Review")
-                val showProfile = currentRoute != "Settings"
+                val showProfile = currentRoute == "Home"
+                val profileInitials = remember(currentRoute) {
+                    val name = settingsRepo.getProfileName().trim()
+                    val parts = name.split("\\s+".toRegex()).filter { it.isNotBlank() }
+                    when {
+                        parts.size >= 2 -> "${parts[0].first().uppercase()}${parts[1].first().uppercase()}"
+                        parts.size == 1 && parts[0].isNotEmpty() -> "${parts[0].first().uppercase()}"
+                        else -> "PV"
+                    }
+                }
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -573,6 +582,7 @@ fun ExpenseScreen() {
                         showSearch = showSearch,
                         isSearchActive = isSearching,
                         showProfile = showProfile,
+                        profileInitials = profileInitials,
                         onSearchClick = {
                             isSearching = !isSearching
                             if (!isSearching) searchQuery = ""
