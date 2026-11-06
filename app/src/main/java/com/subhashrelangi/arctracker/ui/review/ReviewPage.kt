@@ -584,7 +584,7 @@ fun ReviewPage(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
+            .background(ArcColors.Background)
     ) {
         LazyColumn(
             modifier = Modifier
@@ -598,8 +598,8 @@ fun ReviewPage(
                 item(key = "progress_card") {
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = ArcColors.CardBackground,
+                        border = BorderStroke(1.dp, ArcColors.Border),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -617,7 +617,7 @@ fun ReviewPage(
                                     Icon(
                                         imageVector = Icons.Outlined.CheckCircle,
                                         contentDescription = null,
-                                        tint = Color(0xFF047857),
+                                        tint = ArcColors.Primary,
                                         modifier = Modifier.size(17.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -625,14 +625,14 @@ fun ReviewPage(
                                         text = "$resolvedCount of $totalCount resolved today",
                                         fontSize = 13.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
+                                        color = ArcColors.TextPrimary
                                     )
                                 }
                                 Text(
                                     text = "${(targetProgressFraction * 100).toInt()}%",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF64748B)
+                                    color = ArcColors.TextMuted
                                 )
                             }
 
@@ -645,8 +645,8 @@ fun ReviewPage(
                                     .fillMaxWidth()
                                     .height(6.dp)
                                     .clip(RoundedCornerShape(3.dp)),
-                                color = Color(0xFF047857),
-                                trackColor = Color(0xFFF1F5F9)
+                                color = ArcColors.Primary,
+                                trackColor = ArcColors.SurfaceHighlight
                             )
 
                             Spacer(modifier = Modifier.height(12.dp))
@@ -661,14 +661,14 @@ fun ReviewPage(
                                     Icon(
                                         imageVector = Icons.Outlined.Tune,
                                         contentDescription = null,
-                                        tint = Color(0xFF64748B),
+                                        tint = ArcColors.TextMuted,
                                         modifier = Modifier.size(15.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "Rule engine: ${maxOf(1, totalCount)} suggested",
                                         fontSize = 12.sp,
-                                        color = Color(0xFF64748B)
+                                        color = ArcColors.TextMuted
                                     )
                                 }
 
@@ -676,7 +676,7 @@ fun ReviewPage(
                                     text = "View rule logs",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF047857),
+                                    color = ArcColors.Primary,
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(4.dp))
                                         .clickable { showRuleLogsDialog = true }
@@ -2387,8 +2387,8 @@ private fun ReviewTabPill(
 ) {
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = if (isSelected) Color(0xFF0F172A) else Color.White,
-        border = BorderStroke(1.dp, if (isSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0)),
+        color = if (isSelected) ArcColors.Primary else ArcColors.Surface,
+        border = BorderStroke(1.dp, if (isSelected) ArcColors.Primary else ArcColors.Border),
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
             .clickable { onClick() }
@@ -2401,7 +2401,7 @@ private fun ReviewTabPill(
                 text = text,
                 fontSize = 12.5.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) Color.White else Color(0xFF475569),
+                color = if (isSelected) Color.White else ArcColors.TextSecondary,
                 maxLines = 1,
                 softWrap = false
             )
@@ -2427,10 +2427,10 @@ private fun CircleSelectionButton(
         modifier = modifier
             .size(26.dp)
             .clip(CircleShape)
-            .background(if (isSelected) Color(0xFF047857) else Color.White)
+            .background(if (isSelected) ArcColors.Primary else ArcColors.Surface)
             .border(
-                width = if (isSelected) 0.dp else 2.dp,
-                color = if (isSelected) Color(0xFF047857) else Color(0xFFCBD5E1),
+                width = if (isSelected) 0.dp else 1.5.dp,
+                color = if (isSelected) ArcColors.Primary else ArcColors.Border,
                 shape = CircleShape
             )
             .clickable { onToggle() },

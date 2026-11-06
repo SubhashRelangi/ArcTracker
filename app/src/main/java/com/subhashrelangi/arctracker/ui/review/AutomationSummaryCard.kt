@@ -25,8 +25,8 @@ fun AutomationSummaryCard(
 ) {
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = Color(0xFF0D111A),
-        border = BorderStroke(1.dp, Color(0xFF181F2F)),
+        color = ArcColors.SurfaceElevated,
+        border = BorderStroke(1.dp, ArcColors.Border),
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 10.dp)
@@ -44,14 +44,14 @@ fun AutomationSummaryCard(
             ) {
                 Text(
                     text = "✦",
-                    color = Color(0xFF10B981),
+                    color = ArcColors.Primary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "$autoCategorizedCount transactions auto-categorized this month",
-                    color = Color.White,
+                    color = ArcColors.TextPrimary,
                     fontSize = 12.5.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -61,7 +61,7 @@ fun AutomationSummaryCard(
 
             Text(
                 text = "SMS parser uses rule-based heuristic regex engines. All matching runs strictly in local sandboxed memory.",
-                color = Color(0xFF64748B),
+                color = ArcColors.TextMuted,
                 fontSize = 11.5.sp,
                 textAlign = TextAlign.Center,
                 lineHeight = 16.sp

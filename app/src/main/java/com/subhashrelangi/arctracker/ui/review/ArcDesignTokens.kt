@@ -16,10 +16,19 @@ object ArcColors {
     val Light = ThemeArcColors.Light
     val Dark = ThemeArcColors.Dark
 
+    val isDark: Boolean @Composable @ReadOnlyComposable get() = LocalArcColors.current.isDark
+
+    val Primary: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.primary
+    val PrimaryDark: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.primaryDark
+    val PrimaryLight: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.primaryLight
+    val PrimaryBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.primaryBorder
+
     val Background: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.background
     val Surface: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surface
     val SurfaceElevated: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceElevated
+    val SurfaceHighlight: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceHighlight
     val SurfaceMuted: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceMuted
+    val CardBackground: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.cardBackground
     val SurfaceCard: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceCard
     val SurfaceCardBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceCardBorder
 

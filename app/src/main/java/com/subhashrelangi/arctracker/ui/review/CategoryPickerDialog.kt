@@ -36,8 +36,8 @@ fun CategoryPickerDialog(
     Dialog(onDismissRequest = onDismissRequest) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = Color(0xFF131620),
-            border = BorderStroke(1.dp, Color(0xFF22283A)),
+            color = ArcColors.SurfaceElevated,
+            border = BorderStroke(1.dp, ArcColors.Border),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
@@ -55,7 +55,7 @@ fun CategoryPickerDialog(
                 ) {
                     Text(
                         text = "Select Category",
-                        color = Color.White,
+                        color = ArcColors.TextPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -66,7 +66,7 @@ fun CategoryPickerDialog(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color(0xFF94A3B8)
+                            tint = ArcColors.TextMuted
                         )
                     }
                 }
@@ -86,10 +86,10 @@ fun CategoryPickerDialog(
 
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) Color(0xFF1F2637) else Color(0xFF161A26),
+                            color = if (isSelected) ArcColors.PrimaryLight else ArcColors.Surface,
                             border = BorderStroke(
                                 1.dp,
-                                if (isSelected) Color(0xFF3B82F6) else Color(0xFF202636)
+                                if (isSelected) ArcColors.Primary else ArcColors.Border
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -123,7 +123,7 @@ fun CategoryPickerDialog(
 
                                 Text(
                                     text = cat.name,
-                                    color = if (isSelected) Color.White else Color(0xFFE2E8F0),
+                                    color = if (isSelected) ArcColors.Primary else ArcColors.TextPrimary,
                                     fontSize = 14.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     modifier = Modifier.weight(1f)
@@ -134,7 +134,7 @@ fun CategoryPickerDialog(
                                         modifier = Modifier
                                             .size(8.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0xFF3B82F6))
+                                            .background(ArcColors.Primary)
                                     )
                                 }
                             }

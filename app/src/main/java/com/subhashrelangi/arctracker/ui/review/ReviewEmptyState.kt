@@ -37,13 +37,13 @@ fun ReviewEmptyState(
             modifier = Modifier
                 .size(68.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF0F291E)),
+                .background(ArcColors.PrimaryLight),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Completed",
-                tint = Color(0xFF10B981),
+                tint = ArcColors.Primary,
                 modifier = Modifier.size(34.dp)
             )
         }
@@ -52,7 +52,7 @@ fun ReviewEmptyState(
 
         Text(
             text = "All caught up",
-            color = Color.White,
+            color = ArcColors.TextPrimary,
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.5).sp
@@ -62,7 +62,7 @@ fun ReviewEmptyState(
 
         Text(
             text = "There are no transactions waiting for review.\n\nArcTracker is monitoring your financial notifications and SMS locally.",
-            color = Color(0xFF94A3B8),
+            color = ArcColors.TextMuted,
             fontSize = 13.5.sp,
             textAlign = TextAlign.Center,
             lineHeight = 20.sp
@@ -74,10 +74,10 @@ fun ReviewEmptyState(
             onClick = onViewLedger,
             shape = ArcShapes.Button,
             colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = Color(0xFF181C26),
-                contentColor = Color.White
+                containerColor = ArcColors.SurfaceHighlight,
+                contentColor = ArcColors.TextPrimary
             ),
-            border = BorderStroke(1.dp, Color(0xFF262C3D)),
+            border = BorderStroke(1.dp, ArcColors.Border),
             modifier = Modifier.height(44.dp),
             contentPadding = PaddingValues(horizontal = 24.dp)
         ) {

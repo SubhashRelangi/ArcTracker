@@ -342,10 +342,10 @@ fun AccountMissingReviewCard(
                         enabled = selectedAccount != null,
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF047857),
+                            containerColor = ArcColors.Primary,
                             contentColor = Color.White,
-                            disabledContainerColor = Color(0xFFE2E8F0),
-                            disabledContentColor = Color(0xFF94A3B8)
+                            disabledContainerColor = ArcColors.Border,
+                            disabledContentColor = ArcColors.TextMuted
                         ),
                         modifier = Modifier
                             .weight(1f)
@@ -359,14 +359,14 @@ fun AccountMissingReviewCard(
                                 imageVector = Icons.Default.CheckCircleOutline,
                                 contentDescription = null,
                                 modifier = Modifier.size(17.dp),
-                                tint = if (selectedAccount != null) Color.White else Color(0xFF94A3B8)
+                                tint = if (selectedAccount != null) Color.White else ArcColors.TextMuted
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Assign & Approve",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
-                                color = if (selectedAccount != null) Color.White else Color(0xFF94A3B8)
+                                color = if (selectedAccount != null) Color.White else ArcColors.TextMuted
                             )
                         }
                     }
@@ -374,8 +374,8 @@ fun AccountMissingReviewCard(
                     // Cancel / dismiss button
                     Surface(
                         shape = CircleShape,
-                        color = Color(0xFFF1F5F9),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = ArcColors.SurfaceHighlight,
+                        border = BorderStroke(1.dp, ArcColors.Border),
                         modifier = Modifier
                             .size(44.dp)
                             .clickable { onDismissItem(expense) }
@@ -384,7 +384,7 @@ fun AccountMissingReviewCard(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Dismiss",
-                                tint = Color(0xFF0F172A),
+                                tint = ArcColors.TextPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -414,10 +414,10 @@ private fun AccountChoicePill(
 ) {
     Surface(
         shape = CircleShape,
-        color = if (isSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
+        color = if (isSelected) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight,
         border = BorderStroke(
             1.dp,
-            if (isSelected) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)
+            if (isSelected) ArcColors.PrimaryBorder else ArcColors.Border
         ),
         modifier = modifier
             .height(38.dp)
@@ -432,7 +432,7 @@ private fun AccountChoicePill(
         ) {
             Text(
                 text = label,
-                color = if (isSelected) Color(0xFF047857) else Color(0xFF0F172A),
+                color = if (isSelected) ArcColors.Primary else ArcColors.TextPrimary,
                 fontSize = 11.5.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
@@ -472,8 +472,8 @@ private fun NewWalletButton(
 ) {
     Surface(
         shape = CircleShape,
-        color = Color(0xFFF1F5F9),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        color = ArcColors.SurfaceHighlight,
+        border = BorderStroke(1.dp, ArcColors.Border),
         modifier = modifier
             .height(38.dp)
             .clickable { onClick() }
@@ -484,7 +484,7 @@ private fun NewWalletButton(
         ) {
             Text(
                 text = "+ New Wallet",
-                color = Color(0xFF0F172A),
+                color = ArcColors.TextPrimary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )

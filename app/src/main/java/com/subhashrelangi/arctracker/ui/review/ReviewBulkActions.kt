@@ -72,10 +72,10 @@ fun ReviewBulkActions(
             onClick = onDismissAll,
             shape = ArcShapes.Button,
             colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = Color(0xFF181C26),
-                contentColor = Color(0xFF94A3B8)
+                containerColor = ArcColors.SurfaceHighlight,
+                contentColor = ArcColors.TextMuted
             ),
-            border = BorderStroke(1.dp, Color(0xFF262C3D)),
+            border = BorderStroke(1.dp, ArcColors.Border),
             modifier = Modifier
                 .weight(0.9f)
                 .height(44.dp),

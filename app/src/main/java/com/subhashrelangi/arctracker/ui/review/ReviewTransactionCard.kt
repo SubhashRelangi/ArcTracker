@@ -218,8 +218,8 @@ fun ReviewTransactionCard(
 
                     Surface(
                         shape = CircleShape,
-                        color = Color(0xFFF1F5F9),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = ArcColors.SurfaceHighlight,
+                        border = BorderStroke(1.dp, ArcColors.Border),
                         modifier = Modifier.clickable { showCategoryPicker = true }
                     ) {
                         Row(
@@ -229,13 +229,13 @@ fun ReviewTransactionCard(
                             Icon(
                                 imageVector = categoryVisualIcon,
                                 contentDescription = null,
-                                tint = Color(0xFF047857),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = categoryName,
-                                color = Color(0xFF0F172A),
+                                color = ArcColors.TextPrimary,
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
@@ -245,7 +245,7 @@ fun ReviewTransactionCard(
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowDown,
                                 contentDescription = "Change Category",
-                                tint = Color(0xFF64748B),
+                                tint = ArcColors.TextMuted,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -280,7 +280,7 @@ fun ReviewTransactionCard(
                     onClick = { onApprove(expense) },
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF047857),
+                        containerColor = ArcColors.Primary,
                         contentColor = Color.White
                     ),
                     modifier = Modifier
@@ -310,8 +310,8 @@ fun ReviewTransactionCard(
                 // Edit Button
                 Surface(
                     shape = CircleShape,
-                    color = Color(0xFFF1F5F9),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = ArcColors.SurfaceHighlight,
+                    border = BorderStroke(1.dp, ArcColors.Border),
                     modifier = Modifier
                         .size(44.dp)
                         .clickable { onEdit(expense) }
@@ -320,7 +320,7 @@ fun ReviewTransactionCard(
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Edit Transaction",
-                            tint = Color(0xFF0F172A),
+                            tint = ArcColors.TextPrimary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -329,8 +329,8 @@ fun ReviewTransactionCard(
                 // Delete Button
                 Surface(
                     shape = CircleShape,
-                    color = Color(0xFFFEF2F2),
-                    border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                    color = ArcColors.DangerContainer,
+                    border = BorderStroke(1.dp, ArcColors.DangerBorder),
                     modifier = Modifier
                         .size(44.dp)
                         .clickable { onDelete(expense) }
@@ -339,7 +339,7 @@ fun ReviewTransactionCard(
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Delete Transaction",
-                            tint = Color(0xFFDC2626),
+                            tint = ArcColors.Danger,
                             modifier = Modifier.size(18.dp)
                         )
                     }

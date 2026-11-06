@@ -37,8 +37,8 @@ fun NewAccountDialog(
     Dialog(onDismissRequest = onDismissRequest) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = Color(0xFF131620),
-            border = BorderStroke(1.dp, Color(0xFF22283A)),
+            color = ArcColors.SurfaceElevated,
+            border = BorderStroke(1.dp, ArcColors.Border),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
@@ -56,7 +56,7 @@ fun NewAccountDialog(
                 ) {
                     Text(
                         text = "Add Account / Wallet",
-                        color = Color.White,
+                        color = ArcColors.TextPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -67,7 +67,7 @@ fun NewAccountDialog(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color(0xFF94A3B8)
+                            tint = ArcColors.TextMuted
                         )
                     }
                 }
@@ -77,7 +77,7 @@ fun NewAccountDialog(
                 // Account / Wallet Name input
                 Text(
                     text = "Account / Institution Name",
-                    color = Color(0xFF94A3B8),
+                    color = ArcColors.TextMuted,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -88,15 +88,15 @@ fun NewAccountDialog(
                         accountName = it
                         errorMessage = null
                     },
-                    placeholder = { Text("e.g. Paytm Wallet, Cash, SBI", color = Color(0xFF64748B), fontSize = 13.sp) },
+                    placeholder = { Text("e.g. Paytm Wallet, Cash, SBI", color = ArcColors.TextMuted, fontSize = 13.sp) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF3B82F6),
-                        unfocusedBorderColor = Color(0xFF242A3A),
-                        focusedContainerColor = Color(0xFF161A26),
-                        unfocusedContainerColor = Color(0xFF161A26)
+                        focusedTextColor = ArcColors.TextPrimary,
+                        unfocusedTextColor = ArcColors.TextPrimary,
+                        focusedBorderColor = ArcColors.Primary,
+                        unfocusedBorderColor = ArcColors.Border,
+                        focusedContainerColor = ArcColors.SurfaceHighlight,
+                        unfocusedContainerColor = ArcColors.SurfaceHighlight
                     ),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -107,7 +107,7 @@ fun NewAccountDialog(
                 // Last 4 digits / identifier
                 Text(
                     text = "Suffix / Identifier (Optional)",
-                    color = Color(0xFF94A3B8),
+                    color = ArcColors.TextMuted,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -118,15 +118,15 @@ fun NewAccountDialog(
                         accountSuffix = it
                         errorMessage = null
                     },
-                    placeholder = { Text("e.g. 4821 or CASH", color = Color(0xFF64748B), fontSize = 13.sp) },
+                    placeholder = { Text("e.g. 4821 or CASH", color = ArcColors.TextMuted, fontSize = 13.sp) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF3B82F6),
-                        unfocusedBorderColor = Color(0xFF242A3A),
-                        focusedContainerColor = Color(0xFF161A26),
-                        unfocusedContainerColor = Color(0xFF161A26)
+                        focusedTextColor = ArcColors.TextPrimary,
+                        unfocusedTextColor = ArcColors.TextPrimary,
+                        focusedBorderColor = ArcColors.Primary,
+                        unfocusedBorderColor = ArcColors.Border,
+                        focusedContainerColor = ArcColors.SurfaceHighlight,
+                        unfocusedContainerColor = ArcColors.SurfaceHighlight
                     ),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -137,7 +137,7 @@ fun NewAccountDialog(
                 // Type selector
                 Text(
                     text = "Instrument Type",
-                    color = Color(0xFF94A3B8),
+                    color = ArcColors.TextMuted,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -155,10 +155,10 @@ fun NewAccountDialog(
                         val isSelected = selectedType == type
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = if (isSelected) Color(0xFF1E293B) else Color(0xFF161A26),
+                            color = if (isSelected) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight,
                             border = BorderStroke(
                                 1.dp,
-                                if (isSelected) Color(0xFF3B82F6) else Color(0xFF242A3A)
+                                if (isSelected) ArcColors.PrimaryBorder else ArcColors.Border
                             ),
                             modifier = Modifier
                                 .weight(1f)
@@ -166,7 +166,7 @@ fun NewAccountDialog(
                         ) {
                             Text(
                                 text = label,
-                                color = if (isSelected) Color.White else Color(0xFF94A3B8),
+                                color = if (isSelected) ArcColors.Primary else ArcColors.TextMuted,
                                 fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 modifier = Modifier
@@ -212,8 +212,8 @@ fun NewAccountDialog(
                     },
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Black
+                        containerColor = ArcColors.Primary,
+                        contentColor = Color.White
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
