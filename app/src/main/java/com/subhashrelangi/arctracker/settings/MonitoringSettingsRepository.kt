@@ -246,7 +246,29 @@ interface MonitoringSettingsRepository {
          */
         fun getInstance(context: Context): MonitoringSettingsRepository {
             return INSTANCE ?: synchronized(this) {
-                val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val appContext = context.applicationContext
+                val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+                // Verify install timestamp: if fresh install or re-install, guarantee initial setup page is presented
+                try {
+                    val packageInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        appContext.packageManager.getPackageInfo(appContext.packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        appContext.packageManager.getPackageInfo(appContext.packageName, 0)
+                    }
+                    val currentInstallTime = packageInfo.firstInstallTime
+                    val recordedInstallTime = prefs.getLong("last_recorded_install_time", 0L)
+                    if (recordedInstallTime != currentInstallTime) {
+                        prefs.edit()
+                            .putLong("last_recorded_install_time", currentInstallTime)
+                            .putBoolean(KEY_INITIAL_ONBOARDING_COMPLETED, false)
+                            .putBoolean(KEY_IS_DEMO_MODE, false)
+                            .putBoolean(KEY_SETUP_IN_PROGRESS, false)
+                            .commit()
+                    }
+                } catch (_: Exception) {}
+
                 val instance = SharedPreferencesMonitoringSettingsRepository(prefs)
                 INSTANCE = instance
                 instance

@@ -58,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -103,6 +104,17 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Reset demo mode and clear any lingering demo data on launch if onboarding is not completed
+        val settingsRepo = com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository.getInstance(this)
+        if (!settingsRepo.isInitialOnboardingCompleted()) {
+            settingsRepo.setDemoMode(false)
+            settingsRepo.setSetupInProgress(false)
+            val db = com.subhashrelangi.arctracker.data.AppDatabase.getDatabase(this)
+            lifecycleScope.launch(Dispatchers.IO) {
+                com.subhashrelangi.arctracker.data.MockData.clearDemoData(db)
+            }
+        }
 
         // Listen for screen-off events so the app locks immediately when the phone is locked
         val filter = android.content.IntentFilter(android.content.Intent.ACTION_SCREEN_OFF)
@@ -217,6 +229,15 @@ class MainActivity : FragmentActivity() {
             val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
             if (privacyManager.isAppLockEnabled()) {
                 isAppUnlockedState.value = false
+            }
+        }
+        val settingsRepo = com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository.getInstance(this)
+        if (!settingsRepo.isInitialOnboardingCompleted()) {
+            settingsRepo.setDemoMode(false)
+            settingsRepo.setSetupInProgress(false)
+            val db = com.subhashrelangi.arctracker.data.AppDatabase.getDatabase(this)
+            lifecycleScope.launch(Dispatchers.IO) {
+                com.subhashrelangi.arctracker.data.MockData.clearDemoData(db)
             }
         }
     }
@@ -379,43 +400,75 @@ fun ExpenseScreen() {
         expenses.filter { it.dateMillis in start..end }
     }
 
-    val isOnboardingCompleted = remember {
-        settingsRepo.isInitialOnboardingCompleted()
-    }
-    val isSetupInProgress = remember {
-        settingsRepo.isSetupInProgress()
-    }
+    val isOnboardingCompleted = settingsRepo.isInitialOnboardingCompleted()
+    val isSetupInProgress = settingsRepo.isSetupInProgress()
 
     val activityIntent = (context as? android.app.Activity)?.intent
     val targetRouteFromIntent = remember(activityIntent) {
         activityIntent?.getStringExtra("route")
     }
 
-    var backStack by rememberSaveable {
+    val backStackSaver = remember {
+        Saver<MutableState<List<String>>, List<String>>(
+            save = { state ->
+                if (settingsRepo.isInitialOnboardingCompleted()) {
+                    state.value
+                } else {
+                    listOf("InitialOnboarding")
+                }
+            },
+            restore = { saved ->
+                mutableStateOf(
+                    if (settingsRepo.isInitialOnboardingCompleted()) {
+                        saved.ifEmpty { listOf("Home") }
+                    } else {
+                        listOf("InitialOnboarding")
+                    }
+                )
+            }
+        )
+    }
+
+    var backStack by rememberSaveable(saver = backStackSaver) {
         mutableStateOf(
-            if (!targetRouteFromIntent.isNullOrEmpty()) {
-                listOf("InitialOnboarding", targetRouteFromIntent)
-            } else if (isOnboardingCompleted) {
-                listOf("Home")
-            } else if (isSetupInProgress) {
-                listOf("InitialOnboarding", "LocalFirstSetup")
+            if (isOnboardingCompleted) {
+                if (!targetRouteFromIntent.isNullOrEmpty()) {
+                    listOf("Home", targetRouteFromIntent)
+                } else {
+                    listOf("Home")
+                }
             } else {
                 listOf("InitialOnboarding")
             }
         )
     }
-    val currentRoute = backStack.lastOrNull() ?: "Home"
-
-    var appWasBackgroundedInDemo by rememberSaveable { mutableStateOf(false) }
+    val currentRoute = backStack.lastOrNull() ?: if (isOnboardingCompleted) "Home" else "InitialOnboarding"
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
-                // If user leaves the app while in demo mode (onboarding not completed), record that the app was closed/stopped
-                if (!settingsRepo.isInitialOnboardingCompleted() && settingsRepo.isDemoMode()) {
-                    appWasBackgroundedInDemo = true
+                // If user leaves or closes the app while in demo mode (onboarding not completed),
+                // immediately exit demo mode, wipe mock data, and reset backStack to InitialOnboarding
+                if (!settingsRepo.isInitialOnboardingCompleted()) {
+                    settingsRepo.setDemoMode(false)
+                    settingsRepo.setSetupInProgress(false)
+                    scope.launch(Dispatchers.IO) {
+                        com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
+                    }
+                    backStack = listOf("InitialOnboarding")
                 }
             } else if (event == Lifecycle.Event.ON_RESUME) {
+                // If returning to the app without having completed onboarding, guarantee demo mode is cleared and backStack is on InitialOnboarding
+                if (!settingsRepo.isInitialOnboardingCompleted()) {
+                    if (settingsRepo.isDemoMode() || backStack != listOf("InitialOnboarding")) {
+                        settingsRepo.setDemoMode(false)
+                        settingsRepo.setSetupInProgress(false)
+                        scope.launch(Dispatchers.IO) {
+                            com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
+                        }
+                        backStack = listOf("InitialOnboarding")
+                    }
+                }
                 val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
                 if (isNotificationAccessGranted != granted) {
                     isNotificationAccessGranted = granted
@@ -433,16 +486,6 @@ fun ExpenseScreen() {
                 if (SmsPermissionHelper.isSmsPermissionGranted(context)) {
                     SmsPermissionHelper.setInitialImportCompleted(context, true)
                 }
-
-                // If user closes/leaves the app while in demo mode, returning brings them back to the Setup page!
-                if (appWasBackgroundedInDemo && !settingsRepo.isInitialOnboardingCompleted()) {
-                    appWasBackgroundedInDemo = false
-                    settingsRepo.setDemoMode(false)
-                    scope.launch(Dispatchers.IO) {
-                        com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
-                    }
-                    backStack = listOf("InitialOnboarding")
-                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -451,25 +494,19 @@ fun ExpenseScreen() {
         }
     }
 
-    // If onboarding was not permanently completed (e.g. user was in demo mode),
-    // any app restart / relaunch MUST return to the Initial Welcome Screen or recover setup in progress.
     LaunchedEffect(targetRouteFromIntent) {
-        if (!targetRouteFromIntent.isNullOrEmpty()) {
-            backStack = listOf("InitialOnboarding", targetRouteFromIntent)
-        } else if (!settingsRepo.isInitialOnboardingCompleted()) {
+        if (!settingsRepo.isInitialOnboardingCompleted()) {
             if (settingsRepo.isDemoMode()) {
                 settingsRepo.setDemoMode(false)
                 scope.launch(Dispatchers.IO) {
                     com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
                 }
             }
-            if (settingsRepo.isSetupInProgress()) {
-                if (backStack.lastOrNull() != "LocalFirstSetup") {
-                    backStack = listOf("InitialOnboarding", "LocalFirstSetup")
-                }
-            } else if (backStack != listOf("InitialOnboarding")) {
+            if (backStack != listOf("InitialOnboarding")) {
                 backStack = listOf("InitialOnboarding")
             }
+        } else if (!targetRouteFromIntent.isNullOrEmpty()) {
+            backStack = listOf("Home", targetRouteFromIntent)
         }
     }
 
@@ -514,10 +551,11 @@ fun ExpenseScreen() {
         }
     }
 
-    val isDemoModeActive = !settingsRepo.isInitialOnboardingCompleted() && currentRoute == "Home"
+    val isDemoModeActive = !settingsRepo.isInitialOnboardingCompleted() && settingsRepo.isDemoMode()
     BackHandler(enabled = backStack.size > 1 || isDemoModeActive) {
-        if (isDemoModeActive && backStack.size <= 1) {
+        if (isDemoModeActive && (backStack.size <= 1 || currentRoute == "Home")) {
             settingsRepo.setDemoMode(false)
+            settingsRepo.setSetupInProgress(false)
             scope.launch(Dispatchers.IO) {
                 com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
             }
