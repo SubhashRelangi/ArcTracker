@@ -45,6 +45,13 @@ import com.subhashrelangi.arctracker.utils.RegexPatternsManager
 import com.subhashrelangi.arctracker.utils.RegexRule
 import kotlin.system.measureTimeMillis
 
+private val slateTitle: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val slateSub: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val cardBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val lightBg: Color @Composable @ReadOnlyComposable get() = ArcColors.Background
+private val cardBg: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val highlightSurface: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
+
 @Composable
 fun RegexPatternsScreen(
     onAddPattern: (String) -> Unit,
@@ -193,7 +200,7 @@ fun RegexPatternsScreen(
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(cardBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
@@ -201,8 +208,8 @@ fun RegexPatternsScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color.White)
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape),
+                                .background(cardBg)
+                                .border(BorderStroke(1.dp, cardBorder), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -220,7 +227,7 @@ fun RegexPatternsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF8FAFC))
+                .background(lightBg)
                 .verticalScroll(rememberScrollState())
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 14.dp)
@@ -242,13 +249,14 @@ fun RegexPatternsScreen(
                         text = "PARSER HEURISTICS ENGINE",
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF334155),
+                        color = slateSub,
                         letterSpacing = 0.5.sp
                     )
 
+                    val activeBadgeBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFDCFCE7)
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFDCFCE7)
+                        color = activeBadgeBg
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -265,7 +273,7 @@ fun RegexPatternsScreen(
                                 text = "v4.18 Engine Active",
                                 fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF166534)
+                                color = ArcColors.Primary
                             )
                         }
                     }
@@ -274,7 +282,7 @@ fun RegexPatternsScreen(
                 Text(
                     text = "Manage deterministic token extractors for financial SMS alerts, transactional telemetry, and merchant identification.",
                     fontSize = 12.sp,
-                    color = Color(0xFF64748B),
+                    color = slateSub,
                     lineHeight = 16.sp
                 )
             }
@@ -293,15 +301,15 @@ fun RegexPatternsScreen(
 
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = if (isSelected) ArcColors.Primary else Color(0xFFF1F5F9),
-                        border = if (isSelected) null else BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = if (isSelected) ArcColors.Primary else highlightSurface,
+                        border = if (isSelected) null else BorderStroke(1.dp, cardBorder),
                         modifier = Modifier.clickable { selectedCategory = cat }
                     ) {
                         Text(
                             text = "$cat ($count)",
                             fontSize = 12.5.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                            color = if (isSelected) Color.White else Color(0xFF64748B),
+                            color = if (isSelected) Color.White else slateSub,
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                         )
                     }
@@ -320,8 +328,8 @@ fun RegexPatternsScreen(
                         .weight(1f)
                         .height(42.dp),
                     shape = RoundedCornerShape(10.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    color = cardBg,
+                    border = BorderStroke(1.dp, cardBorder)
                 ) {
                     Row(
                         modifier = Modifier
@@ -332,7 +340,7 @@ fun RegexPatternsScreen(
                         Icon(
                             imageVector = Icons.Outlined.Search,
                             contentDescription = null,
-                            tint = Color(0xFF94A3B8),
+                            tint = slateSub,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -341,7 +349,7 @@ fun RegexPatternsScreen(
                                 Text(
                                     text = "Filter regex signatures...",
                                     fontSize = 12.5.sp,
-                                    color = Color(0xFF94A3B8)
+                                    color = slateSub
                                 )
                             }
                             BasicTextField(
@@ -349,7 +357,7 @@ fun RegexPatternsScreen(
                                 onValueChange = { searchQuery = it },
                                 textStyle = TextStyle(
                                     fontSize = 12.5.sp,
-                                    color = Color(0xFF0F172A),
+                                    color = slateTitle,
                                     fontWeight = FontWeight.Medium
                                 ),
                                 singleLine = true,
@@ -365,7 +373,7 @@ fun RegexPatternsScreen(
                                 Icon(
                                     imageVector = Icons.Filled.Close,
                                     contentDescription = "Clear",
-                                    tint = Color(0xFF94A3B8),
+                                    tint = slateSub,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -379,10 +387,10 @@ fun RegexPatternsScreen(
                     modifier = Modifier.height(42.dp),
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF1F5F9),
-                        contentColor = Color(0xFF0F172A)
+                        containerColor = highlightSurface,
+                        contentColor = slateTitle
                     ),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    border = BorderStroke(1.dp, cardBorder),
                     elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp)
                 ) {
@@ -405,8 +413,8 @@ fun RegexPatternsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                colors = CardDefaults.cardColors(containerColor = cardBg),
+                border = BorderStroke(1.dp, cardBorder),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
@@ -431,19 +439,19 @@ fun RegexPatternsScreen(
                                 text = "Live Regex Evaluator",
                                 fontSize = 14.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = slateTitle
                             )
                         }
 
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFF1F5F9)
+                            color = highlightSurface
                         ) {
                             Text(
                                 text = "Realtime Sandbox",
                                 fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF64748B),
+                                color = slateSub,
                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                             )
                         }
@@ -459,13 +467,16 @@ fun RegexPatternsScreen(
                             text = "Raw Message Payload",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
+
+                        val samplePillBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFF0FDF4)
+                        val samplePillBorder = if (ArcColors.isDark) Color(0xFF1E4032) else Color(0xFFBBF7D0)
 
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFF0FDF4),
-                            border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                            color = samplePillBg,
+                            border = BorderStroke(1.dp, samplePillBorder),
                             modifier = Modifier.clickable {
                                 rawMessagePayload = "Rs 1,450.00 debited from a/c **4821 on 24-Oct-26 via UPI to ZOMATO. Ref 429104."
                                 hasEvaluated = false
@@ -485,8 +496,8 @@ fun RegexPatternsScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFF8FAFC),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        color = highlightSurface,
+                        border = BorderStroke(1.dp, cardBorder)
                     ) {
                         BasicTextField(
                             value = rawMessagePayload,
@@ -496,7 +507,7 @@ fun RegexPatternsScreen(
                             },
                             textStyle = TextStyle(
                                 fontSize = 12.5.sp,
-                                color = Color(0xFF0F172A),
+                                color = slateTitle,
                                 lineHeight = 17.sp,
                                 fontFamily = FontFamily.SansSerif
                             ),
@@ -515,11 +526,12 @@ fun RegexPatternsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (hasEvaluated) {
+                            val matchedColor = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Outlined.Shield,
                                     contentDescription = null,
-                                    tint = Color(0xFF166534),
+                                    tint = matchedColor,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -527,7 +539,7 @@ fun RegexPatternsScreen(
                                     text = "$matchedPatternsCount patterns matched (${String.format(java.util.Locale.US, "%.1f", evaluationLatencyMs)}ms)",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF166534)
+                                    color = matchedColor
                                 )
                             }
                         } else {
@@ -535,7 +547,7 @@ fun RegexPatternsScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.Info,
                                     contentDescription = null,
-                                    tint = Color(0xFF64748B),
+                                    tint = slateSub,
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(5.dp))
@@ -543,7 +555,7 @@ fun RegexPatternsScreen(
                                     text = "Ready to evaluate parser rules",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF64748B)
+                                    color = slateSub
                                 )
                             }
                         }
@@ -577,7 +589,7 @@ fun RegexPatternsScreen(
                             text = "PARSER TOKEN EXTRACTION",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF64748B),
+                            color = slateSub,
                             letterSpacing = 0.5.sp
                         )
 
@@ -590,14 +602,14 @@ fun RegexPatternsScreen(
                             TokenExtractionBox(
                                 label = "Detected Merchant",
                                 value = detectedMerchant,
-                                valueColor = Color(0xFF0F172A)
+                                valueColor = slateTitle
                             )
 
                             // Box 2: Account Suffix
                             TokenExtractionBox(
                                 label = "Account Suffix",
                                 value = detectedAccountSuffix,
-                                valueColor = Color(0xFF0F172A),
+                                valueColor = slateTitle,
                                 isMonospace = true
                             )
 
@@ -625,14 +637,14 @@ fun RegexPatternsScreen(
                     text = "Configured $selectedCategory Rules",
                     fontSize = 13.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    color = slateTitle
                 )
 
                 Text(
                     text = "Showing ${rulesForCategory.size} of ${rules.size}",
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF64748B)
+                    color = slateSub
                 )
             }
 
@@ -645,8 +657,8 @@ fun RegexPatternsScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        color = cardBg,
+                        border = BorderStroke(1.dp, cardBorder)
                     ) {
                         Box(
                             modifier = Modifier
@@ -657,7 +669,7 @@ fun RegexPatternsScreen(
                             Text(
                                 text = "No regex rules found for $selectedCategory.",
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B)
+                                color = slateSub
                             )
                         }
                     }
@@ -690,8 +702,8 @@ fun RegexPatternsScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder)
             ) {
                 Column(
                     modifier = Modifier.padding(14.dp)
@@ -702,7 +714,7 @@ fun RegexPatternsScreen(
                         Icon(
                             imageVector = Icons.Outlined.Shield,
                             contentDescription = null,
-                            tint = Color(0xFF475569),
+                            tint = slateSub,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -710,7 +722,7 @@ fun RegexPatternsScreen(
                             text = "Auditor Safety Architecture",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                     }
 
@@ -719,7 +731,7 @@ fun RegexPatternsScreen(
                     Text(
                         text = "System patterns are cryptographically validated against false-positive hash collisions. Local engine runs sandbox token isolation to prevent exponential backtracking (ReDoS).",
                         fontSize = 11.5.sp,
-                        color = Color(0xFF64748B),
+                        color = slateSub,
                         lineHeight = 16.sp
                     )
                 }
@@ -736,14 +748,14 @@ fun RegexPatternsScreen(
                     text = "Delete Regex Pattern?",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFDC2626)
+                    color = ArcColors.Danger
                 )
             },
             text = {
                 Text(
                     text = "Are you sure you want to delete '${rule.name}'? This action cannot be undone.",
                     fontSize = 13.sp,
-                    color = Color(0xFF64748B),
+                    color = slateSub,
                     lineHeight = 18.sp
                 )
             },
@@ -755,7 +767,7 @@ fun RegexPatternsScreen(
                         ruleToDelete = null
                         Toast.makeText(context, "Pattern deleted", Toast.LENGTH_SHORT).show()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Danger),
                     shape = CircleShape
                 ) {
                     Text("Delete", color = Color.White)
@@ -766,11 +778,11 @@ fun RegexPatternsScreen(
                     onClick = { ruleToDelete = null },
                     shape = CircleShape
                 ) {
-                    Text("Cancel", color = Color(0xFF64748B))
+                    Text("Cancel", color = slateSub)
                 }
             },
             shape = RoundedCornerShape(16.dp),
-            containerColor = Color.White
+            containerColor = cardBg
         )
     }
 }
@@ -785,8 +797,8 @@ private fun TokenExtractionBox(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
-        color = Color(0xFFF8FAFC),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+        color = highlightSurface,
+        border = BorderStroke(1.dp, cardBorder)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
@@ -795,7 +807,7 @@ private fun TokenExtractionBox(
                 text = label,
                 fontSize = 10.5.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF64748B)
+                color = slateSub
             )
 
             Spacer(modifier = Modifier.height(3.dp))
@@ -833,8 +845,8 @@ private fun RegexRuleCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(1.dp, cardBorder),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
@@ -847,11 +859,12 @@ private fun RegexRuleCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Category icon container
+                val iconBoxBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFF0FDF4)
                 Box(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFF0FDF4)),
+                        .background(iconBoxBg),
                     contentAlignment = Alignment.Center
                 ) {
                     val iconVector: ImageVector = when (rule.iconType.lowercase()) {
@@ -877,7 +890,7 @@ private fun RegexRuleCard(
                         text = rule.name,
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF0F172A),
+                        color = slateTitle,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -885,7 +898,7 @@ private fun RegexRuleCard(
                     Text(
                         text = "Target Token: ${rule.description}",
                         fontSize = 11.5.sp,
-                        color = Color(0xFF64748B),
+                        color = slateSub,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -897,26 +910,27 @@ private fun RegexRuleCard(
                 if (rule.isSystem) {
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = Color(0xFFE2E8F0)
+                        color = highlightSurface
                     ) {
                         Text(
                             text = "System",
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF475569),
+                            color = slateSub,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
                 } else {
+                    val customBadgeBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFDCFCE7)
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = Color(0xFFDCFCE7)
+                        color = customBadgeBg
                     ) {
                         Text(
                             text = "Custom User Rule",
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF166534),
+                            color = ArcColors.Primary,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
@@ -931,7 +945,7 @@ private fun RegexRuleCard(
                         checkedThumbColor = Color.White,
                         checkedTrackColor = ArcColors.Primary,
                         uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color(0xFFCBD5E1),
+                        uncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
                         uncheckedBorderColor = Color.Transparent
                     )
                 )
@@ -941,14 +955,14 @@ private fun RegexRuleCard(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
-                color = Color(0xFFF8FAFC),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                color = highlightSurface,
+                border = BorderStroke(1.dp, cardBorder)
             ) {
                 Text(
                     text = rule.pattern,
                     fontSize = 11.5.sp,
                     fontFamily = FontFamily.Monospace,
-                    color = Color(0xFF047857),
+                    color = ArcColors.Primary,
                     lineHeight = 16.sp,
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp)
                 )
@@ -965,7 +979,7 @@ private fun RegexRuleCard(
                         Icon(
                             imageVector = Icons.Outlined.Speed,
                             contentDescription = null,
-                            tint = Color(0xFF64748B),
+                            tint = slateSub,
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -973,20 +987,20 @@ private fun RegexRuleCard(
                         Text(
                             text = "99.8% hit rate ($matchesCount matches)",
                             fontSize = 11.sp,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Outlined.Sync,
                             contentDescription = null,
-                            tint = Color(0xFF64748B),
+                            tint = slateSub,
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "Synced locally • User Defined",
                             fontSize = 11.sp,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         IconButton(
@@ -996,7 +1010,7 @@ private fun RegexRuleCard(
                             Icon(
                                 imageVector = Icons.Outlined.Delete,
                                 contentDescription = "Delete",
-                                tint = Color(0xFFDC2626),
+                                tint = ArcColors.Danger,
                                 modifier = Modifier.size(15.dp)
                             )
                         }
@@ -1008,10 +1022,12 @@ private fun RegexRuleCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Test Button
+                    val testBtnBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFF0FDF4)
+                    val testBtnBorder = if (ArcColors.isDark) Color(0xFF1E4032) else Color(0xFFBBF7D0)
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFF0FDF4),
-                        border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                        color = testBtnBg,
+                        border = BorderStroke(1.dp, testBtnBorder),
                         modifier = Modifier.clickable(onClick = onTest)
                     ) {
                         Text(
@@ -1026,15 +1042,15 @@ private fun RegexRuleCard(
                     // Edit Button
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFF8FAFC),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = highlightSurface,
+                        border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier.clickable(onClick = onEdit)
                     ) {
                         Text(
                             text = "Edit",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF0F172A),
+                            color = slateTitle,
                             modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.dp)
                         )
                     }
@@ -1064,25 +1080,27 @@ fun TestRuleDialog(rule: RegexRule, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(text = "Test Pattern Output", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF0F172A))
+            Text(text = "Test Pattern Output", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = slateTitle)
         },
         text = {
             Column {
                 if (match != null) {
+                    val matchGreen = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)
                     Text(
                         "Result: Pattern Matched ✓",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF166534),
+                        color = matchGreen,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
+                    val highlightBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFDCFCE7)
                     val annotatedString = androidx.compose.ui.text.buildAnnotatedString {
                         append(sampleText.substring(0, match.range.first))
                         withStyle(
                             style = SpanStyle(
-                                background = Color(0xFFDCFCE7),
-                                color = Color(0xFF166534),
+                                background = highlightBg,
+                                color = matchGreen,
                                 fontWeight = FontWeight.Bold
                             )
                         ) {
@@ -1094,22 +1112,22 @@ fun TestRuleDialog(rule: RegexRule, onDismiss: () -> Unit) {
                     Text(
                         annotatedString,
                         fontSize = 12.sp,
-                        color = Color(0xFF0F172A),
+                        color = slateTitle,
                         lineHeight = 17.sp,
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
 
                     val extracted = if (match.groups.size > 1) match.groupValues[1] else match.value
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Extracted Token:", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF64748B))
+                        Text("Extracted Token:", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = slateSub)
                         Spacer(modifier = Modifier.width(8.dp))
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFDCFCE7)
+                            color = highlightBg
                         ) {
                             Text(
                                 extracted,
-                                color = Color(0xFF166534),
+                                color = matchGreen,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
@@ -1117,8 +1135,8 @@ fun TestRuleDialog(rule: RegexRule, onDismiss: () -> Unit) {
                         }
                     }
                 } else {
-                    Text("Result: No Match Found ✕", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFDC2626), modifier = Modifier.padding(bottom = 8.dp))
-                    Text(sampleText, fontSize = 12.sp, color = Color(0xFF64748B), lineHeight = 17.sp)
+                    Text("Result: No Match Found ✕", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ArcColors.Danger, modifier = Modifier.padding(bottom = 8.dp))
+                    Text(sampleText, fontSize = 12.sp, color = slateSub, lineHeight = 17.sp)
                 }
             }
         },
@@ -1132,6 +1150,6 @@ fun TestRuleDialog(rule: RegexRule, onDismiss: () -> Unit) {
             }
         },
         shape = RoundedCornerShape(16.dp),
-        containerColor = Color.White
+        containerColor = cardBg
     )
 }

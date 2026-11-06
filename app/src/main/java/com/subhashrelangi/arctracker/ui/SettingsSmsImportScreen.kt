@@ -65,6 +65,13 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+private val slateTitle: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val slateSub: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val cardBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val lightBg: Color @Composable @ReadOnlyComposable get() = ArcColors.Background
+private val cardBg: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val highlightSurface: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
+
 /**
  * Sequential 3-Stage Workflow of the Historical SMS Import Wizard:
  *   1. TIME_SELECTION: Select lookback horizon or custom date range.
@@ -433,7 +440,7 @@ fun SettingsSmsImportScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = Color(0xFFF8FAFC),
+        containerColor = lightBg,
         topBar = {
             // Universal Settings Sub-Page Header with statusBarsPadding matching all other sub-settings pages
             ArcTrackerHeader(
@@ -446,8 +453,8 @@ fun SettingsSmsImportScreen(
                     Box(
                         modifier = Modifier
                             .size(38.dp)
-                            .background(Color(0xFFF1F5F9), CircleShape)
-                            .border(1.dp, Color(0xFFE2E8F0), CircleShape),
+                            .background(cardBg, CircleShape)
+                            .border(1.dp, cardBorder, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -464,9 +471,9 @@ fun SettingsSmsImportScreen(
             // Clean ArcTracker Sticky Bottom Bar sticking directly to the bottom of the screen
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
+                color = cardBg,
                 shadowElevation = 8.dp,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                border = BorderStroke(1.dp, cardBorder)
             ) {
                 Column(
                     modifier = Modifier
@@ -683,8 +690,8 @@ fun SettingsSmsImportScreen(
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(18.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                color = cardBg,
+                                border = BorderStroke(1.dp, cardBorder)
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -696,8 +703,8 @@ fun SettingsSmsImportScreen(
                                     Box(
                                         modifier = Modifier
                                             .size(44.dp)
-                                            .background(Color(0xFFECFDF5), RoundedCornerShape(12.dp))
-                                            .border(1.dp, Color(0xFFA7F3D0), RoundedCornerShape(12.dp)),
+                                            .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5), RoundedCornerShape(12.dp))
+                                            .border(1.dp, if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFA7F3D0), RoundedCornerShape(12.dp)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
@@ -713,14 +720,14 @@ fun SettingsSmsImportScreen(
                                             text = "Scan SMS Inbox & Ingest Historical Ledger",
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A),
+                                            color = slateTitle,
                                             letterSpacing = (-0.2).sp
                                         )
                                         Spacer(modifier = Modifier.height(3.dp))
                                         Text(
                                             text = "Select your lookback horizon to parse transaction alerts locally into ArcTracker's double-entry vault.",
                                             fontSize = 12.sp,
-                                            color = Color(0xFF64748B),
+                                            color = slateSub,
                                             lineHeight = 16.sp
                                         )
                                     }
@@ -778,10 +785,10 @@ fun SettingsSmsImportScreen(
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .clip(CircleShape)
-                                                .background(if (isSelected) ArcColors.Primary else Color.White)
+                                                .background(if (isSelected) ArcColors.Primary else cardBg)
                                                 .border(
                                                     1.dp,
-                                                    if (isSelected) ArcColors.Primary else Color(0xFFE2E8F0),
+                                                    if (isSelected) ArcColors.Primary else cardBorder,
                                                     CircleShape
                                                 )
                                                 .clickable { selectHorizon(index) }
@@ -804,7 +811,7 @@ fun SettingsSmsImportScreen(
                                                     text = horizon.label,
                                                     fontSize = 12.5.sp,
                                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                    color = if (isSelected) Color.White else Color(0xFF334155)
+                                                    color = if (isSelected) Color.White else slateTitle
                                                 )
                                             }
                                         }
@@ -820,8 +827,8 @@ fun SettingsSmsImportScreen(
                                     .fillMaxWidth()
                                     .clickable { fromDialog.show() },
                                 shape = RoundedCornerShape(16.dp),
-                                color = if (isCustomRange) Color(0xFFF0FDF4) else Color.White,
-                                border = BorderStroke(1.dp, if (isCustomRange) Color(0xFF86EFAC) else Color(0xFFE2E8F0))
+                                color = if (isCustomRange) (if (ArcColors.isDark) Color(0xFF064E3B).copy(alpha = 0.35f) else Color(0xFFF0FDF4)) else cardBg,
+                                border = BorderStroke(1.dp, if (isCustomRange) (if (ArcColors.isDark) ArcColors.Primary else Color(0xFF86EFAC)) else cardBorder)
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -837,13 +844,13 @@ fun SettingsSmsImportScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(38.dp)
-                                                .background(Color(0xFFF1F5F9), CircleShape),
+                                                .background(highlightSurface, CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Outlined.DateRange,
                                                 contentDescription = "Calendar",
-                                                tint = Color(0xFF0F172A),
+                                                tint = slateTitle,
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -853,12 +860,12 @@ fun SettingsSmsImportScreen(
                                                 text = if (isCustomRange) "Custom Audit Period" else "Pick Custom Date Range",
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F172A)
+                                                color = slateTitle
                                             )
                                             Text(
                                                 text = "${fullDateFormat.format(Date(startDateMillis))}  —  ${fullDateFormat.format(Date(endDateMillis))}",
                                                 fontSize = 12.sp,
-                                                color = Color(0xFF64748B)
+                                                color = slateSub
                                             )
                                         }
                                     }
@@ -878,8 +885,8 @@ fun SettingsSmsImportScreen(
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(16.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                color = cardBg,
+                                border = BorderStroke(1.dp, cardBorder)
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -901,14 +908,14 @@ fun SettingsSmsImportScreen(
                                             text = "Air-Gapped Vault Security",
                                             fontSize = 13.5.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A)
+                                            color = slateTitle
                                         )
                                     }
 
                                     Text(
                                         text = "ArcTracker reads incoming transaction alerts directly from Android's Telephony provider. Pattern extraction, noise reduction, and double-entry reconciliation execute 100% on your device with zero internet transmission.",
                                         fontSize = 12.sp,
-                                        color = Color(0xFF64748B),
+                                        color = slateSub,
                                         lineHeight = 17.sp
                                     )
                                 }
@@ -930,8 +937,8 @@ fun SettingsSmsImportScreen(
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(18.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                            color = cardBg,
+                            border = BorderStroke(1.dp, cardBorder)
                         ) {
                             Column(
                                 modifier = Modifier
@@ -950,7 +957,7 @@ fun SettingsSmsImportScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(46.dp)
-                                                .background(Color(0xFFE8F5E9), CircleShape),
+                                                .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFE8F5E9), CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
@@ -972,18 +979,18 @@ fun SettingsSmsImportScreen(
                                                     text = "Scanning SMS Inbox",
                                                     fontSize = 15.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF0F172A)
+                                                    color = slateTitle
                                                 )
                                                 Box(
                                                     modifier = Modifier
-                                                        .background(Color(0xFFDCFCE7), CircleShape)
+                                                        .background(if (ArcColors.isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFDCFCE7), CircleShape)
                                                         .padding(horizontal = 7.dp, vertical = 2.dp)
                                                 ) {
                                                     Text(
                                                         text = "Live",
                                                         fontSize = 10.sp,
                                                         fontWeight = FontWeight.Bold,
-                                                        color = Color(0xFF15803D)
+                                                        color = ArcColors.Primary
                                                     )
                                                 }
                                             }
@@ -997,7 +1004,7 @@ fun SettingsSmsImportScreen(
                                                     "$messagesScannedCount SMS parsed"
                                                 },
                                                 fontSize = 12.sp,
-                                                color = Color(0xFF64748B)
+                                                color = slateSub
                                             )
                                         }
                                     }
@@ -1018,7 +1025,7 @@ fun SettingsSmsImportScreen(
                                         .fillMaxWidth()
                                         .height(8.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFFF1F5F9))
+                                        .background(highlightSurface)
                                 ) {
                                     Box(
                                         modifier = Modifier
@@ -1035,8 +1042,8 @@ fun SettingsSmsImportScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color(0xFFF8FAFC), RoundedCornerShape(10.dp))
-                                        .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(10.dp))
+                                        .background(highlightSurface, RoundedCornerShape(10.dp))
+                                        .border(1.dp, cardBorder, RoundedCornerShape(10.dp))
                                         .padding(horizontal = 12.dp, vertical = 9.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -1050,7 +1057,7 @@ fun SettingsSmsImportScreen(
                                     Text(
                                         text = "Zero cloud upload • On-device regex",
                                         fontSize = 11.5.sp,
-                                        color = Color(0xFF475569),
+                                        color = slateTitle,
                                         fontWeight = FontWeight.Medium,
                                         modifier = Modifier.weight(1f),
                                         maxLines = 1,
@@ -1062,7 +1069,7 @@ fun SettingsSmsImportScreen(
                                         fontSize = 11.5.sp,
                                         fontFamily = FontFamily.Monospace,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF475569)
+                                        color = slateTitle
                                     )
                                 }
                             }
@@ -1072,8 +1079,8 @@ fun SettingsSmsImportScreen(
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                            color = cardBg,
+                            border = BorderStroke(1.dp, cardBorder)
                         ) {
                             Column(
                                 modifier = Modifier
@@ -1085,7 +1092,7 @@ fun SettingsSmsImportScreen(
                                     text = "Automated Engine Active",
                                     fontSize = 13.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = slateTitle
                                 )
                                 Text(
                                     text = scanStatusText,
@@ -1096,7 +1103,7 @@ fun SettingsSmsImportScreen(
                                 Text(
                                     text = "Classifying financial debits and credits while filtering out balance inquiries, OTPs, promotional spam, and personal texts.",
                                     fontSize = 12.sp,
-                                    color = Color(0xFF64748B),
+                                    color = slateSub,
                                     lineHeight = 16.sp
                                 )
                             }
@@ -1135,8 +1142,8 @@ fun SettingsSmsImportScreen(
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(16.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                color = cardBg,
+                                border = BorderStroke(1.dp, cardBorder)
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -1161,14 +1168,14 @@ fun SettingsSmsImportScreen(
                                                 text = "$totalDiscovered Found",
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F172A),
+                                                color = slateTitle,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                             Text(
                                                 text = "${result?.newTransactionsCount ?: items.size} new • ${result?.duplicatesCount ?: 0} in vault",
                                                 fontSize = 11.sp,
-                                                color = Color(0xFF64748B),
+                                                color = slateSub,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
@@ -1190,7 +1197,7 @@ fun SettingsSmsImportScreen(
                                             text = formattedVolume,
                                             fontSize = 17.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A),
+                                            color = slateTitle,
                                             maxLines = 1
                                         )
                                         Text(
@@ -1209,7 +1216,7 @@ fun SettingsSmsImportScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
+                                    .background(highlightSurface, RoundedCornerShape(12.dp))
                                     .padding(3.dp),
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
@@ -1218,7 +1225,7 @@ fun SettingsSmsImportScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(if (isBankMode) Color.White else Color.Transparent)
+                                        .background(if (isBankMode) cardBg else Color.Transparent)
                                         .clickable { reviewViewMode = ReviewViewMode.BY_BANK }
                                         .padding(vertical = 7.dp),
                                     contentAlignment = Alignment.Center
@@ -1227,7 +1234,7 @@ fun SettingsSmsImportScreen(
                                         text = "By Bank Account (${accountGroups.size})",
                                         fontSize = 12.sp,
                                         fontWeight = if (isBankMode) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isBankMode) Color(0xFF0F172A) else Color(0xFF64748B)
+                                        color = if (isBankMode) slateTitle else slateSub
                                     )
                                 }
 
@@ -1236,7 +1243,7 @@ fun SettingsSmsImportScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(if (isAllMode) Color.White else Color.Transparent)
+                                        .background(if (isAllMode) cardBg else Color.Transparent)
                                         .clickable { reviewViewMode = ReviewViewMode.ALL_TRANSACTIONS }
                                         .padding(vertical = 7.dp),
                                     contentAlignment = Alignment.Center
@@ -1245,7 +1252,7 @@ fun SettingsSmsImportScreen(
                                         text = "All Transactions (${items.size})",
                                         fontSize = 12.sp,
                                         fontWeight = if (isAllMode) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isAllMode) Color(0xFF0F172A) else Color(0xFF64748B)
+                                        color = if (isAllMode) slateTitle else slateSub
                                     )
                                 }
                             }
@@ -1272,7 +1279,7 @@ fun SettingsSmsImportScreen(
                                         text = "Select all",
                                         fontSize = 12.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A),
+                                        color = slateTitle,
                                         modifier = Modifier.clickable {
                                             selectedItemIds = items.map { it.sourceEvent.sourceId }.toSet()
                                         }
@@ -1281,7 +1288,7 @@ fun SettingsSmsImportScreen(
                                         text = "Deselect all",
                                         fontSize = 12.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF64748B),
+                                        color = slateSub,
                                         modifier = Modifier.clickable {
                                             selectedItemIds = emptySet()
                                         }
@@ -1298,8 +1305,8 @@ fun SettingsSmsImportScreen(
                                         .fillMaxWidth()
                                         .padding(vertical = 20.dp),
                                     shape = RoundedCornerShape(16.dp),
-                                    color = Color.White,
-                                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                    color = cardBg,
+                                    border = BorderStroke(1.dp, cardBorder)
                                 ) {
                                     Column(
                                         modifier = Modifier
@@ -1311,13 +1318,13 @@ fun SettingsSmsImportScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(50.dp)
-                                                .background(Color(0xFFF1F5F9), CircleShape),
+                                                .background(highlightSurface, CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Outlined.Sms,
                                                 contentDescription = "No SMS",
-                                                tint = Color(0xFF64748B),
+                                                tint = slateSub,
                                                 modifier = Modifier.size(26.dp)
                                             )
                                         }
@@ -1326,13 +1333,13 @@ fun SettingsSmsImportScreen(
                                             text = "No Financial SMS Detected",
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A)
+                                            color = slateTitle
                                         )
 
                                         Text(
                                             text = "We scanned $messagesScannedCount messages in the selected timeframe, but found no financial transaction alerts matching debit or credit patterns.",
                                             fontSize = 12.5.sp,
-                                            color = Color(0xFF64748B),
+                                            color = slateSub,
                                             textAlign = TextAlign.Center,
                                             lineHeight = 17.sp
                                         )
@@ -1465,8 +1472,8 @@ fun SettingsSmsImportScreen(
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(18.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                            color = cardBg,
+                            border = BorderStroke(1.dp, cardBorder)
                         ) {
                             Column(
                                 modifier = Modifier
@@ -1478,37 +1485,37 @@ fun SettingsSmsImportScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(text = "Total Transactions Processed", fontSize = 13.sp, color = Color(0xFF64748B))
-                                    Text(text = "$inserted records", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                                    Text(text = "Total Transactions Processed", fontSize = 13.sp, color = slateSub)
+                                    Text(text = "$inserted records", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = slateTitle)
                                 }
 
-                                HorizontalDivider(color = Color(0xFFF1F5F9))
+                                HorizontalDivider(color = cardBorder)
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(text = "Total Cumulative Volume", fontSize = 13.sp, color = Color(0xFF64748B))
+                                    Text(text = "Total Cumulative Volume", fontSize = 13.sp, color = slateSub)
                                     Text(text = formattedVolume, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = ArcColors.Primary)
                                 }
 
-                                HorizontalDivider(color = Color(0xFFF1F5F9))
+                                HorizontalDivider(color = cardBorder)
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(text = "Duplicates Prevented", fontSize = 13.sp, color = Color(0xFF64748B))
-                                    Text(text = "$duplicatesSkipped skipped", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF475569))
+                                    Text(text = "Duplicates Prevented", fontSize = 13.sp, color = slateSub)
+                                    Text(text = "$duplicatesSkipped skipped", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = slateTitle)
                                 }
 
-                                HorizontalDivider(color = Color(0xFFF1F5F9))
+                                HorizontalDivider(color = cardBorder)
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(text = "Privacy Guarantee", fontSize = 13.sp, color = Color(0xFF64748B))
+                                    Text(text = "Privacy Guarantee", fontSize = 13.sp, color = slateSub)
                                     Text(text = "100% On-Device", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ArcColors.Primary)
                                 }
                             }
@@ -1544,8 +1551,8 @@ private fun StageProgressIndicator(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+        color = cardBg,
+        border = BorderStroke(1.dp, cardBorder)
     ) {
         Column(
             modifier = Modifier
@@ -1573,7 +1580,7 @@ private fun StageProgressIndicator(
                         text = stageTitle,
                         fontSize = 12.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
+                        color = slateTitle
                     )
                 }
 
@@ -1581,7 +1588,7 @@ private fun StageProgressIndicator(
                     text = if (currentStage == SmsImportStage.COMPLETE) "All Done" else "Step $stageNumber of 3",
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF64748B)
+                    color = slateSub
                 )
             }
 
@@ -1606,7 +1613,7 @@ private fun StageProgressIndicator(
                         .weight(1f)
                         .height(5.dp)
                         .clip(CircleShape)
-                        .background(if (stageNumber >= 2) ArcColors.Primary else Color(0xFFE2E8F0))
+                        .background(if (stageNumber >= 2) ArcColors.Primary else cardBorder)
                 )
                 // Step 3: Review
                 Box(
@@ -1614,7 +1621,7 @@ private fun StageProgressIndicator(
                         .weight(1f)
                         .height(5.dp)
                         .clip(CircleShape)
-                        .background(if (stageNumber >= 3) ArcColors.Primary else Color(0xFFE2E8F0))
+                        .background(if (stageNumber >= 3) ArcColors.Primary else cardBorder)
                 )
             }
 
@@ -1628,19 +1635,19 @@ private fun StageProgressIndicator(
                     text = "1. Range",
                     fontSize = 10.5.sp,
                     fontWeight = if (stageNumber == 1) FontWeight.Bold else FontWeight.Medium,
-                    color = if (stageNumber >= 1) ArcColors.Primary else Color(0xFF94A3B8)
+                    color = if (stageNumber >= 1) ArcColors.Primary else slateSub
                 )
                 Text(
                     text = "2. Scan",
                     fontSize = 10.5.sp,
                     fontWeight = if (stageNumber == 2) FontWeight.Bold else FontWeight.Medium,
-                    color = if (stageNumber >= 2) ArcColors.Primary else Color(0xFF94A3B8)
+                    color = if (stageNumber >= 2) ArcColors.Primary else slateSub
                 )
                 Text(
                     text = "3. Review",
                     fontSize = 10.5.sp,
                     fontWeight = if (stageNumber == 3) FontWeight.Bold else FontWeight.Medium,
-                    color = if (stageNumber >= 3) ArcColors.Primary else Color(0xFF94A3B8)
+                    color = if (stageNumber >= 3) ArcColors.Primary else slateSub
                 )
             }
         }
@@ -1673,8 +1680,8 @@ private fun BankAccountReviewCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, if (selectedCount > 0) Color(0xFFCBD5E1) else Color(0xFFF1F5F9))
+        color = cardBg,
+        border = BorderStroke(1.dp, if (selectedCount > 0) cardBorder else cardBorder.copy(alpha = 0.5f))
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Header Row (Clickable to expand, with dedicated Checkbox)
@@ -1691,7 +1698,11 @@ private fun BankAccountReviewCard(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(if (isUnidentified) Color(0xFFFEF3C7) else Color(0xFFF1F5F9)),
+                        .background(
+                            if (isUnidentified) {
+                                if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
+                            } else highlightSurface
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     val icon = when {
@@ -1699,7 +1710,7 @@ private fun BankAccountReviewCard(
                         group.identity.instrumentType == InstrumentType.CARD -> Icons.Outlined.CreditCard
                         else -> Icons.Outlined.AccountBalance
                     }
-                    val iconTint = if (isUnidentified) Color(0xFFB45309) else Color(0xFF334155)
+                    val iconTint = if (isUnidentified) Color(0xFFF59E0B) else slateTitle
 
                     Icon(
                         imageVector = icon,
@@ -1724,7 +1735,7 @@ private fun BankAccountReviewCard(
                         text = displayName,
                         fontSize = 14.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A),
+                        color = slateTitle,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1734,7 +1745,7 @@ private fun BankAccountReviewCard(
                     Text(
                         text = "$selectedCount of ${group.transactionCount} selected • $formattedTotal",
                         fontSize = 12.sp,
-                        color = Color(0xFF64748B)
+                        color = slateSub
                     )
                 }
 
@@ -1742,7 +1753,7 @@ private fun BankAccountReviewCard(
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = if (isExpanded) "Collapse" else "Expand",
-                    tint = Color(0xFF64748B),
+                    tint = slateSub,
                     modifier = Modifier.size(22.dp)
                 )
 
@@ -1758,7 +1769,7 @@ private fun BankAccountReviewCard(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF8FAFC))
+                        .background(highlightSurface)
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -1805,8 +1816,8 @@ private fun RealScannedItemCard(
             .fillMaxWidth()
             .clickable { onToggle() },
         shape = RoundedCornerShape(14.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, if (isSelected) Color(0xFFCBD5E1) else Color(0xFFE2E8F0))
+        color = cardBg,
+        border = BorderStroke(1.dp, if (isSelected) ArcColors.Primary else cardBorder)
     ) {
         Row(
             modifier = Modifier
@@ -1826,7 +1837,9 @@ private fun RealScannedItemCard(
                 modifier = Modifier
                     .size(38.dp)
                     .background(
-                        if (isCredit) Color(0xFFE8F5E9) else Color(0xFFF1F5F9),
+                        if (isCredit) {
+                            if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFE8F5E9)
+                        } else highlightSurface,
                         CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -1834,7 +1847,7 @@ private fun RealScannedItemCard(
                 Icon(
                     imageVector = icon,
                     contentDescription = merchant,
-                    tint = if (isCredit) ArcColors.Primary else Color(0xFF475569),
+                    tint = if (isCredit) ArcColors.Primary else slateTitle,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -1845,7 +1858,7 @@ private fun RealScannedItemCard(
                     text = merchant,
                     fontSize = 13.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A),
+                    color = slateTitle,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1857,18 +1870,18 @@ private fun RealScannedItemCard(
                     Text(
                         text = dateDisplay,
                         fontSize = 11.sp,
-                        color = Color(0xFF64748B)
+                        color = slateSub
                     )
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFF1F5F9), RoundedCornerShape(4.dp))
+                            .background(highlightSurface, RoundedCornerShape(4.dp))
                             .padding(horizontal = 5.dp, vertical = 1.dp)
                     ) {
                         Text(
                             text = if (accountSuffix.startsWith("••")) accountSuffix else "••$accountSuffix",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF475569)
+                            color = slateSub
                         )
                     }
                 }
@@ -1885,7 +1898,7 @@ private fun RealScannedItemCard(
                     text = if (isCredit) "+$formattedAmount" else "-$formattedAmount",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isCredit) ArcColors.Primary else Color(0xFF0F172A)
+                    color = if (isCredit) ArcColors.Primary else slateTitle
                 )
 
                 Spacer(modifier = Modifier.height(2.dp))
@@ -1893,27 +1906,33 @@ private fun RealScannedItemCard(
                 if (isReview) {
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFFEF3C7), CircleShape)
+                            .background(
+                                if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7),
+                                CircleShape
+                            )
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "$confidenceScore% Review",
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFB45309)
+                            color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309)
                         )
                     }
                 } else {
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFDCFCE7), CircleShape)
+                            .background(
+                                if (ArcColors.isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFDCFCE7),
+                                CircleShape
+                            )
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "$confidenceScore% High",
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF15803D)
+                            color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF15803D)
                         )
                     }
                 }
@@ -1963,8 +1982,8 @@ private fun ArcTrackerCheckbox(
                 modifier = Modifier
                     .size(20.dp)
                     .clip(RoundedCornerShape(5.dp))
-                    .border(BorderStroke(1.5.dp, Color(0xFFCBD5E1)), RoundedCornerShape(5.dp))
-                    .background(Color.White)
+                    .border(BorderStroke(1.5.dp, cardBorder), RoundedCornerShape(5.dp))
+                    .background(cardBg)
             )
         }
     }
