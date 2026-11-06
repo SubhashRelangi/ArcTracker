@@ -31,16 +31,16 @@ fun ReviewBulkActions(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Approve Verified button (Dominant white pill)
+        // Approve Verified button (Dominant emerald pill)
         Button(
             onClick = onApproveVerified,
             enabled = verifiedCount > 0,
             shape = ArcShapes.Button,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color.White,
-                contentColor = Color.Black,
-                disabledContainerColor = Color.White.copy(alpha = 0.4f),
-                disabledContentColor = Color.Black.copy(alpha = 0.5f)
+                containerColor = ArcColors.Primary,
+                contentColor = Color.White,
+                disabledContainerColor = ArcColors.Primary.copy(alpha = 0.4f),
+                disabledContentColor = Color.White.copy(alpha = 0.5f)
             ),
             modifier = Modifier
                 .weight(1.3f)
@@ -55,25 +55,25 @@ fun ReviewBulkActions(
                     imageVector = Icons.Default.DoneAll,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = Color.Black
+                    tint = Color.White
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "Approve Verified ($verifiedCount)",
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
-                    color = Color.Black
+                    color = Color.White
                 )
             }
         }
 
-        // Dismiss All button (Dark pill)
+        // Dismiss All button (Secondary pill)
         OutlinedButton(
             onClick = onDismissAll,
             shape = ArcShapes.Button,
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = ArcColors.SurfaceHighlight,
-                contentColor = ArcColors.TextMuted
+                contentColor = ArcColors.TextSecondary
             ),
             border = BorderStroke(1.dp, ArcColors.Border),
             modifier = Modifier
@@ -85,7 +85,7 @@ fun ReviewBulkActions(
                 text = "Dismiss All",
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 13.sp,
-                color = Color.White
+                color = ArcColors.TextSecondary
             )
         }
     }

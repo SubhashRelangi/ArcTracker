@@ -737,14 +737,14 @@ fun ReviewPage(
                                 Box(
                                     modifier = Modifier
                                         .size(7.dp)
-                                        .background(Color(0xFFD97706), CircleShape)
+                                        .background(if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFD97706), CircleShape)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "LINK BANK ACCOUNT",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFB45309),
+                                    color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
                                     letterSpacing = 0.3.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -752,13 +752,13 @@ fun ReviewPage(
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
-                                    color = Color(0xFFFEF3C7)
+                                    color = if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
                                 ) {
                                     Text(
                                         text = "${filteredUnlinkedItems.size} unlinked",
                                         fontSize = 10.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFB45309),
+                                        color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                         maxLines = 1
                                     )
@@ -773,14 +773,14 @@ fun ReviewPage(
                                 Text(
                                     text = "Item $currentIdx of ${filteredUnlinkedItems.size}",
                                     fontSize = 11.5.sp,
-                                    color = Color(0xFF64748B),
+                                    color = ArcColors.TextSecondary,
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1
                                 )
                                 Surface(
                                     shape = CircleShape,
-                                    color = if (isSelectionMode) Color(0xFFECFDF5) else Color(0xFFF1F5F9),
-                                    border = BorderStroke(1.dp, if (isSelectionMode) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)),
+                                    color = if (isSelectionMode) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)) else ArcColors.SurfaceHighlight,
+                                    border = BorderStroke(1.dp, if (isSelectionMode) (if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)) else ArcColors.Border),
                                     modifier = Modifier.clickable {
                                         isSelectionMode = !isSelectionMode
                                         if (!isSelectionMode) selectedAccountExpenseIds = emptySet()
@@ -790,7 +790,7 @@ fun ReviewPage(
                                         text = if (isSelectionMode) "Done" else "Select",
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isSelectionMode) Color(0xFF047857) else Color(0xFF475569),
+                                        color = if (isSelectionMode) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)) else ArcColors.TextSecondary,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                         maxLines = 1,
                                         softWrap = false
@@ -856,8 +856,8 @@ fun ReviewPage(
 
                                             Surface(
                                                 shape = CircleShape,
-                                                color = Color(0xFFF1F5F9),
-                                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                                color = ArcColors.SurfaceHighlight,
+                                                border = BorderStroke(1.dp, ArcColors.Border),
                                                 modifier = Modifier.clickable {
                                                     isSelectionMode = false
                                                     selectedAccountExpenseIds = emptySet()
@@ -867,7 +867,7 @@ fun ReviewPage(
                                                     text = "Cancel",
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.Medium,
-                                                    color = Color(0xFF64748B),
+                                                    color = ArcColors.TextSecondary,
                                                     modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                                                 )
                                             }
@@ -881,8 +881,8 @@ fun ReviewPage(
                                             .fillMaxWidth()
                                             .height(48.dp),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFF047857),
-                                            disabledContainerColor = Color(0xFFCBD5E1)
+                                            containerColor = ArcColors.Primary,
+                                            disabledContainerColor = ArcColors.BorderSubtle
                                         ),
                                         shape = CircleShape,
                                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
@@ -918,8 +918,8 @@ fun ReviewPage(
                             // Triage Sub-Banner
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFFF8FAFC),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                color = ArcColors.SurfaceHighlight,
+                                border = BorderStroke(1.dp, ArcColors.Border),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -931,7 +931,7 @@ fun ReviewPage(
                                     Box(
                                         modifier = Modifier
                                             .size(32.dp)
-                                            .background(Color(0xFFECFDF5), CircleShape),
+                                            .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5), CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
@@ -947,12 +947,12 @@ fun ReviewPage(
                                             text = "${filteredUnlinkedItems.size} unlinked transactions",
                                             fontSize = 12.5.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A)
+                                            color = ArcColors.TextPrimary
                                         )
                                         Text(
                                             text = "Detected from SMS & notifications waiting for local account reconciliation.",
                                             fontSize = 11.5.sp,
-                                            color = Color(0xFF64748B)
+                                            color = ArcColors.TextSecondary
                                         )
                                     }
                                 }
@@ -1050,8 +1050,8 @@ fun ReviewPage(
                 item(key = "empty_state") {
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = ArcColors.CardBackground,
+                        border = BorderStroke(1.dp, ArcColors.Border),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -1065,14 +1065,14 @@ fun ReviewPage(
                                 modifier = Modifier
                                     .size(64.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFECFDF5))
-                                    .border(1.5.dp, Color(0xFFA7F3D0), CircleShape),
+                                    .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5))
+                                    .border(1.5.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = if (!isSetupCompleted && !isDemoMode) Icons.Outlined.ReceiptLong else Icons.Outlined.CheckCircle,
                                     contentDescription = "No Reviews",
-                                    tint = Color(0xFF047857),
+                                    tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
                                     modifier = Modifier.size(32.dp)
                                 )
                             }
@@ -1083,7 +1083,7 @@ fun ReviewPage(
                                 text = if (!isSetupCompleted && !isDemoMode) "No Transactions to Review" else "All Caught Up",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = ArcColors.TextPrimary
                             )
 
                             Spacer(modifier = Modifier.height(6.dp))
@@ -1095,7 +1095,7 @@ fun ReviewPage(
                                     "There are no unconfirmed transactions waiting for review. All items are confirmed and synced to your private vault."
                                 },
                                 fontSize = 13.sp,
-                                color = Color(0xFF64748B),
+                                color = ArcColors.TextSecondary,
                                 textAlign = TextAlign.Center,
                                 lineHeight = 19.sp
                             )
@@ -1107,7 +1107,7 @@ fun ReviewPage(
                                     if (!isSetupCompleted && !isDemoMode) onStartSetup()
                                     else onViewLedger()
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+                                colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
                                 shape = CircleShape,
                                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                             ) {
@@ -1162,8 +1162,8 @@ fun ReviewPage(
                         // Active Review Main Card
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            color = ArcColors.CardBackground,
+                            border = BorderStroke(1.dp, ArcColors.Border),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -1180,13 +1180,13 @@ fun ReviewPage(
                                         modifier = Modifier
                                             .size(44.dp)
                                             .clip(RoundedCornerShape(12.dp))
-                                            .background(Color(0xFFF1F5F9)),
+                                            .background(ArcColors.SurfaceHighlight),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = activeItem.icon,
                                             contentDescription = activeItem.merchant,
-                                            tint = Color(0xFF0F172A),
+                                            tint = ArcColors.TextPrimary,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -1199,7 +1199,7 @@ fun ReviewPage(
                                                 text = activeItem.merchant,
                                                 fontSize = 16.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F172A),
+                                                color = ArcColors.TextPrimary,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
@@ -1207,11 +1207,11 @@ fun ReviewPage(
                                                 Spacer(modifier = Modifier.width(6.dp))
                                                 Surface(
                                                     shape = RoundedCornerShape(4.dp),
-                                                    color = Color(0xFFF1F5F9)
+                                                    color = ArcColors.SurfaceHighlight
                                                 ) {
                                                     Text(
                                                         text = activeItem.badge,
-                                                        color = Color(0xFF475569),
+                                                        color = ArcColors.TextSecondary,
                                                         fontSize = 10.sp,
                                                         fontWeight = FontWeight.Bold,
                                                         modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
@@ -1227,7 +1227,7 @@ fun ReviewPage(
                                         text = "- ₹${formatAmount(activeItem.amount)}",
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
+                                        color = ArcColors.TextPrimary
                                     )
                                 }
 
@@ -1242,13 +1242,13 @@ fun ReviewPage(
                                 ) {
                                     Surface(
                                         shape = RoundedCornerShape(6.dp),
-                                        color = Color(0xFFF8FAFC),
-                                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                        color = ArcColors.SurfaceHighlight,
+                                        border = BorderStroke(1.dp, ArcColors.Border)
                                     ) {
                                         Text(
                                             text = activeItem.dateInfo,
                                             fontSize = 11.5.sp,
-                                            color = Color(0xFF64748B),
+                                            color = ArcColors.TextSecondary,
                                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
                                             maxLines = 1,
                                             softWrap = false
@@ -1257,8 +1257,8 @@ fun ReviewPage(
 
                                     Surface(
                                         shape = RoundedCornerShape(6.dp),
-                                        color = Color(0xFFF1F5F9),
-                                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                        color = ArcColors.SurfaceHighlight,
+                                        border = BorderStroke(1.dp, ArcColors.Border)
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
@@ -1267,7 +1267,7 @@ fun ReviewPage(
                                             Icon(
                                                 imageVector = Icons.Outlined.AccountBalance,
                                                 contentDescription = null,
-                                                tint = Color(0xFF475569),
+                                                tint = ArcColors.TextSecondary,
                                                 modifier = Modifier.size(12.dp)
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
@@ -1275,7 +1275,7 @@ fun ReviewPage(
                                                 text = activeItem.accountInfo,
                                                 fontSize = 11.5.sp,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = Color(0xFF334155),
+                                                color = ArcColors.TextPrimary,
                                                 maxLines = 1,
                                                 softWrap = false
                                             )
@@ -1290,8 +1290,8 @@ fun ReviewPage(
                                         }
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = Color(0xFFFEF3C7),
-                                            border = BorderStroke(1.dp, Color(0xFFFDE68A))
+                                            color = if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7),
+                                            border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFDE68A))
                                         ) {
                                             Row(
                                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
@@ -1300,14 +1300,14 @@ fun ReviewPage(
                                                 Box(
                                                     modifier = Modifier
                                                         .size(5.dp)
-                                                        .background(Color(0xFFD97706), CircleShape)
+                                                        .background(if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFD97706), CircleShape)
                                                 )
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 Text(
                                                     text = displayLabel,
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFFB45309),
+                                                    color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
                                                     maxLines = 1,
                                                     softWrap = false
                                                 )
@@ -1321,8 +1321,8 @@ fun ReviewPage(
                                     Spacer(modifier = Modifier.height(14.dp))
                                     Surface(
                                         shape = RoundedCornerShape(12.dp),
-                                        color = Color(0xFFFFFBEB),
-                                        border = BorderStroke(1.dp, Color(0xFFFEF08A)),
+                                        color = if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.35f) else Color(0xFFFFFBEB),
+                                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFEF08A)),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Row(
@@ -1333,7 +1333,7 @@ fun ReviewPage(
                                             Icon(
                                                 imageVector = Icons.Outlined.Lightbulb,
                                                 contentDescription = null,
-                                                tint = Color(0xFFB45309),
+                                                tint = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
                                                 modifier = Modifier.size(18.dp)
                                             )
                                             Spacer(modifier = Modifier.width(10.dp))
@@ -1342,13 +1342,13 @@ fun ReviewPage(
                                                     text = activeItem.patternTitle,
                                                     fontSize = 12.5.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF92400E)
+                                                    color = if (ArcColors.isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
                                                 )
                                                 Spacer(modifier = Modifier.height(2.dp))
                                                 Text(
                                                     text = activeItem.patternDescription ?: "",
                                                     fontSize = 11.5.sp,
-                                                    color = Color(0xFF78350F),
+                                                    color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFF78350F),
                                                     lineHeight = 16.sp
                                                 )
                                             }
@@ -1390,8 +1390,8 @@ fun ReviewPage(
                                 // Main Category Card (Opens Pop-up Modal)
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = Color(0xFFF8FAFC),
-                                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                    color = ArcColors.SurfaceHighlight,
+                                    border = BorderStroke(1.dp, ArcColors.Border),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(12.dp))
@@ -1412,13 +1412,13 @@ fun ReviewPage(
                                                 modifier = Modifier
                                                     .size(34.dp)
                                                     .clip(CircleShape)
-                                                    .background(Color(0xFFECFDF5)),
+                                                    .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     imageVector = getCategoryIcon(selectedCategoryName),
                                                     contentDescription = null,
-                                                    tint = Color(0xFF047857),
+                                                    tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
                                                     modifier = Modifier.size(17.dp)
                                                 )
                                             }
@@ -1430,20 +1430,20 @@ fun ReviewPage(
                                                     text = selectedCategoryName,
                                                     fontWeight = FontWeight.Bold,
                                                     fontSize = 14.sp,
-                                                    color = Color(0xFF0F172A)
+                                                    color = ArcColors.TextPrimary
                                                 )
                                                 Text(
                                                     text = "Tap to choose or add category",
                                                     fontSize = 11.sp,
-                                                    color = Color(0xFF64748B)
+                                                    color = ArcColors.TextSecondary
                                                 )
                                             }
                                         }
 
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = Color(0xFFF1F5F9),
-                                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                            color = ArcColors.SurfaceHighlight,
+                                            border = BorderStroke(1.dp, ArcColors.Border)
                                         ) {
                                             Row(
                                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -1453,13 +1453,13 @@ fun ReviewPage(
                                                     text = "Change",
                                                     fontSize = 11.5.sp,
                                                     fontWeight = FontWeight.SemiBold,
-                                                    color = Color(0xFF047857)
+                                                    color = ArcColors.Primary
                                                 )
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 Icon(
                                                     imageVector = Icons.Default.KeyboardArrowDown,
                                                     contentDescription = "Dropdown",
-                                                    tint = Color(0xFF047857),
+                                                    tint = ArcColors.Primary,
                                                     modifier = Modifier.size(15.dp)
                                                 )
                                             }
@@ -1480,8 +1480,8 @@ fun ReviewPage(
                                         val isSelected = catName.equals(selectedCategoryName, ignoreCase = true)
                                         Surface(
                                             shape = RoundedCornerShape(20.dp),
-                                            color = if (isSelected) Color(0xFFECFDF5) else Color.White,
-                                            border = BorderStroke(1.dp, if (isSelected) Color(0xFF047857) else Color(0xFFE2E8F0)),
+                                            color = if (isSelected) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)) else ArcColors.SurfaceHighlight,
+                                            border = BorderStroke(1.dp, if (isSelected) ArcColors.Primary else ArcColors.Border),
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(20.dp))
                                                 .clickable { selectedCategoryName = catName }
@@ -1494,7 +1494,7 @@ fun ReviewPage(
                                                     Icon(
                                                         imageVector = Icons.Default.Check,
                                                         contentDescription = null,
-                                                        tint = Color(0xFF047857),
+                                                        tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
                                                         modifier = Modifier.size(12.dp)
                                                     )
                                                     Spacer(modifier = Modifier.width(4.dp))
@@ -1503,7 +1503,7 @@ fun ReviewPage(
                                                     text = catName,
                                                     fontSize = 12.sp,
                                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                    color = if (isSelected) Color(0xFF047857) else Color(0xFF334155),
+                                                    color = if (isSelected) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)) else ArcColors.TextSecondary,
                                                     maxLines = 1,
                                                     softWrap = false
                                                 )
@@ -1519,7 +1519,7 @@ fun ReviewPage(
                                     text = "Remember auto-categorization rule for ${activeItem.merchant.split(" ").firstOrNull() ?: activeItem.merchant}",
                                     fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF1E293B)
+                                    color = ArcColors.TextPrimary
                                 )
 
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -1528,20 +1528,20 @@ fun ReviewPage(
                                     Text(
                                         text = "Attach tag",
                                         fontSize = 12.sp,
-                                        color = Color(0xFF64748B)
+                                        color = ArcColors.TextSecondary
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Surface(
                                         shape = RoundedCornerShape(6.dp),
-                                        color = if (attachTagEnabled) Color(0xFFF1F5F9) else Color(0xFFF8FAFC),
-                                        border = BorderStroke(1.dp, if (attachTagEnabled) Color(0xFFCBD5E1) else Color(0xFFE2E8F0)),
+                                        color = if (attachTagEnabled) ArcColors.SurfaceHighlight else ArcColors.CardBackground,
+                                        border = BorderStroke(1.dp, if (attachTagEnabled) ArcColors.Border else ArcColors.BorderSubtle),
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(6.dp))
                                             .clickable { attachTagEnabled = !attachTagEnabled }
                                     ) {
                                         Text(
                                             text = activeItem.defaultTag ?: "#reimbursable",
-                                            color = if (attachTagEnabled) Color(0xFF334155) else Color(0xFF94A3B8),
+                                            color = if (attachTagEnabled) ArcColors.TextPrimary else ArcColors.TextMuted,
                                             fontSize = 11.5.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
@@ -1590,7 +1590,7 @@ fun ReviewPage(
 
                                             Toast.makeText(context, "Confirmed category: $resolvedCat", Toast.LENGTH_SHORT).show()
                                         },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
+                                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
                                         shape = CircleShape,
                                         modifier = Modifier
                                             .weight(1f)
@@ -1641,8 +1641,8 @@ fun ReviewPage(
                                             Toast.makeText(context, "Declined ${activeItem.merchant}", Toast.LENGTH_SHORT).show()
                                         },
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFFFEE2E2),
-                                            contentColor = Color(0xFF991B1B)
+                                            containerColor = if (ArcColors.isDark) Color(0xFF7F1D1D) else Color(0xFFFEE2E2),
+                                            contentColor = if (ArcColors.isDark) Color(0xFFFCA5A5) else Color(0xFF991B1B)
                                         ),
                                         shape = CircleShape,
                                         modifier = Modifier.height(46.dp),
@@ -1652,7 +1652,7 @@ fun ReviewPage(
                                             text = "Decline",
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.sp,
-                                            color = Color(0xFF991B1B)
+                                            color = if (ArcColors.isDark) Color(0xFFFCA5A5) else Color(0xFF991B1B)
                                         )
                                     }
 
@@ -1663,8 +1663,8 @@ fun ReviewPage(
                                             Toast.makeText(context, "Skipped to next item", Toast.LENGTH_SHORT).show()
                                         },
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFFF1F5F9),
-                                            contentColor = Color(0xFF1E293B)
+                                            containerColor = ArcColors.SurfaceHighlight,
+                                            contentColor = ArcColors.TextPrimary
                                         ),
                                         shape = CircleShape,
                                         modifier = Modifier.height(46.dp),
@@ -1674,7 +1674,7 @@ fun ReviewPage(
                                             text = "Skip",
                                             fontWeight = FontWeight.SemiBold,
                                             fontSize = 13.sp,
-                                            color = Color(0xFF1E293B)
+                                            color = ArcColors.TextPrimary
                                         )
                                     }
                                 }
@@ -1713,8 +1713,8 @@ fun ReviewPage(
                             nextInLineItems.forEach { nextItem ->
                                 Surface(
                                     shape = RoundedCornerShape(16.dp),
-                                    color = Color.White,
-                                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                    color = ArcColors.CardBackground,
+                                    border = BorderStroke(1.dp, ArcColors.Border),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(16.dp))
@@ -1737,13 +1737,13 @@ fun ReviewPage(
                                                 modifier = Modifier
                                                     .size(38.dp)
                                                     .clip(RoundedCornerShape(10.dp))
-                                                    .background(Color(0xFFF1F5F9)),
+                                                    .background(ArcColors.SurfaceHighlight),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     imageVector = nextItem.icon,
                                                     contentDescription = nextItem.merchant,
-                                                    tint = Color(0xFF0F172A),
+                                                    tint = ArcColors.TextPrimary,
                                                     modifier = Modifier.size(18.dp)
                                                 )
                                             }
@@ -1755,7 +1755,7 @@ fun ReviewPage(
                                                     text = nextItem.merchant,
                                                     fontSize = 15.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF0F172A),
+                                                    color = ArcColors.TextPrimary,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
@@ -1767,7 +1767,7 @@ fun ReviewPage(
                                                 text = "- ₹${formatAmount(nextItem.amount)}",
                                                 fontSize = 15.5.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F172A)
+                                                color = ArcColors.TextPrimary
                                             )
                                         }
 
@@ -1783,30 +1783,30 @@ fun ReviewPage(
                                                 text = nextItem.accountInfo,
                                                 fontSize = 11.5.sp,
                                                 fontWeight = FontWeight.Medium,
-                                                color = Color(0xFF475569)
+                                                color = ArcColors.TextSecondary
                                             )
                                             Text(
                                                 text = "•",
                                                 fontSize = 11.5.sp,
-                                                color = Color(0xFF94A3B8)
+                                                color = ArcColors.TextMuted
                                             )
                                             Text(
                                                 text = nextItem.dateInfo,
                                                 fontSize = 11.5.sp,
-                                                color = Color(0xFF64748B)
+                                                color = ArcColors.TextSecondary
                                             )
                                             Spacer(modifier = Modifier.weight(1f))
                                             if (nextItem.ambiguityLabel != null) {
                                                 val nextLabel = if (nextItem.ambiguityLabel.equals("Needs Review", ignoreCase = true)) "To Review" else nextItem.ambiguityLabel
                                                 Surface(
                                                     shape = RoundedCornerShape(4.dp),
-                                                    color = Color(0xFFFEF3C7)
+                                                    color = if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
                                                 ) {
                                                     Text(
                                                         text = nextLabel,
                                                         fontSize = 10.5.sp,
                                                         fontWeight = FontWeight.Bold,
-                                                        color = Color(0xFFB45309),
+                                                        color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
                                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                                         maxLines = 1,
                                                         softWrap = false
@@ -1831,7 +1831,7 @@ fun ReviewPage(
                                                         Icon(
                                                             imageVector = nextItem.hintIcon,
                                                             contentDescription = null,
-                                                            tint = if (nextItem.acceptLabel != null) Color(0xFF047857) else Color(0xFFF59E0B),
+                                                            tint = if (nextItem.acceptLabel != null) ArcColors.Primary else Color(0xFFF59E0B),
                                                             modifier = Modifier.size(14.dp)
                                                         )
                                                         Spacer(modifier = Modifier.width(4.dp))
@@ -1839,7 +1839,7 @@ fun ReviewPage(
                                                     Text(
                                                         text = nextItem.hintText,
                                                         fontSize = 12.sp,
-                                                        color = Color(0xFF475569),
+                                                        color = ArcColors.TextSecondary,
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
                                                     )
@@ -1853,7 +1853,8 @@ fun ReviewPage(
                                                         nextItem.quickActions.forEach { action ->
                                                             Surface(
                                                                 shape = RoundedCornerShape(6.dp),
-                                                                color = Color(0xFFF1F5F9),
+                                                                color = ArcColors.SurfaceHighlight,
+                                                                border = BorderStroke(1.dp, ArcColors.Border),
                                                                 modifier = Modifier
                                                                     .clip(RoundedCornerShape(6.dp))
                                                                     .clickable {
@@ -1884,7 +1885,7 @@ fun ReviewPage(
                                                                     text = action,
                                                                     fontSize = 11.sp,
                                                                     fontWeight = FontWeight.Bold,
-                                                                    color = Color(0xFF0F172A),
+                                                                    color = ArcColors.TextPrimary,
                                                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                                                 )
                                                             }
@@ -1893,8 +1894,8 @@ fun ReviewPage(
                                                 } else if (nextItem.acceptLabel != null) {
                                                     Surface(
                                                         shape = RoundedCornerShape(8.dp),
-                                                        color = Color(0xFFECFDF5),
-                                                        border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+                                                        color = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5),
+                                                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)),
                                                         modifier = Modifier
                                                             .clip(RoundedCornerShape(8.dp))
                                                             .clickable {
@@ -1929,7 +1930,7 @@ fun ReviewPage(
                                                                 text = "✓ ${nextItem.acceptLabel}",
                                                                 fontSize = 11.5.sp,
                                                                 fontWeight = FontWeight.Bold,
-                                                                color = Color(0xFF047857)
+                                                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
                                                             )
                                                         }
                                                     }
@@ -1965,7 +1966,7 @@ fun ReviewPage(
                                     text = "Recently Resolved Today (${resolvedItems.size} items)",
                                     fontSize = 13.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = ArcColors.TextPrimary
                                 )
                             }
 
@@ -1973,7 +1974,7 @@ fun ReviewPage(
                                 text = if (showResolved) "Hide" else "Show",
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF047857),
+                                color = ArcColors.Primary,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
                                     .clickable { showResolved = !showResolved }
@@ -1985,8 +1986,8 @@ fun ReviewPage(
                             Spacer(modifier = Modifier.height(8.dp))
                             Surface(
                                 shape = RoundedCornerShape(16.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                color = ArcColors.CardBackground,
+                                border = BorderStroke(1.dp, ArcColors.Border),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -2001,13 +2002,13 @@ fun ReviewPage(
                                                 modifier = Modifier
                                                     .size(36.dp)
                                                     .clip(RoundedCornerShape(10.dp))
-                                                    .background(Color(0xFFECFDF5)),
+                                                    .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     imageVector = item.icon,
                                                     contentDescription = item.merchant,
-                                                    tint = Color(0xFF047857),
+                                                    tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
                                                     modifier = Modifier.size(18.dp)
                                                 )
                                             }
@@ -2019,13 +2020,13 @@ fun ReviewPage(
                                                     text = item.merchant,
                                                     fontSize = 13.5.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF0F172A)
+                                                    color = ArcColors.TextPrimary
                                                 )
                                                 Spacer(modifier = Modifier.height(2.dp))
                                                 Text(
                                                     text = item.subtitle,
                                                     fontSize = 11.5.sp,
-                                                    color = Color(0xFF64748B)
+                                                    color = ArcColors.TextSecondary
                                                 )
                                             }
 
@@ -2034,21 +2035,21 @@ fun ReviewPage(
                                                     text = "- ₹${formatAmount(item.amount)}",
                                                     fontSize = 13.5.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF0F172A)
+                                                    color = ArcColors.TextPrimary
                                                 )
                                                 Spacer(modifier = Modifier.height(2.dp))
                                                 Text(
                                                     text = "✓ Vaulted",
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF047857)
+                                                    color = ArcColors.Primary
                                                 )
                                             }
                                         }
 
                                         if (idx < resolvedItems.take(5).size - 1) {
                                             HorizontalDivider(
-                                                color = Color(0xFFF1F5F9),
+                                                color = ArcColors.BorderSubtle,
                                                 thickness = 1.dp,
                                                 modifier = Modifier.padding(horizontal = 14.dp)
                                             )
@@ -2065,8 +2066,8 @@ fun ReviewPage(
             item(key = "zero_telemetry_banner") {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = ArcColors.SurfaceHighlight,
+                    border = BorderStroke(1.dp, ArcColors.Border),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -2079,14 +2080,14 @@ fun ReviewPage(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color.White)
-                                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(10.dp)),
+                                .background(ArcColors.CardBackground)
+                                .border(1.dp, ArcColors.Border, RoundedCornerShape(10.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Sync,
                                 contentDescription = null,
-                                tint = Color(0xFF047857),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -2099,21 +2100,21 @@ fun ReviewPage(
                                     text = "Zero Telemetry Local Storage",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = ArcColors.TextPrimary
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "SQLITE",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF047857)
+                                    color = ArcColors.Primary
                                 )
                             }
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "All vendor matches & rule engines run purely on-device. SMS text never leaves this phone.",
                                 fontSize = 11.5.sp,
-                                color = Color(0xFF64748B),
+                                color = ArcColors.TextSecondary,
                                 lineHeight = 16.sp
                             )
                         }
@@ -2278,12 +2279,13 @@ fun ReviewPage(
     if (showRuleLogsDialog) {
         AlertDialog(
             onDismissRequest = { showRuleLogsDialog = false },
+            containerColor = ArcColors.CardBackground,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Outlined.Tune,
                         contentDescription = null,
-                        tint = Color(0xFF047857),
+                        tint = ArcColors.Primary,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -2291,7 +2293,7 @@ fun ReviewPage(
                         text = "Rule Engine Logs",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
+                        color = ArcColors.TextPrimary
                     )
                 }
             },
@@ -2300,18 +2302,19 @@ fun ReviewPage(
                     Text(
                         text = "Real-time on-device heuristics & pattern matching:",
                         fontSize = 12.sp,
-                        color = Color(0xFF64748B)
+                        color = ArcColors.TextSecondary
                     )
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFFF1F5F9),
+                        color = ArcColors.SurfaceHighlight,
+                        border = BorderStroke(1.dp, ArcColors.Border),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("• Swiggy Delivery -> Food & Dining (Confidence 98%)", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Color(0xFF334155))
-                            Text("• Amazon India -> Shopping & Tech (Card Regex v2)", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Color(0xFF334155))
-                            Text("• Uber Premier -> Commute & Transport (Airport Ride)", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Color(0xFF334155))
-                            Text("• Blue Tokai -> Food & Dining (Vault Rule #12 Applied)", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Color(0xFF047857))
+                            Text("• Swiggy Delivery -> Food & Dining (Confidence 98%)", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = ArcColors.TextSecondary)
+                            Text("• Amazon India -> Shopping & Tech (Card Regex v2)", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = ArcColors.TextSecondary)
+                            Text("• Uber Premier -> Commute & Transport (Airport Ride)", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = ArcColors.TextSecondary)
+                            Text("• Blue Tokai -> Food & Dining (Vault Rule #12 Applied)", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = ArcColors.Primary)
                         }
                     }
                 }
@@ -2319,7 +2322,7 @@ fun ReviewPage(
             confirmButton = {
                 Button(
                     onClick = { showRuleLogsDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
                 ) {
                     Text("Close", color = Color.White, fontWeight = FontWeight.Bold)
                 }
@@ -2338,10 +2341,10 @@ private fun CategoryOptionChip(
 ) {
     Surface(
         shape = RoundedCornerShape(10.dp),
-        color = if (isSelected) Color(0xFFECFDF5) else Color(0xFFF1F5F9),
+        color = if (isSelected) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)) else ArcColors.SurfaceHighlight,
         border = BorderStroke(
             if (isSelected) 1.5.dp else 1.dp,
-            if (isSelected) Color(0xFF047857) else Color(0xFFE2E8F0)
+            if (isSelected) ArcColors.Primary else ArcColors.Border
         ),
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
@@ -2354,7 +2357,7 @@ private fun CategoryOptionChip(
             Icon(
                 imageVector = icon,
                 contentDescription = text,
-                tint = if (isSelected) Color(0xFF047857) else Color(0xFF475569),
+                tint = if (isSelected) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)) else ArcColors.TextSecondary,
                 modifier = Modifier.size(15.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
@@ -2362,7 +2365,7 @@ private fun CategoryOptionChip(
                 text = text,
                 fontSize = 12.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) Color(0xFF065F46) else Color(0xFF1E293B),
+                color = if (isSelected) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF065F46)) else ArcColors.TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -2480,10 +2483,10 @@ private fun ActiveUnlinkedAccountCard(
 
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = if (isSelected) Color(0xFFF0FDF4) else Color.White,
+        color = if (isSelected) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFF0FDF4)) else ArcColors.CardBackground,
         border = BorderStroke(
             if (isSelected) 1.5.dp else 1.dp,
-            if (isSelected) Color(0xFF047857) else Color(0xFFE2E8F0)
+            if (isSelected) ArcColors.Primary else ArcColors.Border
         ),
         shadowElevation = if (isSelected) 2.dp else 0.dp,
         modifier = modifier
@@ -2514,13 +2517,13 @@ private fun ActiveUnlinkedAccountCard(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF1F5F9)),
+                        .background(ArcColors.SurfaceHighlight),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = cardIcon,
                         contentDescription = item.merchant,
-                        tint = Color(0xFF0F172A),
+                        tint = ArcColors.TextPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -2532,7 +2535,7 @@ private fun ActiveUnlinkedAccountCard(
                         text = item.merchant,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A),
+                        color = ArcColors.TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -2540,7 +2543,7 @@ private fun ActiveUnlinkedAccountCard(
                     Text(
                         text = item.dateInfo,
                         fontSize = 12.sp,
-                        color = Color(0xFF64748B)
+                        color = ArcColors.TextSecondary
                     )
                 }
 
@@ -2549,13 +2552,13 @@ private fun ActiveUnlinkedAccountCard(
                         text = "${if (item.isCredit) "+" else "-"}₹${formatAmount(item.amount)}",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (item.isCredit) Color(0xFF047857) else Color(0xFF0F172A)
+                        color = if (item.isCredit) ArcColors.Credit else ArcColors.TextPrimary
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = if (item.isCredit) "Credit" else "Debit",
                         fontSize = 11.5.sp,
-                        color = Color(0xFF64748B)
+                        color = ArcColors.TextSecondary
                     )
                 }
             }
@@ -2570,8 +2573,8 @@ private fun ActiveUnlinkedAccountCard(
                 if (!item.accountSuffix.isNullOrBlank()) {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFF1F5F9),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        color = ArcColors.SurfaceHighlight,
+                        border = BorderStroke(1.dp, ArcColors.Border)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -2580,7 +2583,7 @@ private fun ActiveUnlinkedAccountCard(
                             Icon(
                                 imageVector = Icons.Outlined.CreditCard,
                                 contentDescription = null,
-                                tint = Color(0xFF475569),
+                                tint = ArcColors.TextSecondary,
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -2588,15 +2591,15 @@ private fun ActiveUnlinkedAccountCard(
                                 text = "••${item.accountSuffix}${item.suggestedBank?.let { " ($it)" } ?: ""}",
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF334155)
+                                color = ArcColors.TextPrimary
                             )
                         }
                     }
                 } else {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFFFFBEB),
-                        border = BorderStroke(1.dp, Color(0xFFFEF3C7))
+                        color = if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFFFBEB),
+                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFEF3C7))
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -2605,7 +2608,7 @@ private fun ActiveUnlinkedAccountCard(
                             Icon(
                                 imageVector = Icons.Outlined.WarningAmber,
                                 contentDescription = null,
-                                tint = Color(0xFFB45309),
+                                tint = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -2613,7 +2616,7 @@ private fun ActiveUnlinkedAccountCard(
                                 text = "No Suffix Detected",
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFB45309)
+                                color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309)
                             )
                         }
                     }
@@ -2621,8 +2624,8 @@ private fun ActiveUnlinkedAccountCard(
 
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    color = ArcColors.SurfaceHighlight,
+                    border = BorderStroke(1.dp, ArcColors.Border)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -2631,14 +2634,14 @@ private fun ActiveUnlinkedAccountCard(
                         Icon(
                             imageVector = if (item.source.contains("SMS", ignoreCase = true)) Icons.Outlined.Message else Icons.Outlined.Notifications,
                             contentDescription = null,
-                            tint = Color(0xFF64748B),
+                            tint = ArcColors.TextSecondary,
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = item.source,
                             fontSize = 11.5.sp,
-                            color = Color(0xFF64748B)
+                            color = ArcColors.TextSecondary
                         )
                     }
                 }
@@ -2649,15 +2652,15 @@ private fun ActiveUnlinkedAccountCard(
                 Spacer(modifier = Modifier.height(12.dp))
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFF1F5F9)),
+                    color = ArcColors.SurfaceHighlight,
+                    border = BorderStroke(1.dp, ArcColors.Border),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = "\"${item.rawText.trim()}\"",
                         fontSize = 11.5.sp,
                         fontStyle = FontStyle.Italic,
-                        color = Color(0xFF475569),
+                        color = ArcColors.TextSecondary,
                         modifier = Modifier.padding(10.dp),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
@@ -2670,8 +2673,8 @@ private fun ActiveUnlinkedAccountCard(
                 Spacer(modifier = Modifier.height(12.dp))
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFFECFDF5),
-                    border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+                    color = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5),
+                    border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
@@ -2688,7 +2691,7 @@ private fun ActiveUnlinkedAccountCard(
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
-                                tint = Color(0xFF047857),
+                                tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -2696,13 +2699,13 @@ private fun ActiveUnlinkedAccountCard(
                                 text = "1-Tap Link to ${compatibleAccount.institutionName ?: "Bank"} (••${compatibleAccount.accountSuffix})",
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF047857)
+                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
                             )
                         }
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = null,
-                            tint = Color(0xFF047857),
+                            tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -2718,7 +2721,7 @@ private fun ActiveUnlinkedAccountCard(
                 ) {
                     Button(
                         onClick = onAssignClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
+                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
                         shape = CircleShape,
                         modifier = Modifier
                             .weight(1f)
@@ -2745,8 +2748,8 @@ private fun ActiveUnlinkedAccountCard(
                     Button(
                         onClick = onIgnoreClick,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFF1F5F9),
-                            contentColor = Color(0xFF475569)
+                            containerColor = ArcColors.SurfaceHighlight,
+                            contentColor = ArcColors.TextSecondary
                         ),
                         shape = CircleShape,
                         modifier = Modifier.height(46.dp),
@@ -2756,7 +2759,7 @@ private fun ActiveUnlinkedAccountCard(
                             text = "Ignore",
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp,
-                            color = Color(0xFF475569),
+                            color = ArcColors.TextSecondary,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -2766,8 +2769,8 @@ private fun ActiveUnlinkedAccountCard(
                         Button(
                             onClick = onSkipClick,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFF1F5F9),
-                                contentColor = Color(0xFF1E293B)
+                                containerColor = ArcColors.SurfaceHighlight,
+                                contentColor = ArcColors.TextPrimary
                             ),
                             shape = CircleShape,
                             modifier = Modifier.height(46.dp),
@@ -2777,7 +2780,7 @@ private fun ActiveUnlinkedAccountCard(
                                 text = "Skip",
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 13.sp,
-                                color = Color(0xFF1E293B),
+                                color = ArcColors.TextPrimary,
                                 maxLines = 1,
                                 softWrap = false
                             )
@@ -2800,10 +2803,10 @@ private fun UnlinkedQueueCard(
 ) {
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = if (isSelected) Color(0xFFF0FDF4) else Color.White,
+        color = if (isSelected) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFF0FDF4)) else ArcColors.CardBackground,
         border = BorderStroke(
             if (isSelected) 1.5.dp else 1.dp,
-            if (isSelected) Color(0xFF047857) else Color(0xFFE2E8F0)
+            if (isSelected) ArcColors.Primary else ArcColors.Border
         ),
         modifier = Modifier
             .fillMaxWidth()
@@ -2830,13 +2833,13 @@ private fun UnlinkedQueueCard(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFFF1F5F9)),
+                    .background(ArcColors.SurfaceHighlight),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.ReceiptLong,
                     contentDescription = null,
-                    tint = Color(0xFF334155),
+                    tint = ArcColors.TextSecondary,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -2848,7 +2851,7 @@ private fun UnlinkedQueueCard(
                     text = item.merchant,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
-                    color = Color(0xFF0F172A),
+                    color = ArcColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -2857,14 +2860,14 @@ private fun UnlinkedQueueCard(
                     Text(
                         text = item.dateInfo,
                         fontSize = 11.5.sp,
-                        color = Color(0xFF64748B)
+                        color = ArcColors.TextSecondary
                     )
                     if (!item.accountSuffix.isNullOrBlank()) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "• ••${item.accountSuffix}",
                             fontSize = 11.5.sp,
-                            color = Color(0xFF047857),
+                            color = ArcColors.Primary,
                             fontWeight = FontWeight.SemiBold
                         )
                     } else {
@@ -2872,7 +2875,7 @@ private fun UnlinkedQueueCard(
                         Text(
                             text = "• No Suffix",
                             fontSize = 11.sp,
-                            color = Color(0xFFB45309),
+                            color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -2884,12 +2887,12 @@ private fun UnlinkedQueueCard(
                     text = "${if (item.isCredit) "+" else "-"}₹${formatAmount(item.amount)}",
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.5.sp,
-                    color = if (item.isCredit) Color(0xFF047857) else Color(0xFF0F172A)
+                    color = if (item.isCredit) ArcColors.Credit else ArcColors.TextPrimary
                 )
                 Text(
                     text = if (item.isCredit) "Credit" else "Debit",
                     fontSize = 10.5.sp,
-                    color = Color(0xFF64748B)
+                    color = ArcColors.TextSecondary
                 )
             }
         }
@@ -2963,8 +2966,8 @@ private fun AccountSelectionDialog(
                 if (!detectedSuffix.isNullOrBlank()) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFFECFDF5),
-                        border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+                        color = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5),
+                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -2982,7 +2985,7 @@ private fun AccountSelectionDialog(
                                 text = "Detected SMS Account: Ending in ••••$detectedSuffix",
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF065F46)
+                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF065F46)
                             )
                         }
                     }
@@ -2993,7 +2996,7 @@ private fun AccountSelectionDialog(
                     text = "SELECT BANK ACCOUNT OR CARD",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF64748B),
+                    color = ArcColors.TextSecondary,
                     letterSpacing = 0.8.sp
                 )
 
@@ -3001,7 +3004,7 @@ private fun AccountSelectionDialog(
                     Text(
                         text = "No linked accounts registered. Please link or discover accounts via SMS import.",
                         fontSize = 12.sp,
-                        color = Color(0xFF64748B)
+                        color = ArcColors.TextSecondary
                     )
                 } else {
                     Column(
@@ -3014,10 +3017,10 @@ private fun AccountSelectionDialog(
                             val isSelected = selectedAccount?.id == acc.id
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (isSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
+                                color = if (isSelected) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)) else ArcColors.SurfaceHighlight,
                                 border = BorderStroke(
                                     if (isSelected) 1.5.dp else 1.dp,
-                                    if (isSelected) ArcColors.Primary else Color(0xFFE2E8F0)
+                                    if (isSelected) ArcColors.Primary else ArcColors.Border
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -3036,13 +3039,13 @@ private fun AccountSelectionDialog(
                                             modifier = Modifier
                                                 .size(34.dp)
                                                 .clip(CircleShape)
-                                                .background(if (isSelected) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)),
+                                                .background(if (isSelected) (if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)) else ArcColors.BorderSubtle),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 imageVector = if (acc.instrumentType == InstrumentType.CARD) Icons.Outlined.CreditCard else Icons.Outlined.AccountBalance,
                                                 contentDescription = null,
-                                                tint = if (isSelected) ArcColors.Primary else Color(0xFF475569),
+                                                tint = if (isSelected) ArcColors.Primary else ArcColors.TextSecondary,
                                                 modifier = Modifier.size(17.dp)
                                             )
                                         }
@@ -3054,12 +3057,12 @@ private fun AccountSelectionDialog(
                                                 text = acc.institutionName ?: "Bank Account",
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 13.5.sp,
-                                                color = Color(0xFF0F172A)
+                                                color = ArcColors.TextPrimary
                                             )
                                             Text(
                                                 text = "Ending in ••${acc.accountSuffix}",
                                                 fontSize = 11.5.sp,
-                                                color = Color(0xFF64748B)
+                                                color = ArcColors.TextSecondary
                                             )
                                         }
                                     }
@@ -3087,9 +3090,9 @@ private fun AccountSelectionDialog(
                         onClick = onDismiss,
                         shape = CircleShape,
                         modifier = Modifier.weight(1f),
-                        border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                        border = BorderStroke(1.dp, ArcColors.Border)
                     ) {
-                        Text("Cancel", color = Color(0xFF475569), fontSize = 13.sp)
+                        Text("Cancel", color = ArcColors.TextSecondary, fontSize = 13.sp)
                     }
 
                     Button(
@@ -3101,7 +3104,7 @@ private fun AccountSelectionDialog(
                         modifier = Modifier.weight(1.3f),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = ArcColors.Primary,
-                            disabledContainerColor = Color(0xFF94A3B8)
+                            disabledContainerColor = ArcColors.BorderSubtle
                         )
                     ) {
                         Text("Confirm Link", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -3225,8 +3228,8 @@ private fun CategorySelectionModalDialog(
                 // Search Bar
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = ArcColors.SurfaceHighlight,
+                    border = BorderStroke(1.dp, ArcColors.Border),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -3238,7 +3241,7 @@ private fun CategorySelectionModalDialog(
                         Icon(
                             imageVector = Icons.Outlined.Search,
                             contentDescription = "Search",
-                            tint = Color(0xFF94A3B8),
+                            tint = ArcColors.TextMuted,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -3248,7 +3251,7 @@ private fun CategorySelectionModalDialog(
                             singleLine = true,
                             textStyle = TextStyle(
                                 fontSize = 13.5.sp,
-                                color = Color(0xFF0F172A),
+                                color = ArcColors.TextPrimary,
                                 fontWeight = FontWeight.Normal
                             ),
                             modifier = Modifier.weight(1f),
@@ -3257,7 +3260,7 @@ private fun CategorySelectionModalDialog(
                                     Text(
                                         text = "Search categories...",
                                         fontSize = 13.5.sp,
-                                        color = Color(0xFF94A3B8)
+                                        color = ArcColors.TextMuted
                                     )
                                 }
                                 innerTextField()
@@ -3267,7 +3270,7 @@ private fun CategorySelectionModalDialog(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Clear",
-                                tint = Color(0xFF94A3B8),
+                                tint = ArcColors.TextMuted,
                                 modifier = Modifier
                                     .size(16.dp)
                                     .clickable { searchQuery = "" }
@@ -3289,10 +3292,10 @@ private fun CategorySelectionModalDialog(
                         val isSelected = cat.name.equals(selectedCategoryName, ignoreCase = true)
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = if (isSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
+                            color = if (isSelected) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)) else ArcColors.SurfaceHighlight,
                             border = BorderStroke(
                                 1.dp,
-                                if (isSelected) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)
+                                if (isSelected) ArcColors.Primary else ArcColors.Border
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -3315,13 +3318,13 @@ private fun CategorySelectionModalDialog(
                                         modifier = Modifier
                                             .size(30.dp)
                                             .clip(CircleShape)
-                                            .background(if (isSelected) Color(0xFFD1FAE5) else Color(0xFFE2E8F0)),
+                                            .background(if (isSelected) (if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFD1FAE5)) else ArcColors.BorderSubtle),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = getCategoryIcon(cat.name),
                                             contentDescription = null,
-                                            tint = if (isSelected) Color(0xFF047857) else Color(0xFF475569),
+                                            tint = if (isSelected) ArcColors.Primary else ArcColors.TextSecondary,
                                             modifier = Modifier.size(16.dp)
                                         )
                                     }
@@ -3332,7 +3335,7 @@ private fun CategorySelectionModalDialog(
                                         text = cat.name,
                                         fontSize = 13.5.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSelected) Color(0xFF047857) else Color(0xFF0F172A),
+                                        color = if (isSelected) ArcColors.Primary else ArcColors.TextPrimary,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -3342,7 +3345,7 @@ private fun CategorySelectionModalDialog(
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = "Selected",
-                                        tint = Color(0xFF047857),
+                                        tint = ArcColors.Primary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -3361,7 +3364,7 @@ private fun CategorySelectionModalDialog(
                                 Text(
                                     text = "No category matching \"$searchQuery\"",
                                     fontSize = 12.5.sp,
-                                    color = Color(0xFF64748B)
+                                    color = ArcColors.TextSecondary
                                 )
                             }
                         }
@@ -3370,7 +3373,7 @@ private fun CategorySelectionModalDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                HorizontalDivider(color = Color(0xFFE2E8F0))
+                HorizontalDivider(color = ArcColors.Border)
 
                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -3378,8 +3381,8 @@ private fun CategorySelectionModalDialog(
                 if (!isAddingNew) {
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFF0FDF4),
-                        border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                        color = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFF0FDF4),
+                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFBBF7D0)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
@@ -3399,7 +3402,7 @@ private fun CategorySelectionModalDialog(
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = null,
-                                tint = Color(0xFF047857),
+                                tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -3409,7 +3412,7 @@ private fun CategorySelectionModalDialog(
                                 } else {
                                     "+ Add New Category"
                                 },
-                                color = Color(0xFF047857),
+                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
                             )
@@ -3422,8 +3425,8 @@ private fun CategorySelectionModalDialog(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFFF8FAFC),
-                            border = BorderStroke(1.dp, Color(0xFF047857)),
+                            color = ArcColors.SurfaceHighlight,
+                            border = BorderStroke(1.dp, ArcColors.Primary),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -3438,7 +3441,7 @@ private fun CategorySelectionModalDialog(
                                     singleLine = true,
                                     textStyle = TextStyle(
                                         fontSize = 13.5.sp,
-                                        color = Color(0xFF0F172A),
+                                        color = ArcColors.TextPrimary,
                                         fontWeight = FontWeight.Medium
                                     ),
                                     modifier = Modifier.weight(1f),
@@ -3447,7 +3450,7 @@ private fun CategorySelectionModalDialog(
                                             Text(
                                                 text = "Enter category name...",
                                                 fontSize = 12.5.sp,
-                                                color = Color(0xFF94A3B8)
+                                                color = ArcColors.TextMuted
                                             )
                                         }
                                         innerTextField()
@@ -3467,9 +3470,9 @@ private fun CategorySelectionModalDialog(
                                 },
                                 shape = CircleShape,
                                 modifier = Modifier.weight(1f),
-                                border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                                border = BorderStroke(1.dp, ArcColors.Border)
                             ) {
-                                Text("Cancel", color = Color(0xFF475569), fontSize = 12.sp)
+                                Text("Cancel", color = ArcColors.TextSecondary, fontSize = 12.sp)
                             }
 
                             Button(
@@ -3483,8 +3486,8 @@ private fun CategorySelectionModalDialog(
                                 shape = CircleShape,
                                 modifier = Modifier.weight(1.4f),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF047857),
-                                    disabledContainerColor = Color(0xFFCBD5E1)
+                                    containerColor = ArcColors.Primary,
+                                    disabledContainerColor = ArcColors.BorderSubtle
                                 )
                             ) {
                                 Text("Save & Select", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
