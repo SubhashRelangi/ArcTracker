@@ -97,8 +97,8 @@ fun LedgerTransactionRow(
         }
     }
 
-    val iconBgColor = if (isCredit) Color(0xFFECFDF5) else Color(0xFFF1F5F9)
-    val iconTint = if (isCredit) Color(0xFF059669) else Color(0xFF0F172A)
+    val iconBgColor = if (isCredit) LedgerColors.CreditBg else LedgerColors.SurfaceHighlight
+    val iconTint = if (isCredit) LedgerColors.Credit else LedgerColors.TextPrimary
 
     // Account suffix or bank badge
     val acctSuffix = remember(expense.accountSuffix, account) {
@@ -129,9 +129,9 @@ fun LedgerTransactionRow(
     }
 
     val statusColor = when {
-        expense.isPending -> Color(0xFF64748B)
-        statusText in listOf("Cleared", "Auto-categorized", "Deposit", "Verified") -> Color(0xFF059669)
-        else -> Color(0xFF64748B)
+        expense.isPending -> LedgerColors.TextMuted
+        statusText in listOf("Cleared", "Auto-categorized", "Deposit", "Verified") -> LedgerColors.Credit
+        else -> LedgerColors.TextMuted
     }
 
     Row(
@@ -171,7 +171,7 @@ fun LedgerTransactionRow(
             ) {
                 Text(
                     text = expense.merchant.ifBlank { if (isCredit) "Credit" else "Expense" },
-                    color = Color(0xFF0F172A),
+                    color = LedgerColors.TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -185,12 +185,12 @@ fun LedgerTransactionRow(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
-                            .background(Color(0xFFECFDF5))
+                            .background(LedgerColors.CreditBg)
                             .padding(horizontal = 5.dp, vertical = 1.dp)
                     ) {
                         Text(
                             text = "Direct",
-                            color = Color(0xFF059669),
+                            color = LedgerColors.Credit,
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -200,13 +200,13 @@ fun LedgerTransactionRow(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
-                            .background(Color(0xFFFFFBEB))
-                            .border(BorderStroke(0.8.dp, Color(0xFFFDE68A)), RoundedCornerShape(4.dp))
+                            .background(LedgerColors.WarningAmberBg)
+                            .border(BorderStroke(0.8.dp, LedgerColors.WarningAmberBorder), RoundedCornerShape(4.dp))
                             .padding(horizontal = 5.dp, vertical = 1.dp)
                     ) {
                         Text(
                             text = "Review tag",
-                            color = Color(0xFFB45309),
+                            color = LedgerColors.WarningAmber,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -219,7 +219,7 @@ fun LedgerTransactionRow(
             // Subtitle: "Dining • 14:32 • ICICI ••1092"
             Text(
                 text = "$categoryName • $timeStr • $acctSuffix",
-                color = Color(0xFF64748B),
+                color = LedgerColors.TextMuted,
                 fontSize = 11.5.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -234,7 +234,7 @@ fun LedgerTransactionRow(
         ) {
             Text(
                 text = "$sign$formattedAmount",
-                color = if (isCredit) Color(0xFF059669) else Color(0xFF0F172A),
+                color = if (isCredit) LedgerColors.Credit else LedgerColors.TextPrimary,
                 fontSize = 14.5.sp,
                 fontWeight = FontWeight.Bold
             )

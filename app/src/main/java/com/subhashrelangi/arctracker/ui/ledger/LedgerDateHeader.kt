@@ -43,7 +43,7 @@ fun LedgerDateHeader(
         // Left: Clean Date label (e.g., "Today • 24 Oct")
         Text(
             text = dateLabel,
-            color = Color(0xFF0F172A),
+            color = LedgerColors.TextPrimary,
             fontSize = 13.5.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.2).sp
@@ -52,7 +52,7 @@ fun LedgerDateHeader(
         // Right: Day Net (e.g., "-₹1,820" or "+₹46,310")
         Text(
             text = "$sign$formattedAmount",
-            color = if (isPositive) Color(0xFF059669) else Color(0xFF0F172A),
+            color = if (isPositive) LedgerColors.Credit else LedgerColors.TextPrimary,
             fontSize = 13.5.sp,
             fontWeight = FontWeight.Bold
         )

@@ -63,8 +63,8 @@ fun LedgerSummary(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp),
         shape = RoundedCornerShape(20.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        color = LedgerColors.CardBackground,
+        border = BorderStroke(1.dp, LedgerColors.Border),
         shadowElevation = 1.dp
     ) {
         Column(
@@ -80,7 +80,7 @@ fun LedgerSummary(
             ) {
                 Text(
                     text = overviewTitle,
-                    color = Color(0xFF64748B),
+                    color = LedgerColors.TextMuted,
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.8.sp
@@ -88,7 +88,7 @@ fun LedgerSummary(
 
                 Text(
                     text = if (isNetPositive) "↗ $netFormatted Net" else "↘ $netFormatted Net",
-                    color = if (isNetPositive) Color(0xFF059669) else Color(0xFFEF4444),
+                    color = if (isNetPositive) LedgerColors.Credit else LedgerColors.DebitMuted,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -105,21 +105,21 @@ fun LedgerSummary(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Total Outflow",
-                        color = Color(0xFF64748B),
+                        color = LedgerColors.TextMuted,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = "₹" + formatAmt(totalOutflow),
-                        color = Color(0xFF0F172A),
+                        color = LedgerColors.TextPrimary,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "$debitCount debit events",
-                        color = Color(0xFF94A3B8),
+                        color = LedgerColors.TextMutedLight,
                         fontSize = 11.sp
                     )
                 }
@@ -131,21 +131,21 @@ fun LedgerSummary(
                 ) {
                     Text(
                         text = "Total Inflow",
-                        color = Color(0xFF64748B),
+                        color = LedgerColors.TextMuted,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = "+₹" + formatAmt(totalInflow),
-                        color = Color(0xFF059669),
+                        color = LedgerColors.Credit,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "$creditCount deposits",
-                        color = Color(0xFF94A3B8),
+                        color = LedgerColors.TextMutedLight,
                         fontSize = 11.sp
                     )
                 }
@@ -159,14 +159,14 @@ fun LedgerSummary(
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(Color(0xFFE2E8F0))
+                    .background(LedgerColors.Border)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(progressRatio)
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(999.dp))
-                        .background(Color(0xFF059669))
+                        .background(LedgerColors.Credit)
                 )
             }
         }

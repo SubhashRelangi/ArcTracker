@@ -55,7 +55,7 @@ fun LedgerHeader(
                     text = "Ledger",
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A),
+                    color = LedgerColors.TextPrimary,
                     letterSpacing = (-0.5).sp
                 )
 
@@ -65,19 +65,19 @@ fun LedgerHeader(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clip(RoundedCornerShape(999.dp))
-                        .background(Color(0xFFECFDF5))
+                        .background(LedgerColors.CreditBg)
                         .padding(horizontal = 7.dp, vertical = 2.dp)
                 ) {
                     Box(
                         modifier = Modifier
                             .size(6.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF10B981))
+                            .background(LedgerColors.Credit)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Local Vault",
-                        color = Color(0xFF059669),
+                        color = LedgerColors.Credit,
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -94,15 +94,15 @@ fun LedgerHeader(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(Color.White)
-                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                        .background(LedgerColors.Surface)
+                        .border(BorderStroke(1.dp, LedgerColors.Border), CircleShape)
                         .clickable(onClick = onFilterClick),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Tune,
                         contentDescription = "Filter / Month",
-                        tint = Color(0xFF0F172A),
+                        tint = LedgerColors.TextPrimary,
                         modifier = Modifier.size(19.dp)
                     )
                 }
@@ -112,15 +112,15 @@ fun LedgerHeader(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(Color.White)
-                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                        .background(LedgerColors.Surface)
+                        .border(BorderStroke(1.dp, LedgerColors.Border), CircleShape)
                         .clickable(onClick = onExportClick),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.FileUpload,
                         contentDescription = "Export CSV",
-                        tint = Color(0xFF0F172A),
+                        tint = LedgerColors.TextPrimary,
                         modifier = Modifier.size(19.dp)
                     )
                 }
@@ -132,7 +132,7 @@ fun LedgerHeader(
         // 2. Subtitle: "Encrypted on-device SQLite ledger • October 2026"
         Text(
             text = "Encrypted on-device SQLite ledger • $monthSubtitle",
-            color = Color(0xFF64748B),
+            color = LedgerColors.TextMuted,
             fontSize = 12.5.sp,
             fontWeight = FontWeight.Normal
         )
