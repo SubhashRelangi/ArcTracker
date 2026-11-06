@@ -63,6 +63,7 @@ import com.subhashrelangi.arctracker.BuildConfig
 import com.subhashrelangi.arctracker.R
 import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
+import com.subhashrelangi.arctracker.utils.AppVersion
 
 // ==========================================
 // Light Theme Color Tokens
@@ -121,6 +122,7 @@ fun LocalFirstSetupScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val appVersion = remember(context) { AppVersion.getFormattedVersion(context) }
     val lifecycleOwner = LocalLifecycleOwner.current
     val view = LocalView.current
 
@@ -209,7 +211,7 @@ fun LocalFirstSetupScreen(
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = BuildConfig.GITHUB_VERSION.ifEmpty { "v${BuildConfig.VERSION_NAME}" },
+                            text = appVersion,
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = VersionBadgeText

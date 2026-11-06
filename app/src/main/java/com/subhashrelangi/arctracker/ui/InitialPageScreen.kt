@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.subhashrelangi.arctracker.BuildConfig
 import com.subhashrelangi.arctracker.R
+import com.subhashrelangi.arctracker.utils.AppVersion
 import kotlinx.coroutines.launch
 
 // ==========================================
@@ -104,6 +106,8 @@ fun InitialPageScreen(
     // Dark theme logo used for light theme, light theme logo used for dark theme
     val logoResource = if (isDark) R.drawable.ic_logo_light else R.drawable.ic_logo_dark
 
+    val context = LocalContext.current
+    val appVersion = remember(context) { AppVersion.getFormattedVersion(context) }
     val pagerState = rememberPagerState(pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
 
@@ -151,7 +155,7 @@ fun InitialPageScreen(
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = BuildConfig.GITHUB_VERSION.ifEmpty { "v${BuildConfig.VERSION_NAME}" },
+                            text = appVersion,
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = VersionBadgeText

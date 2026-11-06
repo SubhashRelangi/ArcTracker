@@ -46,6 +46,7 @@ import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
+import com.subhashrelangi.arctracker.utils.AppVersion
 import kotlinx.coroutines.delay
 
 
@@ -61,6 +62,8 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val appVersion = remember(context) { AppVersion.getFormattedVersion(context) }
+    val rawVersion = remember(context) { AppVersion.getRawVersion(context) }
 
     val settingsRepo = remember {
         repository ?: MonitoringSettingsRepository.getInstance(context)
@@ -840,11 +843,11 @@ fun SettingsScreen(
                             icon = Icons.Outlined.Info,
                             title = "About ArcTracker",
                             subtitle = if (isDeveloperModeUnlocked) {
-                                "Version 1.0.0 (Build 5107a09) • Developer options unlocked"
+                                "Version $rawVersion • Developer options unlocked"
                             } else {
-                                "Version 1.0.0 (Build 5107a09) • Local-first architecture"
+                                "Version $rawVersion • Local-first architecture"
                             },
-                            badgeText = "v1.0.0",
+                            badgeText = appVersion,
                             onClick = {
                                 val now = System.currentTimeMillis()
                                 if (now - lastAboutArcTapTimestamp > 2000L) {
@@ -951,7 +954,7 @@ fun SettingsScreen(
                             type = "message/rfc822"
                             putExtra(Intent.EXTRA_EMAIL, arrayOf("support@arctracker.local"))
                             putExtra(Intent.EXTRA_SUBJECT, "ArcTracker Feedback & Local Report")
-                            putExtra(Intent.EXTRA_TEXT, "Device: Android\nVersion: 1.0.0 (Build 5107a09)\nFeedback:\n")
+                            putExtra(Intent.EXTRA_TEXT, "Device: Android\nVersion: $rawVersion\nFeedback:\n")
                         }
                         context.startActivity(Intent.createChooser(intent, "Send Feedback"))
                     } catch (_: Exception) {
@@ -1107,7 +1110,7 @@ fun SettingsScreen(
                                 color = Color(0xFF64748B)
                             )
                             Text(
-                                text = "v1.0.0 (5107a09)",
+                                text = appVersion,
                                 fontSize = 13.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF0F172A)

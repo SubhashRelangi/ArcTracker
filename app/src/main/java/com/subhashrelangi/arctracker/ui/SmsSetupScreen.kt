@@ -108,6 +108,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.subhashrelangi.arctracker.BuildConfig
 import com.subhashrelangi.arctracker.R
 import com.subhashrelangi.arctracker.service.AccountIdentityExtractor
+import com.subhashrelangi.arctracker.utils.AppVersion
 import com.subhashrelangi.arctracker.service.DedupDecision
 import com.subhashrelangi.arctracker.service.EvidenceLevel
 import com.subhashrelangi.arctracker.service.FinancialAccountGroup
@@ -191,6 +192,7 @@ fun SmsSetupScreen(
     onNavigateToReview: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val appVersion = remember(context) { AppVersion.getFormattedVersion(context) }
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
@@ -640,7 +642,7 @@ fun SmsSetupScreen(
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = BuildConfig.GITHUB_VERSION.ifEmpty { "v${BuildConfig.VERSION_NAME}" },
+                            text = appVersion,
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = VersionBadgeText
