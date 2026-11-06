@@ -202,8 +202,8 @@ fun SettingsScreen(
         repository ?: MonitoringSettingsRepository.getInstance(context)
     }
 
-    var profileName by remember { mutableStateOf(settingsRepo.getProfileName()) }
-    var profileLabel by remember { mutableStateOf(settingsRepo.getProfileLabel()) }
+    val profileName by settingsRepo.getProfileNameFlow().collectAsState()
+    val profileLabel by settingsRepo.getProfileLabelFlow().collectAsState()
     var showEditProfileSheet by remember { mutableStateOf(false) }
 
     var isDeveloperModeUnlocked by remember {
@@ -1367,8 +1367,8 @@ fun SettingsScreen(
     // Interactive Edit Local Profile & Vault Identity Modal Bottom Sheet
     if (showEditProfileSheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        var tempName by remember { mutableStateOf(profileName) }
-        var tempLabel by remember { mutableStateOf(profileLabel) }
+        var tempName by remember(profileName, showEditProfileSheet) { mutableStateOf(profileName) }
+        var tempLabel by remember(profileLabel, showEditProfileSheet) { mutableStateOf(profileLabel) }
 
         ModalBottomSheet(
             onDismissRequest = { showEditProfileSheet = false },
@@ -1503,12 +1503,10 @@ fun SettingsScreen(
 
                 Button(
                     onClick = {
-                        val newName = tempName.trim().ifBlank { "Personal Vault" }
+                        val newName = tempName.trim().ifBlank { "Personal Wallet" }
                         val newLabel = tempLabel.trim().ifBlank { "Primary Offline Vault" }
                         settingsRepo.setProfileName(newName)
                         settingsRepo.setProfileLabel(newLabel)
-                        profileName = newName
-                        profileLabel = newLabel
                         showEditProfileSheet = false
                         Toast.makeText(context, "Profile updated", Toast.LENGTH_SHORT).show()
                     },

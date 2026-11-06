@@ -584,9 +584,9 @@ private fun HomeTopHeader(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val settingsRepo = remember { com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository.getInstance(context) }
-    val profileInitials = remember {
-        val name = settingsRepo.getProfileName().trim()
-        val parts = name.split("\\s+".toRegex()).filter { it.isNotBlank() }
+    val profileName by settingsRepo.getProfileNameFlow().collectAsState()
+    val profileInitials = remember(profileName) {
+        val parts = profileName.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
         when {
             parts.size >= 2 -> "${parts[0].first().uppercase()}${parts[1].first().uppercase()}"
             parts.size == 1 && parts[0].isNotEmpty() -> "${parts[0].first().uppercase()}"

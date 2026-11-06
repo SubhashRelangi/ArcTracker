@@ -3,6 +3,9 @@ package com.subhashrelangi.arctracker.settings
 import android.content.Context
 import android.content.SharedPreferences
 import com.subhashrelangi.arctracker.security.SecureLogger
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Authoritative repository interface for managing ArcTracker's monitoring settings.
@@ -197,6 +200,16 @@ interface MonitoringSettingsRepository {
      * Sets the user's local profile subtitle / vault label.
      */
     fun setProfileLabel(label: String) {}
+
+    /**
+     * Observable reactive stream of the user's profile display name.
+     */
+    fun getProfileNameFlow(): StateFlow<String> = MutableStateFlow(getProfileName())
+
+    /**
+     * Observable reactive stream of the user's profile subtitle / vault label.
+     */
+    fun getProfileLabelFlow(): StateFlow<String> = MutableStateFlow(getProfileLabel())
 
     /**
      * Returns whether developer options are unlocked by the user.
@@ -563,22 +576,36 @@ class SharedPreferencesMonitoringSettingsRepository(
             .commit()
     }
 
+    private val _profileNameFlow = MutableStateFlow(
+        prefs.getString(MonitoringSettingsRepository.KEY_PROFILE_NAME, null)?.takeIf { it.isNotBlank() } ?: "Personal Wallet"
+    )
+    private val _profileLabelFlow = MutableStateFlow(
+        prefs.getString(MonitoringSettingsRepository.KEY_PROFILE_LABEL, null)?.takeIf { it.isNotBlank() } ?: "Primary Offline Vault"
+    )
+
+    override fun getProfileNameFlow(): StateFlow<String> = _profileNameFlow.asStateFlow()
+    override fun getProfileLabelFlow(): StateFlow<String> = _profileLabelFlow.asStateFlow()
+
     override fun getProfileName(): String = synchronized(lock) {
         val name = prefs.getString(MonitoringSettingsRepository.KEY_PROFILE_NAME, null)
-        if (name.isNullOrBlank() || name == "Subhash Relangi") "Personal Wallet" else name
+        if (name.isNullOrBlank()) "Personal Wallet" else name
     }
 
     override fun setProfileName(name: String): Unit = synchronized(lock) {
-        prefs.edit().putString(MonitoringSettingsRepository.KEY_PROFILE_NAME, name.trim()).apply()
+        val trimmed = name.trim().ifBlank { "Personal Wallet" }
+        prefs.edit().putString(MonitoringSettingsRepository.KEY_PROFILE_NAME, trimmed).commit()
+        _profileNameFlow.value = trimmed
     }
 
     override fun getProfileLabel(): String = synchronized(lock) {
         val label = prefs.getString(MonitoringSettingsRepository.KEY_PROFILE_LABEL, null)
-        if (label.isNullOrBlank() || label == "subhashrelangi@gmail.com") "Primary Offline Vault" else label
+        if (label.isNullOrBlank()) "Primary Offline Vault" else label
     }
 
     override fun setProfileLabel(label: String): Unit = synchronized(lock) {
-        prefs.edit().putString(MonitoringSettingsRepository.KEY_PROFILE_LABEL, label.trim()).apply()
+        val trimmed = label.trim().ifBlank { "Primary Offline Vault" }
+        prefs.edit().putString(MonitoringSettingsRepository.KEY_PROFILE_LABEL, trimmed).commit()
+        _profileLabelFlow.value = trimmed
     }
 
     override fun isDeveloperModeUnlocked(): Boolean = synchronized(lock) {
@@ -774,12 +801,20 @@ class InMemoryMonitoringSettingsRepository(
     private var profileName: String = "Personal Wallet"
     private var profileLabel: String = "Primary Offline Vault"
 
+    private val _profileNameFlow = MutableStateFlow(profileName)
+    private val _profileLabelFlow = MutableStateFlow(profileLabel)
+
+    override fun getProfileNameFlow(): StateFlow<String> = _profileNameFlow.asStateFlow()
+    override fun getProfileLabelFlow(): StateFlow<String> = _profileLabelFlow.asStateFlow()
+
     override fun getProfileName(): String = synchronized(lock) {
         profileName
     }
 
     override fun setProfileName(name: String): Unit = synchronized(lock) {
-        profileName = name.trim()
+        val trimmed = name.trim().ifBlank { "Personal Wallet" }
+        profileName = trimmed
+        _profileNameFlow.value = trimmed
     }
 
     override fun getProfileLabel(): String = synchronized(lock) {
@@ -787,7 +822,9 @@ class InMemoryMonitoringSettingsRepository(
     }
 
     override fun setProfileLabel(label: String): Unit = synchronized(lock) {
-        profileLabel = label.trim()
+        val trimmed = label.trim().ifBlank { "Primary Offline Vault" }
+        profileLabel = trimmed
+        _profileLabelFlow.value = trimmed
     }
 
     private var isDeveloperModeUnlocked: Boolean = false

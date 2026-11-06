@@ -228,6 +228,7 @@ fun ExpenseScreen() {
     val settingsRepo = remember {
         com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository.getInstance(context)
     }
+    val profileName by settingsRepo.getProfileNameFlow().collectAsState()
 
     var isNotificationAccessGranted by remember {
         mutableStateOf(NotificationPermissionHelper.isNotificationAccessGranted(context))
@@ -562,9 +563,8 @@ fun ExpenseScreen() {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
                 val showSearch = currentRoute in listOf("Home", "Insights", "Analytics", "Settings", "Pending", "Review")
                 val showProfile = currentRoute == "Home"
-                val profileInitials = remember(currentRoute) {
-                    val name = settingsRepo.getProfileName().trim()
-                    val parts = name.split("\\s+".toRegex()).filter { it.isNotBlank() }
+                val profileInitials = remember(profileName) {
+                    val parts = profileName.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
                     when {
                         parts.size >= 2 -> "${parts[0].first().uppercase()}${parts[1].first().uppercase()}"
                         parts.size == 1 && parts[0].isNotEmpty() -> "${parts[0].first().uppercase()}"

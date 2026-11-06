@@ -405,7 +405,7 @@ fun ClearAllDataScreen(
                             .padding(horizontal = 10.dp, vertical = 3.dp)
                     ) {
                         Text(
-                            text = "2 Preserved Settings",
+                            text = "3 Preserved Settings",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF16A34A)
@@ -433,6 +433,13 @@ fun ClearAllDataScreen(
                         SimpleBulletRow(
                             bulletColor = Color(0xFF16A34A),
                             text = "Hardware Screen Security",
+                            value = "Preserved",
+                            valueColor = Color(0xFF16A34A)
+                        )
+
+                        SimpleBulletRow(
+                            bulletColor = Color(0xFF16A34A),
+                            text = "Vault Identity & Profile Name",
                             value = "Preserved",
                             valueColor = Color(0xFF16A34A)
                         )
@@ -522,8 +529,12 @@ fun ClearAllDataScreen(
                             if (isDeleteConfirmed) {
                                 val repo = MonitoringSettingsRepository.getInstance(context)
                                 val wasCompleted = repo.isInitialSmsImportCompleted()
+                                val preservedName = repo.getProfileName()
+                                val preservedLabel = repo.getProfileLabel()
                                 onClearData()
                                 repo.setInitialSmsImportCompleted(wasCompleted)
+                                repo.setProfileName(preservedName)
+                                repo.setProfileLabel(preservedLabel)
                             }
                         },
                         enabled = isDeleteConfirmed,
