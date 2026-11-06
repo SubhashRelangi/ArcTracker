@@ -122,13 +122,20 @@ class MainActivity : FragmentActivity() {
 
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
 
+        // Apply screen security immediately on launch
+        if (privacyManager.isScreenSecurityEnabled()) {
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+
         // On launch: require biometric/PIN unlock if App Lock is enabled
         isAppUnlockedState.value = !privacyManager.isAppLockEnabled()
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 privacyManager.screenSecurityFlow.collect { enabled ->
-                    if (enabled && !BuildConfig.DEBUG) {
+                    if (enabled) {
                         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
                     } else {
                         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
@@ -185,6 +192,11 @@ class MainActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
+        if (privacyManager.isScreenSecurityEnabled()) {
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
         if (privacyManager.isAppLockEnabled() && privacyManager.isSessionExpired()) {
             isAppUnlockedState.value = false
         }
