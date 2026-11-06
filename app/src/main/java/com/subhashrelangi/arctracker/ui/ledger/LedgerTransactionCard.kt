@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -267,8 +268,8 @@ fun LedgerTransactionCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
         shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        color = ArcColors.CardBackground,
+        border = BorderStroke(1.dp, ArcColors.Border),
         shadowElevation = 0.5.dp
     ) {
         LedgerTransactionRow(
