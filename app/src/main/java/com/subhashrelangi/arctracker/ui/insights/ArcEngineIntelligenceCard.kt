@@ -69,8 +69,8 @@ fun ArcEngineIntelligenceCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color.White)
-                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(8.dp))
+                        .background(InsightsTheme.LightSubCardBackground)
+                        .border(BorderStroke(1.dp, InsightsTheme.LightSubCardBorder), RoundedCornerShape(8.dp))
                         .padding(horizontal = 8.dp, vertical = 3.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -78,7 +78,7 @@ fun ArcEngineIntelligenceCard(
                         text = "On-device ML",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF475569)
+                        color = InsightsTheme.LightTextSecondary
                     )
                 }
             }
@@ -90,8 +90,8 @@ fun ArcEngineIntelligenceCard(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    colors = CardDefaults.cardColors(containerColor = InsightsTheme.LightSubCardBackground),
+                    border = BorderStroke(1.dp, InsightsTheme.LightSubCardBorder)
                 ) {
                     Row(
                         modifier = Modifier
@@ -141,8 +141,8 @@ fun ArcEngineIntelligenceCard(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                            colors = CardDefaults.cardColors(containerColor = InsightsTheme.LightSubCardBackground),
+                            border = BorderStroke(1.dp, InsightsTheme.LightSubCardBorder)
                         ) {
                             Row(
                                 modifier = Modifier
@@ -154,7 +154,7 @@ fun ArcEngineIntelligenceCard(
                                     modifier = Modifier
                                         .size(36.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFFDCFCE7)),
+                                        .background(InsightsTheme.EmeraldGreen.copy(alpha = 0.15f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -178,7 +178,7 @@ fun ArcEngineIntelligenceCard(
                                     Text(
                                         text = "Cult.fit (₹1,499) and Airtel Fiber (₹1,179) will process within 6 days.",
                                         fontSize = 12.sp,
-                                        color = Color(0xFF475569),
+                                        color = InsightsTheme.LightTextSecondary,
                                         lineHeight = 17.sp
                                     )
 
@@ -191,8 +191,8 @@ fun ArcEngineIntelligenceCard(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .background(Color(0xFFF1F5F9))
-                                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(8.dp))
+                                                .background(InsightsTheme.LightSubCardBackground)
+                                                .border(BorderStroke(1.dp, InsightsTheme.LightSubCardBorder), RoundedCornerShape(8.dp))
                                                 .clickable { onManageRulesClick() }
                                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                                         ) {
@@ -281,8 +281,8 @@ fun ArcEngineIntelligenceCard(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    colors = CardDefaults.cardColors(containerColor = InsightsTheme.LightSubCardBackground),
+                    border = BorderStroke(1.dp, InsightsTheme.LightSubCardBorder)
                 ) {
                     Row(
                         modifier = Modifier
@@ -294,7 +294,7 @@ fun ArcEngineIntelligenceCard(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFDCFCE7)),
+                                .background(InsightsTheme.EmeraldGreen.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -318,7 +318,7 @@ fun ArcEngineIntelligenceCard(
                             Text(
                                 text = "$transactionCount transactions analyzed in private SQLite sandbox with zero network telemetry.",
                                 fontSize = 12.sp,
-                                color = Color(0xFF475569),
+                                color = InsightsTheme.LightTextSecondary,
                                 lineHeight = 17.sp
                             )
 
@@ -327,8 +327,8 @@ fun ArcEngineIntelligenceCard(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFF1F5F9))
-                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(8.dp))
+                                    .background(InsightsTheme.LightSubCardBackground)
+                                    .border(BorderStroke(1.dp, InsightsTheme.LightSubCardBorder), RoundedCornerShape(8.dp))
                                     .clickable { onManageRulesClick() }
                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                             ) {

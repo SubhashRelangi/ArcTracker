@@ -121,8 +121,8 @@ fun MonthlyOutflowPaceCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF8FAFC))
-                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(12.dp)),
+                        .background(InsightsTheme.LightSubCardBackground)
+                        .border(BorderStroke(1.dp, InsightsTheme.LightSubCardBorder), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -164,7 +164,7 @@ fun MonthlyOutflowPaceCard(
                     .fillMaxWidth()
                     .height(7.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(Color(0xFFE2E8F0))
+                    .background(InsightsTheme.LightSubCardBorder)
             ) {
                 Box(
                     modifier = Modifier
@@ -236,7 +236,7 @@ fun MonthlyOutflowPaceCard(
                                 .fillMaxWidth()
                                 .height(52.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFE2E8F0))
+                                .background(InsightsTheme.LightSubCardBorder)
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
@@ -278,7 +278,7 @@ fun MonthlyOutflowPaceCard(
                                 .fillMaxWidth()
                                 .height(52.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFE2E8F0))
+                                .background(InsightsTheme.LightSubCardBorder)
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
@@ -325,7 +325,7 @@ fun MonthlyOutflowPaceCard(
                         val barColor = when {
                             isHighest -> InsightsTheme.EmeraldGreenDark
                             wSpend > 0.0 -> InsightsTheme.AmberBrown
-                            else -> Color(0xFFE2E8F0)
+                            else -> InsightsTheme.LightSubCardBorder
                         }
 
                         Column(

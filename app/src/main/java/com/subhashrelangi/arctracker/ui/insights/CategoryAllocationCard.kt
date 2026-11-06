@@ -219,13 +219,13 @@ private fun CategoryRowItem(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFFF1F5F9)),
+                    .background(InsightsTheme.LightSubCardBackground),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = item.name,
-                    tint = Color(0xFF0F172A),
+                    tint = InsightsTheme.LightTextPrimary,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -276,7 +276,7 @@ private fun CategoryRowItem(
                 .fillMaxWidth()
                 .height(4.dp)
                 .clip(RoundedCornerShape(999.dp))
-                .background(Color(0xFFF1F5F9))
+                .background(InsightsTheme.LightSubCardBorder)
         ) {
             val progressFraction = (item.percentage / 100.0).coerceIn(0.02, 1.0).toFloat()
             Box(

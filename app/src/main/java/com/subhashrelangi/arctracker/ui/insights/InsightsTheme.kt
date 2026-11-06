@@ -1,35 +1,38 @@
 package com.subhashrelangi.arctracker.ui.insights
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
 import com.subhashrelangi.arctracker.data.CategoryVisuals
+import com.subhashrelangi.arctracker.ui.theme.LocalArcColors
 
 /**
  * Design tokens and semantic color mappings for the ArcTracker Insights dashboard.
- * Unified with universal theme tokens in com.subhashrelangi.arctracker.ui.theme.
+ * Unified dynamically with universal theme tokens in com.subhashrelangi.arctracker.ui.theme.
  */
 object InsightsTheme {
 
-    // Light Theme Surfaces & Containers (Reference Mockup)
-    val LightBackground = Color(0xFFF8FAFC)
-    val LightCardBackground = Color(0xFFFFFFFF)
-    val LightCardBorder = Color(0xFFE2E8F0)
-    val LightSubCardBackground = Color(0xFFF1F5F9)
-    val LightSubCardBorder = Color(0xFFE2E8F0)
+    // Dynamic Surfaces & Containers
+    val LightBackground: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.background
+    val LightCardBackground: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.cardBackground
+    val LightCardBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.border
+    val LightSubCardBackground: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceHighlight
+    val LightSubCardBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.borderSubtle
 
-    // Typography
-    val LightTextPrimary = Color(0xFF0F172A)
-    val LightTextSecondary = Color(0xFF64748B)
-    val LightTextMuted = Color(0xFF94A3B8)
+    // Dynamic Typography
+    val LightTextPrimary: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textPrimary
+    val LightTextSecondary: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textSecondary
+    val LightTextMuted: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textMuted
 
     // Accent Colors
     val EmeraldGreen = Color(0xFF15803D)
     val EmeraldGreenDark = Color(0xFF047857)
-    val EmeraldGreenBadge = Color(0xFFECFDF5)
-    val EmeraldGreenBadgeBorder = Color(0xFFA7F3D0)
+    val EmeraldGreenBadge: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.primaryLight
+    val EmeraldGreenBadgeBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.primaryBorder
     val AmberBrown = Color(0xFF92400E)
     val AmberOrange = Color(0xFFD97706)
-    val AmberBadge = Color(0xFFFEF3C7)
-    val CharcoalDark = Color(0xFF0F172A)
+    val AmberBadge: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningAmberBg
+    val CharcoalDark: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textPrimary
 
     // Category Semantic Colors (as per reference design)
     val CategoryFood = Color(0xFFE3B341)           // Amber / Yellow

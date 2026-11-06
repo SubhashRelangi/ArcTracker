@@ -26,8 +26,8 @@ fun ZeroTelemetryFooter(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xFFF8FAFC))
-            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(14.dp))
+            .background(InsightsTheme.LightSubCardBackground)
+            .border(BorderStroke(1.dp, InsightsTheme.LightSubCardBorder), RoundedCornerShape(14.dp))
             .padding(14.dp)
     ) {
         Row(
@@ -38,7 +38,7 @@ fun ZeroTelemetryFooter(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFDCFCE7)),
+                    .background(InsightsTheme.EmeraldGreen.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
