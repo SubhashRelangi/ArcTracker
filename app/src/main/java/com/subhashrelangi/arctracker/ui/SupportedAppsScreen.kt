@@ -148,11 +148,19 @@ fun detectAppCategory(packageName: String, displayName: String): AppCategory? {
  */
 fun getCategoryAccentColor(category: AppCategory?): Color = ArcColors.Light.primary
 
+private val slateTitle: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val slateSub: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val cardBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val lightBg: Color @Composable @ReadOnlyComposable get() = ArcColors.Background
+private val cardBg: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val highlightSurface: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
+
 /**
  * Resolves soft background and crisp text colors for category pill badges.
  */
+@Composable
 fun getCategoryBadgeColors(category: AppCategory?): Pair<Color, Color> {
-    return Pair(Color(0xFFF1F5F9), Color(0xFF64748B))
+    return Pair(ArcColors.SurfaceHighlight, ArcColors.TextMuted)
 }
 
 /**
@@ -195,13 +203,13 @@ fun AppIconView(
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .background(Color(0xFFF1F5F9)),
+                .background(highlightSurface),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = fallbackIcon,
                 contentDescription = contentDescription,
-                tint = Color(0xFF0F172A),
+                tint = slateTitle,
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -534,7 +542,7 @@ fun SupportedAppsScreen(
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(cardBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
@@ -543,14 +551,15 @@ fun SupportedAppsScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF0F172A))
+                                .background(cardBg)
+                                .border(BorderStroke(1.dp, cardBorder), CircleShape)
                                 .clickable { showAddCustomAppDialog = true },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Add,
                                 contentDescription = "Add Custom App",
-                                tint = Color.White,
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -562,7 +571,7 @@ fun SupportedAppsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF8FAFC))
+                .background(lightBg)
                 .padding(innerPadding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -572,13 +581,18 @@ fun SupportedAppsScreen(
                 Text(
                     text = "Choose which apps can be monitored",
                     fontSize = 13.5.sp,
-                    color = Color(0xFF64748B),
+                    color = slateSub,
                     modifier = Modifier.padding(start = 2.dp)
                 )
             }
 
             // Notification Listener Banner / Status Card (matches reference mockup styling)
             item {
+                val bannerBg = if (ArcColors.isDark) Color(0xFF0F291E) else Color(0xFFE9F4EE)
+                val bannerBorder = if (ArcColors.isDark) Color(0xFF1E4032) else Color(0xFFD8ECE1)
+                val badgeBg = if (ArcColors.isDark) Color(0xFF163829) else Color(0xFFD8ECE1)
+                val badgeBorder = if (ArcColors.isDark) Color(0xFF22523C) else Color(0xFFC7E2D3)
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -591,8 +605,8 @@ fun SupportedAppsScreen(
                             }
                         },
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE9F4EE)),
-                    border = BorderStroke(1.dp, Color(0xFFD8ECE1)),
+                    colors = CardDefaults.cardColors(containerColor = bannerBg),
+                    border = BorderStroke(1.dp, bannerBorder),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Row(
@@ -604,13 +618,13 @@ fun SupportedAppsScreen(
                         Box(
                             modifier = Modifier
                                 .size(6.dp)
-                                .background(if (isListenerConnected) ArcColors.Primary else Color(0xFF94A3B8), CircleShape)
+                                .background(if (isListenerConnected) ArcColors.Primary else slateSub, CircleShape)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Filled.CheckCircle,
                             contentDescription = null,
-                            tint = if (isListenerConnected) ArcColors.Primary else Color(0xFF64748B),
+                            tint = if (isListenerConnected) ArcColors.Primary else slateSub,
                             modifier = Modifier.size(17.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -627,8 +641,8 @@ fun SupportedAppsScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFD8ECE1))
-                                .border(BorderStroke(1.dp, Color(0xFFC7E2D3)), RoundedCornerShape(8.dp))
+                                .background(badgeBg)
+                                .border(BorderStroke(1.dp, badgeBorder), RoundedCornerShape(8.dp))
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
                             Text(
@@ -647,8 +661,8 @@ fun SupportedAppsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
+                    border = BorderStroke(1.dp, cardBorder),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(
@@ -665,32 +679,32 @@ fun SupportedAppsScreen(
                                     text = "Master App Monitoring",
                                     fontSize = 15.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = slateTitle
                                 )
                                 Spacer(modifier = Modifier.height(3.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(
                                         modifier = Modifier
                                             .size(5.dp)
-                                            .background(if (masterEnabled) ArcColors.Primary else Color(0xFF94A3B8), CircleShape)
+                                            .background(if (masterEnabled) ArcColors.Primary else slateSub, CircleShape)
                                     )
                                     Spacer(modifier = Modifier.width(5.dp))
                                     Text(
                                         text = if (masterEnabled) "Active" else "Disabled",
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = if (masterEnabled) ArcColors.Primary else Color(0xFF64748B)
+                                        color = if (masterEnabled) ArcColors.Primary else slateSub
                                     )
                                     Text(
                                         text = " • ",
                                         fontSize = 11.5.sp,
-                                        color = Color(0xFF64748B)
+                                        color = slateSub
                                     )
                                     Text(
                                         text = if (masterEnabled) "$monitoredCount apps monitored locally" else "Monitoring paused",
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF64748B)
+                                        color = slateSub
                                     )
                                 }
                             }
@@ -708,28 +722,28 @@ fun SupportedAppsScreen(
                                 colors = SwitchDefaults.colors(
                                     checkedTrackColor = ArcColors.Primary,
                                     checkedThumbColor = Color.White,
-                                    uncheckedTrackColor = Color(0xFFCBD5E1),
+                                    uncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
                                     uncheckedThumbColor = Color.White
                                 )
                             )
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
-                        HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                        HorizontalDivider(color = cardBorder, thickness = 1.dp)
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Outlined.Lock,
                                 contentDescription = null,
-                                tint = Color(0xFF64748B),
+                                tint = slateSub,
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Zero notification data leaves your device sandbox.",
                                 fontSize = 11.5.sp,
-                                color = Color(0xFF64748B)
+                                color = slateSub
                             )
                         }
                     }
@@ -754,14 +768,14 @@ fun SupportedAppsScreen(
                                 text = category.displayName,
                                 fontSize = 14.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = slateTitle
                             )
                             Spacer(modifier = Modifier.weight(1f))
                             Text(
                                 text = "Toggle All",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF64748B)
+                                color = slateSub
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Switch(
@@ -774,10 +788,10 @@ fun SupportedAppsScreen(
                                 colors = SwitchDefaults.colors(
                                     checkedTrackColor = ArcColors.Primary,
                                     checkedThumbColor = Color.White,
-                                    uncheckedTrackColor = Color(0xFFCBD5E1),
+                                    uncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
                                     uncheckedThumbColor = Color.White,
                                     disabledCheckedTrackColor = ArcColors.Primary.copy(alpha = 0.4f),
-                                    disabledUncheckedTrackColor = Color(0xFFCBD5E1).copy(alpha = 0.4f)
+                                    disabledUncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155).copy(alpha = 0.4f) else Color(0xFFCBD5E1).copy(alpha = 0.4f)
                                 )
                             )
                         }
@@ -788,8 +802,8 @@ fun SupportedAppsScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            colors = CardDefaults.cardColors(containerColor = cardBg),
+                            border = BorderStroke(1.dp, cardBorder),
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
@@ -803,7 +817,7 @@ fun SupportedAppsScreen(
                                         Text(
                                             text = "No apps installed in this category",
                                             fontSize = 12.5.sp,
-                                            color = Color(0xFF94A3B8)
+                                            color = slateSub
                                         )
                                     }
                                 } else {
@@ -824,7 +838,7 @@ fun SupportedAppsScreen(
 
                                         if (index < appsInCategory.size - 1) {
                                             HorizontalDivider(
-                                                color = Color(0xFFF1F5F9),
+                                                color = cardBorder,
                                                 thickness = 1.dp,
                                                 modifier = Modifier.padding(horizontal = 14.dp)
                                             )
@@ -850,7 +864,7 @@ fun SupportedAppsScreen(
                             text = "Custom Apps",
                             fontSize = 14.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                     }
 
@@ -864,8 +878,8 @@ fun SupportedAppsScreen(
                                 showAddCustomAppDialog = true
                             },
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        colors = CardDefaults.cardColors(containerColor = cardBg),
+                        border = BorderStroke(1.dp, cardBorder),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Row(
@@ -874,10 +888,11 @@ fun SupportedAppsScreen(
                                 .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            val addIconBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFE9F4EE)
                             Box(
                                 modifier = Modifier
                                     .size(42.dp)
-                                    .background(Color(0xFFE9F4EE), RoundedCornerShape(12.dp)),
+                                    .background(addIconBg, RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -895,13 +910,13 @@ fun SupportedAppsScreen(
                                     text = "Add Custom App",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = slateTitle
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "Add any installed banking or fintech app to monitor",
                                     fontSize = 11.5.sp,
-                                    color = Color(0xFF64748B),
+                                    color = slateSub,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -910,7 +925,7 @@ fun SupportedAppsScreen(
                             Icon(
                                 imageVector = Icons.Filled.ChevronRight,
                                 contentDescription = null,
-                                tint = Color(0xFF94A3B8),
+                                tint = slateSub,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -956,21 +971,21 @@ fun SupportedAppsScreen(
                     text = "Remove ${targetApp.displayName}?",
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp,
-                    color = Color(0xFF0F172A)
+                    color = slateTitle
                 )
             },
             text = {
                 Text(
                     text = "This will remove the app from your Monitored Apps configuration. It will not be monitored until you add it again.",
                     fontSize = 13.sp,
-                    color = Color(0xFF64748B),
+                    color = slateSub,
                     lineHeight = 18.sp
                 )
             },
             confirmButton = {
                 Button(
                     onClick = { confirmRemove(targetApp) },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Danger),
                     shape = CircleShape
                 ) {
                     Text("Remove", color = Color.White, fontWeight = FontWeight.Bold)
@@ -978,10 +993,10 @@ fun SupportedAppsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { appToRemove = null }) {
-                    Text("Cancel", color = Color(0xFF64748B))
+                    Text("Cancel", color = slateSub)
                 }
             },
-            containerColor = Color.White,
+            containerColor = cardBg,
             shape = RoundedCornerShape(16.dp)
         )
     }
@@ -1017,7 +1032,7 @@ private fun MonitoredAppRow(
             modifier = Modifier
                 .size(42.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFFF1F5F9)),
+                .background(highlightSurface),
             contentAlignment = Alignment.Center
         ) {
             AppIconView(
@@ -1036,7 +1051,7 @@ private fun MonitoredAppRow(
                 text = app.displayName,
                 fontSize = 13.5.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF0F172A),
+                color = slateTitle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1044,7 +1059,7 @@ private fun MonitoredAppRow(
             Text(
                 text = app.packageName,
                 fontSize = 11.sp,
-                color = Color(0xFF64748B),
+                color = slateSub,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1064,7 +1079,7 @@ private fun MonitoredAppRow(
                         Icon(
                             imageVector = Icons.Outlined.Edit,
                             contentDescription = "Edit Category",
-                            tint = Color(0xFF64748B),
+                            tint = slateSub,
                             modifier = Modifier.size(15.dp)
                         )
                     }
@@ -1077,7 +1092,7 @@ private fun MonitoredAppRow(
                         Icon(
                             imageVector = Icons.Outlined.DeleteOutline,
                             contentDescription = "Remove App",
-                            tint = Color(0xFFDC2626),
+                            tint = ArcColors.Danger,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -1094,10 +1109,10 @@ private fun MonitoredAppRow(
             colors = SwitchDefaults.colors(
                 checkedTrackColor = switchAccentColor,
                 checkedThumbColor = Color.White,
-                uncheckedTrackColor = Color(0xFFCBD5E1),
+                uncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
                 uncheckedThumbColor = Color.White,
                 disabledCheckedTrackColor = switchAccentColor.copy(alpha = 0.4f),
-                disabledUncheckedTrackColor = Color(0xFFCBD5E1).copy(alpha = 0.4f)
+                disabledUncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155).copy(alpha = 0.4f) else Color(0xFFCBD5E1).copy(alpha = 0.4f)
             )
         )
     }
@@ -1132,7 +1147,7 @@ fun AddAppSelectorDialog(
                 "Add Custom App",
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp,
-                color = Color(0xFF0F172A)
+                color = slateTitle
             )
         },
         text = {
@@ -1142,7 +1157,7 @@ fun AddAppSelectorDialog(
                     text = "Assign Category",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF334155)
+                    color = slateSub
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
@@ -1155,7 +1170,7 @@ fun AddAppSelectorDialog(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isCatSelected) Color(0xFF0F172A) else Color(0xFFF1F5F9))
+                                .background(if (isCatSelected) ArcColors.Primary else highlightSurface)
                                 .clickable { selectedCategory = cat }
                                 .padding(vertical = 6.dp),
                             contentAlignment = Alignment.Center
@@ -1168,7 +1183,7 @@ fun AddAppSelectorDialog(
                                 },
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isCatSelected) Color.White else Color(0xFF64748B)
+                                color = if (isCatSelected) Color.White else slateSub
                             )
                         }
                     }
@@ -1180,20 +1195,22 @@ fun AddAppSelectorDialog(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search installed apps...", fontSize = 13.sp) },
+                    placeholder = { Text("Search installed apps...", fontSize = 13.sp, color = slateSub) },
                     singleLine = true,
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.Search,
                             contentDescription = null,
-                            tint = Color(0xFF94A3B8),
+                            tint = slateSub,
                             modifier = Modifier.size(18.dp)
                         )
                     },
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF0F172A),
-                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                        focusedTextColor = slateTitle,
+                        unfocusedTextColor = slateTitle,
+                        focusedBorderColor = ArcColors.Primary,
+                        unfocusedBorderColor = cardBorder
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1210,7 +1227,7 @@ fun AddAppSelectorDialog(
                         Text(
                             text = if (searchQuery.isBlank()) "No available installed apps to add." else "No matching apps found.",
                             fontSize = 12.5.sp,
-                            color = Color(0xFF94A3B8)
+                            color = slateSub
                         )
                     }
                 } else {
@@ -1225,7 +1242,7 @@ fun AddAppSelectorDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(if (isSelected) Color(0xFFF1F5F9) else Color.Transparent)
+                                    .background(if (isSelected) highlightSurface else Color.Transparent)
                                     .clickable { selectedApp = app }
                                     .padding(vertical = 8.dp, horizontal = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -1234,7 +1251,7 @@ fun AddAppSelectorDialog(
                                     modifier = Modifier
                                         .size(38.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(Color(0xFFE2E8F0)),
+                                        .background(highlightSurface),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     AppIconView(
@@ -1250,14 +1267,14 @@ fun AddAppSelectorDialog(
                                         text = app.displayName,
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 13.5.sp,
-                                        color = Color(0xFF0F172A),
+                                        color = slateTitle,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
                                         text = app.packageName,
                                         fontSize = 11.sp,
-                                        color = Color(0xFF64748B),
+                                        color = slateSub,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -1265,7 +1282,10 @@ fun AddAppSelectorDialog(
                                 RadioButton(
                                     selected = isSelected,
                                     onClick = { selectedApp = app },
-                                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF0F172A))
+                                    colors = RadioButtonDefaults.colors(
+                                        selectedColor = ArcColors.Primary,
+                                        unselectedColor = slateSub
+                                    )
                                 )
                             }
                         }
@@ -1280,8 +1300,8 @@ fun AddAppSelectorDialog(
                 },
                 enabled = selectedApp != null,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF0F172A),
-                    disabledContainerColor = Color(0xFFCBD5E1)
+                    containerColor = ArcColors.Primary,
+                    disabledContainerColor = if (ArcColors.isDark) Color(0xFF1E293B) else Color(0xFFCBD5E1)
                 ),
                 shape = CircleShape
             ) {
@@ -1290,10 +1310,10 @@ fun AddAppSelectorDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFF64748B))
+                Text("Cancel", color = slateSub)
             }
         },
-        containerColor = Color.White,
+        containerColor = cardBg,
         shape = RoundedCornerShape(16.dp)
     )
 }
@@ -1316,7 +1336,7 @@ fun EditUserAppDialog(
                 "Edit App Category",
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp,
-                color = Color(0xFF0F172A)
+                color = slateTitle
             )
         },
         text = {
@@ -1325,19 +1345,19 @@ fun EditUserAppDialog(
                     text = app.displayName,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
-                    color = Color(0xFF0F172A)
+                    color = slateTitle
                 )
                 Text(
                     text = app.packageName,
                     fontSize = 11.sp,
-                    color = Color(0xFF64748B)
+                    color = slateSub
                 )
                 Spacer(modifier = Modifier.height(14.dp))
                 Text(
                     text = "Select Category",
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,
-                    color = Color(0xFF334155)
+                    color = slateSub
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -1346,7 +1366,7 @@ fun EditUserAppDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (selectedCategory == cat) Color(0xFFF1F5F9) else Color.Transparent)
+                            .background(if (selectedCategory == cat) highlightSurface else Color.Transparent)
                             .clickable { selectedCategory = cat }
                             .padding(horizontal = 8.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -1354,10 +1374,13 @@ fun EditUserAppDialog(
                         RadioButton(
                             selected = (selectedCategory == cat),
                             onClick = { selectedCategory = cat },
-                            colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF0F172A))
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = ArcColors.Primary,
+                                unselectedColor = slateSub
+                            )
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(cat.displayName, fontSize = 13.5.sp, color = Color(0xFF0F172A))
+                        Text(cat.displayName, fontSize = 13.5.sp, color = slateTitle)
                     }
                 }
             }
@@ -1365,7 +1388,7 @@ fun EditUserAppDialog(
         confirmButton = {
             Button(
                 onClick = { onConfirm(selectedCategory) },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+                colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
                 shape = CircleShape
             ) {
                 Text("Save", color = Color.White, fontWeight = FontWeight.Bold)
@@ -1373,10 +1396,10 @@ fun EditUserAppDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFF64748B))
+                Text("Cancel", color = slateSub)
             }
         },
-        containerColor = Color.White,
+        containerColor = cardBg,
         shape = RoundedCornerShape(16.dp)
     )
 }

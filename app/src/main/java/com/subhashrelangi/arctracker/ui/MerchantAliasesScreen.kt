@@ -28,13 +28,26 @@ import com.subhashrelangi.arctracker.data.MerchantAlias
 import com.subhashrelangi.arctracker.service.MerchantAliasManager
 import com.subhashrelangi.arctracker.service.MerchantNormalizer
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.review.ArcColors
 import kotlinx.coroutines.launch
 
-private val emeraldPrimary = Color(0xFF047857)
-private val slateTitle = Color(0xFF0F172A)
-private val slateSub = Color(0xFF64748B)
-private val cardBorder = Color(0xFFE2E8F0)
-private val lightBg = Color(0xFFF8FAFC)
+private val emeraldPrimary: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Primary
+
+private val slateTitle: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+
+private val slateSub: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+
+private val cardBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Border
+
+private val lightBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Background
+
+private val cardBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,10 +80,10 @@ fun MerchantAliasesScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Surface(
-                color = Color.White,
+                color = lightBg,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(lightBg)
             ) {
                 ArcTrackerHeader(
                     title = "Merchant Aliases",
@@ -78,7 +91,7 @@ fun MerchantAliasesScreen(
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(lightBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
@@ -87,7 +100,7 @@ fun MerchantAliasesScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color.White)
+                                .background(cardBg)
                                 .border(BorderStroke(1.dp, cardBorder), CircleShape)
                                 .clickable { showAddDialog = true },
                             contentAlignment = Alignment.Center
@@ -115,7 +128,7 @@ fun MerchantAliasesScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
+                color = cardBg,
                 border = BorderStroke(1.dp, cardBorder)
             ) {
                 Column(
@@ -211,8 +224,8 @@ fun MerchantAliasesScreen(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = emeraldPrimary,
                             unfocusedBorderColor = cardBorder,
-                            focusedContainerColor = Color(0xFFF8FAFC),
-                            unfocusedContainerColor = Color(0xFFF8FAFC),
+                            focusedContainerColor = ArcColors.SurfaceHighlight,
+                            unfocusedContainerColor = ArcColors.SurfaceHighlight,
                             cursorColor = emeraldPrimary
                         )
                     )
@@ -227,9 +240,9 @@ fun MerchantAliasesScreen(
                         enabled = testMerchantInput.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = emeraldPrimary,
-                            disabledContainerColor = Color(0xFFF1F5F9),
+                            disabledContainerColor = ArcColors.SurfaceHighlight,
                             contentColor = Color.White,
-                            disabledContentColor = Color(0xFF94A3B8)
+                            disabledContentColor = slateSub
                         ),
                         shape = CircleShape,
                         modifier = Modifier
@@ -259,8 +272,8 @@ fun MerchantAliasesScreen(
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isMatched) Color(0xFFECFDF5) else Color(0xFFF1F5F9),
-                            border = BorderStroke(1.dp, if (isMatched) Color(0xFFA7F3D0) else cardBorder)
+                            color = if (isMatched) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight,
+                            border = BorderStroke(1.dp, if (isMatched) ArcColors.PrimaryBorder else cardBorder)
                         ) {
                             Column(
                                 modifier = Modifier.padding(12.dp),
@@ -419,7 +432,7 @@ fun MerchantAliasesScreen(
         AlertDialog(
             onDismissRequest = { aliasToDelete = null },
             shape = RoundedCornerShape(20.dp),
-            containerColor = Color.White,
+            containerColor = cardBg,
             title = {
                 Text(
                     text = "Delete Alias",
@@ -475,7 +488,7 @@ fun AliasCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = Color.White,
+        color = cardBg,
         border = BorderStroke(1.dp, cardBorder)
     ) {
         Row(
@@ -575,7 +588,7 @@ fun AliasEditorDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(20.dp),
-        containerColor = Color.White,
+        containerColor = cardBg,
         title = {
             Text(
                 text = if (existing != null) "Edit Merchant Alias" else "New Merchant Alias",

@@ -54,6 +54,21 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private val slateTitle: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+
+private val slateSub: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+
+private val cardBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Border
+
+private val lightBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Background
+
+private val cardBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+
 @Composable
 fun DeveloperOptionsScreen(
     onNavigate: (String) -> Unit = {},
@@ -164,11 +179,11 @@ fun DeveloperOptionsScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Surface(
-                color = Color.White,
-                shadowElevation = 0.5.dp,
+                color = lightBg,
+                shadowElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(lightBg)
             ) {
                 // Universal Settings Sub-Page Header
                 ArcTrackerHeader(
@@ -177,7 +192,7 @@ fun DeveloperOptionsScreen(
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(lightBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
@@ -185,8 +200,8 @@ fun DeveloperOptionsScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFFEF2F2))
-                                .border(BorderStroke(1.dp, Color(0xFFFECACA)), CircleShape)
+                                .background(ArcColors.DangerContainer)
+                                .border(BorderStroke(1.dp, ArcColors.DangerBorder), CircleShape)
                                 .clickable {
                                     settingsRepo.setDeveloperModeUnlocked(false)
                                     Toast.makeText(context, "Developer options locked", Toast.LENGTH_SHORT).show()
@@ -197,7 +212,7 @@ fun DeveloperOptionsScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Lock,
                                 contentDescription = "Lock Developer Options",
-                                tint = Color(0xFFDC2626),
+                                tint = ArcColors.Danger,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -209,7 +224,7 @@ fun DeveloperOptionsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF8FAFC))
+                .background(lightBg)
                 .verticalScroll(rememberScrollState())
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 14.dp)
@@ -291,8 +306,8 @@ fun DeveloperOptionsScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder)
             ) {
                 Row(
                     modifier = Modifier
@@ -388,8 +403,8 @@ fun DeveloperOptionsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
+                    border = BorderStroke(1.dp, cardBorder),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column {
@@ -458,8 +473,8 @@ fun DeveloperOptionsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
+                    border = BorderStroke(1.dp, cardBorder),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column {
@@ -516,8 +531,8 @@ fun DeveloperOptionsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
+                    border = BorderStroke(1.dp, cardBorder),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(
@@ -750,8 +765,8 @@ fun DeveloperOptionsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
+                    border = BorderStroke(1.dp, cardBorder),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column {
@@ -859,8 +874,8 @@ fun DeveloperOptionsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                colors = CardDefaults.cardColors(containerColor = cardBg),
+                border = BorderStroke(1.dp, cardBorder),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
@@ -957,7 +972,8 @@ fun DeveloperOptionsScreen(
         Dialog(onDismissRequest = { showDumpSqlDialog = false }) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 520.dp)
@@ -1055,7 +1071,8 @@ fun DeveloperOptionsScreen(
         Dialog(onDismissRequest = { showTestParserDialog = false }) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .wrapContentHeight()
@@ -1200,7 +1217,8 @@ fun DeveloperOptionsScreen(
         Dialog(onDismissRequest = { showLogsDialog = false }) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 500.dp)
@@ -1333,7 +1351,8 @@ fun DeveloperOptionsScreen(
         Dialog(onDismissRequest = { showRawQueueDialog = false }) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .wrapContentHeight()
@@ -1490,11 +1509,11 @@ fun DeveloperOptionsScreen(
                     onClick = { showReplayConfirmDialog = false },
                     shape = CircleShape
                 ) {
-                    Text("Cancel", color = Color(0xFF64748B))
+                    Text("Cancel", color = slateSub)
                 }
             },
             shape = RoundedCornerShape(16.dp),
-            containerColor = Color.White
+            containerColor = cardBg
         )
     }
 
@@ -1514,7 +1533,7 @@ fun DeveloperOptionsScreen(
                 Text(
                     text = "This restores default developer diagnostic flags, reenables all default regex patterns, and resets experimental toggles. Vault encryption and transaction data remain fully intact.",
                     fontSize = 13.sp,
-                    color = Color(0xFF64748B),
+                    color = slateSub,
                     lineHeight = 18.sp
                 )
             },
@@ -1546,11 +1565,11 @@ fun DeveloperOptionsScreen(
                     onClick = { showResetConfirmDialog = false },
                     shape = CircleShape
                 ) {
-                    Text("Cancel", color = Color(0xFF64748B))
+                    Text("Cancel", color = slateSub)
                 }
             },
             shape = RoundedCornerShape(16.dp),
-            containerColor = Color.White
+            containerColor = cardBg
         )
     }
 }

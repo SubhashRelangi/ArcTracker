@@ -66,6 +66,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private val slateTitle: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val slateSub: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val cardBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val lightBg: Color @Composable @ReadOnlyComposable get() = ArcColors.Background
+private val cardBg: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val highlightSurface: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackupScreen(
@@ -312,7 +319,7 @@ fun BackupScreen(
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(cardBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
@@ -320,8 +327,8 @@ fun BackupScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color.White)
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape),
+                                .background(cardBg)
+                                .border(BorderStroke(1.dp, cardBorder), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -339,7 +346,7 @@ fun BackupScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF8F9FA))
+                .background(lightBg)
                 .padding(innerPadding)
         ) {
             Column(
@@ -353,8 +360,8 @@ fun BackupScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
+                    border = BorderStroke(1.dp, cardBorder),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(
@@ -367,10 +374,11 @@ fun BackupScreen(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            val lockBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFECFDF5)
                             Box(
                                 modifier = Modifier
                                     .size(40.dp)
-                                    .background(Color(0xFFECFDF5), RoundedCornerShape(12.dp)),
+                                    .background(lockBg, RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -388,7 +396,7 @@ fun BackupScreen(
                                     text = "Air-Gapped Vault Security",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = slateTitle
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -407,14 +415,14 @@ fun BackupScreen(
 
                             Box(
                                 modifier = Modifier
-                                    .background(Color(0xFFF1F5F9), RoundedCornerShape(8.dp))
+                                    .background(highlightSurface, RoundedCornerShape(8.dp))
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
                                     text = databaseFileSizeKb,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = slateTitle
                                 )
                             }
                         }
@@ -422,7 +430,7 @@ fun BackupScreen(
                         Text(
                             text = "Backups are created 100% locally on your hardware. Zero cloud transmission or external telemetry.",
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B),
+                            color = slateSub,
                             lineHeight = 16.sp
                         )
 
@@ -430,8 +438,8 @@ fun BackupScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                                .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
+                                .background(highlightSurface, RoundedCornerShape(12.dp))
+                                .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
                                 .padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -448,11 +456,11 @@ fun BackupScreen(
                                     text = "${DecimalFormat("#,###").format(totalTxns)} Txns",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF0F172A)
+                                    color = slateTitle
                                 )
                             }
 
-                            Text("•", color = Color(0xFFCBD5E1))
+                            Text("•", color = slateSub)
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
@@ -466,11 +474,11 @@ fun BackupScreen(
                                     text = "$totalAccounts Accounts",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF0F172A)
+                                    color = slateTitle
                                 )
                             }
 
-                            Text("•", color = Color(0xFFCBD5E1))
+                            Text("•", color = slateSub)
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
@@ -484,7 +492,7 @@ fun BackupScreen(
                                     text = "$totalCategories Categories",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF0F172A)
+                                    color = slateTitle
                                 )
                             }
                         }
@@ -513,22 +521,22 @@ fun BackupScreen(
                                 text = "Plain Ledger Export",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = slateTitle
                             )
                         }
                         Text(
                             text = "RFC 4180",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                     }
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        colors = CardDefaults.cardColors(containerColor = cardBg),
+                        border = BorderStroke(1.dp, cardBorder),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(
@@ -540,7 +548,7 @@ fun BackupScreen(
                             Text(
                                 text = "Export unencrypted ledger entries for Excel, Google Sheets, or auditing tools.",
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B),
+                                color = slateSub,
                                 lineHeight = 16.sp
                             )
 
@@ -550,16 +558,17 @@ fun BackupScreen(
                                     .fillMaxWidth()
                                     .height(50.dp)
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(Color(0xFFF8FAFC))
-                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(14.dp))
+                                    .background(highlightSurface)
+                                    .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(14.dp))
                                     .clickable { showScopeDropdown = true }
                                     .padding(horizontal = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                val calBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFECFDF5)
                                 Box(
                                     modifier = Modifier
                                         .size(30.dp)
-                                        .background(Color(0xFFECFDF5), CircleShape),
+                                        .background(calBg, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -575,29 +584,30 @@ fun BackupScreen(
                                         text = "$selectedExportScope (${DecimalFormat("#,###").format(totalTxns)} txns)",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
+                                        color = slateTitle
                                     )
                                 }
                                 Box(
                                     modifier = Modifier
                                         .size(26.dp)
-                                        .background(Color(0xFFF1F5F9), CircleShape),
+                                        .background(cardBg, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.KeyboardArrowDown,
                                         contentDescription = null,
-                                        tint = Color(0xFF64748B),
+                                        tint = slateSub,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
                             }
 
                             // Sanitized Note Pill
+                            val noteBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFF0FDF4)
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFFF0FDF4), RoundedCornerShape(10.dp))
+                                    .background(noteBg, RoundedCornerShape(10.dp))
                                     .padding(horizontal = 12.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -626,8 +636,8 @@ fun BackupScreen(
                                     .height(46.dp),
                                 shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFF1F5F9),
-                                    contentColor = Color(0xFF0F172A)
+                                    containerColor = highlightSurface,
+                                    contentColor = slateTitle
                                 ),
                                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                             ) {
@@ -669,12 +679,13 @@ fun BackupScreen(
                                 text = "Encrypted Full Snapshot",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = slateTitle
                             )
                         }
+                        val encPillBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFDCFCE7)
                         Box(
                             modifier = Modifier
-                                .background(Color(0xFFDCFCE7), RoundedCornerShape(6.dp))
+                                .background(encPillBg, RoundedCornerShape(6.dp))
                                 .padding(horizontal = 7.dp, vertical = 2.dp)
                         ) {
                             Text(
@@ -689,8 +700,8 @@ fun BackupScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        colors = CardDefaults.cardColors(containerColor = cardBg),
+                        border = BorderStroke(1.dp, cardBorder),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(
@@ -702,7 +713,7 @@ fun BackupScreen(
                             Text(
                                 text = "Generates a tamper-evident payload (.arcvault) with complete transactions, categories, rules, and budget limits.",
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B),
+                                color = slateSub,
                                 lineHeight = 16.sp
                             )
 
@@ -710,8 +721,8 @@ fun BackupScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                                    .background(highlightSurface, RoundedCornerShape(12.dp))
+                                    .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
                                     .padding(horizontal = 14.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -720,13 +731,13 @@ fun BackupScreen(
                                         text = "Hardware Encryption",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
+                                        color = slateTitle
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = "AES-256-GCM + PBKDF2 with 100k iterations",
                                         fontSize = 11.sp,
-                                        color = Color(0xFF64748B)
+                                        color = slateSub
                                     )
                                 }
 
@@ -747,7 +758,7 @@ fun BackupScreen(
                                         text = "VAULT PASSPHRASE",
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF64748B),
+                                        color = slateSub,
                                         letterSpacing = 0.5.sp
                                     )
                                     Text(
@@ -764,8 +775,8 @@ fun BackupScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                                        .background(highlightSurface, RoundedCornerShape(12.dp))
+                                        .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
                                         .padding(horizontal = 14.dp, vertical = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -777,7 +788,7 @@ fun BackupScreen(
                                         textStyle = TextStyle(
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF0F172A),
+                                            color = slateTitle,
                                             fontFamily = FontFamily.Monospace
                                         ),
                                         cursorBrush = SolidColor(ArcColors.Primary),
@@ -796,7 +807,7 @@ fun BackupScreen(
                                         Icon(
                                             imageVector = if (isPassphraseVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
                                             contentDescription = "Toggle visibility",
-                                            tint = Color(0xFF64748B),
+                                            tint = slateSub,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -816,7 +827,7 @@ fun BackupScreen(
                                         for (barIndex in 1..4) {
                                             val isBarActive = strengthScore >= barIndex
                                             val barColor by animateColorAsState(
-                                                targetValue = if (isBarActive) strengthColor else Color(0xFFE2E8F0),
+                                                targetValue = if (isBarActive) strengthColor else cardBorder,
                                                 label = "strengthBarColor"
                                             )
                                             Box(
@@ -894,22 +905,22 @@ fun BackupScreen(
                                 text = "Restore from File",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = slateTitle
                             )
                         }
                         Text(
                             text = "Room v2.6.1",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                     }
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        colors = CardDefaults.cardColors(containerColor = cardBg),
+                        border = BorderStroke(1.dp, cardBorder),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(
@@ -921,7 +932,7 @@ fun BackupScreen(
                             Text(
                                 text = "Import and cryptographically verify archives before merging or committing changes.",
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B),
+                                color = slateSub,
                                 lineHeight = 16.sp
                             )
 
@@ -929,8 +940,8 @@ fun BackupScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFFF8FAFC), RoundedCornerShape(14.dp))
-                                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(14.dp))
+                                    .background(highlightSurface, RoundedCornerShape(14.dp))
+                                    .border(1.dp, cardBorder, RoundedCornerShape(14.dp))
                                     .clickable { filePickerLauncher.launch(arrayOf("*/*")) }
                                     .padding(vertical = 16.dp, horizontal = 14.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
@@ -938,7 +949,7 @@ fun BackupScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(36.dp)
-                                        .background(Color(0xFFF1F5F9), CircleShape),
+                                        .background(cardBg, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -953,13 +964,13 @@ fun BackupScreen(
                                     text = selectedSnapshotFileName ?: "Select Snapshot Archive",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = slateTitle
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = if (selectedSnapshotFileName != null) "Payload inspected and ready for restore" else "Accepts .arcvault or plain .json schemas",
                                     fontSize = 11.sp,
-                                    color = if (selectedSnapshotFileName != null) ArcColors.Primary else Color(0xFF64748B),
+                                    color = if (selectedSnapshotFileName != null) ArcColors.Primary else slateSub,
                                     fontWeight = if (selectedSnapshotFileName != null) FontWeight.SemiBold else FontWeight.Normal
                                 )
                             }
@@ -973,24 +984,22 @@ fun BackupScreen(
                                     text = "CONFLICT RESOLUTION STRATEGY",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF64748B),
+                                    color = slateSub,
                                     letterSpacing = 0.5.sp
                                 )
 
                                 // Strategy 1: Merge & Deduplicate
                                 val isOpt1Selected = selectedStrategyIndex == 0
+                                val opt1Bg = if (isOpt1Selected) {
+                                    if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFECFDF5)
+                                } else highlightSurface
+                                val opt1Border = if (isOpt1Selected) Color(0xFF10B981) else cardBorder
+
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(
-                                            if (isOpt1Selected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
-                                            RoundedCornerShape(12.dp)
-                                        )
-                                        .border(
-                                            1.5.dp,
-                                            if (isOpt1Selected) Color(0xFF10B981) else Color(0xFFE2E8F0),
-                                            RoundedCornerShape(12.dp)
-                                        )
+                                        .background(opt1Bg, RoundedCornerShape(12.dp))
+                                        .border(1.5.dp, opt1Border, RoundedCornerShape(12.dp))
                                         .clickable { selectedStrategyIndex = 0 }
                                         .padding(12.dp)
                                 ) {
@@ -1003,11 +1012,12 @@ fun BackupScreen(
                                                 text = "Merge & Deduplicate",
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F172A)
+                                                color = slateTitle
                                             )
+                                            val recBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFDCFCE7)
                                             Box(
                                                 modifier = Modifier
-                                                    .background(Color(0xFFDCFCE7), RoundedCornerShape(4.dp))
+                                                    .background(recBg, RoundedCornerShape(4.dp))
                                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                                             ) {
                                                 Text(
@@ -1022,7 +1032,7 @@ fun BackupScreen(
                                         Text(
                                             text = "Imports novel rows. Skips preexisting records safely based on unique cryptographic hashes.",
                                             fontSize = 11.sp,
-                                            color = Color(0xFF64748B),
+                                            color = slateSub,
                                             lineHeight = 15.sp
                                         )
                                     }
@@ -1030,18 +1040,16 @@ fun BackupScreen(
 
                                 // Strategy 2: Replace Existing
                                 val isOpt2Selected = selectedStrategyIndex == 1
+                                val opt2Bg = if (isOpt2Selected) {
+                                    if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFECFDF5)
+                                } else highlightSurface
+                                val opt2Border = if (isOpt2Selected) Color(0xFF10B981) else cardBorder
+
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(
-                                            if (isOpt2Selected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
-                                            RoundedCornerShape(12.dp)
-                                        )
-                                        .border(
-                                            1.5.dp,
-                                            if (isOpt2Selected) Color(0xFF10B981) else Color(0xFFE2E8F0),
-                                            RoundedCornerShape(12.dp)
-                                        )
+                                        .background(opt2Bg, RoundedCornerShape(12.dp))
+                                        .border(1.5.dp, opt2Border, RoundedCornerShape(12.dp))
                                         .clickable { selectedStrategyIndex = 1 }
                                         .padding(12.dp)
                                 ) {
@@ -1050,13 +1058,13 @@ fun BackupScreen(
                                             text = "Replace Existing",
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A)
+                                            color = slateTitle
                                         )
                                         Spacer(modifier = Modifier.height(3.dp))
                                         Text(
                                             text = "Overwrites matching records with archive data while keeping unmatched rows intact.",
                                             fontSize = 11.sp,
-                                            color = Color(0xFF64748B),
+                                            color = slateSub,
                                             lineHeight = 15.sp
                                         )
                                     }
@@ -1064,18 +1072,16 @@ fun BackupScreen(
 
                                 // Strategy 3: Full Wipe & Restore
                                 val isOpt3Selected = selectedStrategyIndex == 2
+                                val opt3Bg = if (isOpt3Selected) {
+                                    if (ArcColors.isDark) Color(0xFF3B1515) else Color(0xFFFEF2F2)
+                                } else highlightSurface
+                                val opt3Border = if (isOpt3Selected) ArcColors.Danger else (if (ArcColors.isDark) Color(0xFF5B2222) else Color(0xFFFECACA))
+
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(
-                                            if (isOpt3Selected) Color(0xFFFEF2F2) else Color(0xFFF8FAFC),
-                                            RoundedCornerShape(12.dp)
-                                        )
-                                        .border(
-                                            1.5.dp,
-                                            if (isOpt3Selected) Color(0xFFDC2626) else Color(0xFFFECACA),
-                                            RoundedCornerShape(12.dp)
-                                        )
+                                        .background(opt3Bg, RoundedCornerShape(12.dp))
+                                        .border(1.5.dp, opt3Border, RoundedCornerShape(12.dp))
                                         .clickable { selectedStrategyIndex = 2 }
                                         .padding(12.dp)
                                 ) {
@@ -1088,12 +1094,12 @@ fun BackupScreen(
                                                 text = "Full Wipe & Restore",
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFFDC2626)
+                                                color = ArcColors.Danger
                                             )
                                             Icon(
                                                 imageVector = Icons.Outlined.Warning,
                                                 contentDescription = null,
-                                                tint = Color(0xFFDC2626),
+                                                tint = ArcColors.Danger,
                                                 modifier = Modifier.size(14.dp)
                                             )
                                         }
@@ -1101,7 +1107,7 @@ fun BackupScreen(
                                         Text(
                                             text = "Erases local SQLite database completely before restoring fresh from archive.",
                                             fontSize = 11.sp,
-                                            color = Color(0xFF64748B),
+                                            color = slateSub,
                                             lineHeight = 15.sp
                                         )
                                     }
@@ -1138,8 +1144,8 @@ fun BackupScreen(
                                     .height(46.dp),
                                 shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFF1F5F9),
-                                    contentColor = Color(0xFF0F172A)
+                                    containerColor = highlightSurface,
+                                    contentColor = slateTitle
                                 ),
                                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                             ) {
@@ -1160,11 +1166,16 @@ fun BackupScreen(
                 }
 
                 // 5. PASSPHRASE RECOVERY NOTICE (Amber Callout)
+                val noticeBg = if (ArcColors.isDark) Color(0xFF2E1C05) else Color(0xFFFFFBEB)
+                val noticeBorder = if (ArcColors.isDark) Color(0xFF452B09) else Color(0xFFFEF3C7)
+                val noticeTitle = if (ArcColors.isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
+                val noticeText = if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFF78350F)
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFFFFBEB), RoundedCornerShape(14.dp))
-                        .border(1.dp, Color(0xFFFEF3C7), RoundedCornerShape(14.dp))
+                        .background(noticeBg, RoundedCornerShape(14.dp))
+                        .border(1.dp, noticeBorder, RoundedCornerShape(14.dp))
                         .padding(14.dp),
                     verticalAlignment = Alignment.Top
                 ) {
@@ -1182,19 +1193,19 @@ fun BackupScreen(
                             text = "Passphrase Recovery Notice",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF92400E)
+                            color = noticeTitle
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = buildAnnotatedString {
                                 append("ArcTracker never transmits or caches your master passphrase. Encrypted ")
-                                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFF92400E))) {
+                                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = noticeTitle)) {
                                     append(".arcvault")
                                 }
                                 append(" archives cannot be decrypted or recovered if the passphrase is lost.")
                             },
                             fontSize = 11.sp,
-                            color = Color(0xFF78350F),
+                            color = noticeText,
                             lineHeight = 16.sp
                         )
                     }
@@ -1209,12 +1220,12 @@ fun BackupScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.35f)),
+                    .background(Color.Black.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
                     elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                 ) {
                     Column(
@@ -1231,7 +1242,7 @@ fun BackupScreen(
                             text = loadingMessage,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                     }
                 }
@@ -1244,8 +1255,8 @@ fun BackupScreen(
         Dialog(onDismissRequest = { showScopeDropdown = false }) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -1259,10 +1270,11 @@ fun BackupScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val calHeaderBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFECFDF5)
                         Box(
                             modifier = Modifier
                                 .size(38.dp)
-                                .background(Color(0xFFECFDF5), CircleShape),
+                                .background(calHeaderBg, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -1280,12 +1292,12 @@ fun BackupScreen(
                                 text = "Export Range Scope",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = slateTitle
                             )
                             Text(
                                 text = "Select time boundary for spreadsheet export",
                                 fontSize = 11.sp,
-                                color = Color(0xFF64748B)
+                                color = slateSub
                             )
                         }
 
@@ -1293,14 +1305,14 @@ fun BackupScreen(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFF1F5F9))
+                                .background(highlightSurface)
                                 .clickable { showScopeDropdown = false },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Close",
-                                tint = Color(0xFF64748B),
+                                tint = slateSub,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -1313,6 +1325,10 @@ fun BackupScreen(
                     ) {
                         scopeOptions.forEach { opt ->
                             val isSelected = selectedExportScope == opt.title
+                            val optBg = if (isSelected) {
+                                if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFECFDF5)
+                            } else highlightSurface
+
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1322,10 +1338,10 @@ fun BackupScreen(
                                         showScopeDropdown = false
                                     },
                                 shape = RoundedCornerShape(14.dp),
-                                color = if (isSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
+                                color = optBg,
                                 border = BorderStroke(
                                     1.5.dp,
-                                    if (isSelected) ArcColors.Primary else Color(0xFFE2E8F0)
+                                    if (isSelected) ArcColors.Primary else cardBorder
                                 )
                             ) {
                                 Row(
@@ -1334,19 +1350,19 @@ fun BackupScreen(
                                         .padding(horizontal = 14.dp, vertical = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    val iconBoxBg = if (isSelected) {
+                                        if (ArcColors.isDark) Color(0xFF163829) else Color(0xFFDCFCE7)
+                                    } else cardBg
                                     Box(
                                         modifier = Modifier
                                             .size(36.dp)
-                                            .background(
-                                                if (isSelected) Color(0xFFDCFCE7) else Color(0xFFF1F5F9),
-                                                CircleShape
-                                            ),
+                                            .background(iconBoxBg, CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = opt.icon,
                                             contentDescription = null,
-                                            tint = if (isSelected) ArcColors.Primary else Color(0xFF64748B),
+                                            tint = if (isSelected) ArcColors.Primary else slateSub,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -1357,7 +1373,7 @@ fun BackupScreen(
                                         text = opt.title,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF0F172A),
+                                        color = slateTitle,
                                         modifier = Modifier.weight(1f)
                                     )
 
@@ -1391,7 +1407,8 @@ fun BackupScreen(
         Dialog(onDismissRequest = { showImportPassphraseDialog = false }) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = Color.White,
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -1399,10 +1416,11 @@ fun BackupScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        val lockIconBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFECFDF5)
                         Box(
                             modifier = Modifier
                                 .size(38.dp)
-                                .background(Color(0xFFECFDF5), CircleShape),
+                                .background(lockIconBg, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -1417,23 +1435,29 @@ fun BackupScreen(
                             text = "Decrypt Encrypted Archive",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                     }
 
                     Text(
                         text = "This snapshot is encrypted with AES-256-GCM. Please enter the master passphrase to decrypt and inspect the payload.",
                         fontSize = 12.sp,
-                        color = Color(0xFF64748B),
+                        color = slateSub,
                         lineHeight = 16.sp
                     )
 
                     OutlinedTextField(
                         value = importPassphraseInput,
                         onValueChange = { importPassphraseInput = it },
-                        placeholder = { Text("Master Passphrase") },
+                        placeholder = { Text("Master Passphrase", color = slateSub) },
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = slateTitle,
+                            unfocusedTextColor = slateTitle,
+                            focusedBorderColor = ArcColors.Primary,
+                            unfocusedBorderColor = cardBorder
+                        ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true
@@ -1454,8 +1478,8 @@ fun BackupScreen(
                                 .height(44.dp),
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFF1F5F9),
-                                contentColor = Color(0xFF374151)
+                                containerColor = highlightSurface,
+                                contentColor = slateTitle
                             )
                         ) {
                             Text("Cancel", fontWeight = FontWeight.SemiBold)
@@ -1517,7 +1541,8 @@ fun BackupScreen(
         Dialog(onDismissRequest = { successDialogMessage = null }) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = Color.White,
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -1525,10 +1550,11 @@ fun BackupScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    val successCircleBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFDCFCE7)
                     Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .background(Color(0xFFDCFCE7), CircleShape),
+                            .background(successCircleBg, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -1543,13 +1569,13 @@ fun BackupScreen(
                         text = "Operation Successful",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
+                        color = slateTitle
                     )
 
                     Text(
                         text = successDialogMessage ?: "",
                         fontSize = 12.sp,
-                        color = Color(0xFF4B5563),
+                        color = slateSub,
                         lineHeight = 16.sp
                     )
 
@@ -1576,7 +1602,8 @@ fun BackupScreen(
         Dialog(onDismissRequest = { errorDialogMessage = null }) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = Color.White,
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -1587,13 +1614,13 @@ fun BackupScreen(
                     Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .background(Color(0xFFFEE2E2), CircleShape),
+                            .background(ArcColors.DangerContainer, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Error,
                             contentDescription = null,
-                            tint = Color(0xFFDC2626),
+                            tint = ArcColors.Danger,
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -1602,13 +1629,13 @@ fun BackupScreen(
                         text = "Operation Failed",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
+                        color = slateTitle
                     )
 
                     Text(
                         text = errorDialogMessage ?: "",
                         fontSize = 12.sp,
-                        color = Color(0xFF4B5563),
+                        color = slateSub,
                         lineHeight = 16.sp
                     )
 
@@ -1619,7 +1646,7 @@ fun BackupScreen(
                             .height(44.dp),
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFDC2626),
+                            containerColor = ArcColors.Danger,
                             contentColor = Color.White
                         )
                     ) {
@@ -1678,7 +1705,7 @@ fun ArcTrackerCustomSwitch(
             .width(52.dp)
             .height(30.dp)
             .clip(CircleShape)
-            .background(if (checked) ArcColors.Primary else Color(0xFFCBD5E1))
+            .background(if (checked) ArcColors.Primary else (if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFCBD5E1)))
             .clickable { onCheckedChange(!checked) }
             .padding(2.dp),
         contentAlignment = Alignment.CenterStart

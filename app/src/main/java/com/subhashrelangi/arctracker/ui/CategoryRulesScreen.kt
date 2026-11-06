@@ -28,13 +28,26 @@ import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.*
 import com.subhashrelangi.arctracker.service.*
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.review.ArcColors
 import kotlinx.coroutines.launch
 
-private val emeraldPrimary = Color(0xFF047857)
-private val slateTitle = Color(0xFF0F172A)
-private val slateSub = Color(0xFF64748B)
-private val cardBorder = Color(0xFFE2E8F0)
-private val lightBg = Color(0xFFF8FAFC)
+private val emeraldPrimary: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Primary
+
+private val slateTitle: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+
+private val slateSub: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+
+private val cardBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Border
+
+private val lightBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Background
+
+private val cardBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,10 +91,10 @@ fun CategoryRulesScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Surface(
-                color = Color.White,
+                color = lightBg,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(lightBg)
             ) {
                 ArcTrackerHeader(
                     title = "Category Rules",
@@ -89,7 +102,7 @@ fun CategoryRulesScreen(
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(lightBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
@@ -98,7 +111,7 @@ fun CategoryRulesScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color.White)
+                                .background(cardBg)
                                 .border(BorderStroke(1.dp, cardBorder), CircleShape)
                                 .clickable { onNavigateToApplyRules(null) },
                             contentAlignment = Alignment.Center
@@ -116,7 +129,7 @@ fun CategoryRulesScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color.White)
+                                .background(cardBg)
                                 .border(BorderStroke(1.dp, cardBorder), CircleShape)
                                 .clickable { showAddDialog = true },
                             contentAlignment = Alignment.Center
@@ -352,7 +365,7 @@ fun CategoryRulesScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 4.dp)
-                    .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
+                    .background(ArcColors.SurfaceHighlight, RoundedCornerShape(12.dp))
                     .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(12.dp))
                     .padding(4.dp)
             ) {
@@ -365,7 +378,7 @@ fun CategoryRulesScreen(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(if (selectedTab == 0) Color.White else Color.Transparent)
+                            .background(if (selectedTab == 0) cardBg else Color.Transparent)
                             .then(
                                 if (selectedTab == 0) Modifier.border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(10.dp))
                                 else Modifier
@@ -387,7 +400,7 @@ fun CategoryRulesScreen(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(if (selectedTab == 1) Color.White else Color.Transparent)
+                            .background(if (selectedTab == 1) cardBg else Color.Transparent)
                             .then(
                                 if (selectedTab == 1) Modifier.border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(10.dp))
                                 else Modifier
@@ -533,7 +546,7 @@ fun CategoryRulesScreen(
         AlertDialog(
             onDismissRequest = { ruleToDelete = null },
             shape = RoundedCornerShape(20.dp),
-            containerColor = Color.White,
+            containerColor = cardBg,
             title = {
                 Text(
                     text = "Delete Rule",
@@ -593,7 +606,7 @@ fun RuleCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = Color.White,
+        color = cardBg,
         border = BorderStroke(1.dp, if (isInvalid) Color(0xFFEF4444) else cardBorder)
     ) {
         Row(
@@ -759,7 +772,7 @@ fun RuleEditorDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(20.dp),
-        containerColor = Color.White,
+        containerColor = cardBg,
         title = {
             Text(
                 text = if (existingRule != null) "Edit Category Rule" else "New Category Rule",
@@ -830,7 +843,7 @@ fun RuleEditorDialog(
                     DropdownMenu(
                         expanded = matchTypeExpanded,
                         onDismissRequest = { matchTypeExpanded = false },
-                        modifier = Modifier.background(Color.White)
+                        modifier = Modifier.background(cardBg)
                     ) {
                         UserRuleMatchType.ALL.forEach { mt ->
                             DropdownMenuItem(
@@ -876,7 +889,7 @@ fun RuleEditorDialog(
                     DropdownMenu(
                         expanded = categoryExpanded,
                         onDismissRequest = { categoryExpanded = false },
-                        modifier = Modifier.background(Color.White)
+                        modifier = Modifier.background(cardBg)
                     ) {
                         activeCategories.forEach { cat ->
                             DropdownMenuItem(

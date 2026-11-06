@@ -194,7 +194,7 @@ fun SettingsScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
+            .background(ArcColors.Background)
     ) {
         val q = searchQuery.trim()
         fun matchesSearch(vararg terms: String): Boolean {
@@ -254,8 +254,8 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .padding(vertical = 32.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    colors = CardDefaults.cardColors(containerColor = ArcColors.CardBackground),
+                    border = BorderStroke(1.dp, ArcColors.Border)
                 ) {
                     Column(
                         modifier = Modifier
@@ -267,13 +267,13 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFF1F5F9)),
+                                .background(ArcColors.SurfaceHighlight),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Search,
                                 contentDescription = null,
-                                tint = Color(0xFF94A3B8),
+                                tint = ArcColors.TextMutedLight,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -282,13 +282,13 @@ fun SettingsScreen(
                             text = "No settings found",
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
-                            color = Color(0xFF0F172A)
+                            color = ArcColors.TextPrimary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "No setting or rule matching \"$q\"",
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B)
+                            color = ArcColors.TextMuted
                         )
                     }
                 }
@@ -301,8 +301,8 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .clickable { showEditProfileSheet = true },
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = ArcColors.CardBackground),
+                    border = BorderStroke(1.dp, ArcColors.Border),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Row(
@@ -319,7 +319,7 @@ fun SettingsScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .clip(CircleShape)
-                                    .background(Color(0xFF064E3B)),
+                                    .background(ArcColors.PrimaryDark),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -337,7 +337,7 @@ fun SettingsScreen(
                                     .align(Alignment.BottomEnd)
                                     .clip(CircleShape)
                                     .background(Color(0xFF15803D))
-                                    .border(BorderStroke(1.5.dp, Color.White), CircleShape),
+                                    .border(BorderStroke(1.5.dp, ArcColors.Surface), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -357,7 +357,7 @@ fun SettingsScreen(
                                     text = profileName,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.5.sp,
-                                    color = Color(0xFF0F172A),
+                                    color = ArcColors.TextPrimary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -365,15 +365,15 @@ fun SettingsScreen(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(Color(0xFFECFDF5))
-                                        .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(6.dp))
+                                        .background(ArcColors.PrimaryLight)
+                                        .border(BorderStroke(1.dp, ArcColors.PrimaryBorder), RoundedCornerShape(6.dp))
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = "Primary Vault",
                                         fontSize = 10.5.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF15803D)
+                                        color = ArcColors.Primary
                                     )
                                 }
                             }
@@ -381,7 +381,7 @@ fun SettingsScreen(
                             Text(
                                 text = profileLabel,
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B),
+                                color = ArcColors.TextMuted,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -390,7 +390,7 @@ fun SettingsScreen(
                         Icon(
                             imageVector = Icons.Outlined.Edit,
                             contentDescription = "Edit Profile",
-                            tint = Color(0xFF94A3B8),
+                            tint = ArcColors.TextMutedLight,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -1609,7 +1609,7 @@ private fun SectionHeader(
             text = title,
             fontSize = 11.5.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF64748B),
+            color = ArcColors.TextMuted,
             letterSpacing = 0.8.sp
         )
         rightContent?.invoke()
@@ -1621,8 +1621,8 @@ private fun SettingsGroupCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        colors = CardDefaults.cardColors(containerColor = ArcColors.CardBackground),
+        border = BorderStroke(1.dp, ArcColors.Border),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         content = content
     )
@@ -1636,12 +1636,12 @@ private fun SettingsItemRow(
     subtitle: String,
     isLast: Boolean = false,
     enabled: Boolean = true,
-    iconTint: Color = Color(0xFF0F172A),
-    iconBgColor: Color = Color(0xFFF1F5F9),
-    titleColor: Color = Color(0xFF0F172A),
+    iconTint: Color = ArcColors.TextPrimary,
+    iconBgColor: Color = ArcColors.SurfaceHighlight,
+    titleColor: Color = ArcColors.TextPrimary,
     badgeText: String? = null,
-    badgeBgColor: Color = Color(0xFFF1F5F9),
-    badgeTextColor: Color = Color(0xFF475569),
+    badgeBgColor: Color = ArcColors.SurfaceHighlight,
+    badgeTextColor: Color = ArcColors.TextSecondary,
     customTrailing: (@Composable () -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
@@ -1694,7 +1694,7 @@ private fun SettingsItemRow(
                 Text(
                     text = subtitle,
                     fontSize = 11.5.sp,
-                    color = Color(0xFF64748B),
+                    color = ArcColors.TextMuted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1726,7 +1726,7 @@ private fun SettingsItemRow(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = "Open",
-                            tint = Color(0xFF94A3B8),
+                            tint = ArcColors.TextMutedLight,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -1736,7 +1736,7 @@ private fun SettingsItemRow(
 
         if (!isLast) {
             HorizontalDivider(
-                color = Color(0xFFF1F5F9),
+                color = ArcColors.BorderSubtle,
                 thickness = 1.dp,
                 modifier = Modifier.padding(start = 64.dp, end = 16.dp)
             )
@@ -1767,13 +1767,13 @@ private fun SettingsSwitchRowItem(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF1F5F9)),
+                    .background(ArcColors.SurfaceHighlight),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = title,
-                    tint = Color(0xFF0F172A),
+                    tint = ArcColors.TextPrimary,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -1785,13 +1785,13 @@ private fun SettingsSwitchRowItem(
                     text = title,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.5.sp,
-                    color = Color(0xFF0F172A)
+                    color = ArcColors.TextPrimary
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
                     fontSize = 11.5.sp,
-                    color = Color(0xFF64748B),
+                    color = ArcColors.TextMuted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1808,7 +1808,7 @@ private fun SettingsSwitchRowItem(
 
         if (!isLast) {
             HorizontalDivider(
-                color = Color(0xFFF1F5F9),
+                color = ArcColors.BorderSubtle,
                 thickness = 1.dp,
                 modifier = Modifier.padding(start = 64.dp, end = 16.dp)
             )

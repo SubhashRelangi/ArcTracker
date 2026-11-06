@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.review.ArcColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -42,14 +43,32 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val emeraldPrimary = Color(0xFF047857)
-private val emeraldDark = Color(0xFF065F46)
-private val emeraldLight = Color(0xFFECFDF5)
-private val emeraldBorder = Color(0xFFA7F3D0)
-private val slateTitle = Color(0xFF0F172A)
-private val slateSub = Color(0xFF64748B)
-private val cardBorder = Color(0xFFE2E8F0)
-private val lightBg = Color(0xFFF8FAFC)
+private val emeraldPrimary: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Primary
+
+private val emeraldDark: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.PrimaryDark
+
+private val emeraldLight: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.PrimaryLight
+
+private val emeraldBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.PrimaryBorder
+
+private val slateTitle: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+
+private val slateSub: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+
+private val cardBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Border
+
+private val lightBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Background
+
+private val cardBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
 
 data class TableTelemetry(
     val name: String,
@@ -148,10 +167,10 @@ fun DatabaseScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Surface(
-                color = Color.White,
+                color = lightBg,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(lightBg)
             ) {
                 ArcTrackerHeader(
                     title = "Database Diagnostics",
@@ -159,7 +178,7 @@ fun DatabaseScreen(
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(lightBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp
                 )
@@ -352,7 +371,7 @@ fun DatabaseScreen(
                 }
             },
             shape = RoundedCornerShape(20.dp),
-            containerColor = Color.White,
+            containerColor = cardBg,
             title = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -459,7 +478,7 @@ fun DatabaseScreen(
         ModalBottomSheet(
             onDismissRequest = { showSchemaBottomSheet = false },
             sheetState = sheetState,
-            containerColor = Color.White,
+            containerColor = cardBg,
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
         ) {
             Column(
@@ -668,7 +687,7 @@ private fun TableSchemaDetailCard(item: TableTelemetry) {
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color.White)
+                .background(cardBg)
                 .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(8.dp))
                 .padding(horizontal = 10.dp, vertical = 4.dp),
             contentAlignment = Alignment.Center
@@ -688,7 +707,7 @@ private fun DatabaseEngineCard(dbSize: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
         border = BorderStroke(1.dp, cardBorder),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -800,7 +819,7 @@ private fun DataDistributionDiagramCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
         border = BorderStroke(1.dp, cardBorder),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -1033,7 +1052,7 @@ private fun DatabaseMaintenanceCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
         border = BorderStroke(1.dp, cardBorder),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
