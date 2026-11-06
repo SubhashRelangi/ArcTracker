@@ -261,7 +261,7 @@ fun InsightsPage(
                                 Button(
                                     onClick = onStartSetup,
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = CircleShape,
                                     contentPadding = PaddingValues(horizontal = 22.dp, vertical = 11.dp)
                                 ) {
                                     Text(
@@ -344,7 +344,7 @@ fun InsightsPage(
                                 Button(
                                     onClick = onAddExpenseClick,
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = CircleShape,
                                     contentPadding = PaddingValues(horizontal = 22.dp, vertical = 11.dp)
                                 ) {
                                     Text(

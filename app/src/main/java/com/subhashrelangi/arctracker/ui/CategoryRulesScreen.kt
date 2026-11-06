@@ -260,7 +260,7 @@ fun CategoryRulesScreen(
                             contentColor = Color.White,
                             disabledContentColor = Color(0xFF94A3B8)
                         ),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = CircleShape,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp)
@@ -565,7 +565,7 @@ fun CategoryRulesScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = CircleShape
                 ) {
                     Text("Delete Rule", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
@@ -808,7 +808,7 @@ fun RuleEditorDialog(
                 Box {
                     OutlinedButton(
                         onClick = { matchTypeExpanded = true },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -860,7 +860,7 @@ fun RuleEditorDialog(
                     val currentCat = activeCategories.find { it.id == selectedCategoryId }
                     OutlinedButton(
                         onClick = { categoryExpanded = true },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -933,7 +933,7 @@ fun RuleEditorDialog(
                     onSave(pattern.trim(), selectedCategoryId, selectedMatchType, priority, name.trim().ifBlank { null })
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                shape = RoundedCornerShape(10.dp)
+                shape = CircleShape
             ) {
                 Text("Save Rule", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }

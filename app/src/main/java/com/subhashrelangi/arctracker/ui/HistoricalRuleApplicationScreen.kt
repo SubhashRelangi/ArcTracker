@@ -193,7 +193,7 @@ fun HistoricalRuleApplicationScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(46.dp),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary)
                             ) {
                                 Icon(
@@ -381,7 +381,7 @@ fun HistoricalRuleApplicationScreen(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .height(48.dp),
-                                                shape = RoundedCornerShape(12.dp),
+                                                shape = CircleShape,
                                                 colors = ButtonDefaults.buttonColors(
                                                     containerColor = emeraldPrimary,
                                                     disabledContainerColor = Color(0xFFE2E8F0)
@@ -540,7 +540,7 @@ fun HistoricalRuleApplicationScreen(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = CircleShape
                         ) {
                             Text("Apply $selectedCount Changes", fontWeight = FontWeight.Bold)
                         }
@@ -548,7 +548,7 @@ fun HistoricalRuleApplicationScreen(
                     dismissButton = {
                         OutlinedButton(
                             onClick = { showConfirmDialog = false },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = CircleShape,
                             border = BorderStroke(1.dp, cardBorder)
                         ) {
                             Text("Cancel", color = slateSub, fontWeight = FontWeight.SemiBold)
@@ -623,7 +623,7 @@ fun HistoricalRuleApplicationScreen(
                         Button(
                             onClick = { applyResult = null },
                             colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = CircleShape
                         ) {
                             Text("Done", fontWeight = FontWeight.Bold)
                         }

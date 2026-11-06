@@ -777,7 +777,7 @@ fun ReviewPage(
                                     maxLines = 1
                                 )
                                 Surface(
-                                    shape = RoundedCornerShape(8.dp),
+                                    shape = CircleShape,
                                     color = if (isSelectionMode) Color(0xFFECFDF5) else Color(0xFFF1F5F9),
                                     border = BorderStroke(1.dp, if (isSelectionMode) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)),
                                     modifier = Modifier.clickable {
@@ -854,7 +854,7 @@ fun ReviewPage(
                                             )
 
                                             Surface(
-                                                shape = RoundedCornerShape(6.dp),
+                                                shape = CircleShape,
                                                 color = Color(0xFFF1F5F9),
                                                 border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                                                 modifier = Modifier.clickable {
@@ -1107,7 +1107,7 @@ fun ReviewPage(
                                     else onViewLedger()
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = CircleShape,
                                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                             ) {
                                 Text(
@@ -1590,7 +1590,7 @@ fun ReviewPage(
                                             Toast.makeText(context, "Confirmed category: $resolvedCat", Toast.LENGTH_SHORT).show()
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = CircleShape,
                                         modifier = Modifier
                                             .weight(1f)
                                             .height(46.dp),
@@ -1643,7 +1643,7 @@ fun ReviewPage(
                                             containerColor = Color(0xFFFEE2E2),
                                             contentColor = Color(0xFF991B1B)
                                         ),
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = CircleShape,
                                         modifier = Modifier.height(46.dp),
                                         contentPadding = PaddingValues(horizontal = 14.dp)
                                     ) {
@@ -1665,7 +1665,7 @@ fun ReviewPage(
                                             containerColor = Color(0xFFF1F5F9),
                                             contentColor = Color(0xFF1E293B)
                                         ),
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = CircleShape,
                                         modifier = Modifier.height(46.dp),
                                         contentPadding = PaddingValues(horizontal = 14.dp)
                                     ) {
@@ -2718,7 +2718,7 @@ private fun ActiveUnlinkedAccountCard(
                     Button(
                         onClick = onAssignClick,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = CircleShape,
                         modifier = Modifier
                             .weight(1f)
                             .height(46.dp),
@@ -2747,7 +2747,7 @@ private fun ActiveUnlinkedAccountCard(
                             containerColor = Color(0xFFF1F5F9),
                             contentColor = Color(0xFF475569)
                         ),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = CircleShape,
                         modifier = Modifier.height(46.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp)
                     ) {
@@ -2768,7 +2768,7 @@ private fun ActiveUnlinkedAccountCard(
                                 containerColor = Color(0xFFF1F5F9),
                                 contentColor = Color(0xFF1E293B)
                             ),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = CircleShape,
                             modifier = Modifier.height(46.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp)
                         ) {
@@ -3084,7 +3084,7 @@ private fun AccountSelectionDialog(
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         modifier = Modifier.weight(1f),
                         border = BorderStroke(1.dp, Color(0xFFCBD5E1))
                     ) {
@@ -3096,7 +3096,7 @@ private fun AccountSelectionDialog(
                             selectedAccount?.let { onConfirm(it) }
                         },
                         enabled = selectedAccount != null,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         modifier = Modifier.weight(1.3f),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF055B38),
@@ -3464,7 +3464,7 @@ private fun CategorySelectionModalDialog(
                                     isAddingNew = false
                                     newCategoryName = ""
                                 },
-                                shape = RoundedCornerShape(8.dp),
+                                shape = CircleShape,
                                 modifier = Modifier.weight(1f),
                                 border = BorderStroke(1.dp, Color(0xFFCBD5E1))
                             ) {
@@ -3479,7 +3479,7 @@ private fun CategorySelectionModalDialog(
                                     }
                                 },
                                 enabled = newCategoryName.isNotBlank(),
-                                shape = RoundedCornerShape(8.dp),
+                                shape = CircleShape,
                                 modifier = Modifier.weight(1.4f),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFF047857),

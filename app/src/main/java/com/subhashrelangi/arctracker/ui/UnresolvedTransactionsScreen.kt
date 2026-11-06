@@ -176,7 +176,7 @@ fun UnresolvedTransactionsScreen(
                         OutlinedButton(
                             onClick = { selectedExpenseIds = emptySet() },
                             border = BorderStroke(1.dp, cardBorder),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = CircleShape,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(46.dp)
@@ -192,7 +192,7 @@ fun UnresolvedTransactionsScreen(
                         Button(
                             onClick = { showBulkAssignDialog = true },
                             colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = CircleShape,
                             modifier = Modifier
                                 .weight(2f)
                                 .height(46.dp)
@@ -840,7 +840,7 @@ fun UnresolvedTransactionCard(
                 ) {
                     OutlinedButton(
                         onClick = onIgnoreClick,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         border = BorderStroke(1.dp, cardBorder),
                         colors = ButtonDefaults.outlinedButtonColors(
                             containerColor = Color(0xFFF8FAFC),
@@ -866,7 +866,7 @@ fun UnresolvedTransactionCard(
 
                     Button(
                         onClick = onAssignClick,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = emeraldLight,
                             contentColor = emeraldPrimary
@@ -1077,7 +1077,7 @@ private fun ArcAccountAssignmentDialog(
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         modifier = Modifier.weight(1f),
                         border = BorderStroke(1.dp, cardBorder)
                     ) {
@@ -1089,7 +1089,7 @@ private fun ArcAccountAssignmentDialog(
                             selectedAccount?.let { onConfirm(it) }
                         },
                         enabled = selectedAccount != null,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         modifier = Modifier.weight(1.3f),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = emeraldPrimary,

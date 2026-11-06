@@ -323,7 +323,7 @@ fun EditTransactionPage(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFF047857),
                                 contentColor = Color.White
@@ -355,7 +355,7 @@ fun EditTransactionPage(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(44.dp),
-                                shape = RoundedCornerShape(14.dp),
+                                shape = CircleShape,
                                 color = Color(0xFFFEF2F2),
                                 border = BorderStroke(1.dp, Color(0xFFFECACA))
                             ) {

@@ -781,7 +781,7 @@ fun EditRegexPatternScreen(
                     // Run Test Button
                     Button(
                         onClick = { runLiveTest() },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -931,7 +931,7 @@ fun EditRegexPatternScreen(
             ) {
                 OutlinedButton(
                     onClick = onBack,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = CircleShape,
                     border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
                     modifier = Modifier
                         .weight(1f)
@@ -978,7 +978,7 @@ fun EditRegexPatternScreen(
                         }
                         onBack()
                     },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
                     modifier = Modifier
                         .weight(1.4f)
@@ -1078,7 +1078,7 @@ fun EditRegexPatternScreen(
 
                     Button(
                         onClick = { showCheatSheetDialog = false },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -1143,7 +1143,7 @@ fun EditRegexPatternScreen(
                     ) {
                         OutlinedButton(
                             onClick = { showDeleteConfirmDialog = false },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = CircleShape,
                             modifier = Modifier.weight(1f),
                             border = BorderStroke(1.dp, Color(0xFFCBD5E1))
                         ) {
@@ -1157,7 +1157,7 @@ fun EditRegexPatternScreen(
                                 Toast.makeText(context, "Regex pattern deleted", Toast.LENGTH_SHORT).show()
                                 onBack()
                             },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
                             modifier = Modifier.weight(1f)
                         ) {

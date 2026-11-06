@@ -570,7 +570,7 @@ fun FinancialAccountsScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = CircleShape
                 ) {
                     Text("Delete Account", fontWeight = FontWeight.Bold)
                 }
@@ -578,7 +578,7 @@ fun FinancialAccountsScreen(
             dismissButton = {
                 OutlinedButton(
                     onClick = { accountToDelete = null },
-                    shape = RoundedCornerShape(10.dp),
+                    shape = CircleShape,
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                 ) {
                     Text("Cancel", color = Color(0xFF475569))
@@ -701,7 +701,7 @@ fun FinancialAccountsScreen(
                     },
                     enabled = targetSelected != null,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = CircleShape
                 ) {
                     Text("Confirm Merge", fontWeight = FontWeight.Bold)
                 }
@@ -709,7 +709,7 @@ fun FinancialAccountsScreen(
             dismissButton = {
                 OutlinedButton(
                     onClick = { accountToMerge = null },
-                    shape = RoundedCornerShape(10.dp),
+                    shape = CircleShape,
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                 ) {
                     Text("Cancel", color = Color(0xFF475569))
@@ -957,7 +957,7 @@ fun FinancialAccountsScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(42.dp),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = CircleShape,
                             border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                         ) {
                             Text("Cancel", color = Color(0xFF475569), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -990,7 +990,7 @@ fun FinancialAccountsScreen(
                                 .weight(1f)
                                 .height(42.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = CircleShape
                         ) {
                             Text("Add Account", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
@@ -1123,7 +1123,7 @@ private fun EmptyAccountsDiscoveryCard(
                         modifier = Modifier
                             .weight(1f)
                             .height(42.dp),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
                     ) {
                         Icon(
@@ -1142,7 +1142,7 @@ private fun EmptyAccountsDiscoveryCard(
                     modifier = Modifier
                         .weight(1f)
                         .height(42.dp),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = CircleShape,
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0F172A))
                 ) {

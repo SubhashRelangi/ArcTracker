@@ -307,7 +307,7 @@ fun AddExpenseDialog(
                         showAddTagDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = CircleShape
                 ) {
                     Text("Add Tag", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
@@ -414,7 +414,7 @@ fun AddExpenseDialog(
                                         modifier = Modifier
                                             .weight(0.7f)
                                             .height(52.dp),
-                                        shape = RoundedCornerShape(14.dp),
+                                        shape = CircleShape,
                                         color = Color(0xFFFEE2E2),
                                         border = BorderStroke(1.dp, Color(0xFFFECACA))
                                     ) {
@@ -480,7 +480,7 @@ fun AddExpenseDialog(
                                     modifier = Modifier
                                         .weight(if (onDelete != null) 1.3f else 1f)
                                         .height(52.dp),
-                                    shape = RoundedCornerShape(14.dp),
+                                    shape = CircleShape,
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = Color(0xFF047857)
                                     )
@@ -527,7 +527,7 @@ fun AddExpenseDialog(
             ) {
                     // 2. TRANSACTION TYPE SEGMENTED SWITCHER
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = CircleShape,
                         color = Color(0xFFF1F5F9),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -544,7 +544,7 @@ fun AddExpenseDialog(
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(38.dp),
-                                    shape = RoundedCornerShape(10.dp),
+                                    shape = CircleShape,
                                     color = if (isSelected) Color.White else Color.Transparent,
                                     shadowElevation = if (isSelected) 1.dp else 0.dp
                                 ) {
@@ -789,7 +789,7 @@ fun AddExpenseDialog(
                                                 merchant = rm
                                                 showRecentMerchants = false
                                             },
-                                            shape = RoundedCornerShape(10.dp),
+                                            shape = CircleShape,
                                             color = Color(0xFFF1F5F9)
                                         ) {
                                             Text(
@@ -990,7 +990,7 @@ fun AddExpenseDialog(
 
                                 Surface(
                                     onClick = { dateMillis = System.currentTimeMillis() },
-                                    shape = RoundedCornerShape(8.dp),
+                                    shape = CircleShape,
                                     color = Color(0xFFF1F5F9)
                                 ) {
                                     Text(
@@ -1100,7 +1100,7 @@ fun AddExpenseDialog(
                                                 selectedTags + tagItem
                                             }
                                         },
-                                        shape = RoundedCornerShape(10.dp),
+                                        shape = CircleShape,
                                         color = if (isSelected) Color(0xFFDCFCE7) else Color(0xFFF1F5F9),
                                         border = BorderStroke(
                                             1.dp,
@@ -1133,7 +1133,7 @@ fun AddExpenseDialog(
                                 // "+ Add Tag" button
                                 Surface(
                                     onClick = { showAddTagDialog = true },
-                                    shape = RoundedCornerShape(10.dp),
+                                    shape = CircleShape,
                                     color = Color(0xFFF1F5F9)
                                 ) {
                                     Row(
@@ -1186,7 +1186,7 @@ fun AddExpenseDialog(
                                     onClick = {
                                         Toast.makeText(context, "Encrypted receipt attachment ready in vault", Toast.LENGTH_SHORT).show()
                                     },
-                                    shape = RoundedCornerShape(8.dp),
+                                    shape = CircleShape,
                                     color = Color(0xFFF1F5F9)
                                 ) {
                                     Row(

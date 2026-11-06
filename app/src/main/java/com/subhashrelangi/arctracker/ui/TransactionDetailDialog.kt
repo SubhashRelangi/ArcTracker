@@ -459,7 +459,7 @@ fun TransactionDetailDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp),
-                                shape = RoundedCornerShape(14.dp),
+                                shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFF047857),
                                     contentColor = Color.White
@@ -495,7 +495,7 @@ fun TransactionDetailDialog(
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(42.dp),
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = CircleShape,
                                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                                     colors = ButtonDefaults.outlinedButtonColors(
                                         containerColor = Color.White,
@@ -528,7 +528,7 @@ fun TransactionDetailDialog(
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(42.dp),
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = CircleShape,
                                     border = BorderStroke(1.dp, Color(0xFFFECACA)),
                                     colors = ButtonDefaults.outlinedButtonColors(
                                         containerColor = Color(0xFFFEF2F2),
@@ -625,7 +625,7 @@ fun TransactionDetailDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(46.dp),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFFF1F5F9),
                                     contentColor = Color(0xFF1E293B)

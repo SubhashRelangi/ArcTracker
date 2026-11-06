@@ -442,7 +442,7 @@ fun DatabaseScreen(
                         optimizationStep = 0
                     },
                     enabled = !isRunningFullOptimization,
-                    shape = RoundedCornerShape(10.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = emeraldPrimary,
                         disabledContainerColor = Color(0xFFCBD5E1)
@@ -530,7 +530,7 @@ fun DatabaseScreen(
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F5F9))
                 ) {
                     Icon(
@@ -994,7 +994,7 @@ private fun QuickOptimizationMasterCard(
             Button(
                 onClick = onRunFullOptimization,
                 enabled = !isRunning,
-                shape = RoundedCornerShape(10.dp),
+                shape = CircleShape,
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = emeraldPrimary,

@@ -1305,7 +1305,7 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF047857),
                         contentColor = Color.White
@@ -1340,7 +1340,7 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Color(0xFF0F172A)
                     ),
@@ -1515,7 +1515,7 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
                 ) {
                     Text(

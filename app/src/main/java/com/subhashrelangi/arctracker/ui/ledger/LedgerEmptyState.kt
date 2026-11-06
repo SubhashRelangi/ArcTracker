@@ -1,5 +1,6 @@
 package com.subhashrelangi.arctracker.ui.ledger
 
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -87,7 +88,7 @@ fun LedgerEmptyState(
             if (isSearching || isFilterActive) {
                 OutlinedButton(
                     onClick = onClearFilters,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = CircleShape,
                     border = BorderStroke(1.dp, LedgerColors.BorderLight),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = LedgerColors.TextPrimary)
                 ) {
@@ -97,7 +98,7 @@ fun LedgerEmptyState(
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(
                         onClick = onAddTransaction,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color.White,
                             contentColor = Color.Black
@@ -110,7 +111,7 @@ fun LedgerEmptyState(
 
                     OutlinedButton(
                         onClick = onScanSms,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = CircleShape,
                         border = BorderStroke(1.dp, LedgerColors.BorderLight),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = LedgerColors.TextPrimary)
                     ) {

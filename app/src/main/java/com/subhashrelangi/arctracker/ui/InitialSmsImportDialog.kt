@@ -121,7 +121,7 @@ fun InitialSmsImportDialog(
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF673AB7),
                         contentColor = Color.White

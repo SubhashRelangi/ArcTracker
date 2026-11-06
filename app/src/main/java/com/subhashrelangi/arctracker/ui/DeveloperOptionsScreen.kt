@@ -581,7 +581,7 @@ fun DeveloperOptionsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(42.dp),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFF1F5F9),
                                 contentColor = Color(0xFF0F172A)
@@ -614,7 +614,7 @@ fun DeveloperOptionsScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(40.dp),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFFF1F5F9),
                                     contentColor = Color(0xFF0F172A)
@@ -686,7 +686,7 @@ fun DeveloperOptionsScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(40.dp),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFFF1F5F9),
                                     contentColor = Color(0xFF0F172A)
@@ -908,7 +908,7 @@ fun DeveloperOptionsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(42.dp),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFFEF2F2),
                             contentColor = Color(0xFFDC2626)
@@ -1019,7 +1019,7 @@ fun DeveloperOptionsScreen(
                         OutlinedButton(
                             onClick = { showDumpSqlDialog = false },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = CircleShape
                         ) {
                             Text("Close", color = Color(0xFF64748B))
                         }
@@ -1032,7 +1032,7 @@ fun DeveloperOptionsScreen(
                                 showDumpSqlDialog = false
                             },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38))
                         ) {
                             Text("Copy SQL", color = Color.White)
@@ -1166,7 +1166,7 @@ fun DeveloperOptionsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(40.dp),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38))
                     ) {
                         Text("Parse Message (Real Engine)", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -1315,7 +1315,7 @@ fun DeveloperOptionsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(40.dp),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38))
                     ) {
                         Text("Done", color = Color.White)
@@ -1441,7 +1441,7 @@ fun DeveloperOptionsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(40.dp),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38))
                     ) {
                         Text("Dismiss", color = Color.White)
@@ -1479,7 +1479,7 @@ fun DeveloperOptionsScreen(
                         onNavigate("InitialOnboarding")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38)),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = CircleShape
                 ) {
                     Text("Replay", color = Color.White)
                 }
@@ -1487,7 +1487,7 @@ fun DeveloperOptionsScreen(
             dismissButton = {
                 OutlinedButton(
                     onClick = { showReplayConfirmDialog = false },
-                    shape = RoundedCornerShape(8.dp)
+                    shape = CircleShape
                 ) {
                     Text("Cancel", color = Color(0xFF64748B))
                 }
@@ -1535,7 +1535,7 @@ fun DeveloperOptionsScreen(
                         Toast.makeText(context, "Developer configuration reset to defaults", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = CircleShape
                 ) {
                     Text("Reset Config", color = Color.White)
                 }
@@ -1543,7 +1543,7 @@ fun DeveloperOptionsScreen(
             dismissButton = {
                 OutlinedButton(
                     onClick = { showResetConfirmDialog = false },
-                    shape = RoundedCornerShape(8.dp)
+                    shape = CircleShape
                 ) {
                     Text("Cancel", color = Color(0xFF64748B))
                 }

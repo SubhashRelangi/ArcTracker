@@ -231,7 +231,7 @@ fun MerchantAliasesScreen(
                             contentColor = Color.White,
                             disabledContentColor = Color(0xFF94A3B8)
                         ),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = CircleShape,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp)
@@ -451,7 +451,7 @@ fun MerchantAliasesScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = CircleShape
                 ) {
                     Text("Delete Alias", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
@@ -673,7 +673,7 @@ fun AliasEditorDialog(
                     onSave(a, c)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                shape = RoundedCornerShape(10.dp)
+                shape = CircleShape
             ) {
                 Text("Save Alias", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }

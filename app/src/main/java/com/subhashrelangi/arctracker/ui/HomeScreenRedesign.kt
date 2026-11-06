@@ -2260,7 +2260,7 @@ private fun HomeRecentActivitySection(
 
                     OutlinedButton(
                         onClick = onScanSmsClick,
-                        shape = RoundedCornerShape(20.dp),
+                        shape = CircleShape,
                         border = BorderStroke(1.dp, CardBorderLight),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = TextDarkPrimary

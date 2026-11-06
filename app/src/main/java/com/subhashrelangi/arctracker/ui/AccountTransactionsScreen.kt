@@ -171,7 +171,7 @@ fun AccountTransactionsScreen(
                             onClick = { showBulkUnlinkConfirmDialog = true },
                             border = BorderStroke(1.dp, Color(0xFFFECACA)),
                             colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFFEF2F2)),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = CircleShape,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(46.dp)
@@ -194,7 +194,7 @@ fun AccountTransactionsScreen(
                         Button(
                             onClick = { showBulkReassignPicker = true },
                             colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = CircleShape,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(46.dp)
@@ -513,7 +513,7 @@ fun AccountTransactionsScreen(
                     },
                     enabled = tempBulkTarget != null,
                     colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = CircleShape
                 ) {
                     Text("Continue", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
@@ -582,7 +582,7 @@ fun AccountTransactionsScreen(
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = CircleShape
                     ) {
                         Text("Confirm Reassignment", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
@@ -635,7 +635,7 @@ fun AccountTransactionsScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = CircleShape
                 ) {
                     Text("Unlink Records", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
@@ -762,7 +762,7 @@ fun AccountTransactionsScreen(
                         },
                         enabled = singleNewAccountSelected != null,
                         colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = CircleShape
                     ) {
                         Text("Continue", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
@@ -828,7 +828,7 @@ fun AccountTransactionsScreen(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = CircleShape
                         ) {
                             Text("Reassign Account", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
@@ -880,7 +880,7 @@ fun AccountTransactionsScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = CircleShape
                 ) {
                     Text("Unlink Account", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }

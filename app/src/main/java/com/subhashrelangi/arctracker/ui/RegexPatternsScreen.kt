@@ -376,7 +376,7 @@ fun RegexPatternsScreen(
                 Button(
                     onClick = { onAddPattern(selectedCategory) },
                     modifier = Modifier.height(42.dp),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFF1F5F9),
                         contentColor = Color(0xFF0F172A)
@@ -549,7 +549,7 @@ fun RegexPatternsScreen(
 
                         Button(
                             onClick = { evaluatePayload(rawMessagePayload) },
-                            shape = RoundedCornerShape(8.dp),
+                            shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38)),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                             modifier = Modifier.height(36.dp)
@@ -755,7 +755,7 @@ fun RegexPatternsScreen(
                         Toast.makeText(context, "Pattern deleted", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = CircleShape
                 ) {
                     Text("Delete", color = Color.White)
                 }
@@ -763,7 +763,7 @@ fun RegexPatternsScreen(
             dismissButton = {
                 OutlinedButton(
                     onClick = { ruleToDelete = null },
-                    shape = RoundedCornerShape(8.dp)
+                    shape = CircleShape
                 ) {
                     Text("Cancel", color = Color(0xFF64748B))
                 }
@@ -1125,7 +1125,7 @@ fun TestRuleDialog(rule: RegexRule, onDismiss: () -> Unit) {
             Button(
                 onClick = onDismiss,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38)),
-                shape = RoundedCornerShape(8.dp)
+                shape = CircleShape
             ) {
                 Text("Close", color = Color.White)
             }

@@ -970,7 +970,7 @@ fun SupportedAppsScreen(
                 Button(
                     onClick = { confirmRemove(targetApp) },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = CircleShape
                 ) {
                     Text("Remove", color = Color.White, fontWeight = FontWeight.Bold)
                 }
@@ -1282,7 +1282,7 @@ fun AddAppSelectorDialog(
                     containerColor = Color(0xFF0F172A),
                     disabledContainerColor = Color(0xFFCBD5E1)
                 ),
-                shape = RoundedCornerShape(8.dp)
+                shape = CircleShape
             ) {
                 Text("Add App", color = Color.White, fontWeight = FontWeight.Bold)
             }
@@ -1365,7 +1365,7 @@ fun EditUserAppDialog(
             Button(
                 onClick = { onConfirm(selectedCategory) },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
-                shape = RoundedCornerShape(8.dp)
+                shape = CircleShape
             ) {
                 Text("Save", color = Color.White, fontWeight = FontWeight.Bold)
             }
