@@ -45,7 +45,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.NotificationReaderService
+import com.subhashrelangi.arctracker.settings.AppThemeMode
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.utils.AppVersion
 import kotlinx.coroutines.delay
 
@@ -68,6 +70,9 @@ fun SettingsScreen(
     val settingsRepo = remember {
         repository ?: MonitoringSettingsRepository.getInstance(context)
     }
+
+    val currentThemeMode by settingsRepo.themeModeFlow.collectAsState()
+    var showThemeDialog by remember { mutableStateOf(false) }
 
     val profileName by settingsRepo.getProfileNameFlow().collectAsState()
     val profileLabel by settingsRepo.getProfileLabelFlow().collectAsState()
@@ -225,13 +230,16 @@ fun SettingsScreen(
         val showOffline = matchesSearch("100% Offline & Private", "Offline", "Private", "Zero network", "Zero telemetry")
         val hasSecurityMatches = showAppLock || showScreenSec || showOffline
 
+        val showTheme = matchesSearch("App Theme", "Appearance", "Theme", "Dark mode", "Light mode", "System default")
+        val hasAppearanceMatches = showTheme
+
         val showDev = isDeveloperModeUnlocked && matchesSearch("Developer Options", "Developer", "Regex", "Onboarding", "Demo mode")
 
         val showAbout = matchesSearch("About ArcTracker", "About", "Version", "Build", "Architecture")
         val showFeedback = matchesSearch("Feedback & Local Logs", "Feedback", "Diagnostics", "Report", "Review")
         val hasAboutMatches = showAbout || showFeedback
 
-        val hasAnyMatch = showProfile || hasCoreMatches || showTracker || hasTrackingMatches || hasDataMatches || hasSecurityMatches || showDev || hasAboutMatches
+        val hasAnyMatch = showProfile || hasCoreMatches || showTracker || hasTrackingMatches || hasDataMatches || hasSecurityMatches || hasAppearanceMatches || showDev || hasAboutMatches
 
         Column(
             modifier = Modifier
@@ -801,7 +809,27 @@ fun SettingsScreen(
                 }
             }
 
-            // 8. Section: DEVELOPER & ADVANCED
+            // 8. Section: APPEARANCE & THEME
+            if (hasAppearanceMatches) {
+                SectionHeader(title = "APPEARANCE & THEME")
+
+                SettingsGroupCard {
+                    SettingsItemRow(
+                        icon = when (currentThemeMode) {
+                            AppThemeMode.SYSTEM -> Icons.Outlined.BrightnessAuto
+                            AppThemeMode.LIGHT -> Icons.Outlined.LightMode
+                            AppThemeMode.DARK -> Icons.Outlined.DarkMode
+                        },
+                        title = "App Theme",
+                        subtitle = currentThemeMode.description,
+                        badgeText = currentThemeMode.displayName.replace(" Theme", ""),
+                        isLast = true,
+                        onClick = { showThemeDialog = true }
+                    )
+                }
+            }
+
+            // 9. Section: DEVELOPER & ADVANCED
             if (isDeveloperModeUnlocked && showDev) {
                 SectionHeader(
                     title = "DEVELOPER & ADVANCED",
@@ -1389,6 +1417,176 @@ fun SettingsScreen(
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
+                }
+            }
+        }
+    }
+
+    // Appearance & Theme Selection Modal Bottom Sheet
+    if (showThemeDialog) {
+        val themeSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showThemeDialog = false },
+            sheetState = themeSheetState,
+            containerColor = ArcColors.SurfaceElevated,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 12.dp, bottom = 8.dp)
+                        .width(36.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(ArcColors.Border)
+                )
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 36.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(ArcColors.PrimaryLight),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = when (currentThemeMode) {
+                                    AppThemeMode.SYSTEM -> Icons.Outlined.BrightnessAuto
+                                    AppThemeMode.LIGHT -> Icons.Outlined.LightMode
+                                    AppThemeMode.DARK -> Icons.Outlined.DarkMode
+                                },
+                                contentDescription = null,
+                                tint = ArcColors.Primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "App Theme",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ArcColors.TextPrimary
+                            )
+                            Text(
+                                text = "Choose your preferred appearance",
+                                fontSize = 12.5.sp,
+                                color = ArcColors.TextSecondary
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = { showThemeDialog = false },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Close",
+                            tint = ArcColors.TextMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Options: SYSTEM, LIGHT, DARK
+                AppThemeMode.entries.forEach { mode ->
+                    val isSelected = currentThemeMode == mode
+                    val icon = when (mode) {
+                        AppThemeMode.SYSTEM -> Icons.Outlined.BrightnessAuto
+                        AppThemeMode.LIGHT -> Icons.Outlined.LightMode
+                        AppThemeMode.DARK -> Icons.Outlined.DarkMode
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (isSelected) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight)
+                            .border(
+                                BorderStroke(
+                                    1.dp,
+                                    if (isSelected) ArcColors.PrimaryBorder else ArcColors.Border
+                                ),
+                                RoundedCornerShape(16.dp)
+                            )
+                            .clickable {
+                                settingsRepo.setThemeMode(mode)
+                                showThemeDialog = false
+                            }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(if (isSelected) ArcColors.Primary else ArcColors.CardBackground),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = if (isSelected) Color.White else ArcColors.TextSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = mode.displayName,
+                                fontSize = 14.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isSelected) ArcColors.Primary else ArcColors.TextPrimary
+                            )
+                            Text(
+                                text = mode.description,
+                                fontSize = 12.sp,
+                                color = ArcColors.TextMuted
+                            )
+                        }
+
+                        // Radio indicator
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .border(
+                                    BorderStroke(
+                                        2.dp,
+                                        if (isSelected) ArcColors.Primary else ArcColors.Border
+                                    ),
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(ArcColors.Primary)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

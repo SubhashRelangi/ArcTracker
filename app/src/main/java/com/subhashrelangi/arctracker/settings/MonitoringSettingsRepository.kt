@@ -221,6 +221,21 @@ interface MonitoringSettingsRepository {
      */
     fun setDeveloperModeUnlocked(unlocked: Boolean) {}
 
+    /**
+     * Retrieves the current appearance theme mode (SYSTEM, LIGHT, or DARK).
+     */
+    fun getThemeMode(): AppThemeMode = AppThemeMode.SYSTEM
+
+    /**
+     * Persists the user's selected appearance theme mode.
+     */
+    fun setThemeMode(mode: AppThemeMode) {}
+
+    /**
+     * Reactive stream of the user's selected appearance theme mode.
+     */
+    val themeModeFlow: StateFlow<AppThemeMode> get() = MutableStateFlow(AppThemeMode.SYSTEM)
+
     companion object {
         const val PREFS_NAME = "ArcTrackerPrefs"
         const val KEY_GLOBAL_ENABLED = "monitoring_global_enabled"
@@ -237,6 +252,7 @@ interface MonitoringSettingsRepository {
         const val KEY_PROFILE_NAME = "user_profile_name"
         const val KEY_PROFILE_LABEL = "user_profile_label"
         const val KEY_DEVELOPER_MODE_UNLOCKED = "developer_mode_unlocked"
+        const val KEY_APP_THEME_MODE = "app_theme_mode"
 
         @Volatile
         private var INSTANCE: MonitoringSettingsRepository? = null
@@ -630,6 +646,26 @@ class SharedPreferencesMonitoringSettingsRepository(
         _profileLabelFlow.value = trimmed
     }
 
+    private val _themeModeFlow = MutableStateFlow(
+        AppThemeMode.fromString(
+            prefs.getString(
+                MonitoringSettingsRepository.KEY_APP_THEME_MODE,
+                AppThemeMode.SYSTEM.name
+            )
+        )
+    )
+
+    override val themeModeFlow: StateFlow<AppThemeMode> get() = _themeModeFlow.asStateFlow()
+
+    override fun getThemeMode(): AppThemeMode = synchronized(lock) {
+        _themeModeFlow.value
+    }
+
+    override fun setThemeMode(mode: AppThemeMode): Unit = synchronized(lock) {
+        prefs.edit().putString(MonitoringSettingsRepository.KEY_APP_THEME_MODE, mode.name).commit()
+        _themeModeFlow.value = mode
+    }
+
     override fun isDeveloperModeUnlocked(): Boolean = synchronized(lock) {
         prefs.getBoolean(MonitoringSettingsRepository.KEY_DEVELOPER_MODE_UNLOCKED, false)
     }
@@ -847,6 +883,18 @@ class InMemoryMonitoringSettingsRepository(
         val trimmed = label.trim().ifBlank { "Primary Offline Vault" }
         profileLabel = trimmed
         _profileLabelFlow.value = trimmed
+    }
+
+    private var themeMode: AppThemeMode = AppThemeMode.SYSTEM
+    private val _themeModeFlow = MutableStateFlow(AppThemeMode.SYSTEM)
+
+    override val themeModeFlow: StateFlow<AppThemeMode> get() = _themeModeFlow.asStateFlow()
+
+    override fun getThemeMode(): AppThemeMode = synchronized(lock) { themeMode }
+
+    override fun setThemeMode(mode: AppThemeMode): Unit = synchronized(lock) {
+        themeMode = mode
+        _themeModeFlow.value = mode
     }
 
     private var isDeveloperModeUnlocked: Boolean = false

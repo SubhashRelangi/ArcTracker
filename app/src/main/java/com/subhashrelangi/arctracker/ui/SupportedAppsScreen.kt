@@ -146,7 +146,7 @@ fun detectAppCategory(packageName: String, displayName: String): AppCategory? {
 /**
  * Resolves the primary forest emerald accent color matching the design mockup (#046941).
  */
-fun getCategoryAccentColor(category: AppCategory?): Color = ArcColors.Primary
+fun getCategoryAccentColor(category: AppCategory?): Color = ArcColors.Light.primary
 
 /**
  * Resolves soft background and crisp text colors for category pill badges.
@@ -158,7 +158,7 @@ fun getCategoryBadgeColors(category: AppCategory?): Pair<Color, Color> {
 /**
  * Resolves the unified forest emerald toggle accent color (#046941) for application toggles.
  */
-fun getAppAccentColor(packageName: String, category: AppCategory?): Color = ArcColors.Primary
+fun getAppAccentColor(packageName: String, category: AppCategory?): Color = ArcColors.Light.primary
 
 /**
  * Renders an application icon that fills the entire container without inner spacing.

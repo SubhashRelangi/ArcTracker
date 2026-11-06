@@ -47,6 +47,7 @@ import com.subhashrelangi.arctracker.ui.ReviewInboxTrayIcon
 import com.subhashrelangi.arctracker.ui.ZigzagChartIcon
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.ui.theme.ArcShapes
+import com.subhashrelangi.arctracker.ui.theme.LocalArcColors
 
 /**
  * Universal Floating Glassmorphic Bottom Navigation Bar for ArcTracker.
@@ -67,12 +68,12 @@ fun ArcTrackerBottomNavigationBar(
     modifier: Modifier = Modifier,
     reviewBadgeCount: Int = 0,
     isStatic: Boolean = true,
-    isLightMode: Boolean = true
+    isLightMode: Boolean = !LocalArcColors.current.isDark
 ) {
     if (isStatic) {
-        // Static docked bottom navigation bar matching light theme
-        val navBackground = if (isLightMode) Color.White else ArcColors.Background
-        val topBorder = BorderStroke(1.dp, if (isLightMode) Color(0xFFE2E8F0) else Color(0xFF1E2432))
+        // Static docked bottom navigation bar matching active theme
+        val navBackground = LocalArcColors.current.bottomNavBackground
+        val topBorder = BorderStroke(1.dp, LocalArcColors.current.bottomNavBorder)
 
         Surface(
             modifier = modifier
@@ -200,7 +201,7 @@ fun ArcTrackerBottomNavigation(
     modifier: Modifier = Modifier,
     reviewBadgeCount: Int = 0,
     isStatic: Boolean = true,
-    isLightMode: Boolean = true
+    isLightMode: Boolean = !LocalArcColors.current.isDark
 ) {
     ArcTrackerBottomNavigationBar(
         currentDestination = currentDestination,

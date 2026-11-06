@@ -13,7 +13,7 @@ object ArcTypography {
     val BrandTitle = TextStyle(
         fontSize = 19.sp,
         fontWeight = FontWeight.Bold,
-        color = ArcColors.TextPrimary,
+        color = ArcColors.Light.textPrimary,
         letterSpacing = (-0.2).sp
     )
 
@@ -21,25 +21,25 @@ object ArcTypography {
         fontSize = 11.sp,
         fontWeight = FontWeight.Normal,
         fontFamily = FontFamily.Monospace,
-        color = ArcColors.TextSecondary,
+        color = ArcColors.Light.textSecondary,
         letterSpacing = 0.3.sp
     )
 
     val BadgeText = TextStyle(
         fontSize = 10.sp,
         fontWeight = FontWeight.Bold,
-        color = ArcColors.UpiBadgeText
+        color = ArcColors.Light.upiBadgeText
     )
 
     val NavLabel = TextStyle(
         fontSize = 11.sp,
-        color = ArcColors.BottomNavTextInactive
+        color = ArcColors.Light.bottomNavTextInactive
     )
 
     val NavLabelActive = TextStyle(
         fontSize = 11.sp,
         fontWeight = FontWeight.Bold,
-        color = ArcColors.BottomNavTextActive
+        color = ArcColors.Light.bottomNavTextActive
     )
 
     val FinancialMonospace = TextStyle(
@@ -51,7 +51,7 @@ object ArcTypography {
     val SecurityFooter = TextStyle(
         fontSize = 11.sp,
         fontFamily = FontFamily.Monospace,
-        color = ArcColors.TextMuted,
+        color = ArcColors.Light.textMuted,
         letterSpacing = 0.4.sp
     )
 }

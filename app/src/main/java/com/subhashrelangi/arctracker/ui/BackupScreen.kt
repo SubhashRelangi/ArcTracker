@@ -1654,7 +1654,7 @@ private fun calculatePasswordStrength(passphrase: String): Triple<Int, String, C
         score <= 1 -> Triple(1, "Weak", Color(0xFFEF4444))
         score == 2 -> Triple(2, "Fair", Color(0xFFF59E0B))
         score in 3..4 -> Triple(3, "Good", Color(0xFF10B981))
-        else -> Triple(4, "Strong", ArcColors.Primary)
+        else -> Triple(4, "Strong", ArcColors.Light.primary)
     }
 }
 

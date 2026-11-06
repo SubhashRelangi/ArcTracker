@@ -50,20 +50,21 @@ class UniversalFoundationTest {
 
     @Test
     fun testTokenCentralizationAndDelegation() {
-        // Backgrounds
-        assertEquals(Color(0xFFF8FAFC), ArcColors.Background)
-        assertEquals(Color(0xFFF8FAFC), LedgerColors.Background)
-        assertEquals(com.subhashrelangi.arctracker.ui.review.ArcColors.Background, ArcColors.Background)
+        // Light Theme Tokens
+        assertEquals(Color(0xFFF8FAFC), ArcColors.Light.background)
+        assertEquals(Color(0xFFF8FAFC), LedgerColors.Light.background)
+        assertEquals(Color(0xFF0F172A), ArcColors.Light.debit)
+        assertEquals(Color(0xFF047857), ArcColors.Light.credit)
+        assertEquals(Color(0xFFD97706), ArcColors.Light.warningAmber)
+        assertEquals(Color(0xFFD97706), LedgerColors.Light.warningAmber)
 
-        // Financial indicator colors
-        assertEquals(Color(0xFF0F172A), ArcColors.Debit)
-        assertEquals(Color(0xFF0F172A), LedgerColors.Debit)
-        assertEquals(Color(0xFF047857), ArcColors.Credit)
-        assertEquals(Color(0xFF059669), LedgerColors.Credit)
-
-        // Warning / Amber
-        assertEquals(Color(0xFFD97706), ArcColors.WarningAmber)
-        assertEquals(Color(0xFFD97706), LedgerColors.WarningAmber)
+        // Dark Theme Tokens
+        assertEquals(Color(0xFF090D16), ArcColors.Dark.background)
+        assertEquals(Color(0xFF090D16), LedgerColors.Dark.background)
+        assertEquals(Color(0xFFF8FAFC), ArcColors.Dark.debit)
+        assertEquals(Color(0xFF10B981), ArcColors.Dark.credit)
+        assertEquals(Color(0xFFF59E0B), ArcColors.Dark.warningAmber)
+        assertEquals(Color(0xFFF59E0B), LedgerColors.Dark.warningAmber)
 
         // Spacing & Shapes
         assertEquals(ArcShapes.Card, LedgerShapes.Card)

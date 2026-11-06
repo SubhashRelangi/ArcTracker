@@ -159,6 +159,7 @@ class MainActivity : FragmentActivity() {
         setContent {
             val isAppLockEnabled by privacyManager.appLockFlow.collectAsState()
             val isUnlocked by isAppUnlockedState.collectAsState()
+            val themeMode by settingsRepo.themeModeFlow.collectAsState()
 
             // Inactivity ticker: automatically lock if left idle for 5 minutes
             LaunchedEffect(isAppLockEnabled, isUnlocked) {
@@ -173,7 +174,7 @@ class MainActivity : FragmentActivity() {
                 }
             }
 
-            MaterialTheme {
+            com.subhashrelangi.arctracker.ui.theme.ArcTrackerTheme(themeMode = themeMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -1225,7 +1226,6 @@ fun ExpenseScreen() {
                 currentDestination = destination,
                 reviewBadgeCount = pendingCount,
                 isStatic = true,
-                isLightMode = true,
                 onNavigate = { dest ->
                     navigateTo(dest.route)
                 }

@@ -1,48 +1,55 @@
 package com.subhashrelangi.arctracker.ui.review
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.ui.graphics.Color
+import com.subhashrelangi.arctracker.ui.theme.LocalArcColors
 import com.subhashrelangi.arctracker.ui.theme.ArcColors as ThemeArcColors
 import com.subhashrelangi.arctracker.ui.theme.ArcShapes as ThemeArcShapes
 import com.subhashrelangi.arctracker.ui.theme.ArcSpacing as ThemeArcSpacing
 
 /**
- * Global ArcTracker Fintech Dark Design Tokens.
- * Unified with universal theme tokens in com.subhashrelangi.arctracker.ui.theme.
+ * Global ArcTracker Fintech Design Tokens.
+ * Dynamically unified with universal theme tokens in com.subhashrelangi.arctracker.ui.theme.
  */
 object ArcColors {
-    val Background = ThemeArcColors.Background
-    val Surface = ThemeArcColors.Surface
-    val SurfaceElevated = ThemeArcColors.SurfaceElevated
-    val SurfaceMuted = ThemeArcColors.SurfaceMuted
-    val SurfaceCard = ThemeArcColors.SurfaceCard
-    val SurfaceCardBorder = ThemeArcColors.SurfaceCardBorder
+    val Light = ThemeArcColors.Light
+    val Dark = ThemeArcColors.Dark
 
-    val TextPrimary = ThemeArcColors.TextPrimary
-    val TextSecondary = ThemeArcColors.TextSecondary
-    val TextMuted = ThemeArcColors.TextMuted
+    val Background: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.background
+    val Surface: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surface
+    val SurfaceElevated: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceElevated
+    val SurfaceMuted: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceMuted
+    val SurfaceCard: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceCard
+    val SurfaceCardBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceCardBorder
 
-    val Debit = ThemeArcColors.Debit
-    val Credit = ThemeArcColors.Credit
-    val Warning = ThemeArcColors.Warning
-    val WarningLight = ThemeArcColors.WarningLight
-    val WarningContainer = ThemeArcColors.WarningContainer
-    val WarningBorder = ThemeArcColors.WarningBorder
+    val TextPrimary: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textPrimary
+    val TextSecondary: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textSecondary
+    val TextMuted: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textMuted
 
-    val Success = ThemeArcColors.Success
-    val SuccessContainer = ThemeArcColors.SuccessContainer
-    val SuccessBorder = ThemeArcColors.SuccessBorder
+    val Debit: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.debit
+    val Credit: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.credit
+    val Warning: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warning
+    val WarningLight: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningLight
+    val WarningContainer: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningContainer
+    val WarningBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningBorder
 
-    val Danger = ThemeArcColors.Danger
-    val DangerContainer = ThemeArcColors.DangerContainer
-    val DangerBorder = ThemeArcColors.DangerBorder
+    val Success: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.success
+    val SuccessContainer: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.successContainer
+    val SuccessBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.successBorder
 
-    val Border = ThemeArcColors.Border
-    val BorderSubtle = ThemeArcColors.BorderSubtle
+    val Danger: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.danger
+    val DangerContainer: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.dangerContainer
+    val DangerBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.dangerBorder
 
-    val ChipBackground = ThemeArcColors.ChipBackground
-    val ChipBorder = ThemeArcColors.ChipBorder
+    val Border: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.border
+    val BorderSubtle: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.borderSubtle
 
-    val TelemetryBackground = ThemeArcColors.TelemetryBackground
-    val TelemetryBorder = ThemeArcColors.TelemetryBorder
+    val ChipBackground: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.chipBackground
+    val ChipBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.chipBorder
+
+    val TelemetryBackground: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.telemetryBackground
+    val TelemetryBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.telemetryBorder
 }
 
 object ArcShapes {
