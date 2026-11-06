@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,13 +37,14 @@ fun LedgerSummary(
     entryCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
-    val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+    val numberFormatter = remember {
+        NumberFormat.getNumberInstance(Locale("en", "IN")).apply {
+            maximumFractionDigits = 0
+            minimumFractionDigits = 0
+        }
+    }
     fun formatAmt(amount: Double): String {
-        return currencyFormatter.format(kotlin.math.abs(amount))
-            .replace("Rs.", "₹")
-            .replace("INR", "₹")
-            .trim()
-            .substringBefore(".")
+        return numberFormatter.format(kotlin.math.abs(amount))
     }
 
     val overviewTitle = periodLabel.substringBefore(" ").uppercase(Locale.US) + " OVERVIEW"

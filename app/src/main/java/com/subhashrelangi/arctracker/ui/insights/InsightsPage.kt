@@ -199,7 +199,7 @@ fun InsightsPage(
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
+                contentPadding = PaddingValues(top = 10.dp, bottom = 120.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Condition A: User has NOT completed setup and is NOT in demo mode -> Show empty setup page
