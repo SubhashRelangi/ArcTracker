@@ -1095,6 +1095,7 @@ private fun SmsScanningContent(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
+            val gaugeTrackColor = CardBorder
             Box(
                 modifier = Modifier.size(128.dp),
                 contentAlignment = Alignment.Center
@@ -1107,7 +1108,7 @@ private fun SmsScanningContent(
 
                     // Background Track
                     drawArc(
-                        color = Color(0xFFF1F5F9),
+                        color = gaugeTrackColor,
                         startAngle = -90f,
                         sweepAngle = 360f,
                         useCenter = false,
@@ -1246,7 +1247,7 @@ private fun SmsScanningContent(
                         .height(6.5.dp)
                         .clip(RoundedCornerShape(3.5.dp)),
                     color = Color(0xFF10B981),
-                    trackColor = Color(0xFFE2E8F0)
+                    trackColor = CardBorder
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -1744,8 +1745,8 @@ private fun SmsScanResultContent(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFF1F5F9),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                color = CardSurface,
+                border = BorderStroke(1.dp, CardBorder)
             ) {
                 Row(
                     modifier = Modifier.padding(14.dp),
@@ -1755,7 +1756,7 @@ private fun SmsScanResultContent(
                     Icon(
                         imageVector = Icons.Outlined.Info,
                         contentDescription = null,
-                        tint = Color(0xFF64748B),
+                        tint = BrandTextSecondary,
                         modifier = Modifier
                             .size(18.dp)
                             .padding(top = 1.dp)
@@ -1763,7 +1764,7 @@ private fun SmsScanResultContent(
                     Text(
                         text = "Unidentified transactions will be placed into your Review queue for deliberate confirmation.",
                         fontSize = 12.5.sp,
-                        color = Color(0xFF475569),
+                        color = BrandTextSecondary,
                         lineHeight = 17.5.sp
                     )
                 }
@@ -1919,10 +1920,11 @@ private fun PaymentSuccessTickAnimation(
         modifier = modifier.size(68.dp),
         contentAlignment = Alignment.Center
     ) {
+        val ringTrackColor = CardBorder
         if (animPhase == 0) {
             Canvas(modifier = Modifier.size(54.dp)) {
                 drawCircle(
-                    color = Color(0xFFE2E8F0),
+                    color = ringTrackColor,
                     style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
                 )
                 drawArc(
@@ -2152,13 +2154,13 @@ private fun SmsImportCompleteContent(
                                 modifier = Modifier
                                     .size(28.dp)
                                     .clip(RoundedCornerShape(7.dp))
-                                    .background(Color(0xFFECFDF5)),
+                                    .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Description,
                                     contentDescription = null,
-                                    tint = Color(0xFF059669),
+                                    tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF059669),
                                     modifier = Modifier.size(15.dp)
                                 )
                             }
@@ -2170,7 +2172,7 @@ private fun SmsImportCompleteContent(
                             text = "$totalFoundCount",
                             fontSize = 26.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF059669),
+                            color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF059669),
                             letterSpacing = (-0.5).sp
                         )
 
@@ -2179,7 +2181,7 @@ private fun SmsImportCompleteContent(
                         Text(
                             text = "Ready in ledger",
                             fontSize = 11.5.sp,
-                            color = Color(0xFF64748B)
+                            color = BrandTextSecondary
                         )
                     }
                 }
@@ -2189,7 +2191,7 @@ private fun SmsImportCompleteContent(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp),
                     color = CardBg,
-                    border = BorderStroke(1.dp, if (reviewCount > 0) Color(0xFFFDE68A) else CardBorderUnselected)
+                    border = BorderStroke(1.dp, if (reviewCount > 0) (if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFDE68A)) else CardBorderUnselected)
                 ) {
                     Column(
                         modifier = Modifier.padding(13.dp)
@@ -2210,13 +2212,17 @@ private fun SmsImportCompleteContent(
                                 modifier = Modifier
                                     .size(28.dp)
                                     .clip(RoundedCornerShape(7.dp))
-                                    .background(if (reviewCount > 0) Color(0xFFFEF3C7) else Color(0xFFF1F5F9)),
+                                    .background(
+                                        if (reviewCount > 0) {
+                                            if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
+                                        } else CardSurface
+                                    ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.CalendarToday,
                                     contentDescription = null,
-                                    tint = if (reviewCount > 0) Color(0xFFD97706) else Color(0xFF64748B),
+                                    tint = if (reviewCount > 0) (if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFD97706)) else BrandTextSecondary,
                                     modifier = Modifier.size(15.dp)
                                 )
                             }
@@ -2228,7 +2234,7 @@ private fun SmsImportCompleteContent(
                             text = "$reviewCount",
                             fontSize = 26.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (reviewCount > 0) Color(0xFFD97706) else BrandTextPrimary,
+                            color = if (reviewCount > 0) (if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFD97706)) else BrandTextPrimary,
                             letterSpacing = (-0.5).sp
                         )
 
@@ -2237,7 +2243,7 @@ private fun SmsImportCompleteContent(
                         Text(
                             text = if (reviewCount > 0) "Uncertain merchants" else "All clear",
                             fontSize = 11.5.sp,
-                            color = Color(0xFF64748B)
+                            color = BrandTextSecondary
                         )
                     }
                 }
@@ -2263,7 +2269,7 @@ private fun SmsImportCompleteContent(
                     Icon(
                         imageVector = Icons.Default.FilterList,
                         contentDescription = null,
-                        tint = Color(0xFF64748B),
+                        tint = BrandTextSecondary,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -2280,14 +2286,14 @@ private fun SmsImportCompleteContent(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFE2E8F0))
+                            .background(CardSurface)
                             .padding(horizontal = 7.dp, vertical = 2.5.dp)
                     ) {
                         Text(
                             text = "On-device filter",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF475569)
+                            color = BrandTextSecondary
                         )
                     }
                 }
@@ -2301,8 +2307,15 @@ private fun SmsImportCompleteContent(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                color = if (reviewCount > 0) Color(0xFFFFFBEB) else Color(0xFFF1F5F9),
-                border = BorderStroke(1.dp, if (reviewCount > 0) Color(0xFFFDE68A) else Color(0xFFE2E8F0))
+                color = if (reviewCount > 0) {
+                    if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.35f) else Color(0xFFFFFBEB)
+                } else CardSurface,
+                border = BorderStroke(
+                    1.dp,
+                    if (reviewCount > 0) {
+                        if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFDE68A)
+                    } else CardBorder
+                )
             ) {
                 Row(
                     modifier = Modifier.padding(12.dp),
@@ -2312,7 +2325,9 @@ private fun SmsImportCompleteContent(
                     Icon(
                         imageVector = Icons.Outlined.Shield,
                         contentDescription = null,
-                        tint = if (reviewCount > 0) Color(0xFFD97706) else Color(0xFF059669),
+                        tint = if (reviewCount > 0) {
+                            if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
+                        } else (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF059669)),
                         modifier = Modifier
                             .size(18.dp)
                             .padding(top = 1.dp)
@@ -2324,7 +2339,9 @@ private fun SmsImportCompleteContent(
                             "All transactions were securely added and categorized into your local ledger."
                         },
                         fontSize = 12.sp,
-                        color = if (reviewCount > 0) Color(0xFF92400E) else Color(0xFF334155),
+                        color = if (reviewCount > 0) {
+                            if (ArcColors.isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
+                        } else BrandTextPrimary,
                         lineHeight = 17.sp
                     )
                 }
@@ -2400,8 +2417,8 @@ private fun SmsImportCompleteContent(
                     onClick = onGoToHome
                 ),
             shape = RoundedCornerShape(22.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            color = BackBtnBg,
+            border = BorderStroke(1.dp, BackBtnBorder)
         ) {
             Row(
                 modifier = Modifier
@@ -2436,8 +2453,8 @@ private fun AccountGroupCard(
     onToggle: () -> Unit,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) Color(0xFFCBD5E1) else Color(0xFFE2E8F0)
-    val bgColor = if (isSelected) Color(0xFFFFFFFF) else Color(0xFFF8FAFC)
+    val borderColor = if (isSelected) CardBorderSelected else CardBorderUnselected
+    val bgColor = if (isSelected) CardBgSelected else CardBg
 
     Surface(
         modifier = Modifier
@@ -2464,7 +2481,9 @@ private fun AccountGroupCard(
                     .size(40.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(
-                        if (isUnidentified) Color(0xFFFEF3C7) else Color(0xFFF1F5F9)
+                        if (isUnidentified) {
+                            if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
+                        } else CardSurface
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -2473,7 +2492,9 @@ private fun AccountGroupCard(
                     group.identity.instrumentType == InstrumentType.CARD -> Icons.Outlined.CreditCard
                     else -> Icons.Outlined.AccountBalance
                 }
-                val iconTint = if (isUnidentified) Color(0xFFD97706) else Color(0xFF334155)
+                val iconTint = if (isUnidentified) {
+                    if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
+                } else BrandTextPrimary
 
                 Icon(
                     imageVector = icon,
@@ -2514,15 +2535,18 @@ private fun AccountGroupCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0xFFFEF3C7))
-                                .border(BorderStroke(0.8.dp, Color(0xFFFDE68A)), RoundedCornerShape(4.dp))
+                                .background(if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7))
+                                .border(
+                                    BorderStroke(0.8.dp, if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFDE68A)),
+                                    RoundedCornerShape(4.dp)
+                                )
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "Review",
                                 fontSize = 9.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFB45309),
+                                color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
                                 maxLines = 1
                             )
                         }
@@ -2598,7 +2622,7 @@ private fun AccountGroupCard(
                         modifier = Modifier
                             .size(22.dp)
                             .clip(RoundedCornerShape(6.dp))
-                            .border(BorderStroke(1.5.dp, Color(0xFFCBD5E1)), RoundedCornerShape(6.dp))
+                            .border(BorderStroke(1.5.dp, CardBorder), RoundedCornerShape(6.dp))
                     )
                 }
             }
@@ -2676,7 +2700,7 @@ private fun AccountTransactionsBottomSheet(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF1F5F9))
+                        .background(CardSurface)
                         .clickable(onClick = onDismiss),
                     contentAlignment = Alignment.Center
                 ) {
@@ -2696,8 +2720,8 @@ private fun AccountTransactionsBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFFF8FAFC))
-                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(10.dp))
+                    .background(CardSurface)
+                    .border(BorderStroke(1.dp, CardBorder), RoundedCornerShape(10.dp))
                     .padding(horizontal = 14.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -2744,7 +2768,7 @@ private fun AccountTransactionsBottomSheet(
                     text = "SCANNED TRANSACTIONS",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF64748B),
+                    color = BrandTextSecondary,
                     letterSpacing = 0.5.sp
                 )
 
@@ -2785,8 +2809,8 @@ private fun AccountTransactionsBottomSheet(
                                 onToggleTransaction(item.sourceEvent.sourceId)
                             },
                         shape = RoundedCornerShape(10.dp),
-                        color = if (isItemChecked) Color(0xFFFFFFFF) else Color(0xFFF8FAFC),
-                        border = BorderStroke(1.dp, if (isItemChecked) Color(0xFFCBD5E1) else Color(0xFFE2E8F0))
+                        color = if (isItemChecked) CardBgSelected else CardBg,
+                        border = BorderStroke(1.dp, if (isItemChecked) CardBorderSelected else CardBorderUnselected)
                     ) {
                         Row(
                             modifier = Modifier
@@ -2817,15 +2841,15 @@ private fun AccountTransactionsBottomSheet(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(4.dp))
-                                                .background(Color(0xFFF1F5F9))
-                                                .border(BorderStroke(0.8.dp, Color(0xFFCBD5E1)), RoundedCornerShape(4.dp))
+                                                .background(CardSurface)
+                                                .border(BorderStroke(0.8.dp, CardBorder), RoundedCornerShape(4.dp))
                                                 .padding(horizontal = 5.dp, vertical = 1.dp)
                                         ) {
                                             Text(
                                                 text = "Imported",
                                                 fontSize = 9.5.sp,
                                                 fontWeight = FontWeight.Medium,
-                                                color = Color(0xFF64748B)
+                                                color = BrandTextSecondary
                                             )
                                         }
                                     }
@@ -2836,7 +2860,7 @@ private fun AccountTransactionsBottomSheet(
                                     Text(
                                         text = item.sourceEvent.rawText,
                                         fontSize = 10.5.sp,
-                                        color = Color(0xFF64748B),
+                                        color = BrandTextSecondary,
                                         lineHeight = 14.sp,
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis
@@ -2868,7 +2892,7 @@ private fun AccountTransactionsBottomSheet(
                                         .border(
                                             BorderStroke(
                                                 1.5.dp,
-                                                if (isItemChecked) CardBorderSelected else Color(0xFFCBD5E1)
+                                                if (isItemChecked) CardBorderSelected else CardBorderUnselected
                                             ),
                                             RoundedCornerShape(5.dp)
                                         ),
