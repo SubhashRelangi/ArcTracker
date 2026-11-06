@@ -44,17 +44,18 @@ fun ArcIconButton(
 ) {
     val bgModifier = when (variant) {
         ArcIconButtonVariant.DARK -> Modifier
-            .background(Color(0xFF161B22), CircleShape)
-            .border(1.dp, ArcColors.BorderLight, CircleShape)
+            .background(ArcColors.CardBackground, CircleShape)
+            .border(1.dp, ArcColors.Border, CircleShape)
         ArcIconButtonVariant.LIGHT -> Modifier
-            .background(Color.White, CircleShape)
+            .background(if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color.White, CircleShape)
+            .border(1.dp, ArcColors.Border, CircleShape)
         ArcIconButtonVariant.GHOST -> Modifier
             .background(Color.Transparent, CircleShape)
     }
 
     val iconTint = when (variant) {
         ArcIconButtonVariant.DARK -> ArcColors.TextPrimary
-        ArcIconButtonVariant.LIGHT -> Color.Black
+        ArcIconButtonVariant.LIGHT -> ArcColors.TextPrimary
         ArcIconButtonVariant.GHOST -> ArcColors.TextSecondary
     }
 

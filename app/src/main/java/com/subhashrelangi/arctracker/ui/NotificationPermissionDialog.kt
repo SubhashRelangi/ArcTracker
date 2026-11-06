@@ -39,7 +39,7 @@ fun NotificationPermissionDialog(
     ) {
         Surface(
             shape = RoundedCornerShape(24.dp),
-            color = Color.White,
+            color = ArcColors.CardBackground,
             border = BorderStroke(1.dp, ArcColors.Border),
             shadowElevation = 8.dp,
             modifier = Modifier
@@ -56,7 +56,7 @@ fun NotificationPermissionDialog(
                     modifier = Modifier
                         .size(60.dp)
                         .clip(CircleShape)
-                        .background(ArcColors.PrimaryLight),
+                        .background(if (ArcColors.isDark) Color(0xFF064E3B) else ArcColors.PrimaryLight),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
