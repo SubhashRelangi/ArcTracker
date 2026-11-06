@@ -48,6 +48,21 @@ import java.text.NumberFormat
 import java.util.Calendar
 import java.util.Locale
 
+private val slateTitle: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+
+private val slateSub: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+
+private val cardBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Border
+
+private val lightBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Background
+
+private val cardBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BudgetsScreen(
@@ -143,11 +158,11 @@ fun BudgetsScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Surface(
-                color = Color.White,
-                shadowElevation = 0.5.dp,
+                color = lightBg,
+                shadowElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(lightBg)
             ) {
                 ArcTrackerHeader(
                     title = "Budgets & Limits",
@@ -155,7 +170,7 @@ fun BudgetsScreen(
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(lightBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
@@ -163,8 +178,8 @@ fun BudgetsScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color.White)
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape),
+                                .background(cardBg)
+                                .border(BorderStroke(1.dp, cardBorder), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -182,7 +197,7 @@ fun BudgetsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF8F9FA))
+                .background(lightBg)
                 .padding(innerPadding)
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -192,8 +207,8 @@ fun BudgetsScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     // Top Row: Velocity + Days Left + Circular Add Button in Top Right Corner
@@ -372,8 +387,8 @@ fun BudgetsScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -718,8 +733,8 @@ fun BudgetsScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     // Header
@@ -972,9 +987,9 @@ fun BudgetsScreen(
         Dialog(onDismissRequest = { showMonthlyCapDialog = false }) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = Color.White,
+                color = cardBg,
                 tonalElevation = 6.dp,
-                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 12.dp)
@@ -1266,9 +1281,9 @@ fun BudgetsScreen(
         Dialog(onDismissRequest = { showCategoryPickerModal = false }) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = Color.White,
+                color = cardBg,
                 tonalElevation = 6.dp,
-                border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 12.dp)
@@ -1447,8 +1462,8 @@ fun BudgetsScreen(
         androidx.compose.ui.window.Dialog(onDismissRequest = { deletingBudget = null }) {
             Surface(
                 shape = RoundedCornerShape(22.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 shadowElevation = 8.dp,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1572,8 +1587,8 @@ private fun CategoryEnvelopeCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+        color = cardBg,
+        border = BorderStroke(1.dp, cardBorder)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             // Header Row: Icon + Name + Badge + Edit/Delete Actions (spaced without wrapping)

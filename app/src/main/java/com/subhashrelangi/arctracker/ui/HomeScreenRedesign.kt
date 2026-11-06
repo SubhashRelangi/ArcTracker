@@ -57,35 +57,36 @@ import com.subhashrelangi.arctracker.R
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.service.InstrumentType
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 // ==========================================
-// Theme Colors matching Light Theme Home Mockup
+// Theme Colors matching Universal ArcColors (Dynamic Light/Dark)
 // ==========================================
-private val HomeLightBg = Color(0xFFF8FAFC)
-private val TextDarkPrimary = Color(0xFF0F172A)
-private val TextDarkSecondary = Color(0xFF475569)
-private val TextDarkMuted = Color(0xFF64748B)
+private val HomeLightBg: Color @Composable @ReadOnlyComposable get() = ArcColors.Background
+private val TextDarkPrimary: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val TextDarkSecondary: Color @Composable @ReadOnlyComposable get() = ArcColors.TextSecondary
+private val TextDarkMuted: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
 
-private val CardBorderLight = Color(0xFFE2E8F0)
-private val CardSurfaceWhite = Color(0xFFFFFFFF)
+private val CardBorderLight: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val CardSurfaceWhite: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
 
-private val EmeraldAccent = Color(0xFF10B981)
-private val EmeraldDarkText = Color(0xFF059669)
-private val EmeraldPillBg = Color(0xFFECFDF5)
-private val EmeraldPillBorder = Color(0xFFA7F3D0)
+private val EmeraldAccent: Color @Composable @ReadOnlyComposable get() = ArcColors.Primary
+private val EmeraldDarkText: Color @Composable @ReadOnlyComposable get() = ArcColors.PrimaryDark
+private val EmeraldPillBg: Color @Composable @ReadOnlyComposable get() = ArcColors.PrimaryLight
+private val EmeraldPillBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.PrimaryBorder
 
-private val AmberBannerBg = Color(0xFFFFFBEB)
-private val AmberBannerBorder = Color(0xFFFDE68A)
-private val AmberTitleText = Color(0xFF78350F)
-private val AmberSubtitleText = Color(0xFF92400E)
+private val AmberBannerBg: Color @Composable @ReadOnlyComposable get() = ArcColors.WarningAmberBg
+private val AmberBannerBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.WarningAmberBorder
+private val AmberTitleText: Color @Composable @ReadOnlyComposable get() = ArcColors.WarningAmber
+private val AmberSubtitleText: Color @Composable @ReadOnlyComposable get() = ArcColors.TextSecondary
 
-private val CoralExpense = Color(0xFFF87171)
-private val SlateHeroBg = Color(0xFF0B0F19)
-private val SlateHeroBorder = Color(0xFF1E293B)
+private val CoralExpense: Color @Composable @ReadOnlyComposable get() = ArcColors.DebitDanger
+private val SlateHeroBg: Color @Composable @ReadOnlyComposable get() = if (ArcColors.Light == ArcColors.current) Color(0xFF0B0F19) else ArcColors.SurfaceElevated
+private val SlateHeroBorder: Color @Composable @ReadOnlyComposable get() = if (ArcColors.Light == ArcColors.current) Color(0xFF1E293B) else ArcColors.Border
 
 /**
  * Visual styling theme for realistic physical fintech cards in the wallet.
@@ -1996,8 +1997,8 @@ private fun HomeQuickActionsHubCard(
             QuickActionHubItem(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Rounded.Sms,
-                iconColor = Color(0xFF2563EB),
-                iconBgColor = Color(0xFFEFF6FF),
+                iconColor = if (ArcColors.current.isDark) Color(0xFF60A5FA) else Color(0xFF2563EB),
+                iconBgColor = if (ArcColors.current.isDark) Color(0xFF1E293B) else Color(0xFFEFF6FF),
                 title = "Scan SMS",
                 subtitle = "Sync alerts",
                 onClick = onScanSmsClick
@@ -2007,15 +2008,15 @@ private fun HomeQuickActionsHubCard(
                 modifier = Modifier
                     .width(1.dp)
                     .height(34.dp)
-                    .background(Color(0xFFF1F5F9))
+                    .background(CardBorderLight)
             )
 
             // 2. Budgets
             QuickActionHubItem(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Rounded.Savings,
-                iconColor = Color(0xFF059669),
-                iconBgColor = Color(0xFFECFDF5),
+                iconColor = if (ArcColors.current.isDark) Color(0xFF34D399) else Color(0xFF059669),
+                iconBgColor = if (ArcColors.current.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5),
                 title = "Budgets",
                 subtitle = "Spend caps",
                 onClick = onBudgetsClick
@@ -2025,15 +2026,15 @@ private fun HomeQuickActionsHubCard(
                 modifier = Modifier
                     .width(1.dp)
                     .height(34.dp)
-                    .background(Color(0xFFF1F5F9))
+                    .background(CardBorderLight)
             )
 
             // 3. Accounts
             QuickActionHubItem(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Rounded.AccountBalance,
-                iconColor = Color(0xFFD97706),
-                iconBgColor = Color(0xFFFFFBEB),
+                iconColor = if (ArcColors.current.isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
+                iconBgColor = if (ArcColors.current.isDark) Color(0xFF2B1F09) else Color(0xFFFFFBEB),
                 title = "Accounts",
                 subtitle = "Bank vaults",
                 onClick = onAccountsClick
@@ -2043,15 +2044,15 @@ private fun HomeQuickActionsHubCard(
                 modifier = Modifier
                     .width(1.dp)
                     .height(34.dp)
-                    .background(Color(0xFFF1F5F9))
+                    .background(CardBorderLight)
             )
 
             // 4. Export
             QuickActionHubItem(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Rounded.FileDownload,
-                iconColor = Color(0xFF7C3AED),
-                iconBgColor = Color(0xFFF5F3FF),
+                iconColor = if (ArcColors.current.isDark) Color(0xFFA78BFA) else Color(0xFF7C3AED),
+                iconBgColor = if (ArcColors.current.isDark) Color(0xFF2E1A47) else Color(0xFFF5F3FF),
                 title = "Export",
                 subtitle = "CSV / PDF",
                 onClick = onExportClick
@@ -2158,13 +2159,13 @@ private fun HomeRecentActivitySection(
                     text = "View all",
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF2563EB)
+                    color = EmeraldAccent
                 )
                 Spacer(modifier = Modifier.width(3.dp))
                 Icon(
                     imageVector = Icons.Outlined.ArrowForward,
                     contentDescription = "View all transactions",
-                    tint = Color(0xFF2563EB),
+                    tint = EmeraldAccent,
                     modifier = Modifier.size(13.dp)
                 )
             }
@@ -2193,13 +2194,13 @@ private fun HomeRecentActivitySection(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFF1F5F9)),
+                            .background(ArcColors.SurfaceHighlight),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.CreditCard,
                             contentDescription = "No transactions",
-                            tint = Color(0xFF94A3B8),
+                            tint = ArcColors.TextMuted,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -2238,13 +2239,13 @@ private fun HomeRecentActivitySection(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFF1F5F9)),
+                            .background(ArcColors.SurfaceHighlight),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.ReceiptLong,
                             contentDescription = "No transactions",
-                            tint = Color(0xFF94A3B8),
+                            tint = ArcColors.TextMuted,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -2302,7 +2303,7 @@ private fun HomeRecentActivitySection(
                         )
                         if (index < items.size - 1) {
                             HorizontalDivider(
-                                color = Color(0xFFF1F5F9),
+                                color = CardBorderLight,
                                 thickness = 1.dp,
                                 modifier = Modifier.padding(horizontal = 14.dp)
                             )
@@ -2327,12 +2328,13 @@ private fun RecentTransactionItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Category Icon Circle
+        val isDark = ArcColors.current.isDark
         val (iconVector, iconTint, iconBg) = when (item.iconType) {
-            "income" -> Triple(Icons.AutoMirrored.Rounded.TrendingUp, EmeraldDarkText, EmeraldPillBg)
-            "dining" -> Triple(Icons.Outlined.Restaurant, Color(0xFFEA580C), Color(0xFFFFF7ED))
-            "shopping" -> Triple(Icons.Outlined.ShoppingBag, Color(0xFF2563EB), Color(0xFFEFF6FF))
-            "utilities" -> Triple(Icons.Outlined.Bolt, Color(0xFFDC2626), Color(0xFFFEF2F2))
-            else -> Triple(Icons.Outlined.CreditCard, Color(0xFF475569), Color(0xFFF1F5F9))
+            "income" -> Triple(Icons.AutoMirrored.Rounded.TrendingUp, EmeraldAccent, EmeraldPillBg)
+            "dining" -> Triple(Icons.Outlined.Restaurant, if (isDark) Color(0xFFFB923C) else Color(0xFFEA580C), if (isDark) Color(0xFF2C1608) else Color(0xFFFFF7ED))
+            "shopping" -> Triple(Icons.Outlined.ShoppingBag, if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB), if (isDark) Color(0xFF1E293B) else Color(0xFFEFF6FF))
+            "utilities" -> Triple(Icons.Outlined.Bolt, if (isDark) Color(0xFFF87171) else Color(0xFFDC2626), if (isDark) Color(0xFF2C1418) else Color(0xFFFEF2F2))
+            else -> Triple(Icons.Outlined.CreditCard, TextDarkSecondary, ArcColors.SurfaceHighlight)
         }
 
         Box(

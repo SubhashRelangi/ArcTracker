@@ -46,11 +46,19 @@ import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.TransactionCategory
 import com.subhashrelangi.arctracker.service.AccountReconciliationManager
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+
+private val slateTitle: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val slateSub: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val cardBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val lightBg: Color @Composable @ReadOnlyComposable get() = ArcColors.Background
+private val cardBg: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val highlightSurface: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
 
 /**
  * ArcTracker Edit Transaction Screen ("Log Session").
@@ -225,14 +233,14 @@ fun EditTransactionPage(
     // Scaffold Container
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = Color(0xFFF8FAFC),
+        containerColor = lightBg,
         topBar = {
             // Header matching settings subsection pages: circular back button + title directly beside it + right circular vault icon
             Surface(
-                color = Color.White,
+                color = cardBg,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(cardBg)
             ) {
                 ArcTrackerHeader(
                     title = "Log Session",
@@ -240,7 +248,7 @@ fun EditTransactionPage(
                     onBackClick = onBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(cardBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
@@ -249,8 +257,8 @@ fun EditTransactionPage(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color.White)
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                .background(cardBg)
+                                .border(BorderStroke(1.dp, cardBorder), CircleShape)
                             .clickable {
                                 Toast.makeText(context, "Mention payee or category", Toast.LENGTH_SHORT).show()
                             },
@@ -259,7 +267,7 @@ fun EditTransactionPage(
                             Icon(
                                 imageVector = Icons.Default.AlternateEmail,
                                 contentDescription = "Mention",
-                                tint = Color(0xFF0F172A),
+                                tint = slateTitle,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -269,8 +277,8 @@ fun EditTransactionPage(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color.White)
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                .background(cardBg)
+                                .border(BorderStroke(1.dp, cardBorder), CircleShape)
                             .clickable {
                                 Toast.makeText(context, "Typography & formatting", Toast.LENGTH_SHORT).show()
                             },
@@ -279,7 +287,7 @@ fun EditTransactionPage(
                             Icon(
                                 imageVector = Icons.Default.TextFields,
                                 contentDescription = "Font formatting",
-                                tint = Color(0xFF0F172A),
+                                tint = slateTitle,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -292,9 +300,9 @@ fun EditTransactionPage(
             if (!isKeyboardVisible) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color.White,
+                    color = cardBg,
                     shadowElevation = 10.dp,
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    border = BorderStroke(1.dp, cardBorder)
                 ) {
                     Column(
                         modifier = Modifier
@@ -325,7 +333,7 @@ fun EditTransactionPage(
                                 .height(48.dp),
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF047857),
+                                containerColor = ArcColors.Primary,
                                 contentColor = Color.White
                             ),
                             elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
@@ -356,8 +364,8 @@ fun EditTransactionPage(
                                     .fillMaxWidth()
                                     .height(44.dp),
                                 shape = CircleShape,
-                                color = Color(0xFFFEF2F2),
-                                border = BorderStroke(1.dp, Color(0xFFFECACA))
+                                color = if (ArcColors.isDark) Color(0xFF3B1818) else Color(0xFFFEF2F2),
+                                border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF5C2424) else Color(0xFFFECACA))
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxSize(),
@@ -367,7 +375,7 @@ fun EditTransactionPage(
                                     Icon(
                                         imageVector = Icons.Default.DeleteOutline,
                                         contentDescription = "Delete",
-                                        tint = Color(0xFFDC2626),
+                                        tint = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626),
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -375,7 +383,7 @@ fun EditTransactionPage(
                                         text = "Delete Transaction",
                                         fontSize = 13.5.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFFDC2626)
+                                        color = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626)
                                     )
                                 }
                             }
@@ -406,8 +414,8 @@ fun EditTransactionPage(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = cardBg,
+                        border = BorderStroke(1.dp, cardBorder),
                         shadowElevation = 0.5.dp
                     ) {
                         Row(
@@ -421,13 +429,13 @@ fun EditTransactionPage(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(Color(0xFFE8F5E9)),
+                                    .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFE8F5E9)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.ChatBubbleOutline,
                                     contentDescription = null,
-                                    tint = Color(0xFF059669),
+                                    tint = ArcColors.Primary,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -440,14 +448,14 @@ fun EditTransactionPage(
                                         text = bannerAccountTitle,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
+                                        color = slateTitle
                                     )
                                     if (linkedAccount != null) {
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Icon(
                                             imageVector = Icons.Default.CheckCircle,
                                             contentDescription = "Verified",
-                                            tint = Color(0xFF059669),
+                                            tint = ArcColors.Primary,
                                             modifier = Modifier.size(14.dp)
                                         )
                                     }
@@ -456,7 +464,7 @@ fun EditTransactionPage(
                                 Text(
                                     text = if (expense.source.contains("NOTIFICATION", ignoreCase = true)) "Detected via App Notification" else "Detected via SMS Alert",
                                     fontSize = 11.5.sp,
-                                    color = Color(0xFF64748B)
+                                    color = slateSub
                                 )
                             }
 
@@ -464,14 +472,14 @@ fun EditTransactionPage(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFFDCFCE7))
+                                    .background(if (ArcColors.isDark) Color(0xFF064E3B).copy(alpha = 0.6f) else Color(0xFFDCFCE7))
                                     .padding(horizontal = 9.dp, vertical = 4.dp)
                             ) {
                                 Text(
                                     text = "Auto-Parsed",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF15803D)
+                                    color = ArcColors.Primary
                                 )
                             }
                         }
@@ -484,7 +492,7 @@ fun EditTransactionPage(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
-                    color = Color(0xFFF1F5F9)
+                    color = highlightSurface
                 ) {
                     Row(
                         modifier = Modifier
@@ -503,7 +511,7 @@ fun EditTransactionPage(
                                 .weight(1f)
                                 .height(38.dp),
                             shape = RoundedCornerShape(10.dp),
-                            color = if (isExpenseSelected) Color.White else Color.Transparent,
+                            color = if (isExpenseSelected) cardBg else Color.Transparent,
                             shadowElevation = if (isExpenseSelected) 1.dp else 0.dp
                         ) {
                             Row(
@@ -515,7 +523,7 @@ fun EditTransactionPage(
                                     text = "↓ Expense",
                                     fontSize = 13.sp,
                                     fontWeight = if (isExpenseSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isExpenseSelected) Color(0xFF0F172A) else Color(0xFF64748B)
+                                    color = if (isExpenseSelected) slateTitle else slateSub
                                 )
                             }
                         }
@@ -531,7 +539,7 @@ fun EditTransactionPage(
                                 .weight(1f)
                                 .height(38.dp),
                             shape = RoundedCornerShape(10.dp),
-                            color = if (isIncomeSelected) Color.White else Color.Transparent,
+                            color = if (isIncomeSelected) cardBg else Color.Transparent,
                             shadowElevation = if (isIncomeSelected) 1.dp else 0.dp
                         ) {
                             Row(
@@ -543,7 +551,7 @@ fun EditTransactionPage(
                                     text = "↑ Income",
                                     fontSize = 13.sp,
                                     fontWeight = if (isIncomeSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isIncomeSelected) Color(0xFF059669) else Color(0xFF64748B)
+                                    color = if (isIncomeSelected) ArcColors.Primary else slateSub
                                 )
                             }
                         }
@@ -558,7 +566,7 @@ fun EditTransactionPage(
                                 .weight(1f)
                                 .height(38.dp),
                             shape = RoundedCornerShape(10.dp),
-                            color = if (isTransfer) Color.White else Color.Transparent,
+                            color = if (isTransfer) cardBg else Color.Transparent,
                             shadowElevation = if (isTransfer) 1.dp else 0.dp
                         ) {
                             Row(
@@ -570,7 +578,7 @@ fun EditTransactionPage(
                                     text = "⇄ Transfer",
                                     fontSize = 13.sp,
                                     fontWeight = if (isTransfer) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isTransfer) Color(0xFF0284C7) else Color(0xFF64748B)
+                                    color = if (isTransfer) Color(0xFF0284C7) else slateSub
                                 )
                             }
                         }
@@ -582,8 +590,8 @@ fun EditTransactionPage(
             item {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = cardBg,
+                    border = BorderStroke(1.dp, cardBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -596,7 +604,7 @@ fun EditTransactionPage(
                             text = "TRANSACTION AMOUNT",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF64748B),
+                            color = slateSub,
                             letterSpacing = 0.8.sp
                         )
 
@@ -612,7 +620,7 @@ fun EditTransactionPage(
                                 text = "₹",
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (amountText.isNotEmpty()) Color(0xFF0F172A) else Color(0xFF94A3B8),
+                                color = if (amountText.isNotEmpty()) slateTitle else slateSub,
                                 modifier = Modifier.padding(bottom = 2.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
@@ -629,7 +637,7 @@ fun EditTransactionPage(
                                 textStyle = TextStyle(
                                     fontSize = 34.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A),
+                                    color = slateTitle,
                                     textAlign = TextAlign.Start
                                 ),
                                 keyboardOptions = KeyboardOptions(
@@ -640,7 +648,7 @@ fun EditTransactionPage(
                                     onDone = { focusManager.clearFocus() }
                                 ),
                                 singleLine = true,
-                                cursorBrush = SolidColor(Color(0xFF047857)),
+                                cursorBrush = SolidColor(ArcColors.Primary),
                                 decorationBox = { innerTextField ->
                                     Box(contentAlignment = Alignment.CenterStart) {
                                         if (amountText.isEmpty()) {
@@ -648,7 +656,7 @@ fun EditTransactionPage(
                                                 text = "0.00",
                                                 fontSize = 34.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF94A3B8)
+                                                color = slateSub
                                             )
                                         }
                                         innerTextField()
@@ -679,7 +687,7 @@ fun EditTransactionPage(
                                     },
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(12.dp),
-                                    color = Color(0xFFF1F5F9)
+                                    color = highlightSurface
                                 ) {
                                     Box(
                                         modifier = Modifier.padding(vertical = 8.dp),
@@ -689,7 +697,7 @@ fun EditTransactionPage(
                                             text = label,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A),
+                                            color = slateTitle,
                                             maxLines = 1
                                         )
                                     }
@@ -710,17 +718,17 @@ fun EditTransactionPage(
                         text = "MERCHANT / PAYEE",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF64748B),
+                        color = slateSub,
                         letterSpacing = 0.5.sp
                     )
 
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        color = Color.White,
+                        color = cardBg,
                         border = BorderStroke(
                             1.dp,
-                            if (merchantError != null) Color(0xFFEF4444) else Color(0xFFE2E8F0)
+                            if (merchantError != null) Color(0xFFEF4444) else cardBorder
                         ),
                         shadowElevation = 0.5.dp
                     ) {
@@ -735,13 +743,13 @@ fun EditTransactionPage(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(Color(0xFFE8F5E9)),
+                                    .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFE8F5E9)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Storefront,
                                     contentDescription = null,
-                                    tint = Color(0xFF047857),
+                                    tint = ArcColors.Primary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -755,7 +763,7 @@ fun EditTransactionPage(
                                         text = "Enter payee or merchant",
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF94A3B8)
+                                        color = slateSub
                                     )
                                 }
                                 BasicTextField(
@@ -767,9 +775,9 @@ fun EditTransactionPage(
                                     textStyle = TextStyle(
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
+                                        color = slateTitle
                                     ),
-                                    cursorBrush = SolidColor(Color(0xFF047857)),
+                                    cursorBrush = SolidColor(ArcColors.Primary),
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -784,7 +792,7 @@ fun EditTransactionPage(
                                     Icon(
                                         imageVector = Icons.Default.Cancel,
                                         contentDescription = "Clear",
-                                        tint = Color(0xFF64748B),
+                                        tint = slateSub,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -809,7 +817,7 @@ fun EditTransactionPage(
                             text = "CATEGORY",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF64748B),
+                            color = slateSub,
                             letterSpacing = 0.5.sp
                         )
 
@@ -817,7 +825,7 @@ fun EditTransactionPage(
                             text = "All Categories >",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF047857),
+                            color = ArcColors.Primary,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
                                 .clickable { showCategoryPicker = true }
@@ -828,8 +836,8 @@ fun EditTransactionPage(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = cardBg,
+                        border = BorderStroke(1.dp, cardBorder),
                         shadowElevation = 0.5.dp
                     ) {
                         Column(
@@ -841,7 +849,7 @@ fun EditTransactionPage(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFF8FAFC))
+                                    .background(highlightSurface)
                                     .clickable { showCategoryPicker = true }
                                     .padding(10.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -851,7 +859,7 @@ fun EditTransactionPage(
                                     modifier = Modifier
                                         .size(38.dp)
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFF047857)),
+                                        .background(ArcColors.Primary),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -869,19 +877,19 @@ fun EditTransactionPage(
                                         text = categoryDisplayName,
                                         fontSize = 14.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
+                                        color = slateTitle
                                     )
                                     Text(
                                         text = categorySubtitle,
                                         fontSize = 11.5.sp,
-                                        color = Color(0xFF64748B)
+                                        color = slateSub
                                     )
                                 }
 
                                 Icon(
                                     imageVector = Icons.Default.UnfoldMore,
                                     contentDescription = "Select",
-                                    tint = Color(0xFF64748B),
+                                    tint = slateSub,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -910,7 +918,7 @@ fun EditTransactionPage(
                                         modifier = Modifier
                                             .weight(1f)
                                             .clip(RoundedCornerShape(10.dp))
-                                            .background(Color(0xFFF1F5F9))
+                                            .background(highlightSurface)
                                             .clickable {
                                                 editedCategory = targetCategory
                                                 editedCategoryId = null
@@ -925,7 +933,7 @@ fun EditTransactionPage(
                                             Icon(
                                                 imageVector = CategoryVisuals.getIcon(iconKey),
                                                 contentDescription = null,
-                                                tint = Color(0xFF475569),
+                                                tint = slateTitle,
                                                 modifier = Modifier.size(14.dp)
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
@@ -933,7 +941,7 @@ fun EditTransactionPage(
                                                 text = label,
                                                 fontSize = 11.5.sp,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = Color(0xFF475569),
+                                                color = slateTitle,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
@@ -956,15 +964,15 @@ fun EditTransactionPage(
                         text = "PAYMENT ACCOUNT",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF64748B),
+                        color = slateSub,
                         letterSpacing = 0.5.sp
                     )
 
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = cardBg,
+                        border = BorderStroke(1.dp, cardBorder),
                         shadowElevation = 0.5.dp
                     ) {
                         Row(
@@ -979,13 +987,13 @@ fun EditTransactionPage(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(Color(0xFFF1F5F9)),
+                                    .background(highlightSurface),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.CreditCard,
                                     contentDescription = null,
-                                    tint = Color(0xFF475569),
+                                    tint = slateSub,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -997,19 +1005,19 @@ fun EditTransactionPage(
                                     text = displayAccountName,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = slateTitle
                                 )
                                 Text(
                                     text = if (!suffix.isNullOrBlank()) "Ending ••$suffix" else displayAccountType,
                                     fontSize = 11.5.sp,
-                                    color = Color(0xFF64748B)
+                                    color = slateSub
                                 )
                             }
 
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowDown,
                                 contentDescription = "Change Account",
-                                tint = Color(0xFF64748B),
+                                tint = slateSub,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -1022,8 +1030,8 @@ fun EditTransactionPage(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = cardBg,
+                    border = BorderStroke(1.dp, cardBorder),
                     shadowElevation = 0.5.dp
                 ) {
                     Row(
@@ -1067,13 +1075,13 @@ fun EditTransactionPage(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFF1F5F9)),
+                                .background(highlightSurface),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CalendarToday,
                                 contentDescription = null,
-                                tint = Color(0xFF475569),
+                                tint = slateSub,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -1085,21 +1093,21 @@ fun EditTransactionPage(
                                 text = "DATE & TIME",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF64748B),
+                                color = slateSub,
                                 letterSpacing = 0.5.sp
                             )
                             Text(
                                 text = formattedDateTime,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = slateTitle
                             )
                         }
 
                         Icon(
                             imageVector = Icons.Default.EditCalendar,
                             contentDescription = "Edit Date",
-                            tint = Color(0xFF475569),
+                            tint = slateSub,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -1112,8 +1120,8 @@ fun EditTransactionPage(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = cardBg,
+                        border = BorderStroke(1.dp, cardBorder),
                         shadowElevation = 0.5.dp
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
@@ -1128,7 +1136,7 @@ fun EditTransactionPage(
                                     Icon(
                                         imageVector = Icons.Default.MailOutline,
                                         contentDescription = null,
-                                        tint = Color(0xFF0F172A),
+                                        tint = slateTitle,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -1136,7 +1144,7 @@ fun EditTransactionPage(
                                         text = "Original SMS Source",
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
+                                        color = slateTitle
                                     )
                                 }
 
@@ -1144,13 +1152,13 @@ fun EditTransactionPage(
                                     Text(
                                         text = if (isEvidenceExpanded) "Hide preview" else "Show preview",
                                         fontSize = 12.sp,
-                                        color = Color(0xFF64748B)
+                                        color = slateSub
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Icon(
                                         imageVector = if (isEvidenceExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                         contentDescription = null,
-                                        tint = Color(0xFF64748B),
+                                        tint = slateSub,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -1162,15 +1170,15 @@ fun EditTransactionPage(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFFF8FAFC))
-                                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(10.dp))
+                                        .background(highlightSurface)
+                                        .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(10.dp))
                                         .padding(10.dp)
                                 ) {
                                     Text(
                                         text = expense.rawText!!,
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 11.5.sp,
-                                        color = Color(0xFF334155),
+                                        color = slateTitle,
                                         lineHeight = 16.sp
                                     )
                                 }
@@ -1195,22 +1203,22 @@ fun EditTransactionPage(
                             text = "NOTES & TAGS",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF64748B),
+                            color = slateSub,
                             letterSpacing = 0.5.sp
                         )
 
                         Text(
                             text = "Optional",
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                     }
 
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = cardBg,
+                        border = BorderStroke(1.dp, cardBorder),
                         shadowElevation = 0.5.dp
                     ) {
                         Column(
@@ -1223,7 +1231,7 @@ fun EditTransactionPage(
                                     Text(
                                         text = "Optional note or ledger memo...",
                                         fontSize = 14.sp,
-                                        color = Color(0xFF94A3B8)
+                                        color = slateSub
                                     )
                                 }
                                 BasicTextField(
@@ -1231,9 +1239,9 @@ fun EditTransactionPage(
                                     onValueChange = { noteText = it },
                                     textStyle = TextStyle(
                                         fontSize = 14.sp,
-                                        color = Color(0xFF0F172A)
+                                        color = slateTitle
                                     ),
-                                    cursorBrush = SolidColor(Color(0xFF047857)),
+                                    cursorBrush = SolidColor(ArcColors.Primary),
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -1249,7 +1257,7 @@ fun EditTransactionPage(
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(50))
-                                            .background(Color(0xFFF1F5F9))
+                                            .background(highlightSurface)
                                             .padding(horizontal = 10.dp, vertical = 5.dp)
                                     ) {
                                         Row(
@@ -1260,12 +1268,12 @@ fun EditTransactionPage(
                                                 text = "#$tag",
                                                 fontSize = 11.5.sp,
                                                 fontWeight = FontWeight.Medium,
-                                                color = Color(0xFF475569)
+                                                color = slateTitle
                                             )
                                             Icon(
                                                 imageVector = Icons.Default.Close,
                                                 contentDescription = "Remove tag",
-                                                tint = Color(0xFF64748B),
+                                                tint = slateSub,
                                                 modifier = Modifier
                                                     .size(13.dp)
                                                     .clickable {
@@ -1281,7 +1289,7 @@ fun EditTransactionPage(
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(50))
-                                            .border(BorderStroke(1.dp, Color(0xFFCBD5E1)), RoundedCornerShape(50))
+                                            .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(50))
                                             .clickable { showAddTagDialog = true }
                                             .padding(horizontal = 10.dp, vertical = 5.dp)
                                     ) {
@@ -1289,7 +1297,7 @@ fun EditTransactionPage(
                                             text = "+ Add Tag",
                                             fontSize = 11.5.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF047857)
+                                            color = ArcColors.Primary
                                         )
                                     }
                                 }
@@ -1392,9 +1400,9 @@ private fun DarkAmountInputDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color.White,
+        containerColor = cardBg,
         title = {
-            Text("Edit Amount", color = Color(0xFF0F172A), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text("Edit Amount", color = slateTitle, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         },
         text = {
             Column {
@@ -1402,13 +1410,13 @@ private fun DarkAmountInputDialog(
                     value = amountInput,
                     onValueChange = { amountInput = it },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    prefix = { Text("₹ ", color = Color(0xFF047857), fontWeight = FontWeight.Bold) },
+                    prefix = { Text("₹ ", color = ArcColors.Primary, fontWeight = FontWeight.Bold) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF047857),
-                        unfocusedBorderColor = Color(0xFFE2E8F0),
-                        focusedTextColor = Color(0xFF0F172A),
-                        unfocusedTextColor = Color(0xFF0F172A)
+                        focusedBorderColor = ArcColors.Primary,
+                        unfocusedBorderColor = cardBorder,
+                        focusedTextColor = slateTitle,
+                        unfocusedTextColor = slateTitle
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1422,14 +1430,14 @@ private fun DarkAmountInputDialog(
                         onConfirm(parsed)
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
+                colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
             ) {
                 Text("Set", color = Color.White, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFF64748B))
+                Text("Cancel", color = slateSub)
             }
         }
     )

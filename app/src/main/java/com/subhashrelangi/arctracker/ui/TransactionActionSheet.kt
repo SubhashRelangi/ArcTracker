@@ -69,7 +69,7 @@ fun TransactionActionSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color.White,
+        containerColor = ArcColors.CardBackground,
         windowInsets = WindowInsets(0, 0, 0, 0),
         dragHandle = {
             Box(
@@ -78,7 +78,7 @@ fun TransactionActionSheet(
                     .width(36.dp)
                     .height(4.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFCBD5E1))
+                    .background(ArcColors.Border)
             )
         },
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
@@ -128,7 +128,7 @@ fun TransactionActionSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+            HorizontalDivider(color = ArcColors.Border, thickness = 1.dp)
 
             Spacer(modifier = Modifier.height(18.dp))
 
@@ -165,8 +165,8 @@ fun TransactionActionSheet(
                 OutlinedButton(
                     onClick = onDelete,
                     shape = CircleShape,
-                    border = BorderStroke(1.dp, Color(0xFFFECACA)),
-                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFFEF2F2)),
+                    border = BorderStroke(1.dp, ArcColors.DangerBorder),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = ArcColors.DangerContainer),
                     modifier = Modifier
                         .weight(1f)
                         .height(46.dp)
@@ -174,7 +174,7 @@ fun TransactionActionSheet(
                     Icon(
                         imageVector = Icons.Default.DeleteOutline,
                         contentDescription = "Delete",
-                        tint = Color(0xFFDC2626),
+                        tint = ArcColors.Danger,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -182,7 +182,7 @@ fun TransactionActionSheet(
                         text = "Delete",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = Color(0xFFDC2626)
+                        color = ArcColors.Danger
                     )
                 }
             }

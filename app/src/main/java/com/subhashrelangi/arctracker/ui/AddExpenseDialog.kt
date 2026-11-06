@@ -57,6 +57,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import android.view.WindowManager
 import androidx.core.view.WindowCompat
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.data.BuiltInCategories
 import com.subhashrelangi.arctracker.data.CategoryVisuals
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
@@ -65,6 +66,13 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+
+private val slateTitle: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val slateSub: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val cardBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val lightBg: Color @Composable @ReadOnlyComposable get() = ArcColors.Background
+private val cardBg: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val highlightSurface: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
 
 /**
  * Pixel-perfect manual transaction screen matching the ArcTracker Emerald Light Theme mockup.
@@ -258,12 +266,12 @@ fun AddExpenseDialog(
     if (showAddTagDialog) {
         AlertDialog(
             onDismissRequest = { showAddTagDialog = false },
-            containerColor = Color.White,
+            containerColor = cardBg,
             shape = RoundedCornerShape(20.dp),
             title = {
                 Text(
                     text = "Add Custom Tag",
-                    color = Color(0xFF0F172A),
+                    color = slateTitle,
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp
                 )
@@ -272,7 +280,7 @@ fun AddExpenseDialog(
                 Column {
                     Text(
                         text = "Enter a tag label without the '#' symbol:",
-                        color = Color(0xFF64748B),
+                        color = slateSub,
                         fontSize = 13.sp
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -280,15 +288,15 @@ fun AddExpenseDialog(
                         value = newTagInput,
                         onValueChange = { newTagInput = it },
                         textStyle = TextStyle(
-                            color = Color(0xFF0F172A),
+                            color = slateTitle,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium
                         ),
-                        cursorBrush = SolidColor(Color(0xFF047857)),
+                        cursorBrush = SolidColor(ArcColors.Primary),
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFF1F5F9), RoundedCornerShape(10.dp))
+                            .background(highlightSurface, RoundedCornerShape(10.dp))
                             .padding(horizontal = 14.dp, vertical = 12.dp)
                     )
                 }
@@ -306,7 +314,7 @@ fun AddExpenseDialog(
                         newTagInput = ""
                         showAddTagDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
                     shape = CircleShape
                 ) {
                     Text("Add Tag", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -314,7 +322,7 @@ fun AddExpenseDialog(
             },
             dismissButton = {
                 TextButton(onClick = { showAddTagDialog = false }) {
-                    Text("Cancel", color = Color(0xFF64748B), fontSize = 13.sp)
+                    Text("Cancel", color = slateSub, fontSize = 13.sp)
                 }
             }
         )
@@ -330,6 +338,7 @@ fun AddExpenseDialog(
         )
     ) {
         val dialogView = LocalView.current
+        val isDark = ArcColors.isDark
         SideEffect {
             var parent = dialogView.parent
             while (parent != null && parent !is DialogWindowProvider) {
@@ -348,8 +357,8 @@ fun AddExpenseDialog(
                 window.navigationBarColor = android.graphics.Color.TRANSPARENT
                 window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
                 WindowCompat.getInsetsController(window, window.decorView)?.let { insetsController ->
-                    insetsController.isAppearanceLightStatusBars = true
-                    insetsController.isAppearanceLightNavigationBars = true
+                    insetsController.isAppearanceLightStatusBars = !isDark
+                    insetsController.isAppearanceLightNavigationBars = !isDark
                 }
             }
         }
@@ -357,13 +366,13 @@ fun AddExpenseDialog(
         val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
 
         Scaffold(
-            containerColor = Color(0xFFF8FAFC),
+            containerColor = lightBg,
             topBar = {
                 Surface(
-                    color = Color.White,
+                    color = cardBg,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(cardBg)
                 ) {
                     ArcTrackerHeader(
                         title = when {
@@ -379,7 +388,7 @@ fun AddExpenseDialog(
                         onBackClick = onDismiss,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White)
+                            .background(cardBg)
                             .statusBarsPadding(),
                         horizontalPadding = 16.dp,
                         actions = {}
@@ -391,9 +400,9 @@ fun AddExpenseDialog(
                     // Solid Bottom Action Section sticking flush at the bottom of the screen
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        color = Color.White,
+                        color = cardBg,
                         shadowElevation = 10.dp,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        border = BorderStroke(1.dp, cardBorder)
                     ) {
                         Column(
                             modifier = Modifier
@@ -415,8 +424,8 @@ fun AddExpenseDialog(
                                             .weight(0.7f)
                                             .height(52.dp),
                                         shape = CircleShape,
-                                        color = Color(0xFFFEE2E2),
-                                        border = BorderStroke(1.dp, Color(0xFFFECACA))
+                                        color = if (ArcColors.isDark) Color(0xFF450A0A) else Color(0xFFFEE2E2),
+                                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF991B1B) else Color(0xFFFECACA))
                                     ) {
                                         Row(
                                             modifier = Modifier.fillMaxSize(),
@@ -528,7 +537,7 @@ fun AddExpenseDialog(
                     // 2. TRANSACTION TYPE SEGMENTED SWITCHER
                     Surface(
                         shape = CircleShape,
-                        color = Color(0xFFF1F5F9),
+                        color = highlightSurface,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -545,7 +554,7 @@ fun AddExpenseDialog(
                                         .weight(1f)
                                         .height(38.dp),
                                     shape = CircleShape,
-                                    color = if (isSelected) Color.White else Color.Transparent,
+                                    color = if (isSelected) cardBg else Color.Transparent,
                                     shadowElevation = if (isSelected) 1.dp else 0.dp
                                 ) {
                                     Row(
@@ -557,7 +566,7 @@ fun AddExpenseDialog(
                                             Box(
                                                 modifier = Modifier
                                                     .size(6.dp)
-                                                    .background(Color(0xFF059669), CircleShape)
+                                                    .background(ArcColors.Primary, CircleShape)
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                         }
@@ -565,7 +574,7 @@ fun AddExpenseDialog(
                                             text = mode,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                             fontSize = 13.5.sp,
-                                            color = if (isSelected) Color(0xFF0F172A) else Color(0xFF64748B)
+                                            color = if (isSelected) slateTitle else slateSub
                                         )
                                     }
                                 }
@@ -576,8 +585,8 @@ fun AddExpenseDialog(
                     // 3. CARD 1: TRANSACTION AMOUNT
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = cardBg,
+                        border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -590,7 +599,7 @@ fun AddExpenseDialog(
                                 text = "TRANSACTION AMOUNT",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF64748B),
+                                color = slateSub,
                                 letterSpacing = 0.8.sp
                             )
 
@@ -606,7 +615,7 @@ fun AddExpenseDialog(
                                     text = "₹",
                                     fontSize = 24.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (amountText.isNotEmpty()) Color(0xFF0F172A) else Color(0xFF94A3B8),
+                                    color = if (amountText.isNotEmpty()) slateTitle else slateSub,
                                     modifier = Modifier.padding(bottom = 2.dp)
                                 )
                                 Spacer(modifier = Modifier.width(3.dp))
@@ -623,7 +632,7 @@ fun AddExpenseDialog(
                                     textStyle = TextStyle(
                                         fontSize = 34.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (amountError) Color(0xFFDC2626) else Color(0xFF0F172A),
+                                        color = if (amountError) Color(0xFFDC2626) else slateTitle,
                                         textAlign = TextAlign.Start
                                     ),
                                     keyboardOptions = KeyboardOptions(
@@ -634,7 +643,7 @@ fun AddExpenseDialog(
                                         onDone = { focusManager.clearFocus() }
                                     ),
                                     singleLine = true,
-                                    cursorBrush = SolidColor(Color(0xFF047857)),
+                                    cursorBrush = SolidColor(ArcColors.Primary),
                                     decorationBox = { innerTextField ->
                                         Box(contentAlignment = Alignment.CenterStart) {
                                             if (amountText.isEmpty()) {
@@ -642,7 +651,7 @@ fun AddExpenseDialog(
                                                     text = "0.00",
                                                     fontSize = 34.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF94A3B8)
+                                                    color = slateSub
                                                 )
                                             }
                                             innerTextField()
@@ -674,7 +683,7 @@ fun AddExpenseDialog(
                                         },
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(12.dp),
-                                        color = Color(0xFFF1F5F9)
+                                        color = highlightSurface
                                     ) {
                                         Box(
                                             modifier = Modifier.padding(vertical = 8.dp),
@@ -684,7 +693,7 @@ fun AddExpenseDialog(
                                                 text = label,
                                                 fontSize = 11.5.sp,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = Color(0xFF0F172A),
+                                                color = slateTitle,
                                                 maxLines = 1
                                             )
                                         }
@@ -697,8 +706,8 @@ fun AddExpenseDialog(
                     // 4. CARD 2: PRIMARY DETAILS (Merchant, Category, Account, Date)
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = cardBg,
+                        border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.fillMaxWidth()) {
@@ -713,14 +722,14 @@ fun AddExpenseDialog(
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
-                                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                                        .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(12.dp)),
+                                        .background(highlightSurface, RoundedCornerShape(12.dp))
+                                        .border(1.dp, cardBorder, RoundedCornerShape(12.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.Storefront,
                                         contentDescription = null,
-                                        tint = Color(0xFF475569),
+                                        tint = slateSub,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -731,7 +740,7 @@ fun AddExpenseDialog(
                                     Text(
                                         text = "Payee or Merchant",
                                         fontSize = 11.5.sp,
-                                        color = Color(0xFF64748B)
+                                        color = slateSub
                                     )
                                     BasicTextField(
                                         value = merchant,
@@ -742,9 +751,9 @@ fun AddExpenseDialog(
                                         textStyle = TextStyle(
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (merchantError) Color(0xFFDC2626) else Color(0xFF0F172A)
+                                            color = if (merchantError) Color(0xFFDC2626) else slateTitle
                                         ),
-                                        cursorBrush = SolidColor(Color(0xFF047857)),
+                                        cursorBrush = SolidColor(ArcColors.Primary),
                                         singleLine = true,
                                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                                         decorationBox = { innerTextField ->
@@ -753,7 +762,7 @@ fun AddExpenseDialog(
                                                     text = "Enter payee or merchant",
                                                     fontSize = 15.sp,
                                                     fontWeight = FontWeight.Medium,
-                                                    color = Color(0xFF94A3B8)
+                                                    color = slateSub
                                                 )
                                             }
                                             innerTextField()
@@ -768,7 +777,7 @@ fun AddExpenseDialog(
                                     Icon(
                                         imageVector = Icons.Outlined.Search,
                                         contentDescription = "Search / Suggestions",
-                                        tint = Color(0xFF475569),
+                                        tint = slateSub,
                                         modifier = Modifier.size(19.dp)
                                     )
                                 }
@@ -790,13 +799,13 @@ fun AddExpenseDialog(
                                                 showRecentMerchants = false
                                             },
                                             shape = CircleShape,
-                                            color = Color(0xFFF1F5F9)
+                                            color = highlightSurface
                                         ) {
                                             Text(
                                                 text = rm,
                                                 fontSize = 11.5.sp,
                                                 fontWeight = FontWeight.Medium,
-                                                color = Color(0xFF334155),
+                                                color = slateTitle,
                                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                                             )
                                         }
@@ -804,7 +813,7 @@ fun AddExpenseDialog(
                                 }
                             }
 
-                            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                            HorizontalDivider(color = cardBorder, thickness = 1.dp)
 
                             // Row 2: Category
                             Row(
@@ -821,13 +830,13 @@ fun AddExpenseDialog(
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
-                                        .background(Color(0xFFD1FAE5), RoundedCornerShape(12.dp)),
+                                        .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFD1FAE5), RoundedCornerShape(12.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = catVisualIcon,
                                         contentDescription = null,
-                                        tint = Color(0xFF047857),
+                                        tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -838,25 +847,25 @@ fun AddExpenseDialog(
                                     Text(
                                         text = "Category",
                                         fontSize = 11.5.sp,
-                                        color = Color(0xFF64748B)
+                                        color = slateSub
                                     )
                                     Text(
                                         text = selectedCategoryName,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
+                                        color = slateTitle
                                     )
                                 }
 
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                     contentDescription = "Change Category",
-                                    tint = Color(0xFF64748B),
+                                    tint = slateSub,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
 
-                            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                            HorizontalDivider(color = cardBorder, thickness = 1.dp)
 
                             // Row 3: Payment Account
                             Row(
@@ -869,14 +878,14 @@ fun AddExpenseDialog(
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
-                                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                                        .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(12.dp)),
+                                        .background(highlightSurface, RoundedCornerShape(12.dp))
+                                        .border(1.dp, cardBorder, RoundedCornerShape(12.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.AccountBalance,
                                         contentDescription = null,
-                                        tint = Color(0xFF475569),
+                                        tint = slateSub,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -887,7 +896,7 @@ fun AddExpenseDialog(
                                     Text(
                                         text = "Payment Account",
                                         fontSize = 11.5.sp,
-                                        color = Color(0xFF64748B)
+                                        color = slateSub
                                     )
                                     val displayName = when {
                                         selectedAccountName != null && selectedAccountSuffix != null ->
@@ -899,7 +908,7 @@ fun AddExpenseDialog(
                                         text = displayName,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A),
+                                        color = slateTitle,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -912,18 +921,18 @@ fun AddExpenseDialog(
                                     Text(
                                         text = "Avail: Linked",
                                         fontSize = 12.sp,
-                                        color = Color(0xFF64748B)
+                                        color = slateSub
                                     )
                                     Icon(
                                         imageVector = Icons.Filled.UnfoldMore,
                                         contentDescription = "Select Account",
-                                        tint = Color(0xFF64748B),
+                                        tint = slateSub,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }
 
-                            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                            HorizontalDivider(color = cardBorder, thickness = 1.dp)
 
                             // Row 4: Date & Timestamp
                             Row(
@@ -960,14 +969,14 @@ fun AddExpenseDialog(
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
-                                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                                        .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(12.dp)),
+                                        .background(highlightSurface, RoundedCornerShape(12.dp))
+                                        .border(1.dp, cardBorder, RoundedCornerShape(12.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.CalendarToday,
                                         contentDescription = null,
-                                        tint = Color(0xFF475569),
+                                        tint = slateSub,
                                         modifier = Modifier.size(19.dp)
                                     )
                                 }
@@ -978,26 +987,26 @@ fun AddExpenseDialog(
                                     Text(
                                         text = "Date & Timestamp",
                                         fontSize = 11.5.sp,
-                                        color = Color(0xFF64748B)
+                                        color = slateSub
                                     )
                                     Text(
                                         text = formatDisplayDateTime(dateMillis),
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
+                                        color = slateTitle
                                     )
                                 }
 
                                 Surface(
                                     onClick = { dateMillis = System.currentTimeMillis() },
                                     shape = CircleShape,
-                                    color = Color(0xFFF1F5F9)
+                                    color = highlightSurface
                                 ) {
                                     Text(
                                         text = "Now",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A),
+                                        color = slateTitle,
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                                     )
                                 }
@@ -1008,8 +1017,8 @@ fun AddExpenseDialog(
                     // 5. CARD 3: LEDGER MEMO & QUICK LEDGER TAGS & TAX INVOICE
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = cardBg,
+                        border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -1025,14 +1034,14 @@ fun AddExpenseDialog(
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
-                                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                                        .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(12.dp)),
+                                        .background(highlightSurface, RoundedCornerShape(12.dp))
+                                        .border(1.dp, cardBorder, RoundedCornerShape(12.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.Notes,
                                         contentDescription = null,
-                                        tint = Color(0xFF475569),
+                                        tint = slateSub,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -1043,7 +1052,7 @@ fun AddExpenseDialog(
                                     Text(
                                         text = "Ledger Memo",
                                         fontSize = 11.5.sp,
-                                        color = Color(0xFF64748B)
+                                        color = slateSub
                                     )
                                     BasicTextField(
                                         value = note,
@@ -1051,9 +1060,9 @@ fun AddExpenseDialog(
                                         textStyle = TextStyle(
                                             fontSize = 14.5.sp,
                                             fontWeight = FontWeight.Normal,
-                                            color = Color(0xFF0F172A)
+                                            color = slateTitle
                                         ),
-                                        cursorBrush = SolidColor(Color(0xFF047857)),
+                                        cursorBrush = SolidColor(ArcColors.Primary),
                                         singleLine = false,
                                         maxLines = 2,
                                         decorationBox = { innerTextField ->
@@ -1061,7 +1070,7 @@ fun AddExpenseDialog(
                                                 Text(
                                                     text = "Client kickoff coffees (optional memo)",
                                                     fontSize = 14.sp,
-                                                    color = Color(0xFF94A3B8)
+                                                    color = slateSub
                                                 )
                                             }
                                             innerTextField()
@@ -1077,7 +1086,7 @@ fun AddExpenseDialog(
                                 text = "Quick Ledger Tags",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF475569)
+                                color = slateSub
                             )
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -1101,10 +1110,14 @@ fun AddExpenseDialog(
                                             }
                                         },
                                         shape = CircleShape,
-                                        color = if (isSelected) Color(0xFFDCFCE7) else Color(0xFFF1F5F9),
+                                        color = if (isSelected) {
+                                            if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7)
+                                        } else highlightSurface,
                                         border = BorderStroke(
                                             1.dp,
-                                            if (isSelected) Color(0xFFA7F3D0) else Color.Transparent
+                                            if (isSelected) {
+                                                if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)
+                                            } else Color.Transparent
                                         )
                                     ) {
                                         Row(
@@ -1115,14 +1128,16 @@ fun AddExpenseDialog(
                                                 text = "#$tagItem",
                                                 fontSize = 12.5.sp,
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                color = if (isSelected) Color(0xFF047857) else Color(0xFF334155)
+                                                color = if (isSelected) {
+                                                    if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
+                                                } else slateTitle
                                             )
                                             if (isSelected) {
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 Icon(
                                                     imageVector = Icons.Default.Check,
                                                     contentDescription = "Selected",
-                                                    tint = Color(0xFF047857),
+                                                    tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
                                                     modifier = Modifier.size(13.dp)
                                                 )
                                             }
@@ -1134,7 +1149,7 @@ fun AddExpenseDialog(
                                 Surface(
                                     onClick = { showAddTagDialog = true },
                                     shape = CircleShape,
-                                    color = Color(0xFFF1F5F9)
+                                    color = highlightSurface
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
@@ -1143,7 +1158,7 @@ fun AddExpenseDialog(
                                         Icon(
                                             imageVector = Icons.Default.Add,
                                             contentDescription = null,
-                                            tint = Color(0xFF475569),
+                                            tint = slateSub,
                                             modifier = Modifier.size(14.dp)
                                         )
                                         Spacer(modifier = Modifier.width(3.dp))
@@ -1151,14 +1166,14 @@ fun AddExpenseDialog(
                                             text = "Tag",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF475569)
+                                            color = slateSub
                                         )
                                     }
                                 }
                             }
 
                             Spacer(modifier = Modifier.height(14.dp))
-                            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                            HorizontalDivider(color = cardBorder, thickness = 1.dp)
                             Spacer(modifier = Modifier.height(12.dp))
 
                             // Attach Tax Invoice Row
@@ -1171,14 +1186,14 @@ fun AddExpenseDialog(
                                     Icon(
                                         imageVector = Icons.Outlined.ReceiptLong,
                                         contentDescription = null,
-                                        tint = Color(0xFF475569),
+                                        tint = slateSub,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = "Attach Tax Invoice",
                                         fontSize = 13.5.sp,
-                                        color = Color(0xFF475569)
+                                        color = slateSub
                                     )
                                 }
 
@@ -1187,7 +1202,7 @@ fun AddExpenseDialog(
                                         Toast.makeText(context, "Encrypted receipt attachment ready in vault", Toast.LENGTH_SHORT).show()
                                     },
                                     shape = CircleShape,
-                                    color = Color(0xFFF1F5F9)
+                                    color = highlightSurface
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -1196,7 +1211,7 @@ fun AddExpenseDialog(
                                         Icon(
                                             imageVector = Icons.Default.Add,
                                             contentDescription = null,
-                                            tint = Color(0xFF0F172A),
+                                            tint = slateTitle,
                                             modifier = Modifier.size(13.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
@@ -1204,7 +1219,7 @@ fun AddExpenseDialog(
                                             text = "Add Photo",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF0F172A)
+                                            color = slateTitle
                                         )
                                     }
                                 }
@@ -1215,8 +1230,8 @@ fun AddExpenseDialog(
                     // 6. SECURITY BANNER
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFF1F5F9).copy(alpha = 0.85f),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = highlightSurface,
+                        border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -1229,7 +1244,7 @@ fun AddExpenseDialog(
                             Icon(
                                 imageVector = Icons.Outlined.Lock,
                                 contentDescription = null,
-                                tint = Color(0xFF047857),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -1237,7 +1252,7 @@ fun AddExpenseDialog(
                                 text = "100% Local-First Ledger • Offline Encrypted Vault",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF475569),
+                                color = slateSub,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -1270,8 +1285,8 @@ private fun ArcCategoryPickerDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            color = cardBg,
+            border = BorderStroke(1.dp, cardBorder),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
@@ -1290,13 +1305,13 @@ private fun ArcCategoryPickerDialog(
                     Column {
                         Text(
                             text = "Select Category",
-                            color = Color(0xFF0F172A),
+                            color = slateTitle,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "Categorize your transaction",
-                            color = Color(0xFF64748B),
+                            color = slateSub,
                             fontSize = 12.sp
                         )
                     }
@@ -1308,7 +1323,7 @@ private fun ArcCategoryPickerDialog(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color(0xFF64748B),
+                            tint = slateSub,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1320,14 +1335,14 @@ private fun ArcCategoryPickerDialog(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search categories...", fontSize = 13.sp, color = Color(0xFF94A3B8)) },
+                    placeholder = { Text("Search categories...", fontSize = 13.sp, color = slateSub) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF047857),
-                        unfocusedBorderColor = Color(0xFFE2E8F0),
-                        focusedContainerColor = Color(0xFFF8FAFC),
-                        unfocusedContainerColor = Color(0xFFF8FAFC)
+                        focusedBorderColor = ArcColors.Primary,
+                        unfocusedBorderColor = cardBorder,
+                        focusedContainerColor = highlightSurface,
+                        unfocusedContainerColor = highlightSurface
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1351,10 +1366,14 @@ private fun ArcCategoryPickerDialog(
                         Surface(
                             onClick = { onCategorySelected(cat) },
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) Color(0xFFECFDF5) else Color.Transparent,
+                            color = if (isSelected) {
+                                if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
+                            } else Color.Transparent,
                             border = BorderStroke(
                                 1.dp,
-                                if (isSelected) Color(0xFFA7F3D0) else Color.Transparent
+                                if (isSelected) {
+                                    if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)
+                                } else Color.Transparent
                             ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -1384,7 +1403,9 @@ private fun ArcCategoryPickerDialog(
                                     text = cat.name,
                                     fontSize = 14.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color(0xFF047857) else Color(0xFF0F172A),
+                                    color = if (isSelected) {
+                                        if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
+                                    } else slateTitle,
                                     modifier = Modifier.weight(1f)
                                 )
 
@@ -1392,7 +1413,7 @@ private fun ArcCategoryPickerDialog(
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = "Selected",
-                                        tint = Color(0xFF047857),
+                                        tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -1406,7 +1427,7 @@ private fun ArcCategoryPickerDialog(
 }
 
 /**
- * Modern Light-themed Account Picker Dialog matching ArcTracker Emerald aesthetic.
+ * Modern Account Picker Dialog matching ArcTracker dynamic theme aesthetic.
  */
 @Composable
 private fun ArcAccountPickerDialog(
@@ -1419,8 +1440,8 @@ private fun ArcAccountPickerDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            color = cardBg,
+            border = BorderStroke(1.dp, cardBorder),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
@@ -1439,13 +1460,13 @@ private fun ArcAccountPickerDialog(
                     Column {
                         Text(
                             text = "Payment Account",
-                            color = Color(0xFF0F172A),
+                            color = slateTitle,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "Choose linked bank account or wallet",
-                            color = Color(0xFF64748B),
+                            color = slateSub,
                             fontSize = 12.sp
                         )
                     }
@@ -1457,7 +1478,7 @@ private fun ArcAccountPickerDialog(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color(0xFF64748B),
+                            tint = slateSub,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1477,10 +1498,14 @@ private fun ArcAccountPickerDialog(
                         Surface(
                             onClick = { onAccountSelected(null, null, "Cash / Wallet") },
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isCashSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
+                            color = if (isCashSelected) {
+                                if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
+                            } else highlightSurface,
                             border = BorderStroke(
                                 1.dp,
-                                if (isCashSelected) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)
+                                if (isCashSelected) {
+                                    if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)
+                                } else cardBorder
                             ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -1493,13 +1518,13 @@ private fun ArcAccountPickerDialog(
                                 Box(
                                     modifier = Modifier
                                         .size(36.dp)
-                                        .background(Color(0xFFE2E8F0), CircleShape),
+                                        .background(highlightSurface, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.AccountBalanceWallet,
                                         contentDescription = null,
-                                        tint = Color(0xFF475569),
+                                        tint = slateSub,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -1511,12 +1536,14 @@ private fun ArcAccountPickerDialog(
                                         text = "Cash / Wallet",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
-                                        color = if (isCashSelected) Color(0xFF047857) else Color(0xFF0F172A)
+                                        color = if (isCashSelected) {
+                                            if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
+                                        } else slateTitle
                                     )
                                     Text(
                                         text = "Direct cash or untracked wallet",
                                         fontSize = 11.5.sp,
-                                        color = Color(0xFF64748B)
+                                        color = slateSub
                                     )
                                 }
 
@@ -1524,7 +1551,7 @@ private fun ArcAccountPickerDialog(
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = "Selected",
-                                        tint = Color(0xFF047857),
+                                        tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -1545,10 +1572,14 @@ private fun ArcAccountPickerDialog(
                                     )
                                 },
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (isSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC),
+                                color = if (isSelected) {
+                                    if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
+                                } else highlightSurface,
                                 border = BorderStroke(
                                     1.dp,
-                                    if (isSelected) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)
+                                    if (isSelected) {
+                                        if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)
+                                    } else cardBorder
                                 ),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -1562,7 +1593,9 @@ private fun ArcAccountPickerDialog(
                                         modifier = Modifier
                                             .size(36.dp)
                                             .background(
-                                                if (isSelected) Color(0xFFA7F3D0) else Color(0xFFE2E8F0),
+                                                if (isSelected) {
+                                                    if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFA7F3D0)
+                                                } else highlightSurface,
                                                 CircleShape
                                             ),
                                         contentAlignment = Alignment.Center
@@ -1570,7 +1603,9 @@ private fun ArcAccountPickerDialog(
                                         Icon(
                                             imageVector = Icons.Outlined.AccountBalance,
                                             contentDescription = null,
-                                            tint = if (isSelected) Color(0xFF047857) else Color(0xFF475569),
+                                            tint = if (isSelected) {
+                                                if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
+                                            } else slateSub,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -1582,12 +1617,14 @@ private fun ArcAccountPickerDialog(
                                             text = acc.institutionName ?: "Bank Account",
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 14.sp,
-                                            color = if (isSelected) Color(0xFF047857) else Color(0xFF0F172A)
+                                            color = if (isSelected) {
+                                                if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
+                                            } else slateTitle
                                         )
                                         Text(
                                             text = "Ending in ••${acc.accountSuffix}",
                                             fontSize = 11.5.sp,
-                                            color = Color(0xFF64748B)
+                                            color = slateSub
                                         )
                                     }
 
@@ -1595,7 +1632,7 @@ private fun ArcAccountPickerDialog(
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Selected",
-                                            tint = Color(0xFF047857),
+                                            tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }

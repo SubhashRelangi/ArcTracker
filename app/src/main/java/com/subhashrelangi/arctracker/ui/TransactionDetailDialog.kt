@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -43,10 +44,18 @@ import androidx.core.view.WindowCompat
 import com.subhashrelangi.arctracker.data.*
 import com.subhashrelangi.arctracker.service.AccountReconciliationManager
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+private val slateTitle: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val slateSub: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val cardBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val lightBg: Color @Composable @ReadOnlyComposable get() = ArcColors.Background
+private val cardBg: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val highlightSurface: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
 
 /**
  * Transaction Details & Evidence Screen for ArcTracker.
@@ -219,6 +228,7 @@ fun TransactionDetailDialog(
         )
     ) {
         val dialogView = LocalView.current
+        val isDark = ArcColors.isDark
         SideEffect {
             var parent = dialogView.parent
             while (parent != null && parent !is DialogWindowProvider) {
@@ -237,8 +247,8 @@ fun TransactionDetailDialog(
                 window.navigationBarColor = android.graphics.Color.TRANSPARENT
                 window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
                 WindowCompat.getInsetsController(window, window.decorView)?.let { insetsController ->
-                    insetsController.isAppearanceLightStatusBars = true
-                    insetsController.isAppearanceLightNavigationBars = true
+                    insetsController.isAppearanceLightStatusBars = !isDark
+                    insetsController.isAppearanceLightNavigationBars = !isDark
                 }
             }
         }
@@ -246,7 +256,7 @@ fun TransactionDetailDialog(
         if (isEditMode) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = Color(0xFFF8FAFC)
+                color = lightBg
             ) {
                 EditTransactionPage(
                     expense = expense.copy(
@@ -283,15 +293,15 @@ fun TransactionDetailDialog(
             }
         } else {
             Scaffold(
-                containerColor = Color(0xFFF8FAFC),
+                containerColor = lightBg,
                 topBar = {
                     var menuExpanded by remember { mutableStateOf(false) }
 
                     Surface(
-                        color = Color.White,
+                        color = cardBg,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White)
+                            .background(cardBg)
                     ) {
                         ArcTrackerHeader(
                             title = "Transaction Details",
@@ -299,7 +309,7 @@ fun TransactionDetailDialog(
                             onBackClick = onDismiss,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.White)
+                                .background(cardBg)
                                 .statusBarsPadding(),
                             horizontalPadding = 16.dp,
                             actions = {
@@ -308,8 +318,8 @@ fun TransactionDetailDialog(
                                     modifier = Modifier
                                         .size(38.dp)
                                         .clip(CircleShape)
-                                        .background(Color.White)
-                                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                        .background(cardBg)
+                                        .border(BorderStroke(1.dp, cardBorder), CircleShape)
                                         .clickable {
                                             exportTransactionReceipt(context, expense, linkedAccount, txnCode, upiRef)
                                         },
@@ -318,7 +328,7 @@ fun TransactionDetailDialog(
                                     Icon(
                                         imageVector = Icons.Default.Share,
                                         contentDescription = "Share",
-                                        tint = Color(0xFF0F172A),
+                                        tint = slateTitle,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -329,15 +339,15 @@ fun TransactionDetailDialog(
                                         modifier = Modifier
                                             .size(38.dp)
                                             .clip(CircleShape)
-                                            .background(Color.White)
-                                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                            .background(cardBg)
+                                            .border(BorderStroke(1.dp, cardBorder), CircleShape)
                                             .clickable { menuExpanded = true },
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.MoreVert,
                                             contentDescription = "More Options",
-                                            tint = Color(0xFF0F172A),
+                                            tint = slateTitle,
                                             modifier = Modifier.size(19.dp)
                                         )
                                     }
@@ -345,26 +355,26 @@ fun TransactionDetailDialog(
                                     DropdownMenu(
                                         expanded = menuExpanded,
                                         onDismissRequest = { menuExpanded = false },
-                                        modifier = Modifier.background(Color.White)
+                                        modifier = Modifier.background(cardBg)
                                     ) {
                                         DropdownMenuItem(
-                                            text = { Text("Edit Transaction", color = Color(0xFF0F172A), fontWeight = FontWeight.Medium) },
+                                            text = { Text("Edit Transaction", color = slateTitle, fontWeight = FontWeight.Medium) },
                                             onClick = {
                                                 menuExpanded = false
                                                 isEditMode = true
                                             },
                                             leadingIcon = {
-                                                Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF047857), modifier = Modifier.size(18.dp))
+                                                Icon(Icons.Default.Edit, contentDescription = null, tint = ArcColors.Primary, modifier = Modifier.size(18.dp))
                                             }
                                         )
                                         DropdownMenuItem(
-                                            text = { Text("Delete Transaction", color = Color(0xFFDC2626), fontWeight = FontWeight.Medium) },
+                                            text = { Text("Delete Transaction", color = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626), fontWeight = FontWeight.Medium) },
                                             onClick = {
                                                 menuExpanded = false
                                                 showDeleteConfirmDialog = true
                                             },
                                             leadingIcon = {
-                                                Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(18.dp))
+                                                Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626), modifier = Modifier.size(18.dp))
                                             }
                                         )
                                     }
@@ -401,13 +411,13 @@ fun TransactionDetailDialog(
                                     modifier = Modifier
                                         .size(7.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF059669))
+                                        .background(ArcColors.Primary)
                                 )
                                 Text(
                                     text = if (expense.accountId != null) "Verified & Reconciled" else "Committed to Ledger",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF047857)
+                                    color = ArcColors.Primary
                                 )
                             }
 
@@ -419,14 +429,14 @@ fun TransactionDetailDialog(
                                 Icon(
                                     imageVector = Icons.Default.Lock,
                                     contentDescription = null,
-                                    tint = Color(0xFF64748B),
+                                    tint = slateSub,
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Text(
                                     text = "On-Device Encrypted",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF64748B)
+                                    color = slateSub
                                 )
                             }
                         }
@@ -461,7 +471,7 @@ fun TransactionDetailDialog(
                                     .height(48.dp),
                                 shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF047857),
+                                    containerColor = ArcColors.Primary,
                                     contentColor = Color.White
                                 ),
                                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
@@ -496,10 +506,10 @@ fun TransactionDetailDialog(
                                         .weight(1f)
                                         .height(42.dp),
                                     shape = CircleShape,
-                                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                    border = BorderStroke(1.dp, cardBorder),
                                     colors = ButtonDefaults.outlinedButtonColors(
-                                        containerColor = Color.White,
-                                        contentColor = Color(0xFF0F172A)
+                                        containerColor = cardBg,
+                                        contentColor = slateTitle
                                     ),
                                     contentPadding = PaddingValues(horizontal = 8.dp)
                                 ) {
@@ -511,7 +521,7 @@ fun TransactionDetailDialog(
                                             imageVector = Icons.AutoMirrored.Filled.Label,
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp),
-                                            tint = Color(0xFF0F172A)
+                                            tint = slateTitle
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
@@ -529,10 +539,10 @@ fun TransactionDetailDialog(
                                         .weight(1f)
                                         .height(42.dp),
                                     shape = CircleShape,
-                                    border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                                    border = BorderStroke(1.dp, if (isDark) Color(0xFF5C2424) else Color(0xFFFECACA)),
                                     colors = ButtonDefaults.outlinedButtonColors(
-                                        containerColor = Color(0xFFFEF2F2),
-                                        contentColor = Color(0xFFDC2626)
+                                        containerColor = if (isDark) Color(0xFF3B1818) else Color(0xFFFEF2F2),
+                                        contentColor = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)
                                     ),
                                     contentPadding = PaddingValues(horizontal = 8.dp)
                                 ) {
@@ -544,7 +554,7 @@ fun TransactionDetailDialog(
                                             imageVector = Icons.Default.DeleteOutline,
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp),
-                                            tint = Color(0xFFDC2626)
+                                            tint = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
@@ -617,7 +627,7 @@ fun TransactionDetailDialog(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Light Export Receipt / CSV Row Button
+                            // Export Receipt / CSV Row Button
                             Button(
                                 onClick = {
                                     exportTransactionReceipt(context, expense, linkedAccount, txnCode, upiRef)
@@ -627,10 +637,10 @@ fun TransactionDetailDialog(
                                     .height(46.dp),
                                 shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFF1F5F9),
-                                    contentColor = Color(0xFF1E293B)
+                                    containerColor = highlightSurface,
+                                    contentColor = slateTitle
                                 ),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                border = BorderStroke(1.dp, cardBorder),
                                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                             ) {
                                 Row(
@@ -641,7 +651,7 @@ fun TransactionDetailDialog(
                                         imageVector = Icons.Default.Upload,
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp),
-                                        tint = Color(0xFF1E293B)
+                                        tint = slateTitle
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
@@ -667,14 +677,14 @@ fun TransactionDetailDialog(
                                     Icon(
                                         imageVector = Icons.Default.Flag,
                                         contentDescription = null,
-                                        tint = Color(0xFF64748B),
+                                        tint = slateSub,
                                         modifier = Modifier.size(13.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "Report Parsing Mismatch",
                                         fontSize = 12.sp,
-                                        color = Color(0xFF64748B),
+                                        color = slateSub,
                                         fontWeight = FontWeight.Medium
                                     )
                                 }
@@ -798,8 +808,8 @@ private fun TransactionHeroCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        color = cardBg,
+        border = BorderStroke(1.dp, cardBorder),
         shadowElevation = 0.5.dp
     ) {
         Column(
@@ -818,13 +828,13 @@ private fun TransactionHeroCard(
                         modifier = Modifier
                             .size(46.dp)
                             .clip(RoundedCornerShape(13.dp))
-                            .background(Color(0xFFE8F5E9)),
+                            .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFE8F5E9)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = CategoryVisuals.getIcon(categoryIconKey),
                             contentDescription = null,
-                            tint = Color(0xFF047857),
+                            tint = ArcColors.Primary,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -836,8 +846,8 @@ private fun TransactionHeroCard(
                                 .align(Alignment.BottomEnd)
                                 .size(16.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF059669))
-                                .border(BorderStroke(1.5.dp, Color.White), CircleShape),
+                                .background(ArcColors.Primary)
+                                .border(BorderStroke(1.5.dp, cardBg), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -860,7 +870,7 @@ private fun TransactionHeroCard(
                         text = transactionTitle,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A),
+                        color = slateTitle,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -872,14 +882,14 @@ private fun TransactionHeroCard(
                             Icon(
                                 imageVector = Icons.Default.Category,
                                 contentDescription = null,
-                                tint = Color(0xFF64748B),
+                                tint = slateSub,
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = secondaryDescription,
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B),
+                                color = slateSub,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -890,10 +900,11 @@ private fun TransactionHeroCard(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 // Direction Badge
+                val isDark = ArcColors.isDark
                 val (badgeBg, badgeText, badgeLabel) = when {
-                    isTransfer -> Triple(Color(0xFFE0F2FE), Color(0xFF0284C7), "⇄ Transfer")
-                    isCredit -> Triple(Color(0xFFDCFCE7), Color(0xFF059669), "↑ Income")
-                    else -> Triple(Color(0xFFFEE2E2), Color(0xFFDC2626), "↓ Expense")
+                    isTransfer -> Triple(if (isDark) Color(0xFF075985).copy(alpha = 0.4f) else Color(0xFFE0F2FE), Color(0xFF0284C7), "⇄ Transfer")
+                    isCredit -> Triple(if (isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFDCFCE7), ArcColors.Primary, "↑ Income")
+                    else -> Triple(if (isDark) Color(0xFF7F1D1D).copy(alpha = 0.5f) else Color(0xFFFEE2E2), if (isDark) Color(0xFFF87171) else Color(0xFFDC2626), "↓ Expense")
                 }
 
                 Box(
@@ -918,8 +929,8 @@ private fun TransactionHeroCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFFF8FAFC))
-                    .border(BorderStroke(1.dp, Color(0xFFF1F5F9)), RoundedCornerShape(14.dp))
+                    .background(highlightSurface)
+                    .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(14.dp))
                     .padding(vertical = 16.dp, horizontal = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -930,7 +941,7 @@ private fun TransactionHeroCard(
                         text = "SETTLED AMOUNT",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF64748B),
+                        color = slateSub,
                         letterSpacing = 1.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -942,7 +953,7 @@ private fun TransactionHeroCard(
                         text = "$sign ₹$formattedAmount",
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Black,
-                        color = Color(0xFF0F172A)
+                        color = slateTitle
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
@@ -951,14 +962,14 @@ private fun TransactionHeroCard(
                         Icon(
                             imageVector = Icons.Default.CalendarToday,
                             contentDescription = null,
-                            tint = Color(0xFF64748B),
+                            tint = slateSub,
                             modifier = Modifier.size(12.dp)
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
                             text = formattedHeroDate,
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B),
+                            color = slateSub,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -995,7 +1006,7 @@ private fun TransactionAccountSection(
             Icon(
                 imageVector = Icons.Default.CreditCard,
                 contentDescription = null,
-                tint = Color(0xFF059669),
+                tint = ArcColors.Primary,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -1003,13 +1014,14 @@ private fun TransactionAccountSection(
                 text = "Payment & Settlement",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
+                color = slateTitle
             )
             Spacer(modifier = Modifier.weight(1f))
+            val isDark = ArcColors.isDark
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(if (linkedAccount != null) Color(0xFFDCFCE7) else Color(0xFFF1F5F9))
+                    .background(if (linkedAccount != null) (if (isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFDCFCE7)) else highlightSurface)
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(
@@ -1020,7 +1032,7 @@ private fun TransactionAccountSection(
                     },
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (linkedAccount != null) Color(0xFF166534) else Color(0xFF64748B)
+                    color = if (linkedAccount != null) ArcColors.Primary else slateSub
                 )
             }
         }
@@ -1029,8 +1041,8 @@ private fun TransactionAccountSection(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            color = cardBg,
+            border = BorderStroke(1.dp, cardBorder),
             shadowElevation = 0.5.dp
         ) {
             Column(
@@ -1057,8 +1069,8 @@ private fun TransactionAccountSection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF8FAFC))
-                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(12.dp))
+                        .background(highlightSurface)
+                        .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(12.dp))
                         .clickable { onAccountClick() }
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -1067,13 +1079,13 @@ private fun TransactionAccountSection(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFE2E8F0)),
+                            .background(if (ArcColors.isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.CreditCard,
                             contentDescription = null,
-                            tint = Color(0xFF475569),
+                            tint = slateSub,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -1087,12 +1099,12 @@ private fun TransactionAccountSection(
                             text = displayAccountName,
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                         Text(
                             text = displayAccountType,
                             fontSize = 11.5.sp,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                     }
 
@@ -1102,13 +1114,13 @@ private fun TransactionAccountSection(
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.ChevronRight,
                             contentDescription = "Assign",
-                            tint = Color(0xFF94A3B8),
+                            tint = slateSub,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1124,13 +1136,13 @@ private fun TransactionAccountSection(
                         Text(
                             text = "Balance After Transaction",
                             fontSize = 13.sp,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                         Text(
                             text = postTxnBalance,
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                     }
                 }
@@ -1145,7 +1157,7 @@ private fun TransactionAccountSection(
                         Text(
                             text = "Payment Channel",
                             fontSize = 13.sp,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                         Row(
                             verticalAlignment = Alignment.CenterVertically
@@ -1153,7 +1165,7 @@ private fun TransactionAccountSection(
                             Icon(
                                 imageVector = Icons.Default.Contactless,
                                 contentDescription = null,
-                                tint = Color(0xFF64748B),
+                                tint = slateSub,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(5.dp))
@@ -1161,7 +1173,7 @@ private fun TransactionAccountSection(
                                 text = paymentChannel,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF0F172A)
+                                color = slateTitle
                             )
                         }
                     }
@@ -1179,20 +1191,20 @@ private fun TransactionAccountSection(
                                 text = "Reference / UTR",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF0F172A)
+                                color = slateTitle
                             )
                             Text(
                                 text = "Bank Ledger Identifier",
                                 fontSize = 11.sp,
-                                color = Color(0xFF64748B)
+                                color = slateSub
                             )
                         }
 
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFF1F5F9))
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(8.dp))
+                                .background(highlightSurface)
+                                .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(8.dp))
                                 .clickable { onCopyUpiRef() }
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
@@ -1203,13 +1215,13 @@ private fun TransactionAccountSection(
                                     text = upiRef,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
-                                    color = Color(0xFF334155)
+                                    color = slateTitle
                                 )
                                 Spacer(modifier = Modifier.width(5.dp))
                                 Icon(
                                     imageVector = Icons.Default.ContentCopy,
                                     contentDescription = "Copy",
-                                    tint = Color(0xFF64748B),
+                                    tint = slateSub,
                                     modifier = Modifier.size(12.dp)
                                 )
                             }
@@ -1249,7 +1261,7 @@ private fun TransactionCategorySection(
             Icon(
                 imageVector = Icons.Default.Category,
                 contentDescription = null,
-                tint = Color(0xFF059669),
+                tint = ArcColors.Primary,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -1257,14 +1269,14 @@ private fun TransactionCategorySection(
                 text = "Classification & Notes",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
+                color = slateTitle
             )
             Spacer(modifier = Modifier.weight(1f))
             Text(
                 text = "Re-assign",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF059669),
+                color = ArcColors.Primary,
                 modifier = Modifier
                     .clip(RoundedCornerShape(4.dp))
                     .clickable { onReassignClick() }
@@ -1276,8 +1288,8 @@ private fun TransactionCategorySection(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            color = cardBg,
+            border = BorderStroke(1.dp, cardBorder),
             shadowElevation = 0.5.dp
         ) {
             Column(
@@ -1289,7 +1301,7 @@ private fun TransactionCategorySection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF8FAFC))
+                        .background(highlightSurface)
                         .clickable { onReassignClick() }
                         .padding(10.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -1298,13 +1310,13 @@ private fun TransactionCategorySection(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFDCFCE7)),
+                            .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = CategoryVisuals.getIcon(categoryIconKey),
                             contentDescription = null,
-                            tint = Color(0xFF059669),
+                            tint = ArcColors.Primary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1318,13 +1330,13 @@ private fun TransactionCategorySection(
                             text = categoryDisplayName,
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                         if (!categorySubtitle.isNullOrBlank()) {
                             Text(
                                 text = categorySubtitle,
                                 fontSize = 11.5.sp,
-                                color = Color(0xFF64748B)
+                                color = slateSub
                             )
                         }
                     }
@@ -1332,7 +1344,7 @@ private fun TransactionCategorySection(
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
                         contentDescription = "Change",
-                        tint = Color(0xFF94A3B8),
+                        tint = slateSub,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -1346,14 +1358,14 @@ private fun TransactionCategorySection(
                         Icon(
                             imageVector = Icons.Default.SmartToy,
                             contentDescription = null,
-                            tint = Color(0xFF059669),
+                            tint = ArcColors.Primary,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Auto-categorized by Category Rules ↗",
                             fontSize = 12.sp,
-                            color = Color(0xFF047857),
+                            color = ArcColors.Primary,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -1366,7 +1378,7 @@ private fun TransactionCategorySection(
                     text = "SEMANTIC TAGS",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF64748B),
+                    color = slateSub,
                     letterSpacing = 0.5.sp
                 )
 
@@ -1380,15 +1392,15 @@ private fun TransactionCategorySection(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
-                                .background(Color(0xFFF1F5F9))
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(50))
+                                .background(highlightSurface)
+                                .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(50))
                                 .padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
                             Text(
                                 text = "#$tag",
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF475569)
+                                color = slateTitle
                             )
                         }
                     }
@@ -1397,7 +1409,7 @@ private fun TransactionCategorySection(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
-                                .border(BorderStroke(1.dp, Color(0xFFCBD5E1)), RoundedCornerShape(50))
+                                .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(50))
                                 .clickable { onAddTagClick() }
                                 .padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
@@ -1405,7 +1417,7 @@ private fun TransactionCategorySection(
                                 text = "+ Add Tag",
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF64748B)
+                                color = ArcColors.Primary
                             )
                         }
                     }
@@ -1418,7 +1430,7 @@ private fun TransactionCategorySection(
                     text = "MEMO / LEDGER NOTE",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF64748B),
+                    color = slateSub,
                     letterSpacing = 0.5.sp
                 )
 
@@ -1427,7 +1439,7 @@ private fun TransactionCategorySection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF8FAFC))
+                        .background(highlightSurface)
                         .clickable { onEditMemoClick() }
                         .padding(12.dp)
                 ) {
@@ -1437,7 +1449,7 @@ private fun TransactionCategorySection(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Article,
                             contentDescription = null,
-                            tint = Color(0xFF64748B),
+                            tint = slateSub,
                             modifier = Modifier
                                 .size(16.dp)
                                 .padding(top = 2.dp)
@@ -1446,7 +1458,7 @@ private fun TransactionCategorySection(
                         Text(
                             text = if (memoNote.isNotBlank()) memoNote else "Tap to add a note or ledger memo...",
                             fontSize = 12.5.sp,
-                            color = if (memoNote.isNotBlank()) Color(0xFF334155) else Color(0xFF94A3B8),
+                            color = if (memoNote.isNotBlank()) slateTitle else slateSub,
                             lineHeight = 18.sp
                         )
                     }
@@ -1480,7 +1492,7 @@ private fun TransactionSourceEvidenceSection(
             Icon(
                 imageVector = Icons.Default.Terminal,
                 contentDescription = null,
-                tint = Color(0xFF059669),
+                tint = ArcColors.Primary,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -1488,20 +1500,20 @@ private fun TransactionSourceEvidenceSection(
                 text = "Local Ingestion & Audit",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
+                color = slateTitle
             )
             Spacer(modifier = Modifier.weight(1f))
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(Color(0xFFDCFCE7))
+                    .background(if (ArcColors.isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFDCFCE7))
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(
                     text = if (isManualEntry) "Local Ledger" else "⚙ Local Pipeline",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF047857)
+                    color = ArcColors.Primary
                 )
             }
         }
@@ -1510,8 +1522,8 @@ private fun TransactionSourceEvidenceSection(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            color = cardBg,
+            border = BorderStroke(1.dp, cardBorder),
             shadowElevation = 0.5.dp
         ) {
             Column(
@@ -1528,13 +1540,13 @@ private fun TransactionSourceEvidenceSection(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFF8FAFC))
+                            .background(highlightSurface)
                             .padding(10.dp)
                     ) {
                         Text(
                             text = "Source Protocol",
                             fontSize = 11.sp,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(
@@ -1543,7 +1555,7 @@ private fun TransactionSourceEvidenceSection(
                             Icon(
                                 imageVector = if (isManualEntry) Icons.Default.EditNote else Icons.Default.ChatBubbleOutline,
                                 contentDescription = null,
-                                tint = Color(0xFF059669),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -1551,7 +1563,7 @@ private fun TransactionSourceEvidenceSection(
                                 text = sourceProtocol,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A),
+                                color = slateTitle,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -1564,20 +1576,20 @@ private fun TransactionSourceEvidenceSection(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFF8FAFC))
+                                .background(highlightSurface)
                                 .padding(10.dp)
                         ) {
                             Text(
                                 text = "Origin Sender ID",
                                 fontSize = 11.sp,
-                                color = Color(0xFF64748B)
+                                color = slateSub
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = originSenderId,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A),
+                                color = slateTitle,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -1591,20 +1603,20 @@ private fun TransactionSourceEvidenceSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFF8FAFC))
+                            .background(highlightSurface)
                             .padding(10.dp)
                     ) {
                         Text(
                             text = "Parser Resolution Time",
                             fontSize = 11.sp,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = parserTimestamp,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                     }
                 }
@@ -1620,13 +1632,13 @@ private fun TransactionSourceEvidenceSection(
                             text = "RAW INGESTION SNIPPET",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF64748B),
+                            color = slateSub,
                             letterSpacing = 0.5.sp
                         )
                         Text(
                             text = "UTF-8 Plaintext",
                             fontSize = 11.sp,
-                            color = Color(0xFF94A3B8),
+                            color = slateSub,
                             fontFamily = FontFamily.Monospace
                         )
                     }
@@ -1635,15 +1647,15 @@ private fun TransactionSourceEvidenceSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFF8FAFC))
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(12.dp))
+                            .background(highlightSurface)
+                            .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(12.dp))
                             .padding(12.dp)
                     ) {
                         Text(
                             text = rawSnippet,
                             fontFamily = FontFamily.Monospace,
                             fontSize = 11.5.sp,
-                            color = Color(0xFF334155),
+                            color = slateTitle,
                             lineHeight = 16.sp
                         )
                     }
@@ -1654,15 +1666,15 @@ private fun TransactionSourceEvidenceSection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF0FDF4))
-                        .border(BorderStroke(1.dp, Color(0xFFDCFCE7)), RoundedCornerShape(12.dp))
+                        .background(if (ArcColors.isDark) Color(0xFF064E3B).copy(alpha = 0.25f) else Color(0xFFF0FDF4))
+                        .border(BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7)), RoundedCornerShape(12.dp))
                         .padding(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Shield,
                         contentDescription = null,
-                        tint = Color(0xFF059669),
+                        tint = ArcColors.Primary,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -1671,12 +1683,12 @@ private fun TransactionSourceEvidenceSection(
                             text = "SHA-256 Ledger Verified",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF047857)
+                            color = ArcColors.Primary
                         )
                         Text(
                             text = if (isManualEntry) "Zero Cloud Transmission • Private Local Storage" else "Zero Cloud Transmission • Air-gapped Sandbox",
                             fontSize = 10.5.sp,
-                            color = Color(0xFF059669)
+                            color = if (ArcColors.isDark) ArcColors.Primary.copy(alpha = 0.8f) else Color(0xFF059669)
                         )
                     }
                 }
@@ -1697,13 +1709,14 @@ internal fun DarkAccountPickerDialog(
     onSelectAccount: (KnownFinancialAccount) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val isDark = ArcColors.isDark
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color.White,
+        containerColor = cardBg,
         title = {
             Text(
                 text = if (isReassign) "Reassign Account" else "Assign Account",
-                color = Color(0xFF0F172A),
+                color = slateTitle,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
@@ -1712,7 +1725,7 @@ internal fun DarkAccountPickerDialog(
             if (candidateAccounts.isEmpty()) {
                 Text(
                     text = "No financial accounts registered yet.",
-                    color = Color(0xFF64748B),
+                    color = slateSub,
                     fontSize = 13.sp
                 )
             } else {
@@ -1729,11 +1742,11 @@ internal fun DarkAccountPickerDialog(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (isMatchingSuffix) Color(0xFFECFDF5) else Color(0xFFF8FAFC)
+                                containerColor = if (isMatchingSuffix) (if (isDark) Color(0xFF064E3B).copy(alpha = 0.35f) else Color(0xFFECFDF5)) else highlightSurface
                             ),
                             border = BorderStroke(
                                 1.dp,
-                                if (isMatchingSuffix) Color(0xFFA7F3D0) else Color(0xFFE2E8F0)
+                                if (isMatchingSuffix) (if (isDark) ArcColors.Primary else Color(0xFFA7F3D0)) else cardBorder
                             )
                         ) {
                             Row(
@@ -1748,26 +1761,26 @@ internal fun DarkAccountPickerDialog(
                                         text = acc.institutionName ?: acc.institutionId ?: "Bank",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
-                                        color = Color(0xFF0F172A)
+                                        color = slateTitle
                                     )
                                     Text(
                                         text = "${AccountReconciliationManager.formatAccountType(acc.instrumentType, acc.accountSuffix)} •• ${acc.accountSuffix}",
                                         fontSize = 12.sp,
-                                        color = Color(0xFF64748B)
+                                        color = slateSub
                                     )
                                 }
                                 if (isMatchingSuffix) {
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(4.dp))
-                                            .background(Color(0xFFDCFCE7))
+                                            .background(if (isDark) Color(0xFF064E3B).copy(alpha = 0.6f) else Color(0xFFDCFCE7))
                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                     ) {
                                         Text(
                                             text = "Matching Suffix",
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF047857)
+                                            color = ArcColors.Primary
                                         )
                                     }
                                 }
@@ -1780,7 +1793,7 @@ internal fun DarkAccountPickerDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFF64748B))
+                Text("Cancel", color = slateSub)
             }
         }
     )
@@ -1793,14 +1806,14 @@ private fun DarkUnlinkConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color.White,
+        containerColor = cardBg,
         title = {
-            Text("Unlink Account?", color = Color(0xFF0F172A), fontWeight = FontWeight.Bold)
+            Text("Unlink Account?", color = slateTitle, fontWeight = FontWeight.Bold)
         },
         text = {
             Text(
                 "This will remove the account link for this transaction. The transaction will appear under Unresolved Transactions.",
-                color = Color(0xFF64748B),
+                color = slateSub,
                 fontSize = 13.sp
             )
         },
@@ -1814,7 +1827,7 @@ private fun DarkUnlinkConfirmDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFF64748B))
+                Text("Cancel", color = slateSub)
             }
         }
     )
@@ -1827,11 +1840,12 @@ internal fun DarkDeleteConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val isDark = ArcColors.isDark
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(22.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            color = cardBg,
+            border = BorderStroke(1.dp, cardBorder),
             shadowElevation = 8.dp,
             modifier = Modifier
                 .fillMaxWidth()
@@ -1848,13 +1862,13 @@ internal fun DarkDeleteConfirmDialog(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFFEE2E2)),
+                            .background(if (isDark) Color(0xFF3B1818) else Color(0xFFFEE2E2)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = null,
-                            tint = Color(0xFFDC2626),
+                            tint = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -1864,20 +1878,20 @@ internal fun DarkDeleteConfirmDialog(
                             text = "Delete Transaction?",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                         Text(
                             text = "Permanently removes from local ledger.",
                             fontSize = 11.5.sp,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                     }
                 }
 
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = highlightSurface,
+                    border = BorderStroke(1.dp, cardBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
@@ -1889,14 +1903,14 @@ internal fun DarkDeleteConfirmDialog(
                             text = "$sign ₹$formattedAmount",
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
-                            color = Color(0xFFDC2626)
+                            color = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = expense.merchant.ifEmpty { "Unknown Merchant" },
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                     }
                 }
@@ -1908,12 +1922,12 @@ internal fun DarkDeleteConfirmDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         shape = CircleShape,
-                        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                        border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier
                             .weight(1f)
                             .height(44.dp)
                     ) {
-                        Text("Cancel", color = Color(0xFF475569), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text("Cancel", color = slateSub, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
 
                     Button(
@@ -1940,11 +1954,12 @@ internal fun DarkCategoryPickerDialog(
     onCategorySelected: (TransactionCategory) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val isDark = ArcColors.isDark
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(22.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            color = cardBg,
+            border = BorderStroke(1.dp, cardBorder),
             shadowElevation = 8.dp,
             modifier = Modifier
                 .fillMaxWidth()
@@ -1958,7 +1973,7 @@ internal fun DarkCategoryPickerDialog(
             ) {
                 Text(
                     text = "Select Category",
-                    color = Color(0xFF0F172A),
+                    color = slateTitle,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
@@ -1983,8 +1998,8 @@ internal fun DarkCategoryPickerDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) Color(0xFFECFDF5) else Color(0xFFF8FAFC))
-                                .border(1.dp, if (isSelected) Color(0xFFA7F3D0) else Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                                .background(if (isSelected) (if (isDark) Color(0xFF064E3B).copy(alpha = 0.35f) else Color(0xFFECFDF5)) else highlightSurface)
+                                .border(1.dp, if (isSelected) (if (isDark) ArcColors.Primary else Color(0xFFA7F3D0)) else cardBorder, RoundedCornerShape(8.dp))
                                 .clickable { onCategorySelected(cat) }
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -2010,7 +2025,7 @@ internal fun DarkCategoryPickerDialog(
                                 text = cat.name,
                                 fontSize = 13.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = Color(0xFF0F172A),
+                                color = slateTitle,
                                 modifier = Modifier.weight(1f)
                             )
 
@@ -2018,7 +2033,7 @@ internal fun DarkCategoryPickerDialog(
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = "Selected",
-                                    tint = Color(0xFF059669),
+                                    tint = ArcColors.Primary,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -2029,12 +2044,12 @@ internal fun DarkCategoryPickerDialog(
                 OutlinedButton(
                     onClick = onDismiss,
                     shape = CircleShape,
-                    border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                    border = BorderStroke(1.dp, cardBorder),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(42.dp)
                 ) {
-                    Text("Cancel", color = Color(0xFF475569), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text("Cancel", color = slateSub, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             }
         }
@@ -2051,8 +2066,8 @@ internal fun DarkAddTagDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(22.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            color = cardBg,
+            border = BorderStroke(1.dp, cardBorder),
             shadowElevation = 8.dp,
             modifier = Modifier
                 .fillMaxWidth()
@@ -2066,7 +2081,7 @@ internal fun DarkAddTagDialog(
             ) {
                 Text(
                     text = "Add Custom Tag",
-                    color = Color(0xFF0F172A),
+                    color = slateTitle,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
@@ -2074,14 +2089,14 @@ internal fun DarkAddTagDialog(
                 OutlinedTextField(
                     value = tagInput,
                     onValueChange = { tagInput = it },
-                    placeholder = { Text("e.g. Personal, Food, Travel", color = Color(0xFF94A3B8)) },
+                    placeholder = { Text("e.g. Personal, Food, Travel", color = slateSub) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF047857),
-                        unfocusedBorderColor = Color(0xFFE2E8F0),
-                        focusedTextColor = Color(0xFF0F172A),
-                        unfocusedTextColor = Color(0xFF0F172A)
+                        focusedBorderColor = ArcColors.Primary,
+                        unfocusedBorderColor = cardBorder,
+                        focusedTextColor = slateTitle,
+                        unfocusedTextColor = slateTitle
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -2093,18 +2108,18 @@ internal fun DarkAddTagDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         shape = CircleShape,
-                        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                        border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier
                             .weight(1f)
                             .height(44.dp)
                     ) {
-                        Text("Cancel", color = Color(0xFF475569), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text("Cancel", color = slateSub, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
 
                     Button(
                         onClick = { onAddTag(tagInput) },
                         shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
+                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
                         enabled = tagInput.isNotBlank(),
                         modifier = Modifier
                             .weight(1f)
