@@ -33,12 +33,20 @@ import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
+
+private val slateTitle: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val slateSub: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val cardBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val lightBg: Color @Composable @ReadOnlyComposable get() = ArcColors.Background
+private val cardBg: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val highlightSurface: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
 
 @Composable
 fun ClearAllDataScreen(
@@ -98,11 +106,11 @@ fun ClearAllDataScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Surface(
-                color = Color.White,
+                color = cardBg,
                 shadowElevation = 0.5.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(cardBg)
             ) {
                 ArcTrackerHeader(
                     title = "Clear All Data",
@@ -110,7 +118,7 @@ fun ClearAllDataScreen(
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(cardBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
@@ -118,8 +126,8 @@ fun ClearAllDataScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color.White)
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape),
+                                .background(cardBg)
+                                .border(BorderStroke(1.dp, cardBorder), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -137,7 +145,7 @@ fun ClearAllDataScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF8F9FA))
+                .background(lightBg)
                 .padding(innerPadding)
                 .imePadding()
                 .verticalScroll(scrollState)
@@ -148,8 +156,8 @@ fun ClearAllDataScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFEE2E2), RoundedCornerShape(16.dp))
-                    .border(BorderStroke(1.dp, Color(0xFFFECACA)), RoundedCornerShape(16.dp))
+                    .background(if (ArcColors.isDark) Color(0xFF450A0A) else Color(0xFFFEE2E2), RoundedCornerShape(16.dp))
+                    .border(BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF991B1B) else Color(0xFFFECACA)), RoundedCornerShape(16.dp))
                     .padding(16.dp)
             ) {
                 Column {
@@ -165,7 +173,7 @@ fun ClearAllDataScreen(
                             text = "Danger Zone: Permanent Ledger Wipe",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFB91C1C)
+                            color = if (ArcColors.isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C)
                         )
                     }
 
@@ -174,7 +182,7 @@ fun ClearAllDataScreen(
                     Text(
                         text = "This action irreversibly erases stored financial data from your local hardware. Because ArcTracker operates 100% offline with zero cloud backups, deleted data cannot be recovered.",
                         fontSize = 12.sp,
-                        color = Color(0xFF991B1B),
+                        color = if (ArcColors.isDark) Color(0xFFFECACA) else Color(0xFF991B1B),
                         lineHeight = 17.sp
                     )
                 }
@@ -184,21 +192,21 @@ fun ClearAllDataScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
-                                .background(Color(0xFFDCFCE7), CircleShape),
+                                .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Lock,
                                 contentDescription = null,
-                                tint = Color(0xFF16A34A),
+                                tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -210,7 +218,7 @@ fun ClearAllDataScreen(
                                 text = "Pre-wipe Safety Export",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
+                                color = slateTitle
                             )
 
                             Spacer(modifier = Modifier.height(2.dp))
@@ -219,11 +227,11 @@ fun ClearAllDataScreen(
                                 Text(
                                     text = "Export encrypted backup (",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF6B7280)
+                                    color = slateSub
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0xFFF3F4F6), RoundedCornerShape(4.dp))
+                                        .background(highlightSurface, RoundedCornerShape(4.dp))
                                         .padding(horizontal = 4.dp, vertical = 1.dp)
                                 ) {
                                     Text(
@@ -231,13 +239,13 @@ fun ClearAllDataScreen(
                                         fontSize = 11.sp,
                                         fontFamily = FontFamily.Monospace,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF374151)
+                                        color = slateTitle
                                     )
                                 }
                                 Text(
                                     text = ") first.",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF6B7280)
+                                    color = slateSub
                                 )
                             }
                         }
@@ -252,8 +260,8 @@ fun ClearAllDataScreen(
                             .height(44.dp),
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFF3F4F6),
-                            contentColor = Color(0xFF1E293B)
+                            containerColor = highlightSurface,
+                            contentColor = slateTitle
                         ),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                     ) {
@@ -282,7 +290,7 @@ fun ClearAllDataScreen(
                         text = "PURGE INVENTORY (IRREVERSIBLE)",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF374151),
+                        color = slateSub,
                         letterSpacing = 0.5.sp
                     )
 
@@ -290,7 +298,7 @@ fun ClearAllDataScreen(
 
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFFEE2E2), CircleShape)
+                            .background(if (ArcColors.isDark) Color(0xFF450A0A) else Color(0xFFFEE2E2), CircleShape)
                             .padding(horizontal = 10.dp, vertical = 3.dp)
                     ) {
                         Text(
@@ -305,8 +313,8 @@ fun ClearAllDataScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                    color = cardBg,
+                    border = BorderStroke(1.dp, cardBorder)
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -393,7 +401,7 @@ fun ClearAllDataScreen(
                         text = "RETAINED HARDWARE PREFERENCES",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF374151),
+                        color = slateSub,
                         letterSpacing = 0.5.sp
                     )
 
@@ -401,14 +409,14 @@ fun ClearAllDataScreen(
 
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFDCFCE7), CircleShape)
+                            .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7), CircleShape)
                             .padding(horizontal = 10.dp, vertical = 3.dp)
                     ) {
                         Text(
                             text = "3 Preserved Settings",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF16A34A)
+                            color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A)
                         )
                     }
                 }
@@ -416,32 +424,32 @@ fun ClearAllDataScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                    color = cardBg,
+                    border = BorderStroke(1.dp, cardBorder)
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         SimpleBulletRow(
-                            bulletColor = Color(0xFF16A34A),
+                            bulletColor = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A),
                             text = "Monitored App Permissions",
                             value = "Preserved",
-                            valueColor = Color(0xFF16A34A)
+                            valueColor = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A)
                         )
 
                         SimpleBulletRow(
-                            bulletColor = Color(0xFF16A34A),
+                            bulletColor = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A),
                             text = "Hardware Screen Security",
                             value = "Preserved",
-                            valueColor = Color(0xFF16A34A)
+                            valueColor = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A)
                         )
 
                         SimpleBulletRow(
-                            bulletColor = Color(0xFF16A34A),
+                            bulletColor = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A),
                             text = "Vault Identity & Profile Name",
                             value = "Preserved",
-                            valueColor = Color(0xFF16A34A)
+                            valueColor = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A)
                         )
                     }
                 }
@@ -451,8 +459,8 @@ fun ClearAllDataScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -465,7 +473,7 @@ fun ClearAllDataScreen(
                         },
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF111827)
+                        color = slateTitle
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -473,7 +481,7 @@ fun ClearAllDataScreen(
                     Text(
                         text = "This confirmation requirement prevents accidental data purging.",
                         fontSize = 12.sp,
-                        color = Color(0xFF6B7280)
+                        color = slateSub
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
@@ -482,15 +490,15 @@ fun ClearAllDataScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFF9FAFB), RoundedCornerShape(12.dp))
-                            .border(BorderStroke(1.dp, Color(0xFFE5E7EB)), RoundedCornerShape(12.dp))
+                            .background(highlightSurface, RoundedCornerShape(12.dp))
+                            .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(12.dp))
                             .padding(horizontal = 14.dp, vertical = 14.dp)
                     ) {
                         if (deleteInput.isEmpty()) {
                             Text(
                                 text = "Type DELETE here...",
                                 fontSize = 14.sp,
-                                color = Color(0xFF9CA3AF)
+                                color = slateSub
                             )
                         }
                         BasicTextField(
@@ -514,7 +522,7 @@ fun ClearAllDataScreen(
                             textStyle = TextStyle(
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF111827)
+                                color = slateTitle
                             ),
                             cursorBrush = SolidColor(Color(0xFFDC2626)),
                             singleLine = true
@@ -545,7 +553,7 @@ fun ClearAllDataScreen(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFDC2626),
                             contentColor = Color.White,
-                            disabledContainerColor = Color(0xFFE89E9E),
+                            disabledContainerColor = if (ArcColors.isDark) Color(0xFF7F1D1D) else Color(0xFFE89E9E),
                             disabledContentColor = Color.White
                         ),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
@@ -573,8 +581,8 @@ fun ClearAllDataScreen(
                             .height(48.dp),
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFF3F4F6),
-                            contentColor = Color(0xFF1F2937)
+                            containerColor = highlightSurface,
+                            contentColor = slateTitle
                         ),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                     ) {
@@ -608,7 +616,7 @@ fun ClearAllDataScreen(
                         text = "ARCTRACKER ZERO-TRACE ARCHITECTURE",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF475569),
+                        color = slateSub,
                         letterSpacing = 0.5.sp
                     )
                 }
@@ -618,7 +626,7 @@ fun ClearAllDataScreen(
                 Text(
                     text = "Cryptographic AES-GCM keys are purged from the Android Keystore on execution. No forensic residual data persists on device flash storage.",
                     fontSize = 10.sp,
-                    color = Color(0xFF64748B),
+                    color = slateSub,
                     textAlign = TextAlign.Center,
                     lineHeight = 14.sp
                 )
@@ -655,7 +663,7 @@ private fun SimpleBulletRow(
             text = text,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF1F2937),
+            color = slateTitle,
             modifier = Modifier.weight(1f)
         )
 

@@ -71,6 +71,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -108,6 +109,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.subhashrelangi.arctracker.BuildConfig
 import com.subhashrelangi.arctracker.R
 import com.subhashrelangi.arctracker.service.AccountIdentityExtractor
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.utils.AppVersion
 import com.subhashrelangi.arctracker.service.DedupDecision
 import com.subhashrelangi.arctracker.service.EvidenceLevel
@@ -142,37 +144,37 @@ import java.util.Date
 import java.util.Locale
 
 // ==========================================
-// Light Theme Design Tokens
+// Theme Design Tokens
 // ==========================================
-private val BackgroundWhite = Color(0xFFFFFFFF)
-private val BrandTextPrimary = Color(0xFF0F172A)
-private val BrandTextSecondary = Color(0xFF64748B)
-private val VersionBadgeBg = Color(0xFFF1F5F9)
-private val VersionBadgeText = Color(0xFF64748B)
-private val StatusIndicatorGreen = Color(0xFF10B981)
+private val BackgroundWhite: Color @Composable @ReadOnlyComposable get() = ArcColors.Background
+private val BrandTextPrimary: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val BrandTextSecondary: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val VersionBadgeBg: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
+private val VersionBadgeText: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val StatusIndicatorGreen: Color @Composable @ReadOnlyComposable get() = ArcColors.Primary
 
 // Step Pill (Emerald)
-private val StepPillBg = Color(0xFFECFDF5)
-private val StepPillBorder = Color(0xFFA7F3D0)
-private val StepPillText = Color(0xFF059669)
+private val StepPillBg: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
+private val StepPillBorder: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)
+private val StepPillText: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF059669)
 
 // Card Tokens
-private val CardBg = Color(0xFFFFFFFF)
-private val CardSurface = Color(0xFFF8FAFC)
-private val CardBorder = Color(0xFFE2E8F0)
-private val CardBorderUnselected = Color(0xFFE2E8F0)
-private val CardBorderSelected = Color(0xFF10B981)
-private val CardBgSelected = Color(0xFFF8FAFC)
+private val CardBg: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val CardSurface: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
+private val CardBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val CardBorderUnselected: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val CardBorderSelected: Color @Composable @ReadOnlyComposable get() = ArcColors.Primary
+private val CardBgSelected: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF132320) else Color(0xFFECFDF5)
 
 // Estimated Yield & Notice Card
-private val YieldCardBg = Color(0xFFF8FAFC)
-private val YieldCardBorder = Color(0xFFE2E8F0)
+private val YieldCardBg: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val YieldCardBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
 
 // Buttons
-private val PrimaryBtnBg = Color(0xFF0F172A)
-private val PrimaryBtnText = Color(0xFFFFFFFF)
-private val BackBtnBg = Color(0xFFF8FAFC)
-private val BackBtnBorder = Color(0xFFE2E8F0)
+private val PrimaryBtnBg: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) ArcColors.Primary else Color(0xFF0F172A)
+private val PrimaryBtnText: Color @Composable @ReadOnlyComposable get() = Color.White
+private val BackBtnBg: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val BackBtnBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
 
 /**
  * Historical SMS Lookback and Permission Step (Step 2 of 2).
@@ -212,12 +214,13 @@ fun SmsSetupScreen(
     // Status bar styling
     val view = LocalView.current
     if (!view.isInEditMode) {
+        val isDark = ArcColors.isDark
         SideEffect {
             val window = (view.context as? Activity)?.window
             if (window != null) {
                 val insetsController = WindowCompat.getInsetsController(window, view)
-                insetsController.isAppearanceLightStatusBars = true
-                insetsController.isAppearanceLightNavigationBars = true
+                insetsController.isAppearanceLightStatusBars = !isDark
+                insetsController.isAppearanceLightNavigationBars = !isDark
             }
         }
     }

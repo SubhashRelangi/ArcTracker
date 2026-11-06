@@ -612,7 +612,7 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
-        containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult")) Color.White else if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) Color(0xFFF8FAFC) else MaterialTheme.colorScheme.background,
+        containerColor = com.subhashrelangi.arctracker.ui.theme.ArcColors.Background,
 
         topBar = {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
@@ -629,7 +629,7 @@ fun ExpenseScreen() {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF8FAFC))
+                        .background(com.subhashrelangi.arctracker.ui.theme.ArcColors.Background)
                         .statusBarsPadding()
                 ) {
                     com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
@@ -662,8 +662,8 @@ fun ExpenseScreen() {
                                 query = searchQuery,
                                 onQueryChange = { searchQuery = it },
                                 focusRequester = homeSearchFocusRequester,
-                                backgroundColor = Color.White,
-                                borderColor = Color(0xFFE2E8F0),
+                                backgroundColor = com.subhashrelangi.arctracker.ui.theme.ArcColors.SurfaceHighlight,
+                                borderColor = com.subhashrelangi.arctracker.ui.theme.ArcColors.Border,
                                 placeholderText = when (currentRoute) {
                                     "Insights", "Analytics" -> "Search analytics by category, merchant..."
                                     "Settings" -> "Search settings, accounts, rules..."
@@ -739,12 +739,12 @@ fun ExpenseScreen() {
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White)
-                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                    .background(com.subhashrelangi.arctracker.ui.theme.ArcColors.Surface)
+                                    .border(BorderStroke(1.dp, com.subhashrelangi.arctracker.ui.theme.ArcColors.Border), CircleShape)
                                     .clickable { /* TODO */ },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Outlined.HelpOutline, contentDescription = "Help", tint = Color(0xFF0F172A), modifier = Modifier.size(19.dp))
+                                Icon(Icons.Outlined.HelpOutline, contentDescription = "Help", tint = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextPrimary, modifier = Modifier.size(19.dp))
                             }
                         } else if (currentRoute == "EditRegexPattern") {
                             if (editingRegexRuleId != null) {
@@ -753,9 +753,9 @@ fun ExpenseScreen() {
                                     RegexPatternsManager.resetSystemRule(context, editingRegexRuleId!!)
                                     navigateBack()
                                 }) {
-                                    Icon(Icons.Filled.Refresh, contentDescription = "Reset", tint = Color(0xFF0F172A), modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Filled.Refresh, contentDescription = "Reset", tint = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextPrimary, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Reset", color = Color(0xFF0F172A), fontWeight = FontWeight.Medium)
+                                    Text("Reset", color = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextPrimary, fontWeight = FontWeight.Medium)
                                 }
                             }
                         }

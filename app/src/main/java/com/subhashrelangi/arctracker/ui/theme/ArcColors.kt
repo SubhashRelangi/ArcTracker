@@ -276,6 +276,8 @@ object ArcColors {
         @ReadOnlyComposable
         get() = LocalArcColors.current
 
+    val isDark: Boolean @Composable @ReadOnlyComposable get() = LocalArcColors.current.isDark
+
     // Dynamic Composable Color Token Accessors
     val Primary: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.primary
     val PrimaryDark: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.primaryDark
