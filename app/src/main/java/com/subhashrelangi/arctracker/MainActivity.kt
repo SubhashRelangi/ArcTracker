@@ -535,6 +535,10 @@ fun ExpenseScreen() {
         mutableStateOf("Amount")
     }
 
+    var editingRegexTestMessage by remember {
+        mutableStateOf<String?>(null)
+    }
+
     var viewingAccountId by rememberSaveable {
         mutableStateOf<String?>(null)
     }
@@ -920,11 +924,13 @@ fun ExpenseScreen() {
                     onAddPattern = { category ->
                         editingRegexRuleId = null
                         editingRegexRuleCategory = category
+                        editingRegexTestMessage = null
                         navigateTo("EditRegexPattern")
                     },
                     onEditPattern = { rule ->
                         editingRegexRuleId = rule.id
                         editingRegexRuleCategory = rule.category
+                        editingRegexTestMessage = rule.testMessage
                         navigateTo("EditRegexPattern")
                     },
                     onNavigateBack = { navigateBack() }
@@ -933,6 +939,7 @@ fun ExpenseScreen() {
                 com.subhashrelangi.arctracker.ui.EditRegexPatternScreen(
                     ruleId = editingRegexRuleId,
                     defaultCategory = editingRegexRuleCategory,
+                    initialTestMessage = editingRegexTestMessage,
                     onBack = { navigateBack() }
                 )
             } else if (currentRoute == "FinancialAccounts") {

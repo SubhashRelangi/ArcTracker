@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,10 +44,12 @@ import com.subhashrelangi.arctracker.utils.RegexPatternsManager
 import com.subhashrelangi.arctracker.utils.RegexRule
 import java.util.UUID
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EditRegexPatternScreen(
     ruleId: String?,
     defaultCategory: String,
+    initialTestMessage: String? = null,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -81,9 +84,16 @@ fun EditRegexPatternScreen(
     var pattern by remember { mutableStateOf(initialRule.pattern) }
     var testMessage by remember {
         mutableStateOf(
-            initialRule.testMessage ?: "Rs 1,450.00 debited from a/c **4821 on 24-Oct-26 via UPI to ZOMATO. Ref 429104."
+            initialTestMessage?.takeIf { it.isNotBlank() }
+                ?: initialRule.testMessage
+                ?: "Rs 1,450.00 debited from a/c **4821 on 24-Oct-26 via UPI to ZOMATO. Ref 429104."
         )
     }
+
+    var selectedHighlightWord by remember { mutableStateOf<String?>(null) }
+    var showAiPromptDialog by remember { mutableStateOf(false) }
+    var aiPastedText by remember { mutableStateOf("") }
+    var lastSynthesizedSuccess by remember { mutableStateOf<String?>(null) }
 
     var showCheatSheetDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
@@ -498,6 +508,244 @@ fun EditRegexPatternScreen(
                                 cursorBrush = SolidColor(Color(0xFF047857)),
                                 modifier = Modifier.fillMaxWidth()
                             )
+                        }
+                    }
+                }
+            }
+
+            // 4.5. Quick Highlight Pattern Builder Card (No-AI Builder + AI Assistant)
+            if (!initialRule.isSystem) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Header
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFECFDF5)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.AutoAwesome,
+                                        contentDescription = "Highlight Builder",
+                                        tint = Color(0xFF047857),
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "Quick Highlight Builder",
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                    Text(
+                                        text = "Tap target word in SMS to auto-create regex",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+                            }
+
+                            // Circular Ask AI button
+                            Button(
+                                onClick = { showAiPromptDialog = true },
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+                                contentPadding = PaddingValues(horizontal = 11.dp, vertical = 4.dp),
+                                modifier = Modifier.height(30.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.AutoAwesome,
+                                    contentDescription = "Ask AI",
+                                    tint = Color(0xFFA7F3D0),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = "Ask AI",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+
+                        // Sample SMS Word Chips in FlowRow
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "SAMPLE SMS (TAP TARGET TOKEN):",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF64748B),
+                                    letterSpacing = 0.5.sp
+                                )
+
+                                val sampleTokens = remember(testMessage) {
+                                    testMessage.split(Regex("\\s+")).filter { it.isNotBlank() }
+                                }
+
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    sampleTokens.forEach { rawToken ->
+                                        val cleanToken = rawToken.trimEnd('.', ',', ':', ';', '!', '?')
+                                        val isSelected = selectedHighlightWord.equals(cleanToken, ignoreCase = true) ||
+                                                (selectedHighlightWord != null && rawToken.contains(selectedHighlightWord!!, ignoreCase = true))
+
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (isSelected) Color(0xFF047857) else Color.White,
+                                            border = if (isSelected) null else BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                            modifier = Modifier.clickable {
+                                                selectedHighlightWord = cleanToken
+                                                val synth = com.subhashrelangi.arctracker.utils.VisualRegexSynthesizer.synthesize(
+                                                    fullMessage = testMessage,
+                                                    selectedText = cleanToken,
+                                                    explicitCategory = null
+                                                )
+                                                if (synth != null) {
+                                                    pattern = synth.pattern
+                                                    category = synth.category
+                                                    if (name.isBlank() || name.startsWith("Amount Parser") || name.startsWith("Payee Pattern") || name.startsWith("Account Suffix") || name.startsWith("Custom Token") || name.contains("Signal Pattern") || name.startsWith("Custom")) {
+                                                        name = synth.suggestedName
+                                                    }
+                                                    if (description.isBlank() || description.startsWith("Extracts") || description.startsWith("Identifies") || description.startsWith("Matches")) {
+                                                        description = synth.description
+                                                    }
+                                                    lastSynthesizedSuccess = "Extracted: \"${synth.extractedPreview}\" (${synth.category})"
+                                                    runLiveTest()
+                                                }
+                                            }
+                                        ) {
+                                            Text(
+                                                text = rawToken,
+                                                fontSize = 12.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isSelected) Color.White else Color(0xFF1E293B),
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Category Override Quick Pills
+                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text(
+                                text = "INTERPRET SELECTION AS:",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF64748B),
+                                letterSpacing = 0.5.sp
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val quickCategories = listOf(
+                                    "Merchant / Payee",
+                                    "Amount",
+                                    "Account / Card",
+                                    "Type Debit/Credit",
+                                    "Others"
+                                )
+                                quickCategories.forEach { cat ->
+                                    val isCurrentCat = category.equals(cat, ignoreCase = true)
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (isCurrentCat) Color(0xFF0F172A) else Color(0xFFF1F5F9),
+                                        border = if (isCurrentCat) null else BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                        modifier = Modifier.clickable {
+                                            category = cat
+                                            val targetWord = selectedHighlightWord
+                                            if (!targetWord.isNullOrBlank()) {
+                                                val synth = com.subhashrelangi.arctracker.utils.VisualRegexSynthesizer.synthesize(
+                                                    fullMessage = testMessage,
+                                                    selectedText = targetWord,
+                                                    explicitCategory = cat
+                                                )
+                                                if (synth != null) {
+                                                    pattern = synth.pattern
+                                                    category = synth.category
+                                                    lastSynthesizedSuccess = "Extracted: \"${synth.extractedPreview}\" (${synth.category})"
+                                                    runLiveTest()
+                                                }
+                                            }
+                                        }
+                                    ) {
+                                        Text(
+                                            text = cat,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isCurrentCat) FontWeight.Bold else FontWeight.SemiBold,
+                                            color = if (isCurrentCat) Color.White else Color(0xFF475569),
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Verification Success Banner
+                        if (lastSynthesizedSuccess != null) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFFECFDF5),
+                                border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Success",
+                                        tint = Color(0xFF047857),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = "Generated & Verified ✓ $lastSynthesizedSuccess",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF065F46)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -997,6 +1245,209 @@ fun EditRegexPatternScreen(
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
+                }
+            }
+        }
+    }
+
+    // AI Regex Assistant Dialog
+    if (showAiPromptDialog) {
+        Dialog(onDismissRequest = { showAiPromptDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFECFDF5)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = Color(0xFF047857),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "Ask AI (ChatGPT / Claude)",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = "Generate regex with AI, 100% private & offline",
+                                    fontSize = 11.5.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = { showAiPromptDialog = false },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    // Step 1: Copy AI Prompt
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "STEP 1: COPY PROMPT FOR CHATGPT",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF475569),
+                            letterSpacing = 0.5.sp
+                        )
+
+                        val generatedPrompt = remember(testMessage, category) {
+                            com.subhashrelangi.arctracker.utils.VisualRegexSynthesizer.buildAiPrompt(testMessage, category)
+                        }
+
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFF0F172A)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text(
+                                    text = generatedPrompt,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFFE2E8F0),
+                                    maxLines = 5,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(generatedPrompt))
+                                Toast.makeText(context, "Prompt copied to clipboard! Paste it into ChatGPT.", Toast.LENGTH_SHORT).show()
+                            },
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.ContentCopy,
+                                contentDescription = "Copy",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Copy Prompt to Clipboard", color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Step 2: Paste AI Response
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "STEP 2: PASTE AI RESPONSE HERE",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF475569),
+                            letterSpacing = 0.5.sp
+                        )
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(110.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                        ) {
+                            Box(modifier = Modifier.padding(10.dp)) {
+                                if (aiPastedText.isEmpty()) {
+                                    Text(
+                                        text = "Paste ChatGPT's JSON response or regex pattern here...",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF94A3B8)
+                                    )
+                                }
+                                BasicTextField(
+                                    value = aiPastedText,
+                                    onValueChange = { aiPastedText = it },
+                                    textStyle = TextStyle(
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = Color(0xFF0F172A)
+                                    ),
+                                    cursorBrush = SolidColor(Color(0xFF047857)),
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    }
+
+                    // Dialog Actions
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { showAiPromptDialog = false },
+                            shape = CircleShape,
+                            modifier = Modifier.weight(1f),
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                        ) {
+                            Text("Cancel", color = Color(0xFF475569), fontSize = 12.5.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                val parsed = com.subhashrelangi.arctracker.utils.VisualRegexSynthesizer.parseAiResponse(aiPastedText)
+                                if (parsed != null) {
+                                    pattern = parsed.pattern
+                                    category = parsed.category
+                                    name = parsed.suggestedName
+                                    description = parsed.description
+                                    lastSynthesizedSuccess = "Imported from AI: \"${parsed.pattern}\""
+                                    runLiveTest()
+                                    showAiPromptDialog = false
+                                    Toast.makeText(context, "AI Regex pattern applied successfully!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Could not extract pattern. Paste the full JSON or regex.", Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
+                            modifier = Modifier.weight(1.4f)
+                        ) {
+                            Text("Apply Pattern", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                        }
+                    }
                 }
             }
         }
