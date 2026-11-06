@@ -2636,7 +2636,7 @@ private fun AccountTransactionsBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color.White,
+        containerColor = CardBg,
         tonalElevation = 6.dp,
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     ) {

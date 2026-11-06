@@ -1015,7 +1015,7 @@ fun SettingsScreen(
         ModalBottomSheet(
             onDismissRequest = { showUpdateDialog = false },
             sheetState = sheetState,
-            containerColor = Color.White,
+            containerColor = ArcColors.CardBackground,
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             dragHandle = {
                 Box(
@@ -1024,7 +1024,7 @@ fun SettingsScreen(
                         .width(36.dp)
                         .height(4.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFCBD5E1))
+                        .background(ArcColors.Border)
                 )
             }
         ) {
@@ -1268,7 +1268,7 @@ fun SettingsScreen(
         ModalBottomSheet(
             onDismissRequest = { showEditProfileSheet = false },
             sheetState = sheetState,
-            containerColor = Color.White,
+            containerColor = ArcColors.CardBackground,
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
         ) {
             Column(
