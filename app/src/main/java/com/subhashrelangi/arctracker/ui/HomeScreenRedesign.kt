@@ -1431,14 +1431,25 @@ private fun FullRealisticCreditCard(
             )
         }
         WalletCardTheme.PORCELAIN_WHITE -> {
-            CardThemeStyle(
-                bgBrush = Brush.linearGradient(
-                    listOf(Color(0xFFFFFFFF), Color(0xFFF8FAFC), Color(0xFFE2E8F0))
-                ),
-                borderColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFCBD5E1),
-                contentColor = TextDarkPrimary,
-                subtextColor = Color(0xFF64748B)
-            )
+            if (ArcColors.isDark) {
+                CardThemeStyle(
+                    bgBrush = Brush.linearGradient(
+                        listOf(Color(0xFF1E293B), Color(0xFF0F172A), Color(0xFF090D16))
+                    ),
+                    borderColor = if (isSelected) Color(0xFF38BDF8) else Color(0xFF334155),
+                    contentColor = Color(0xFFF8FAFC),
+                    subtextColor = Color(0xFF94A3B8)
+                )
+            } else {
+                CardThemeStyle(
+                    bgBrush = Brush.linearGradient(
+                        listOf(Color(0xFFFFFFFF), Color(0xFFF8FAFC), Color(0xFFE2E8F0))
+                    ),
+                    borderColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFCBD5E1),
+                    contentColor = TextDarkPrimary,
+                    subtextColor = Color(0xFF64748B)
+                )
+            }
         }
         WalletCardTheme.EMERALD_SLATE -> {
             CardThemeStyle(
@@ -1522,14 +1533,17 @@ private fun FullRealisticCreditCard(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(
-                                        if (card.theme == WalletCardTheme.PORCELAIN_WHITE) Color(0xFFEFF6FF)
-                                        else Color.White.copy(alpha = 0.22f)
+                                        if (card.theme == WalletCardTheme.PORCELAIN_WHITE) {
+                                            if (ArcColors.isDark) Color(0xFF1E293B) else Color(0xFFEFF6FF)
+                                        } else Color.White.copy(alpha = 0.22f)
                                     )
                                     .padding(horizontal = 6.dp, vertical = 1.5.dp)
                             ) {
                                 Text(
                                     text = "● Active",
-                                    color = if (card.theme == WalletCardTheme.PORCELAIN_WHITE) Color(0xFF2563EB) else Color.White,
+                                    color = if (card.theme == WalletCardTheme.PORCELAIN_WHITE) {
+                                        if (ArcColors.isDark) Color(0xFF38BDF8) else Color(0xFF2563EB)
+                                    } else Color.White,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1713,12 +1727,21 @@ private fun PocketTuckedCard(
             )
         }
         WalletCardTheme.PORCELAIN_WHITE -> {
-            CardThemeStyle(
-                bgBrush = Brush.horizontalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFF1F5F9))),
-                borderColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFCBD5E1),
-                contentColor = TextDarkPrimary,
-                subtextColor = Color(0xFF64748B)
-            )
+            if (ArcColors.isDark) {
+                CardThemeStyle(
+                    bgBrush = Brush.horizontalGradient(listOf(Color(0xFF1E293B), Color(0xFF0F172A))),
+                    borderColor = if (isSelected) Color(0xFF38BDF8) else Color(0xFF334155),
+                    contentColor = Color(0xFFF8FAFC),
+                    subtextColor = Color(0xFF94A3B8)
+                )
+            } else {
+                CardThemeStyle(
+                    bgBrush = Brush.horizontalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFF1F5F9))),
+                    borderColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFCBD5E1),
+                    contentColor = TextDarkPrimary,
+                    subtextColor = Color(0xFF64748B)
+                )
+            }
         }
         WalletCardTheme.EMERALD_SLATE -> {
             CardThemeStyle(
@@ -1832,14 +1855,17 @@ private fun PocketTuckedCard(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(
-                                    if (card.theme == WalletCardTheme.PORCELAIN_WHITE) Color(0xFFEFF6FF)
-                                    else Color.White.copy(alpha = 0.2f)
+                                    if (card.theme == WalletCardTheme.PORCELAIN_WHITE) {
+                                        if (ArcColors.isDark) Color(0xFF1E293B) else Color(0xFFEFF6FF)
+                                    } else Color.White.copy(alpha = 0.2f)
                                 )
                                 .padding(horizontal = 4.dp, vertical = 1.dp)
                         ) {
                             Text(
                                 text = "Active",
-                                color = if (card.theme == WalletCardTheme.PORCELAIN_WHITE) Color(0xFF2563EB) else Color.White,
+                                color = if (card.theme == WalletCardTheme.PORCELAIN_WHITE) {
+                                    if (ArcColors.isDark) Color(0xFF38BDF8) else Color(0xFF2563EB)
+                                } else Color.White,
                                 fontSize = 8.5.sp,
                                 fontWeight = FontWeight.Bold
                             )

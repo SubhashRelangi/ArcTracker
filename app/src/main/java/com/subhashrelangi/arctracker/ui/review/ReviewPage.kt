@@ -2916,8 +2916,8 @@ private fun AccountSelectionDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            color = ArcColors.CardBackground,
+            border = BorderStroke(1.dp, ArcColors.Border),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp)
@@ -2939,7 +2939,7 @@ private fun AccountSelectionDialog(
                             text = title,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = ArcColors.TextPrimary
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
@@ -3175,8 +3175,8 @@ private fun CategorySelectionModalDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            color = ArcColors.CardBackground,
+            border = BorderStroke(1.dp, ArcColors.Border),
             shadowElevation = 12.dp,
             modifier = Modifier
                 .fillMaxWidth()
@@ -3196,13 +3196,13 @@ private fun CategorySelectionModalDialog(
                     Column {
                         Text(
                             text = "Select Category",
-                            color = Color(0xFF0F172A),
+                            color = ArcColors.TextPrimary,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "Choose or create a category",
-                            color = Color(0xFF64748B),
+                            color = ArcColors.TextMuted,
                             fontSize = 12.sp
                         )
                     }

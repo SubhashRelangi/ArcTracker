@@ -228,8 +228,8 @@ fun ArcEngineIntelligenceCard(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    colors = CardDefaults.cardColors(containerColor = InsightsTheme.LightCardBackground),
+                    border = BorderStroke(1.dp, InsightsTheme.LightCardBorder)
                 ) {
                     Row(
                         modifier = Modifier
