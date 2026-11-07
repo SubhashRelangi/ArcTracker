@@ -550,7 +550,7 @@ fun DatabaseScreen(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F5F9))
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.SurfaceHighlight)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.ContentCopy,
@@ -593,7 +593,7 @@ private fun PipelineStepRow(
                     when {
                         isCompleted -> emeraldPrimary
                         isCurrent -> emeraldLight
-                        else -> Color(0xFFF1F5F9)
+                        else -> ArcColors.SurfaceHighlight
                     }
                 )
                 .border(
@@ -650,7 +650,7 @@ private fun TableSchemaDetailCard(item: TableTelemetry) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFFF8FAFC))
+            .background(ArcColors.SurfaceHighlight)
             .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(12.dp))
             .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -790,7 +790,7 @@ private fun DatabaseEngineCard(dbSize: String) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+            HorizontalDivider(color = ArcColors.Border, thickness = 1.dp)
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -854,7 +854,7 @@ private fun DataDistributionDiagramCard(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .clickable(onClick = onInspectClick)
-                        .background(Color(0xFFF8FAFC))
+                        .background(ArcColors.SurfaceHighlight)
                         .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(8.dp))
                         .padding(horizontal = 9.dp, vertical = 5.dp),
                     contentAlignment = Alignment.Center
@@ -888,7 +888,7 @@ private fun DataDistributionDiagramCard(
                         .fillMaxWidth()
                         .height(12.dp)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(Color(0xFFF1F5F9))
+                        .background(ArcColors.SurfaceHighlight)
                 ) {
                     tables.forEach { item ->
                         val weight = if (item.count > 0) item.count.toFloat() / totalCount else 0f
@@ -909,7 +909,7 @@ private fun DataDistributionDiagramCard(
                         .fillMaxWidth()
                         .height(12.dp)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(Color(0xFFE2E8F0))
+                        .background(ArcColors.Border)
                 )
             }
 
@@ -980,7 +980,7 @@ private fun QuickOptimizationMasterCard(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White),
+                        .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color.White),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -996,13 +996,13 @@ private fun QuickOptimizationMasterCard(
                         text = "One-Tap Health & Tune-Up",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = emeraldDark
+                        color = if (ArcColors.isDark) Color(0xFF34D399) else emeraldDark
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "Sequentially audits integrity, rebuilds indices, and defragments disk storage.",
                         fontSize = 11.5.sp,
-                        color = Color(0xFF047857),
+                        color = if (ArcColors.isDark) Color(0xFFA7F3D0) else Color(0xFF047857),
                         lineHeight = 15.sp
                     )
                 }
@@ -1077,7 +1077,7 @@ private fun DatabaseMaintenanceCard(
             )
 
             HorizontalDivider(
-                color = Color(0xFFF1F5F9),
+                color = ArcColors.Border,
                 thickness = 1.dp,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -1093,7 +1093,7 @@ private fun DatabaseMaintenanceCard(
             )
 
             HorizontalDivider(
-                color = Color(0xFFF1F5F9),
+                color = ArcColors.Border,
                 thickness = 1.dp,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -1109,7 +1109,7 @@ private fun DatabaseMaintenanceCard(
             )
 
             HorizontalDivider(
-                color = Color(0xFFF1F5F9),
+                color = ArcColors.Border,
                 thickness = 1.dp,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -1168,8 +1168,8 @@ private fun InteractiveActionRow(
 
     val rowBg by animateColorAsState(
         targetValue = when {
-            isLoading -> Color(0xFFF0FDF4)
-            isSuccess -> Color(0xFFECFDF5)
+            isLoading -> if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFF0FDF4)
+            isSuccess -> if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
             else -> Color.Transparent
         },
         animationSpec = tween(300),
@@ -1179,7 +1179,7 @@ private fun InteractiveActionRow(
     val iconBoxBg by animateColorAsState(
         targetValue = when {
             isLoading || isSuccess -> emeraldLight
-            else -> Color(0xFFF1F5F9)
+            else -> ArcColors.SurfaceHighlight
         },
         animationSpec = tween(300),
         label = "iconBoxBg"
@@ -1301,7 +1301,7 @@ private fun EngineMetricPill(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFFF8FAFC))
+            .background(ArcColors.SurfaceHighlight)
             .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(10.dp))
             .padding(vertical = 10.dp, horizontal = 6.dp),
         contentAlignment = Alignment.Center
@@ -1347,7 +1347,7 @@ private fun DatabaseSecurityFooter() {
                 modifier = Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(Color.White),
+                    .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color.White),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -1371,7 +1371,7 @@ private fun DatabaseSecurityFooter() {
                 Text(
                     text = "Zero remote database sync. All transactions, accounts, and cryptographic keys remain within your device sandbox.",
                     fontSize = 11.5.sp,
-                    color = Color(0xFF065F46),
+                    color = if (ArcColors.isDark) Color(0xFFA7F3D0) else Color(0xFF065F46),
                     lineHeight = 16.sp
                 )
             }
