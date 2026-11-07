@@ -221,20 +221,20 @@ fun BudgetsScreen(
                                 text = "OVERALL VELOCITY",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF6B7280),
+                                color = ArcColors.TextSecondary,
                                 letterSpacing = 0.5.sp
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Box(
                                 modifier = Modifier
-                                    .background(Color(0xFFF3F4F6), CircleShape)
+                                    .background(ArcColors.SurfaceHighlight, CircleShape)
                                     .padding(horizontal = 10.dp, vertical = 3.dp)
                             ) {
                                 Text(
                                     text = "$daysRemaining days left",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF4B5563)
+                                    color = ArcColors.TextPrimary
                                 )
                             }
                         }
@@ -265,7 +265,7 @@ fun BudgetsScreen(
                         text = "Monthly Budget\nCap",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827),
+                        color = ArcColors.TextPrimary,
                         lineHeight = 26.sp
                     )
 
@@ -275,7 +275,7 @@ fun BudgetsScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFF9FAFB)
+                        color = ArcColors.SurfaceHighlight
                     ) {
                         Row(
                             modifier = Modifier
@@ -284,35 +284,35 @@ fun BudgetsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text(text = "Cap Target", fontSize = 11.sp, color = Color(0xFF6B7280))
+                                Text(text = "Cap Target", fontSize = 11.sp, color = ArcColors.TextSecondary)
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "₹${formatCurrency(capTarget)}",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF111827)
+                                    color = ArcColors.TextPrimary
                                 )
                             }
 
                             Column {
-                                Text(text = "Total Spent", fontSize = 11.sp, color = Color(0xFF6B7280))
+                                Text(text = "Total Spent", fontSize = 11.sp, color = ArcColors.TextSecondary)
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "₹${formatCurrency(totalSpent)}",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF111827)
+                                    color = ArcColors.TextPrimary
                                 )
                             }
 
                             Column {
-                                Text(text = "Remaining", fontSize = 11.sp, color = Color(0xFF6B7280))
+                                Text(text = "Remaining", fontSize = 11.sp, color = ArcColors.TextSecondary)
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "₹${formatCurrency(remaining)}",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF16A34A)
+                                    color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A)
                                 )
                             }
                         }
@@ -329,12 +329,12 @@ fun BudgetsScreen(
                         Text(
                             text = "${String.format(Locale.US, "%.1f", percentAllocated)}% allocated",
                             fontSize = 11.sp,
-                            color = Color(0xFF6B7280)
+                            color = ArcColors.TextSecondary
                         )
                         Text(
                             text = "Billing cycle: Day $currentDayOfMonth/$totalDaysInMonth",
                             fontSize = 11.sp,
-                            color = Color(0xFF6B7280)
+                            color = ArcColors.TextSecondary
                         )
                     }
 
@@ -346,7 +346,7 @@ fun BudgetsScreen(
                             .fillMaxWidth()
                             .height(8.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFE5E7EB))
+                            .background(ArcColors.Border)
                     ) {
                         Box(
                             modifier = Modifier
@@ -364,20 +364,20 @@ fun BudgetsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "0%", fontSize = 10.sp, color = Color(0xFF9CA3AF))
+                        Text(text = "0%", fontSize = 10.sp, color = ArcColors.TextMuted)
                         Spacer(modifier = Modifier.weight(1f))
                         Text(
                             text = "80% Alert",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFD97706)
+                            color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "100%",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFDC2626)
+                            color = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626)
                         )
                     }
                 }
@@ -395,13 +395,13 @@ fun BudgetsScreen(
                         Box(
                             modifier = Modifier
                                 .size(38.dp)
-                                .background(Color(0xFFDCFCE7), RoundedCornerShape(10.dp)),
+                                .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7), RoundedCornerShape(10.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.NotificationsActive,
                                 contentDescription = null,
-                                tint = Color(0xFF16A34A),
+                                tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -413,25 +413,25 @@ fun BudgetsScreen(
                                 text = "Budget Alert Engine",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
+                                color = ArcColors.TextPrimary
                             )
                             Text(
                                 text = "Real-time local budget telemetry",
                                 fontSize = 11.sp,
-                                color = Color(0xFF6B7280)
+                                color = ArcColors.TextSecondary
                             )
                         }
 
                         Box(
                             modifier = Modifier
-                                .background(Color(0xFFDCFCE7), CircleShape)
+                                .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7), CircleShape)
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "Enabled",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF16A34A)
+                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A)
                             )
                         }
                     }
@@ -445,8 +445,8 @@ fun BudgetsScreen(
                                 SpanStyle(
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 11.sp,
-                                    color = Color(0xFF374151),
-                                    background = Color(0xFFF3F4F6)
+                                    color = ArcColors.TextPrimary,
+                                    background = ArcColors.SurfaceHighlight
                                 )
                             ) {
                                 append("AndroidBudgetAlertNotifier")
@@ -454,7 +454,7 @@ fun BudgetsScreen(
                             append(".")
                         },
                         fontSize = 11.sp,
-                        color = Color(0xFF6B7280),
+                        color = ArcColors.TextSecondary,
                         lineHeight = 16.sp
                     )
 
@@ -464,7 +464,7 @@ fun BudgetsScreen(
                         text = "NOTIFY ME WHEN SPENDING REACHES",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF6B7280),
+                        color = ArcColors.TextSecondary,
                         letterSpacing = 0.5.sp
                     )
 
@@ -609,14 +609,14 @@ fun BudgetsScreen(
                     CategoryEnvelopeCard(
                         title = "Food & Dining",
                         icon = Icons.Outlined.Restaurant,
-                        iconBg = Color(0xFFFEF3C7),
-                        iconTint = Color(0xFFD97706),
+                        iconBg = if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7),
+                        iconTint = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
                         spent = 12450.0,
                         limit = 15000.0,
                         statusText = "80% Threshold",
-                        statusBg = Color(0xFFFEF3C7),
-                        statusColor = Color(0xFFB45309),
-                        progressColor = Color(0xFF92400E),
+                        statusBg = if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7),
+                        statusColor = if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFFB45309),
+                        progressColor = if (ArcColors.isDark) Color(0xFFF59E0B) else Color(0xFF92400E),
                         onEdit = {
                             val cat = allCategories.find { it.id == "food_dining" }
                             quickSelectedCategory = cat
@@ -628,13 +628,13 @@ fun BudgetsScreen(
                     CategoryEnvelopeCard(
                         title = "Housing & Utilities",
                         icon = Icons.Outlined.Home,
-                        iconBg = Color(0xFFE2E8F0),
-                        iconTint = Color(0xFF475569),
+                        iconBg = if (ArcColors.isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0),
+                        iconTint = if (ArcColors.isDark) Color(0xFF94A3B8) else Color(0xFF475569),
                         spent = 9800.0,
                         limit = 12000.0,
                         statusText = "On Track",
-                        statusBg = Color(0xFFDCFCE7),
-                        statusColor = Color(0xFF16A34A),
+                        statusBg = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7),
+                        statusColor = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A),
                         progressColor = ArcColors.Primary,
                         onEdit = {
                             val cat = allCategories.find { it.id == "bills_utilities" }
@@ -647,13 +647,13 @@ fun BudgetsScreen(
                     CategoryEnvelopeCard(
                         title = "Shopping & Tech",
                         icon = Icons.Outlined.ShoppingBag,
-                        iconBg = Color(0xFFF1F5F9),
-                        iconTint = Color(0xFF475569),
+                        iconBg = if (ArcColors.isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
+                        iconTint = if (ArcColors.isDark) Color(0xFF94A3B8) else Color(0xFF475569),
                         spent = 6980.0,
                         limit = 10000.0,
                         statusText = "Healthy",
-                        statusBg = Color(0xFFDCFCE7),
-                        statusColor = Color(0xFF16A34A),
+                        statusBg = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7),
+                        statusColor = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A),
                         progressColor = ArcColors.Primary,
                         onEdit = {
                             val cat = allCategories.find { it.id == "shopping" }
@@ -666,14 +666,14 @@ fun BudgetsScreen(
                     CategoryEnvelopeCard(
                         title = "Transport & Commute",
                         icon = Icons.Outlined.DirectionsCar,
-                        iconBg = Color(0xFFFEF3C7),
-                        iconTint = Color(0xFFD97706),
+                        iconBg = if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7),
+                        iconTint = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
                         spent = 4120.0,
                         limit = 5000.0,
                         statusText = "82% Used",
-                        statusBg = Color(0xFFFEF3C7),
-                        statusColor = Color(0xFFB45309),
-                        progressColor = Color(0xFF92400E),
+                        statusBg = if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7),
+                        statusColor = if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFFB45309),
+                        progressColor = if (ArcColors.isDark) Color(0xFFF59E0B) else Color(0xFF92400E),
                         onEdit = {
                             val cat = allCategories.find { it.id == "transport" }
                             quickSelectedCategory = cat
@@ -753,7 +753,7 @@ fun BudgetsScreen(
                             text = "Add New Budget Limit",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
+                            color = ArcColors.TextPrimary
                         )
 
                         Spacer(modifier = Modifier.weight(1f))
@@ -761,7 +761,7 @@ fun BudgetsScreen(
                         Text(
                             text = "Quick Creator",
                             fontSize = 11.sp,
-                            color = Color(0xFF6B7280)
+                            color = ArcColors.TextSecondary
                         )
                     }
 
@@ -772,7 +772,7 @@ fun BudgetsScreen(
                         text = "CATEGORY",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF6B7280),
+                        color = ArcColors.TextSecondary,
                         letterSpacing = 0.5.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -782,8 +782,8 @@ fun BudgetsScreen(
                             .fillMaxWidth()
                             .height(48.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFF9FAFB))
-                            .border(BorderStroke(1.dp, Color(0xFFE5E7EB)), RoundedCornerShape(12.dp))
+                            .background(ArcColors.SurfaceHighlight)
+                            .border(BorderStroke(1.dp, ArcColors.Border), RoundedCornerShape(12.dp))
                             .clickable { showCategoryPickerModal = true }
                             .padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -808,7 +808,7 @@ fun BudgetsScreen(
                                 text = currentCategory.name,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF111827),
+                                color = ArcColors.TextPrimary,
                                 modifier = Modifier.weight(1f)
                             )
                         } else {
@@ -816,7 +816,7 @@ fun BudgetsScreen(
                                 text = "Select Category",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF6B7280),
+                                color = ArcColors.TextSecondary,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -824,7 +824,7 @@ fun BudgetsScreen(
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = "Select Category",
-                            tint = Color(0xFF6B7280),
+                            tint = ArcColors.TextSecondary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -836,7 +836,7 @@ fun BudgetsScreen(
                         text = "MONTHLY LIMIT",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF6B7280),
+                        color = ArcColors.TextSecondary,
                         letterSpacing = 0.5.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -845,8 +845,8 @@ fun BudgetsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp)
-                            .background(Color(0xFFF9FAFB), RoundedCornerShape(12.dp))
-                            .border(BorderStroke(1.dp, Color(0xFFE5E7EB)), RoundedCornerShape(12.dp))
+                            .background(ArcColors.SurfaceHighlight, RoundedCornerShape(12.dp))
+                            .border(BorderStroke(1.dp, ArcColors.Border), RoundedCornerShape(12.dp))
                             .padding(horizontal = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -854,7 +854,7 @@ fun BudgetsScreen(
                             text = "₹ ",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
+                            color = ArcColors.TextPrimary
                         )
                         BasicTextField(
                             value = quickLimitText,
@@ -863,7 +863,7 @@ fun BudgetsScreen(
                             textStyle = TextStyle(
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
+                                color = ArcColors.TextPrimary
                             ),
                             cursorBrush = SolidColor(ArcColors.Primary),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -872,7 +872,7 @@ fun BudgetsScreen(
                         Icon(
                             imageVector = Icons.Default.UnfoldMore,
                             contentDescription = "Adjust",
-                            tint = Color(0xFF9CA3AF),
+                            tint = ArcColors.TextSecondary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -888,7 +888,7 @@ fun BudgetsScreen(
                             text = "NOTIFICATION THRESHOLD",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF6B7280),
+                            color = ArcColors.TextSecondary,
                             letterSpacing = 0.5.sp
                         )
                         Spacer(modifier = Modifier.weight(1f))
@@ -907,7 +907,7 @@ fun BudgetsScreen(
                         colors = SliderDefaults.colors(
                             thumbColor = ArcColors.Primary,
                             activeTrackColor = ArcColors.Primary,
-                            inactiveTrackColor = Color(0xFFE5E7EB)
+                            inactiveTrackColor = ArcColors.Border
                         ),
                         modifier = Modifier.height(28.dp)
                     )
@@ -916,9 +916,9 @@ fun BudgetsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "50%", fontSize = 10.sp, color = Color(0xFF9CA3AF))
-                        Text(text = "75%", fontSize = 10.sp, color = Color(0xFF9CA3AF))
-                        Text(text = "100%", fontSize = 10.sp, color = Color(0xFF9CA3AF))
+                        Text(text = "50%", fontSize = 10.sp, color = ArcColors.TextSecondary)
+                        Text(text = "75%", fontSize = 10.sp, color = ArcColors.TextSecondary)
+                        Text(text = "100%", fontSize = 10.sp, color = ArcColors.TextSecondary)
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -1008,7 +1008,7 @@ fun BudgetsScreen(
                             modifier = Modifier
                                 .size(42.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFDCFCE7)),
+                                .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -1026,12 +1026,12 @@ fun BudgetsScreen(
                                 text = "Monthly Budget Cap",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 17.sp,
-                                color = Color(0xFF111827)
+                                color = ArcColors.TextPrimary
                             )
                             Text(
                                 text = "Overall spending ceiling across all categories",
                                 fontSize = 11.sp,
-                                color = Color(0xFF6B7280),
+                                color = ArcColors.TextSecondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -1041,14 +1041,14 @@ fun BudgetsScreen(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFF3F4F6))
+                                .background(ArcColors.SurfaceHighlight)
                                 .clickable { showMonthlyCapDialog = false },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Close",
-                                tint = Color(0xFF6B7280),
+                                tint = ArcColors.TextSecondary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -1171,20 +1171,20 @@ fun BudgetsScreen(
                                     text = "ALERT THRESHOLD",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF6B7280),
+                                    color = ArcColors.TextSecondary,
                                     letterSpacing = 0.5.sp
                                 )
                                 Spacer(modifier = Modifier.weight(1f))
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0xFFFEF3C7), CircleShape)
+                                        .background(if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7), CircleShape)
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = "$currentPercent% • ₹${formatCurrency(notifyThresholdAmount.toDouble())}",
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFB45309)
+                                        color = if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFFB45309)
                                     )
                                 }
                             }
@@ -1196,7 +1196,7 @@ fun BudgetsScreen(
                                 colors = SliderDefaults.colors(
                                     thumbColor = ArcColors.Primary,
                                     activeTrackColor = ArcColors.Primary,
-                                    inactiveTrackColor = Color(0xFFE2E8F0)
+                                    inactiveTrackColor = ArcColors.Border
                                 ),
                                 modifier = Modifier.height(28.dp)
                             )
@@ -1205,10 +1205,10 @@ fun BudgetsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("50%", fontSize = 10.sp, color = Color(0xFF9CA3AF))
-                                Text("75%", fontSize = 10.sp, color = Color(0xFF9CA3AF))
-                                Text("80% Alert", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD97706))
-                                Text("100%", fontSize = 10.sp, color = Color(0xFF9CA3AF))
+                                Text("50%", fontSize = 10.sp, color = ArcColors.TextSecondary)
+                                Text("75%", fontSize = 10.sp, color = ArcColors.TextSecondary)
+                                Text("80% Alert", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFD97706))
+                                Text("100%", fontSize = 10.sp, color = ArcColors.TextSecondary)
                             }
                         }
                     }
@@ -1302,7 +1302,7 @@ fun BudgetsScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFDCFCE7)),
+                                .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -1320,12 +1320,12 @@ fun BudgetsScreen(
                                 text = "Select Category",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 17.sp,
-                                color = Color(0xFF111827)
+                                color = ArcColors.TextPrimary
                             )
                             Text(
                                 text = "Choose an envelope for this budget",
                                 fontSize = 11.sp,
-                                color = Color(0xFF6B7280)
+                                color = ArcColors.TextSecondary
                             )
                         }
 
@@ -1333,14 +1333,14 @@ fun BudgetsScreen(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFF3F4F6))
+                                .background(ArcColors.SurfaceHighlight)
                                 .clickable { showCategoryPickerModal = false },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Close",
-                                tint = Color(0xFF6B7280),
+                                tint = ArcColors.TextSecondary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -1367,10 +1367,10 @@ fun BudgetsScreen(
                                         showCategoryPickerModal = false
                                     },
                                 shape = RoundedCornerShape(14.dp),
-                                color = if (isSelected) Color(0xFFF0FDF4) else Color(0xFFF9FAFB),
+                                color = if (isSelected) (if (ArcColors.isDark) Color(0xFF064E3B).copy(alpha = 0.4f) else Color(0xFFF0FDF4)) else ArcColors.SurfaceHighlight,
                                 border = BorderStroke(
                                     1.dp,
-                                    if (isSelected) ArcColors.Primary else Color(0xFFE5E7EB)
+                                    if (isSelected) ArcColors.Primary else ArcColors.Border
                                 )
                             ) {
                                 Row(
@@ -1402,7 +1402,7 @@ fun BudgetsScreen(
                                         text = category.name,
                                         fontSize = 14.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        color = Color(0xFF111827),
+                                        color = ArcColors.TextPrimary,
                                         modifier = Modifier.weight(1f)
                                     )
 
@@ -1480,13 +1480,13 @@ fun BudgetsScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFFEE2E2)),
+                                .background(if (ArcColors.isDark) Color(0xFF451A1A) else Color(0xFFFEE2E2)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Delete,
                                 contentDescription = null,
-                                tint = Color(0xFFDC2626),
+                                tint = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -1846,7 +1846,7 @@ fun BudgetEditDialog(
                     )
                 },
                 shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
+                colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
             ) {
                 Text("Save", fontWeight = FontWeight.Bold)
             }
@@ -1855,9 +1855,9 @@ fun BudgetEditDialog(
             OutlinedButton(
                 onClick = onDismiss,
                 shape = CircleShape,
-                border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                border = BorderStroke(1.dp, ArcColors.Border)
             ) {
-                Text("Cancel", color = Color(0xFF475569))
+                Text("Cancel", color = ArcColors.TextSecondary)
             }
         }
     )
@@ -1928,7 +1928,7 @@ fun BudgetDetailDialog(
             Button(
                 onClick = onDismiss,
                 shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
+                colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
             ) {
                 Text("Close", color = Color.White, fontWeight = FontWeight.Bold)
             }
