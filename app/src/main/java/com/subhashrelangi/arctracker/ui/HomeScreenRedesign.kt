@@ -85,8 +85,8 @@ private val AmberTitleText: Color @Composable @ReadOnlyComposable get() = ArcCol
 private val AmberSubtitleText: Color @Composable @ReadOnlyComposable get() = ArcColors.TextSecondary
 
 private val CoralExpense: Color @Composable @ReadOnlyComposable get() = ArcColors.DebitDanger
-private val SlateHeroBg: Color @Composable @ReadOnlyComposable get() = if (ArcColors.Light == ArcColors.current) Color(0xFF0B0F19) else ArcColors.SurfaceElevated
-private val SlateHeroBorder: Color @Composable @ReadOnlyComposable get() = if (ArcColors.Light == ArcColors.current) Color(0xFF1E293B) else ArcColors.Border
+private val SlateHeroBg: Color @Composable @ReadOnlyComposable get() = if (!ArcColors.isDark) Color(0xFF0B0F19) else ArcColors.SurfaceElevated
+private val SlateHeroBorder: Color @Composable @ReadOnlyComposable get() = if (!ArcColors.isDark) Color(0xFF1E293B) else ArcColors.Border
 
 /**
  * Visual styling theme for realistic physical fintech cards in the wallet.

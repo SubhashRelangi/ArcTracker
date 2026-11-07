@@ -58,10 +58,10 @@ class UniversalFoundationTest {
         assertEquals(Color(0xFFD97706), ArcColors.Light.warningAmber)
         assertEquals(Color(0xFFD97706), LedgerColors.Light.warningAmber)
 
-        // Dark Theme Tokens (AMOLED Pitch Black Canvas)
+        // Dark Theme Tokens (AMOLED Pitch Black Canvas & Deep Onyx)
         assertEquals(Color(0xFF000000), ArcColors.Dark.background)
         assertEquals(Color(0xFF000000), LedgerColors.Dark.background)
-        assertEquals(Color(0xFFF8FAFC), ArcColors.Dark.debit)
+        assertEquals(Color(0xFFFFFFFF), ArcColors.Dark.debit)
         assertEquals(Color(0xFF10B981), ArcColors.Dark.credit)
         assertEquals(Color(0xFFF59E0B), ArcColors.Dark.warningAmber)
         assertEquals(Color(0xFFF59E0B), LedgerColors.Dark.warningAmber)
