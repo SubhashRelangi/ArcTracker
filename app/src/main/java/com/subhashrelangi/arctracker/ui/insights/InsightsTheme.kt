@@ -25,12 +25,12 @@ object InsightsTheme {
     val LightTextMuted: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textMuted
 
     // Accent Colors
-    val EmeraldGreen = Color(0xFF15803D)
-    val EmeraldGreenDark = Color(0xFF047857)
+    val EmeraldGreen: Color @Composable @ReadOnlyComposable get() = if (LocalArcColors.current.isDark) Color(0xFF34D399) else Color(0xFF15803D)
+    val EmeraldGreenDark: Color @Composable @ReadOnlyComposable get() = if (LocalArcColors.current.isDark) Color(0xFF10B981) else Color(0xFF047857)
     val EmeraldGreenBadge: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.primaryLight
     val EmeraldGreenBadgeBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.primaryBorder
-    val AmberBrown = Color(0xFF92400E)
-    val AmberOrange = Color(0xFFD97706)
+    val AmberBrown: Color @Composable @ReadOnlyComposable get() = if (LocalArcColors.current.isDark) Color(0xFFFCD34D) else Color(0xFF92400E)
+    val AmberOrange: Color @Composable @ReadOnlyComposable get() = if (LocalArcColors.current.isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
     val AmberBadge: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningAmberBg
     val CharcoalDark: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textPrimary
 

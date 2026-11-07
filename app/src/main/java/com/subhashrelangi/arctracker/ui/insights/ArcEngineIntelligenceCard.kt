@@ -127,7 +127,7 @@ fun ArcEngineIntelligenceCard(
                             Text(
                                 text = "Dining spending jumped +38% between Friday evenings and Sundays compared to weekday averages.",
                                 fontSize = 12.sp,
-                                color = Color(0xFF475569),
+                                color = InsightsTheme.LightTextSecondary,
                                 lineHeight = 17.sp
                             )
                         }
@@ -269,7 +269,7 @@ fun ArcEngineIntelligenceCard(
                                     "Real-time heuristics are active in local memory, auto-categorizing SMS and push notifications."
                                 },
                                 fontSize = 12.sp,
-                                color = Color(0xFF475569),
+                                color = InsightsTheme.LightTextSecondary,
                                 lineHeight = 17.sp
                             )
                         }

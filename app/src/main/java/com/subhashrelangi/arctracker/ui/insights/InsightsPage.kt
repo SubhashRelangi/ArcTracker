@@ -261,7 +261,10 @@ fun InsightsPage(
 
                                 Button(
                                     onClick = onStartSetup,
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = ArcColors.Primary,
+                                        contentColor = Color.White
+                                    ),
                                     shape = CircleShape,
                                     contentPadding = PaddingValues(horizontal = 22.dp, vertical = 11.dp)
                                 ) {

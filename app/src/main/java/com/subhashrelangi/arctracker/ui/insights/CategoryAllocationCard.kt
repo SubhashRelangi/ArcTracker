@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.roundToInt
+import com.subhashrelangi.arctracker.ui.theme.LocalArcColors
 
 @Composable
 fun CategoryAllocationCard(
@@ -49,7 +50,7 @@ fun CategoryAllocationCard(
                 name = "Food & Dining",
                 percentage = 34.0,
                 amount = 12450.0,
-                color = Color(0xFF0F172A),
+                color = InsightsTheme.CategoryFood,
                 iconKey = "food",
                 transactionCount = 38
             ),
@@ -58,7 +59,7 @@ fun CategoryAllocationCard(
                 name = "Housing & Utilities",
                 percentage = 27.0,
                 amount = 9800.0,
-                color = Color(0xFF475569),
+                color = InsightsTheme.CategoryBills,
                 iconKey = "housing",
                 transactionCount = 6
             ),
@@ -67,7 +68,7 @@ fun CategoryAllocationCard(
                 name = "Shopping & Tech",
                 percentage = 19.0,
                 amount = 6980.0,
-                color = Color(0xFF94A3B8),
+                color = InsightsTheme.CategoryShopping,
                 iconKey = "shopping",
                 transactionCount = 11
             ),
@@ -76,7 +77,7 @@ fun CategoryAllocationCard(
                 name = "Transport",
                 percentage = 11.0,
                 amount = 4120.0,
-                color = Color(0xFF94A3B8),
+                color = InsightsTheme.CategoryTransport,
                 iconKey = "transport",
                 transactionCount = 22
             ),
@@ -85,7 +86,7 @@ fun CategoryAllocationCard(
                 name = "Health & Fitness",
                 percentage = 9.0,
                 amount = 3400.0,
-                color = Color(0xFFCBD5E1),
+                color = InsightsTheme.CategoryHealth,
                 iconKey = "health",
                 transactionCount = 1
             )
@@ -188,12 +189,10 @@ private fun CategoryRowItem(
     currencyFormatter: NumberFormat
 ) {
     val icon = resolveCategoryIcon(item.name)
-    val barColor = when (index) {
-        0 -> Color(0xFF0F172A) // Dark Charcoal
-        1 -> Color(0xFF475569) // Slate
-        2 -> Color(0xFF94A3B8) // Light Slate
-        3 -> Color(0xFF94A3B8) // Light Slate
-        else -> Color(0xFFCBD5E1) // Soft Grey
+    val barColor = if (item.color != Color.Unspecified && item.color != Color(0xFF0F172A)) {
+        item.color
+    } else {
+        InsightsTheme.resolveCategoryColor(item.name, item.iconKey)
     }
 
     val subText = when {
@@ -219,13 +218,13 @@ private fun CategoryRowItem(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(InsightsTheme.LightSubCardBackground),
+                    .background(barColor.copy(alpha = if (LocalArcColors.current.isDark) 0.22f else 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = item.name,
-                    tint = InsightsTheme.LightTextPrimary,
+                    tint = barColor,
                     modifier = Modifier.size(18.dp)
                 )
             }

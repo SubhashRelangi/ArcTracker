@@ -24,6 +24,7 @@ import java.text.NumberFormat
 import java.util.Calendar
 import java.util.Locale
 import kotlin.math.roundToInt
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 
 @Composable
 fun MonthlyOutflowPaceCard(
@@ -171,7 +172,7 @@ fun MonthlyOutflowPaceCard(
                         .fillMaxHeight()
                         .fillMaxWidth(fraction = utilizationFraction)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(InsightsTheme.CharcoalDark)
+                        .background(ArcColors.Primary)
                 )
             }
 
