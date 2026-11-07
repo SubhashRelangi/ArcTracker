@@ -331,7 +331,7 @@ fun UnresolvedTransactionsScreen(
                         // Multi-Selection Controller Bar (When in Selection Mode)
                         if (isSelectionMode) {
                             Surface(
-                                color = Color.White,
+                                color = cardBg,
                                 shape = RoundedCornerShape(12.dp),
                                 border = BorderStroke(1.dp, cardBorder),
                                 modifier = Modifier.fillMaxWidth()
@@ -398,7 +398,7 @@ fun UnresolvedTransactionsScreen(
                             // Vault Overview Info Card (Normal Mode)
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
-                                color = Color.White,
+                                color = cardBg,
                                 border = BorderStroke(1.dp, cardBorder),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -435,7 +435,7 @@ fun UnresolvedTransactionsScreen(
                                             Box(
                                                 modifier = Modifier
                                                     .clip(RoundedCornerShape(6.dp))
-                                                    .background(Color(0xFFF1F5F9))
+                                                    .background(ArcColors.SurfaceHighlight)
                                                     .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(6.dp))
                                                     .padding(horizontal = 6.dp, vertical = 2.dp),
                                                 contentAlignment = Alignment.Center
@@ -467,7 +467,7 @@ fun UnresolvedTransactionsScreen(
                     item(key = "empty_state") {
                         Surface(
                             shape = RoundedCornerShape(18.dp),
-                            color = Color.White,
+                            color = cardBg,
                             border = BorderStroke(1.dp, cardBorder),
                             modifier = Modifier
                                 .fillMaxWidth()
