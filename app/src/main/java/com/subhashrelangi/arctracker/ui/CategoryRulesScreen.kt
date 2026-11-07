@@ -246,8 +246,8 @@ fun CategoryRulesScreen(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = emeraldPrimary,
                             unfocusedBorderColor = cardBorder,
-                            focusedContainerColor = Color(0xFFF8FAFC),
-                            unfocusedContainerColor = Color(0xFFF8FAFC),
+                            focusedContainerColor = ArcColors.SurfaceHighlight,
+                            unfocusedContainerColor = ArcColors.SurfaceHighlight,
                             cursorColor = emeraldPrimary
                         )
                     )
@@ -269,7 +269,7 @@ fun CategoryRulesScreen(
                         enabled = testMerchant.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = emeraldPrimary,
-                            disabledContainerColor = Color(0xFFF1F5F9),
+                            disabledContainerColor = ArcColors.SurfaceHighlight,
                             contentColor = Color.White,
                             disabledContentColor = Color(0xFF94A3B8)
                         ),
@@ -656,8 +656,8 @@ fun RuleCard(
                     // Match Type Badge
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFECFDF5),
-                        border = BorderStroke(1.dp, Color(0xFFA7F3D0))
+                        color = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5),
+                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0))
                     ) {
                         Text(
                             text = when (rule.matchType) {
@@ -669,7 +669,7 @@ fun RuleCard(
                             },
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = emeraldPrimary,
+                            color = if (ArcColors.isDark) Color(0xFF34D399) else emeraldPrimary,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
@@ -717,8 +717,8 @@ fun RuleCard(
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
                     checkedTrackColor = emeraldPrimary,
-                    uncheckedThumbColor = Color(0xFF94A3B8),
-                    uncheckedTrackColor = Color(0xFFE2E8F0)
+                    uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF94A3B8) else Color(0xFFCBD5E1),
+                    uncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
                 )
             )
 

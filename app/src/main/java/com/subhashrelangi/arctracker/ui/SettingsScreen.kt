@@ -1237,22 +1237,22 @@ fun SettingsScreen(
                         .height(50.dp),
                     shape = CircleShape,
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFF0F172A)
+                        contentColor = ArcColors.TextPrimary
                     ),
-                    border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                    border = BorderStroke(1.dp, ArcColors.Border)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Code,
                         contentDescription = null,
                         modifier = Modifier.size(19.dp),
-                        tint = Color(0xFF334155)
+                        tint = ArcColors.TextPrimary
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "View in GitHub",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF0F172A)
+                        color = ArcColors.TextPrimary
                     )
                 }
             }

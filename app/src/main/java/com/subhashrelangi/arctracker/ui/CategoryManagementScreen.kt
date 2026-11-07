@@ -544,7 +544,7 @@ fun CategoryManagementScreen(
                                 // Subtle divider between items inside the section
                                 if (index < displayedList.size - 1) {
                                     HorizontalDivider(
-                                        color = Color(0xFFF1F5F9),
+                                        color = ArcColors.Border,
                                         thickness = 1.dp,
                                         modifier = Modifier.padding(horizontal = 14.dp)
                                     )
@@ -659,7 +659,7 @@ fun CategoryManagementScreen(
             },
             dismissButton = {
                 TextButton(onClick = { categoryToArchive = null }) {
-                    Text("Cancel", color = Color(0xFF0F172A))
+                    Text("Cancel", color = ArcColors.TextPrimary)
                 }
             }
         )
@@ -768,7 +768,7 @@ fun CategoryManagementScreen(
             },
             dismissButton = {
                 TextButton(onClick = { categoryToDelete = null }) {
-                    Text("Cancel", color = Color(0xFF0F172A))
+                    Text("Cancel", color = ArcColors.TextPrimary)
                 }
             }
         )
@@ -787,16 +787,37 @@ private fun CategoryRowItem(
     onArchiveToggle: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val isDark = ArcColors.isDark
     val nameLower = category.name.lowercase()
-    val (containerBg, iconTint, iconVector) = remember(category) {
+    val (containerBg, iconTint, iconVector) = remember(category, isDark) {
         when {
-            nameLower.contains("food") || nameLower.contains("dining") -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), Icons.Default.Restaurant)
-            nameLower.contains("hous") || nameLower.contains("util") -> Triple(Color(0xFFF1F5F9), Color(0xFF64748B), Icons.Default.Bolt)
-            nameLower.contains("shop") || nameLower.contains("gadget") -> Triple(Color(0xFFE2E8F0), Color(0xFF475569), Icons.Default.ShoppingBag)
-            nameLower.contains("travel") || nameLower.contains("commute") -> Triple(Color(0xFFD1FAE5), Color(0xFF059669), Icons.Default.DirectionsCar)
-            nameLower.contains("freelance") || nameLower.contains("saas") -> Triple(Color(0xFFE2E8F0), Color(0xFF475569), Icons.Default.Computer)
+            nameLower.contains("food") || nameLower.contains("dining") -> Triple(
+                if (isDark) Color(0xFFD97706).copy(alpha = 0.22f) else Color(0xFFFEF3C7),
+                Color(0xFFD97706),
+                Icons.Default.Restaurant
+            )
+            nameLower.contains("hous") || nameLower.contains("util") -> Triple(
+                if (isDark) Color(0xFF64748B).copy(alpha = 0.22f) else Color(0xFFF1F5F9),
+                if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                Icons.Default.Bolt
+            )
+            nameLower.contains("shop") || nameLower.contains("gadget") -> Triple(
+                if (isDark) Color(0xFF818CF8).copy(alpha = 0.22f) else Color(0xFFE2E8F0),
+                if (isDark) Color(0xFFA5B4FC) else Color(0xFF475569),
+                Icons.Default.ShoppingBag
+            )
+            nameLower.contains("travel") || nameLower.contains("commute") -> Triple(
+                if (isDark) Color(0xFF059669).copy(alpha = 0.22f) else Color(0xFFD1FAE5),
+                if (isDark) Color(0xFF34D399) else Color(0xFF059669),
+                Icons.Default.DirectionsCar
+            )
+            nameLower.contains("freelance") || nameLower.contains("saas") -> Triple(
+                if (isDark) Color(0xFF38BDF8).copy(alpha = 0.22f) else Color(0xFFE2E8F0),
+                if (isDark) Color(0xFF38BDF8) else Color(0xFF475569),
+                Icons.Default.Computer
+            )
             else -> Triple(
-                CategoryVisuals.getContainerColor(category.colorKey),
+                CategoryVisuals.getContainerColor(category.colorKey, isDark),
                 CategoryVisuals.getColor(category.colorKey),
                 CategoryVisuals.getIcon(category.iconKey)
             )
@@ -834,7 +855,7 @@ private fun CategoryRowItem(
                     text = category.name,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.5.sp,
-                    color = Color(0xFF0F172A),
+                    color = ArcColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -842,7 +863,7 @@ private fun CategoryRowItem(
                 Box(
                     modifier = Modifier
                         .background(
-                            color = if (category.isSystem) Color(0xFFF1F5F9) else Color(0xFFECFDF5),
+                            color = if (category.isSystem) ArcColors.SurfaceHighlight else (if (isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)),
                             shape = RoundedCornerShape(5.dp)
                         )
                         .padding(horizontal = 5.dp, vertical = 1.5.dp)
@@ -851,7 +872,7 @@ private fun CategoryRowItem(
                         text = if (category.isSystem) "System" else "Custom",
                         fontSize = 9.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (category.isSystem) Color(0xFF475569) else Color(0xFF047857)
+                        color = if (category.isSystem) ArcColors.TextSecondary else (if (isDark) Color(0xFF34D399) else Color(0xFF047857))
                     )
                 }
             }
@@ -859,7 +880,7 @@ private fun CategoryRowItem(
             Text(
                 text = "$transactionCount transactions logged",
                 fontSize = 11.5.sp,
-                color = Color(0xFF64748B)
+                color = ArcColors.TextSecondary
             )
         }
 
@@ -873,15 +894,15 @@ private fun CategoryRowItem(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF8FAFC))
-                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                    .background(ArcColors.SurfaceHighlight)
+                    .border(BorderStroke(1.dp, ArcColors.Border), CircleShape)
                     .clickable(onClick = onEdit),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Edit,
                     contentDescription = "Edit Category",
-                    tint = Color(0xFF475569),
+                    tint = ArcColors.TextPrimary,
                     modifier = Modifier.size(15.dp)
                 )
             }
@@ -892,15 +913,15 @@ private fun CategoryRowItem(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF8FAFC))
-                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                        .background(ArcColors.SurfaceHighlight)
+                        .border(BorderStroke(1.dp, ArcColors.Border), CircleShape)
                         .clickable(onClick = onArchiveToggle),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Archive,
                         contentDescription = "Archive",
-                        tint = Color(0xFF475569),
+                        tint = ArcColors.TextPrimary,
                         modifier = Modifier.size(15.dp)
                     )
                 }
@@ -910,15 +931,15 @@ private fun CategoryRowItem(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFFEE2E2))
-                        .border(BorderStroke(1.dp, Color(0xFFFECACA)), CircleShape)
+                        .background(if (isDark) Color(0xFF451A1A) else Color(0xFFFEE2E2))
+                        .border(BorderStroke(1.dp, if (isDark) Color(0xFF7F1D1D) else Color(0xFFFECACA)), CircleShape)
                         .clickable(onClick = onDelete),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.DeleteOutline,
                         contentDescription = "Delete",
-                        tint = Color(0xFFDC2626),
+                        tint = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626),
                         modifier = Modifier.size(15.dp)
                     )
                 }
@@ -1497,20 +1518,20 @@ fun EditCategoryBottomSheet(
                                         text = "Category Name (Locked)",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF64748B)
+                                        color = ArcColors.TextSecondary
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = category.name,
                                         fontSize = 14.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
+                                        color = ArcColors.TextPrimary
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = "System category names are locked to preserve regex rules, but you can fully customize icon & color.",
                                         fontSize = 11.sp,
-                                        color = Color(0xFF64748B)
+                                        color = ArcColors.TextSecondary
                                     )
                                 }
                             }
@@ -1528,15 +1549,15 @@ fun EditCategoryBottomSheet(
                             text = "Icon Glyph",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF334155)
+                            color = ArcColors.TextPrimary
                         )
                         Spacer(modifier = Modifier.weight(1f))
 
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFECFDF5))
-                                .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(10.dp))
+                                .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5))
+                                .border(BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)), RoundedCornerShape(10.dp))
                                 .clickable {
                                     isMoreIconsExpanded = !isMoreIconsExpanded
                                 }
@@ -1546,7 +1567,7 @@ fun EditCategoryBottomSheet(
                                 text = if (isMoreIconsExpanded) "▲ Less" else "▼ More Icons (${ALL_CATEGORY_GLYPHS.size})",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF047857)
+                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
                             )
                         }
                     }
@@ -1569,11 +1590,11 @@ fun EditCategoryBottomSheet(
                                             .weight(1f)
                                             .height(46.dp)
                                             .clip(RoundedCornerShape(10.dp))
-                                            .background(if (isSelected) activeTone.color.copy(alpha = 0.12f) else Color(0xFFF8FAFC))
+                                            .background(if (isSelected) activeTone.color.copy(alpha = 0.12f) else ArcColors.SurfaceHighlight)
                                             .border(
                                                 BorderStroke(
                                                     if (isSelected) 1.5.dp else 1.dp,
-                                                    if (isSelected) activeTone.color else Color(0xFFE2E8F0)
+                                                    if (isSelected) activeTone.color else ArcColors.Border
                                                 ),
                                                 RoundedCornerShape(10.dp)
                                             )
