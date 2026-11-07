@@ -5,6 +5,8 @@ import com.subhashrelangi.arctracker.ui.core.ArcFloatingAddExpenseButton
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -31,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -72,7 +75,6 @@ fun SettingsScreen(
     }
 
     val currentThemeMode by settingsRepo.themeModeFlow.collectAsState()
-    var showThemeDialog by remember { mutableStateOf(false) }
 
     val profileName by settingsRepo.getProfileNameFlow().collectAsState()
     val profileLabel by settingsRepo.getProfileLabelFlow().collectAsState()
@@ -452,7 +454,18 @@ fun SettingsScreen(
                 }
             }
 
-            // 4. Section: TRACKER ENGINE
+            // 4. Section: APPEARANCE & THEME (Positioned above Tracker Engine)
+            if (hasAppearanceMatches) {
+                SectionHeader(title = "APPEARANCE & THEME")
+                ThemeModeSelectorCard(
+                    currentMode = currentThemeMode,
+                    onSelectMode = { mode ->
+                        settingsRepo.setThemeMode(mode)
+                    }
+                )
+            }
+
+            // 5. Section: TRACKER ENGINE
             if (showTracker) {
                 SectionHeader(
                     title = "TRACKER ENGINE",
@@ -809,27 +822,7 @@ fun SettingsScreen(
                 }
             }
 
-            // 8. Section: APPEARANCE & THEME
-            if (hasAppearanceMatches) {
-                SectionHeader(title = "APPEARANCE & THEME")
-
-                SettingsGroupCard {
-                    SettingsItemRow(
-                        icon = when (currentThemeMode) {
-                            AppThemeMode.SYSTEM -> Icons.Outlined.BrightnessAuto
-                            AppThemeMode.LIGHT -> Icons.Outlined.LightMode
-                            AppThemeMode.DARK -> Icons.Outlined.DarkMode
-                        },
-                        title = "App Theme",
-                        subtitle = currentThemeMode.description,
-                        badgeText = currentThemeMode.displayName.replace(" Theme", ""),
-                        isLast = true,
-                        onClick = { showThemeDialog = true }
-                    )
-                }
-            }
-
-            // 9. Section: DEVELOPER & ADVANCED
+            // 8. Section: DEVELOPER & ADVANCED
             if (isDeveloperModeUnlocked && showDev) {
                 SectionHeader(
                     title = "DEVELOPER & ADVANCED",
@@ -1421,170 +1414,203 @@ fun SettingsScreen(
             }
         }
     }
+}
 
-    // Appearance & Theme Selection Modal Bottom Sheet
-    if (showThemeDialog) {
-        val themeSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = { showThemeDialog = false },
-            sheetState = themeSheetState,
-            containerColor = ArcColors.SurfaceElevated,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            dragHandle = {
+@Composable
+private fun ThemeModeSelectorCard(
+    currentMode: AppThemeMode,
+    onSelectMode: (AppThemeMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    SettingsGroupCard(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Header Row: Active Theme Overview & Rotating Icon
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val rotation by animateFloatAsState(
+                    targetValue = when (currentMode) {
+                        AppThemeMode.LIGHT -> 180f
+                        AppThemeMode.DARK -> 360f
+                        AppThemeMode.SYSTEM -> 0f
+                    },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    ),
+                    label = "themeIconRotation"
+                )
+
                 Box(
                     modifier = Modifier
-                        .padding(top = 12.dp, bottom = 8.dp)
-                        .width(36.dp)
-                        .height(4.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
-                        .background(ArcColors.Border)
-                )
-            }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 36.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                // Header Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .background(ArcColors.PrimaryLight),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = when (currentThemeMode) {
-                                    AppThemeMode.SYSTEM -> Icons.Outlined.BrightnessAuto
-                                    AppThemeMode.LIGHT -> Icons.Outlined.LightMode
-                                    AppThemeMode.DARK -> Icons.Outlined.DarkMode
-                                },
-                                contentDescription = null,
-                                tint = ArcColors.Primary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        Column {
-                            Text(
-                                text = "App Theme",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ArcColors.TextPrimary
-                            )
-                            Text(
-                                text = "Choose your preferred appearance",
-                                fontSize = 12.5.sp,
-                                color = ArcColors.TextSecondary
-                            )
-                        }
-                    }
-                    IconButton(
-                        onClick = { showThemeDialog = false },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Close,
-                            contentDescription = "Close",
-                            tint = ArcColors.TextMuted,
-                            modifier = Modifier.size(20.dp)
+                        .background(
+                            if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
                         )
-                    }
+                        .border(
+                            BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = when (currentMode) {
+                            AppThemeMode.LIGHT -> Icons.Outlined.LightMode
+                            AppThemeMode.DARK -> Icons.Outlined.DarkMode
+                            AppThemeMode.SYSTEM -> Icons.Outlined.BrightnessAuto
+                        },
+                        contentDescription = "Theme Icon",
+                        tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
+                        modifier = Modifier
+                            .size(22.dp)
+                            .graphicsLayer { rotationZ = rotation }
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-                // Options: SYSTEM, LIGHT, DARK
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "App Theme",
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ArcColors.TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = when (currentMode) {
+                            AppThemeMode.DARK -> "Pure AMOLED Pitch Black"
+                            AppThemeMode.LIGHT -> "Clean Emerald Daylight"
+                            AppThemeMode.SYSTEM -> "Follows Device Appearance"
+                        },
+                        fontSize = 12.sp,
+                        color = ArcColors.TextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
+                        )
+                        .border(
+                            BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(horizontal = 9.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = when (currentMode) {
+                            AppThemeMode.DARK -> "Dark"
+                            AppThemeMode.LIGHT -> "Light"
+                            AppThemeMode.SYSTEM -> "System"
+                        },
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
+                    )
+                }
+            }
+
+            // Animated 3-Segment Button Selector Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(ArcColors.SurfaceHighlight)
+                    .border(BorderStroke(1.dp, ArcColors.Border), RoundedCornerShape(14.dp))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 AppThemeMode.entries.forEach { mode ->
-                    val isSelected = currentThemeMode == mode
+                    val isSelected = currentMode == mode
                     val icon = when (mode) {
-                        AppThemeMode.SYSTEM -> Icons.Outlined.BrightnessAuto
                         AppThemeMode.LIGHT -> Icons.Outlined.LightMode
                         AppThemeMode.DARK -> Icons.Outlined.DarkMode
+                        AppThemeMode.SYSTEM -> Icons.Outlined.BrightnessAuto
+                    }
+                    val label = when (mode) {
+                        AppThemeMode.LIGHT -> "Light"
+                        AppThemeMode.DARK -> "Dark"
+                        AppThemeMode.SYSTEM -> "System"
                     }
 
-                    Row(
+                    val buttonBg by animateColorAsState(
+                        targetValue = if (isSelected) ArcColors.Primary else Color.Transparent,
+                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                        label = "themeBtnBg"
+                    )
+
+                    val contentColor by animateColorAsState(
+                        targetValue = if (isSelected) Color.White else ArcColors.TextSecondary,
+                        animationSpec = tween(durationMillis = 200),
+                        label = "themeContentColor"
+                    )
+
+                    val btnScale by animateFloatAsState(
+                        targetValue = if (isSelected) 1f else 0.97f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        ),
+                        label = "themeBtnScale"
+                    )
+
+                    val iconRotation by animateFloatAsState(
+                        targetValue = if (isSelected) 360f else 0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "themeBtnIconRot"
+                    )
+
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (isSelected) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight)
-                            .border(
-                                BorderStroke(
-                                    1.dp,
-                                    if (isSelected) ArcColors.PrimaryBorder else ArcColors.Border
-                                ),
-                                RoundedCornerShape(16.dp)
-                            )
-                            .clickable {
-                                settingsRepo.setThemeMode(mode)
-                                showThemeDialog = false
+                            .weight(1f)
+                            .height(44.dp)
+                            .graphicsLayer {
+                                scaleX = btnScale
+                                scaleY = btnScale
                             }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(buttonBg)
+                            .clickable {
+                                if (!isSelected) {
+                                    onSelectMode(mode)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(if (isSelected) ArcColors.Primary else ArcColors.CardBackground),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
                         ) {
                             Icon(
                                 imageVector = icon,
-                                contentDescription = null,
-                                tint = if (isSelected) Color.White else ArcColors.TextSecondary,
-                                modifier = Modifier.size(20.dp)
+                                contentDescription = label,
+                                tint = contentColor,
+                                modifier = Modifier
+                                    .size(17.dp)
+                                    .graphicsLayer { rotationZ = iconRotation }
                             )
-                        }
-
-                        Column(modifier = Modifier.weight(1f)) {
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = mode.displayName,
-                                fontSize = 14.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isSelected) ArcColors.Primary else ArcColors.TextPrimary
+                                text = label,
+                                fontSize = 12.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = contentColor
                             )
-                            Text(
-                                text = mode.description,
-                                fontSize = 12.sp,
-                                color = ArcColors.TextMuted
-                            )
-                        }
-
-                        // Radio indicator
-                        Box(
-                            modifier = Modifier
-                                .size(22.dp)
-                                .clip(CircleShape)
-                                .border(
-                                    BorderStroke(
-                                        2.dp,
-                                        if (isSelected) ArcColors.Primary else ArcColors.Border
-                                    ),
-                                    CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isSelected) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(10.dp)
-                                        .clip(CircleShape)
-                                        .background(ArcColors.Primary)
-                                )
-                            }
                         }
                     }
                 }
@@ -1617,9 +1643,12 @@ private fun SectionHeader(
 }
 
 @Composable
-private fun SettingsGroupCard(content: @Composable ColumnScope.() -> Unit) {
+private fun SettingsGroupCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = ArcColors.CardBackground),
         border = BorderStroke(1.dp, ArcColors.Border),

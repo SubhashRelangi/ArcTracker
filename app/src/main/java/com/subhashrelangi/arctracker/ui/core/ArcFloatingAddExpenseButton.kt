@@ -36,8 +36,11 @@ fun ArcFloatingAddExpenseButton(
             .padding(end = 16.dp, bottom = 72.dp)
             .shadow(elevation = 6.dp, shape = CircleShape),
         shape = CircleShape,
-        color = if (ArcColors.isDark) ArcColors.Primary else Color(0xFF0F172A),
-        border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.PrimaryDark else Color(0xFF334155))
+        color = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF0F172A),
+        border = BorderStroke(
+            1.dp,
+            if (ArcColors.isDark) ArcColors.Primary.copy(alpha = 0.35f) else Color(0xFF334155)
+        )
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
@@ -46,7 +49,7 @@ fun ArcFloatingAddExpenseButton(
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = "Add Expense",
-                tint = Color.White,
+                tint = ArcColors.Primary,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
