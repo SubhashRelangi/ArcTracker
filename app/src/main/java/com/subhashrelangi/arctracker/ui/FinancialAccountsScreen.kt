@@ -1455,8 +1455,8 @@ private fun ActiveInspectorThemedCard(
 ) {
     val (displayName, subTitle) = getAccountDisplayTokens(account)
     val isCard = account.instrumentType == InstrumentType.CARD
-    val iconBg = if (isCard) Color(0xFFECFDF5) else Color(0xFFF1F5F9)
-    val iconColor = if (isCard) Color(0xFF047857) else Color(0xFF0F172A)
+    val iconBg = if (isCard) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)) else ArcColors.SurfaceHighlight
+    val iconColor = if (isCard) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)) else ArcColors.TextPrimary
 
     val fingerprint = "${account.institutionId?.uppercase() ?: "ARC"}-${if (account.instrumentType == InstrumentType.CARD) "CC" else "BA"}-${account.accountSuffix.uppercase()}-V2"
 
@@ -1805,13 +1805,13 @@ fun DetailRow(label: String, value: String, isHighlight: Boolean = false) {
         Text(
             text = label,
             fontSize = 12.sp,
-            color = Color(0xFF64748B)
+            color = ArcColors.TextSecondary
         )
         Text(
             text = value,
             fontSize = 12.sp,
             fontWeight = if (isHighlight) FontWeight.Bold else FontWeight.Medium,
-            color = Color(0xFF0F172A),
+            color = ArcColors.TextPrimary,
             fontFamily = if (isHighlight) FontFamily.Monospace else FontFamily.Default
         )
     }

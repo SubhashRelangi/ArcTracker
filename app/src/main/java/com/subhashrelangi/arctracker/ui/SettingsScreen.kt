@@ -1202,7 +1202,7 @@ fun SettingsScreen(
                         .height(50.dp),
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF047857),
+                        containerColor = ArcColors.Primary,
                         contentColor = Color.White
                     )
                 ) {
@@ -1288,18 +1288,18 @@ fun SettingsScreen(
                             text = "Local Vault Identity",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = ArcColors.TextPrimary
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Customized for local device display & statement exports",
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B)
+                            color = ArcColors.TextSecondary
                         )
                     }
 
                     IconButton(onClick = { showEditProfileSheet = false }) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = Color(0xFF64748B))
+                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = ArcColors.TextSecondary)
                     }
                 }
 
@@ -1839,10 +1839,10 @@ private fun GreenCheckSwitch(
         } else null,
         colors = SwitchDefaults.colors(
             checkedThumbColor = Color.White,
-            checkedTrackColor = Color(0xFF047857),
+            checkedTrackColor = ArcColors.Primary,
             checkedBorderColor = Color.Transparent,
-            uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF94A3B8) else Color.White,
-            uncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
+            uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF71717A) else Color.White,
+            uncheckedTrackColor = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFCBD5E1),
             uncheckedBorderColor = Color.Transparent
         )
     )

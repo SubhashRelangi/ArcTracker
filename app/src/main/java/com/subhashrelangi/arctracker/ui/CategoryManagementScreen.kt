@@ -1624,7 +1624,7 @@ fun EditCategoryBottomSheet(
                             text = "Theme Tone",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF334155)
+                            color = ArcColors.TextPrimary
                         )
                         Spacer(modifier = Modifier.weight(1f))
                         Row(verticalAlignment = Alignment.CenterVertically) {

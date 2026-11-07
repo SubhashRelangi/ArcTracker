@@ -300,13 +300,29 @@ fun CategoryRulesScreen(
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isHighConfidence) Color(0xFFECFDF5) else Color(0xFFFFFBEB),
-                            border = BorderStroke(1.dp, if (isHighConfidence) Color(0xFFA7F3D0) else Color(0xFFFDE68A))
+                            color = if (isHighConfidence) {
+                                if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
+                            } else {
+                                if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFFFBEB)
+                            },
+                            border = BorderStroke(
+                                1.dp,
+                                if (isHighConfidence) {
+                                    if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)
+                                } else {
+                                    if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFDE68A)
+                                }
+                            )
                         ) {
                             Column(
                                 modifier = Modifier.padding(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
+                                val statusColor = if (isHighConfidence) {
+                                    if (ArcColors.isDark) Color(0xFF34D399) else emeraldPrimary
+                                } else {
+                                    if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFFB45309)
+                                }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -314,7 +330,7 @@ fun CategoryRulesScreen(
                                     Icon(
                                         imageVector = if (isHighConfidence) Icons.Filled.CheckCircle else Icons.Filled.Info,
                                         contentDescription = null,
-                                        tint = if (isHighConfidence) emeraldPrimary else Color(0xFFB45309),
+                                        tint = statusColor,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Text(
@@ -322,7 +338,7 @@ fun CategoryRulesScreen(
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 0.5.sp,
-                                        color = if (isHighConfidence) emeraldPrimary else Color(0xFFB45309)
+                                        color = statusColor
                                     )
                                 }
 
@@ -339,13 +355,13 @@ fun CategoryRulesScreen(
                                     Text(
                                         text = "➜",
                                         fontSize = 13.sp,
-                                        color = if (isHighConfidence) emeraldPrimary else Color(0xFFB45309)
+                                        color = statusColor
                                     )
                                     Text(
                                         text = res.suggestedCategoryName ?: "Uncategorized",
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isHighConfidence) emeraldPrimary else Color(0xFFB45309)
+                                        color = statusColor
                                     )
                                 }
 
@@ -433,14 +449,14 @@ fun CategoryRulesScreen(
                             modifier = Modifier
                                 .size(56.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFECFDF5))
-                                .border(1.dp, Color(0xFFA7F3D0), CircleShape),
+                                .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5))
+                                .border(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Rule,
                                 contentDescription = null,
-                                tint = emeraldPrimary,
+                                tint = if (ArcColors.isDark) Color(0xFF34D399) else emeraldPrimary,
                                 modifier = Modifier.size(28.dp)
                             )
                         }
@@ -717,8 +733,8 @@ fun RuleCard(
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
                     checkedTrackColor = emeraldPrimary,
-                    uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF94A3B8) else Color(0xFFCBD5E1),
-                    uncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+                    uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF71717A) else Color(0xFFCBD5E1),
+                    uncheckedTrackColor = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFE2E8F0)
                 )
             )
 

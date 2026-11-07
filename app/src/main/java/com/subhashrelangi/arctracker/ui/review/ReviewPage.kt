@@ -829,7 +829,7 @@ fun ReviewPage(
                                                 text = "${selectedAccountExpenseIds.size} of ${filteredUnlinkedItems.size} Selected",
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF0F172A)
+                                                color = ArcColors.TextPrimary
                                             )
                                         }
 
@@ -2131,9 +2131,9 @@ fun ReviewPage(
                     .navigationBarsPadding()
                     .padding(bottom = 72.dp, start = 16.dp, end = 16.dp),
                 shape = CircleShape,
-                color = Color(0xFF0F172A),
+                color = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF0F172A),
                 shadowElevation = 10.dp,
-                border = BorderStroke(1.dp, Color(0xFF334155))
+                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF334155))
             ) {
                 Row(
                     modifier = Modifier

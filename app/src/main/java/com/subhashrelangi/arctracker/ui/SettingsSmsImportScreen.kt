@@ -1433,8 +1433,8 @@ fun SettingsSmsImportScreen(
                         Box(
                             modifier = Modifier
                                 .size(86.dp)
-                                .background(Color(0xFFE8F5E9), CircleShape)
-                                .border(2.dp, Color(0xFFA7F3D0), CircleShape),
+                                .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFE8F5E9), CircleShape)
+                                .border(2.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -1451,7 +1451,7 @@ fun SettingsSmsImportScreen(
                             text = "Historical Ledger Ingested!",
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A),
+                            color = ArcColors.TextPrimary,
                             textAlign = TextAlign.Center
                         )
 
@@ -1460,7 +1460,7 @@ fun SettingsSmsImportScreen(
                         Text(
                             text = "$inserted transactions parsed and cryptographically sealed into your local SQLite vault with zero cloud telemetry.",
                             fontSize = 13.sp,
-                            color = Color(0xFF64748B),
+                            color = ArcColors.TextSecondary,
                             textAlign = TextAlign.Center,
                             lineHeight = 18.sp,
                             modifier = Modifier.padding(horizontal = 16.dp)

@@ -944,8 +944,8 @@ private fun RegexRuleCard(
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
                         checkedTrackColor = ArcColors.Primary,
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
+                        uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF71717A) else Color.White,
+                        uncheckedTrackColor = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFCBD5E1),
                         uncheckedBorderColor = Color.Transparent
                     )
                 )

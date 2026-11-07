@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.subhashrelangi.arctracker.ui.review.ArcColors
 
 /**
  * Standardized Floating "+ Add Expense" Pill Button for ArcTracker.
@@ -35,8 +36,8 @@ fun ArcFloatingAddExpenseButton(
             .padding(end = 16.dp, bottom = 72.dp)
             .shadow(elevation = 6.dp, shape = CircleShape),
         shape = CircleShape,
-        color = Color(0xFF0F172A),
-        border = BorderStroke(1.dp, Color(0xFF334155))
+        color = if (ArcColors.isDark) ArcColors.Primary else Color(0xFF0F172A),
+        border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.PrimaryDark else Color(0xFF334155))
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),

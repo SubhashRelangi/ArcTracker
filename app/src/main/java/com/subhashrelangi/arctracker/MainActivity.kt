@@ -1418,8 +1418,8 @@ fun ExpenseScreen() {
             androidx.compose.ui.window.Dialog(onDismissRequest = { showCompleteAllDialog = false }) {
                 Surface(
                     shape = RoundedCornerShape(22.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = com.subhashrelangi.arctracker.ui.theme.ArcColors.CardBackground,
+                    border = BorderStroke(1.dp, com.subhashrelangi.arctracker.ui.theme.ArcColors.Border),
                     shadowElevation = 8.dp,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
                 ) {
@@ -1431,12 +1431,12 @@ fun ExpenseScreen() {
                             text = "Complete all pending transactions?",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextPrimary
                         )
                         Text(
                             text = "This will approve all pending transactions currently waiting for review and commit them to the ledger.",
                             fontSize = 13.sp,
-                            color = Color(0xFF64748B),
+                            color = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextSecondary,
                             lineHeight = 18.sp
                         )
                         Row(
@@ -1446,10 +1446,10 @@ fun ExpenseScreen() {
                             OutlinedButton(
                                 onClick = { showCompleteAllDialog = false },
                                 shape = CircleShape,
-                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                border = BorderStroke(1.dp, com.subhashrelangi.arctracker.ui.theme.ArcColors.Border),
                                 modifier = Modifier.weight(1f).height(44.dp)
                             ) {
-                                Text("Cancel", color = Color(0xFF475569), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                Text("Cancel", color = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextSecondary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                             }
                             Button(
                                 onClick = {

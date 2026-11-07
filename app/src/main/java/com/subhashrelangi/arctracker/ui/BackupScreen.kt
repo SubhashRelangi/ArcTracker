@@ -1705,7 +1705,7 @@ fun ArcTrackerCustomSwitch(
             .width(52.dp)
             .height(30.dp)
             .clip(CircleShape)
-            .background(if (checked) ArcColors.Primary else (if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFCBD5E1)))
+            .background(if (checked) ArcColors.Primary else (if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFCBD5E1)))
             .clickable { onCheckedChange(!checked) }
             .padding(2.dp),
         contentAlignment = Alignment.CenterStart

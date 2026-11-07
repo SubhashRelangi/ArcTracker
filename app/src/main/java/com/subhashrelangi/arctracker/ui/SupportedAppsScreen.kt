@@ -722,8 +722,8 @@ fun SupportedAppsScreen(
                                 colors = SwitchDefaults.colors(
                                     checkedTrackColor = ArcColors.Primary,
                                     checkedThumbColor = Color.White,
-                                    uncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
-                                    uncheckedThumbColor = Color.White
+                                    uncheckedTrackColor = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFCBD5E1),
+                                    uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF71717A) else Color.White
                                 )
                             )
                         }
@@ -788,10 +788,10 @@ fun SupportedAppsScreen(
                                 colors = SwitchDefaults.colors(
                                     checkedTrackColor = ArcColors.Primary,
                                     checkedThumbColor = Color.White,
-                                    uncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
-                                    uncheckedThumbColor = Color.White,
+                                    uncheckedTrackColor = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFCBD5E1),
+                                    uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF71717A) else Color.White,
                                     disabledCheckedTrackColor = ArcColors.Primary.copy(alpha = 0.4f),
-                                    disabledUncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155).copy(alpha = 0.4f) else Color(0xFFCBD5E1).copy(alpha = 0.4f)
+                                    disabledUncheckedTrackColor = if (ArcColors.isDark) ArcColors.SurfaceHighlight.copy(alpha = 0.4f) else Color(0xFFCBD5E1).copy(alpha = 0.4f)
                                 )
                             )
                         }
@@ -1109,10 +1109,10 @@ private fun MonitoredAppRow(
             colors = SwitchDefaults.colors(
                 checkedTrackColor = switchAccentColor,
                 checkedThumbColor = Color.White,
-                uncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
-                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFCBD5E1),
+                uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF71717A) else Color.White,
                 disabledCheckedTrackColor = switchAccentColor.copy(alpha = 0.4f),
-                disabledUncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155).copy(alpha = 0.4f) else Color(0xFFCBD5E1).copy(alpha = 0.4f)
+                disabledUncheckedTrackColor = if (ArcColors.isDark) ArcColors.SurfaceHighlight.copy(alpha = 0.4f) else Color(0xFFCBD5E1).copy(alpha = 0.4f)
             )
         )
     }

@@ -914,18 +914,18 @@ private fun PhysicalLeatherPocketWallet(
             // ----------------------------------------------------
             // B. Front Leather Pocket Flap (Curved Rim + Balance & Split In/Out)
             // ----------------------------------------------------
+            val flapStitchColor = if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155).copy(alpha = 0.65f)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .drawBehind {
                         // Stitching along the top curved rim of the leather flap
-                        val stitchColor = Color(0xFF334155).copy(alpha = 0.65f)
                         val stroke = Stroke(
                             width = 1.dp.toPx(),
                             pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 5f), 0f)
                         )
                         drawLine(
-                            color = stitchColor,
+                            color = flapStitchColor,
                             start = Offset(14.dp.toPx(), 0f),
                             end = Offset(size.width - 14.dp.toPx(), 0f),
                             strokeWidth = 1.dp.toPx()
@@ -1002,8 +1002,8 @@ private fun PhysicalLeatherPocketWallet(
                             Surface(
                                 onClick = onExpand,
                                 shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFF1E293B),
-                                border = BorderStroke(1.dp, Color(0xFF334155))
+                                color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
+                                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),

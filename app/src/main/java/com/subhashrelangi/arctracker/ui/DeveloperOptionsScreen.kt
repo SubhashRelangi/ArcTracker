@@ -418,7 +418,7 @@ fun DeveloperOptionsScreen(
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace,
-                                    color = Color(0xFF334155),
+                                    color = ArcColors.TextSecondary,
                                     maxLines = 1,
                                     softWrap = false
                                 )
@@ -426,8 +426,8 @@ fun DeveloperOptionsScreen(
                             title = "Regex Pattern Engine",
                             subtitle = "Manage amount, merchant, and type matchers",
                             badgeText = "$activeRulesCount Rules Active",
-                            badgeColor = Color(0xFFDCFCE7),
-                            badgeTextColor = Color(0xFF166534),
+                            badgeColor = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7),
+                            badgeTextColor = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534),
                             onClick = { onNavigate("RegexPatterns") }
                         )
 
@@ -820,8 +820,8 @@ fun DeveloperOptionsScreen(
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
                                     checkedTrackColor = ArcColors.Primary,
-                                    uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF94A3B8) else Color.White,
-                                    uncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
+                                    uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF71717A) else Color.White,
+                                    uncheckedTrackColor = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFCBD5E1),
                                     uncheckedBorderColor = Color.Transparent
                                 )
                             )
@@ -862,8 +862,8 @@ fun DeveloperOptionsScreen(
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
                                     checkedTrackColor = ArcColors.Primary,
-                                    uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF94A3B8) else Color.White,
-                                    uncheckedTrackColor = if (ArcColors.isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
+                                    uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF71717A) else Color.White,
+                                    uncheckedTrackColor = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFCBD5E1),
                                     uncheckedBorderColor = Color.Transparent
                                 )
                             )
@@ -891,13 +891,13 @@ fun DeveloperOptionsScreen(
                             modifier = Modifier
                                 .size(34.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFFEE2E2)),
+                                .background(if (ArcColors.isDark) Color(0xFF451A1A) else Color(0xFFFEE2E2)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.RestartAlt,
                                 contentDescription = null,
-                                tint = Color(0xFFDC2626),
+                                tint = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
