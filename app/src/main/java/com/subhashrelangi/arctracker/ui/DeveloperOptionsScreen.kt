@@ -1016,7 +1016,7 @@ fun DeveloperOptionsScreen(
                             .weight(1f)
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (ArcColors.isDark) Color(0xFF090D16) else Color(0xFF0F172A))
+                            .background(if (ArcColors.isDark) Color(0xFF000000) else Color(0xFF0F172A))
                             .padding(12.dp)
                     ) {
                         Text(

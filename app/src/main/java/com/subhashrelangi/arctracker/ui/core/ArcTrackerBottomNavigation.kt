@@ -117,7 +117,7 @@ fun ArcTrackerBottomNavigationBar(
     } else {
         // Floating pill capsule option
         val navShape = ArcShapes.BottomNav
-        val navBackground = if (isLightMode) Color.White else ArcColors.Background
+        val navBackground = if (isLightMode) Color.White else ArcColors.CardBackground
         val glassBorder = if (isLightMode) {
             BorderStroke(1.dp, Color(0xFFE2E8F0))
         } else {

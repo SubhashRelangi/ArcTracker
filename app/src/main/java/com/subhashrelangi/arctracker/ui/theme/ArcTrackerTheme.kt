@@ -33,11 +33,11 @@ private val LightColorScheme = lightColorScheme(
 
 private val DarkColorScheme = darkColorScheme(
     primary = ArcColors.Dark.primary,
-    onPrimary = Color(0xFF090D16),
+    onPrimary = Color(0xFF000000),
     primaryContainer = ArcColors.Dark.primaryLight,
     onPrimaryContainer = ArcColors.Dark.primary,
     secondary = ArcColors.Dark.textSecondary,
-    onSecondary = Color(0xFF090D16),
+    onSecondary = Color(0xFF000000),
     background = ArcColors.Dark.background,
     surface = ArcColors.Dark.surface,
     surfaceVariant = ArcColors.Dark.surfaceHighlight,

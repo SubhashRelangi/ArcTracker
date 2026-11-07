@@ -1434,7 +1434,7 @@ private fun FullRealisticCreditCard(
             if (ArcColors.isDark) {
                 CardThemeStyle(
                     bgBrush = Brush.linearGradient(
-                        listOf(Color(0xFF1E293B), Color(0xFF0F172A), Color(0xFF090D16))
+                        listOf(Color(0xFF1E293B), Color(0xFF0F172A), Color(0xFF000000))
                     ),
                     borderColor = if (isSelected) Color(0xFF38BDF8) else Color(0xFF334155),
                     contentColor = Color(0xFFF8FAFC),
