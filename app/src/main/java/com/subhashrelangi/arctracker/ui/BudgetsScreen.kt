@@ -628,8 +628,8 @@ fun BudgetsScreen(
                     CategoryEnvelopeCard(
                         title = "Housing & Utilities",
                         icon = Icons.Outlined.Home,
-                        iconBg = if (ArcColors.isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0),
-                        iconTint = if (ArcColors.isDark) Color(0xFF94A3B8) else Color(0xFF475569),
+                        iconBg = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFE2E8F0),
+                        iconTint = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF475569),
                         spent = 9800.0,
                         limit = 12000.0,
                         statusText = "On Track",
@@ -647,8 +647,8 @@ fun BudgetsScreen(
                     CategoryEnvelopeCard(
                         title = "Shopping & Tech",
                         icon = Icons.Outlined.ShoppingBag,
-                        iconBg = if (ArcColors.isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
-                        iconTint = if (ArcColors.isDark) Color(0xFF94A3B8) else Color(0xFF475569),
+                        iconBg = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFF1F5F9),
+                        iconTint = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF475569),
                         spent = 6980.0,
                         limit = 10000.0,
                         statusText = "Healthy",

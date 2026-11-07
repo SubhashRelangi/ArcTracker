@@ -744,6 +744,9 @@ private fun PhysicalLeatherPocketWallet(
     isDemoMode: Boolean,
     onAccountsClick: () -> Unit
 ) {
+    val radarColor = if (ArcColors.isDark) ArcColors.Border.copy(alpha = 0.35f) else Color(0xFF1E293B).copy(alpha = 0.45f)
+    val stitchColor = if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155).copy(alpha = 0.7f)
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -752,7 +755,6 @@ private fun PhysicalLeatherPocketWallet(
                 // Subtle concentric radar rings radiating outward behind the balance section
                 val centerX = size.width * 0.88f
                 val centerY = size.height * 0.60f
-                val radarColor = Color(0xFF1E293B).copy(alpha = 0.45f)
                 val stroke = Stroke(width = 1.dp.toPx())
                 drawCircle(color = radarColor, radius = 45.dp.toPx(), center = Offset(centerX, centerY), style = stroke)
                 drawCircle(color = radarColor, radius = 90.dp.toPx(), center = Offset(centerX, centerY), style = stroke)
@@ -760,7 +762,6 @@ private fun PhysicalLeatherPocketWallet(
                 drawCircle(color = radarColor, radius = 195.dp.toPx(), center = Offset(centerX, centerY), style = stroke)
 
                 // Realistic leather perimeter dashed stitching
-                val stitchColor = Color(0xFF334155).copy(alpha = 0.7f)
                 val stitchStroke = Stroke(
                     width = 1.2.dp.toPx(),
                     pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
@@ -774,8 +775,8 @@ private fun PhysicalLeatherPocketWallet(
                 )
             },
         shape = RoundedCornerShape(26.dp),
-        color = Color(0xFF0B0F19),
-        border = BorderStroke(1.dp, Color(0xFF1E293B))
+        color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0B0F19),
+        border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
     ) {
         Column(
             modifier = Modifier
@@ -791,8 +792,8 @@ private fun PhysicalLeatherPocketWallet(
                         .fillMaxWidth()
                         .clickable(onClick = onAccountsClick),
                     shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFF131B2A),
-                    border = BorderStroke(1.dp, Color(0xFF1E293B))
+                    color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF131B2A),
+                    border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF1E293B))
                 ) {
                     Row(
                         modifier = Modifier
@@ -804,13 +805,13 @@ private fun PhysicalLeatherPocketWallet(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF1E293B)),
+                                .background(if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF1E293B)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.CreditCard,
                                 contentDescription = "Cards",
-                                tint = Color(0xFF94A3B8),
+                                tint = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -931,8 +932,8 @@ private fun PhysicalLeatherPocketWallet(
                         )
                     },
                 shape = RoundedCornerShape(20.dp),
-                color = Color(0xFF111726),
-                border = BorderStroke(1.dp, Color(0xFF1E293B).copy(alpha = 0.8f))
+                color = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF111726),
+                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B).copy(alpha = 0.8f))
             ) {
                 Column(
                     modifier = Modifier
@@ -952,7 +953,7 @@ private fun PhysicalLeatherPocketWallet(
                             Icon(
                                 imageVector = if (selectedCardId == null) Icons.Outlined.AccountBalanceWallet else Icons.Outlined.CreditCard,
                                 contentDescription = "Wallet Icon",
-                                tint = Color(0xFF94A3B8),
+                                tint = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -960,7 +961,7 @@ private fun PhysicalLeatherPocketWallet(
                                 text = heroTitle,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF94A3B8),
+                                color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
                                 letterSpacing = 0.8.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -974,8 +975,8 @@ private fun PhysicalLeatherPocketWallet(
                             Surface(
                                 onClick = { onCardSelect(null) },
                                 shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFF1E293B),
-                                border = BorderStroke(1.dp, Color(0xFF334155))
+                                color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
+                                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.5.dp),
@@ -1079,8 +1080,8 @@ private fun PhysicalLeatherPocketWallet(
                         Surface(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(14.dp),
-                            color = Color(0xFF0C101A),
-                            border = BorderStroke(1.dp, Color(0xFF1E293B))
+                            color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0C101A),
+                            border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
                         ) {
                             Column(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
@@ -1092,7 +1093,7 @@ private fun PhysicalLeatherPocketWallet(
                                 ) {
                                     Text(
                                         text = "October In",
-                                        color = Color(0xFF94A3B8),
+                                        color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -1100,7 +1101,7 @@ private fun PhysicalLeatherPocketWallet(
                                         modifier = Modifier
                                             .size(19.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0xFF064E3B)),
+                                            .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFF064E3B)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
@@ -1125,8 +1126,8 @@ private fun PhysicalLeatherPocketWallet(
                         Surface(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(14.dp),
-                            color = Color(0xFF0C101A),
-                            border = BorderStroke(1.dp, Color(0xFF1E293B))
+                            color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0C101A),
+                            border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
                         ) {
                             Column(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
@@ -1138,7 +1139,7 @@ private fun PhysicalLeatherPocketWallet(
                                 ) {
                                     Text(
                                         text = "October Out",
-                                        color = Color(0xFF94A3B8),
+                                        color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -1146,13 +1147,13 @@ private fun PhysicalLeatherPocketWallet(
                                         modifier = Modifier
                                             .size(19.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0xFF1E293B)),
+                                            .background(if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.ArrowUpward,
                                             contentDescription = "Expense",
-                                            tint = Color(0xFF94A3B8),
+                                            tint = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
                                             modifier = Modifier.size(11.dp)
                                         )
                                     }
@@ -1195,8 +1196,8 @@ private fun AppleWalletCascadingDeck(
             .fillMaxWidth()
             .clip(RoundedCornerShape(26.dp)),
         shape = RoundedCornerShape(26.dp),
-        color = Color(0xFF0B0F19),
-        border = BorderStroke(1.dp, Color(0xFF1E293B))
+        color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0B0F19),
+        border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
     ) {
         Column(
             modifier = Modifier
@@ -1229,8 +1230,8 @@ private fun AppleWalletCascadingDeck(
                 Surface(
                     onClick = onCollapse,
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFF1E293B),
-                    border = BorderStroke(1.dp, Color(0xFF334155))
+                    color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
+                    border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -1312,8 +1313,8 @@ private fun AppleWalletCascadingDeck(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF111726),
-                border = BorderStroke(1.dp, Color(0xFF1E293B))
+                color = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF111726),
+                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
             ) {
                 Row(
                     modifier = Modifier
@@ -1325,7 +1326,7 @@ private fun AppleWalletCascadingDeck(
                     Column {
                         Text(
                             text = heroTitle,
-                            color = Color(0xFF94A3B8),
+                            color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = 0.5.sp
@@ -1344,8 +1345,8 @@ private fun AppleWalletCascadingDeck(
                             Surface(
                                 onClick = { onCardSelect(null) },
                                 shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFF1E293B),
-                                border = BorderStroke(1.dp, Color(0xFF334155))
+                                color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
+                                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
                             ) {
                                 Text(
                                     text = "Reset",
@@ -1360,8 +1361,8 @@ private fun AppleWalletCascadingDeck(
                         Surface(
                             onClick = onCollapse,
                             shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFF1E293B),
-                            border = BorderStroke(1.dp, Color(0xFF334155))
+                            color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
+                            border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
