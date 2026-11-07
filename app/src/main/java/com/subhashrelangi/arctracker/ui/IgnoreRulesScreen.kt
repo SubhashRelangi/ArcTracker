@@ -105,11 +105,11 @@ fun IgnoreRulesScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Surface(
-                color = Color.White,
-                shadowElevation = 0.5.dp,
+                color = lightBg,
+                shadowElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(lightBg)
             ) {
                 // Universal Settings Sub-Page Header
                 ArcTrackerHeader(
@@ -118,7 +118,7 @@ fun IgnoreRulesScreen(
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(cardBg)
+                        .background(lightBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {

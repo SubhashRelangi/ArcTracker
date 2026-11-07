@@ -481,7 +481,7 @@ fun BudgetsScreen(
                                 .weight(1f)
                                 .height(36.dp)
                                 .clip(CircleShape)
-                                .background(if (is80Selected) Color(0xFFFEF3C7) else Color(0xFFF1F5F9))
+                                .background(if (is80Selected) (if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7)) else ArcColors.SurfaceHighlight)
                                 .clickable { selectedAlertThreshold = 80 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -489,7 +489,7 @@ fun BudgetsScreen(
                                 text = "80%",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (is80Selected) Color(0xFFB45309) else Color(0xFF64748B)
+                                color = if (is80Selected) (if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFFB45309)) else ArcColors.TextSecondary
                             )
                         }
 
@@ -500,7 +500,7 @@ fun BudgetsScreen(
                                 .weight(1f)
                                 .height(36.dp)
                                 .clip(CircleShape)
-                                .background(if (is90Selected) Color(0xFFFEF3C7) else Color(0xFFF1F5F9))
+                                .background(if (is90Selected) (if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7)) else ArcColors.SurfaceHighlight)
                                 .clickable { selectedAlertThreshold = 90 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -508,7 +508,7 @@ fun BudgetsScreen(
                                 text = "90%",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (is90Selected) Color(0xFFB45309) else Color(0xFF334155)
+                                color = if (is90Selected) (if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFFB45309)) else ArcColors.TextSecondary
                             )
                         }
 
@@ -519,7 +519,7 @@ fun BudgetsScreen(
                                 .weight(1f)
                                 .height(36.dp)
                                 .clip(CircleShape)
-                                .background(if (is100Selected) Color(0xFFFEE2E2) else Color(0xFFF1F5F9))
+                                .background(if (is100Selected) (if (ArcColors.isDark) Color(0xFF451A1A) else Color(0xFFFEE2E2)) else ArcColors.SurfaceHighlight)
                                 .clickable { selectedAlertThreshold = 100 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -527,7 +527,7 @@ fun BudgetsScreen(
                                 text = "100%",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (is100Selected) Color(0xFFB91C1C) else Color(0xFF64748B)
+                                color = if (is100Selected) (if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFB91C1C)) else ArcColors.TextSecondary
                             )
                         }
                     }
@@ -553,12 +553,12 @@ fun BudgetsScreen(
                             text = "Active Categories",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
+                            color = ArcColors.TextPrimary
                         )
                         Text(
                             text = "$envelopeCount envelopes configured",
                             fontSize = 11.sp,
-                            color = Color(0xFF6B7280)
+                            color = ArcColors.TextSecondary
                         )
                     }
 
@@ -566,7 +566,7 @@ fun BudgetsScreen(
                         text = "₹${formatCurrency(totalCategorySpent)} / ₹${formatCurrency(totalCategoryLimit)}",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF4B5563)
+                        color = ArcColors.TextSecondary
                     )
                 }
 
@@ -586,14 +586,14 @@ fun BudgetsScreen(
                                 else -> "On Track"
                             },
                             statusBg = when {
-                                progress.isExceeded -> Color(0xFFFEE2E2)
-                                progress.isWarning -> Color(0xFFFEF3C7)
-                                else -> Color(0xFFDCFCE7)
+                                progress.isExceeded -> if (ArcColors.isDark) Color(0xFF451A1A) else Color(0xFFFEE2E2)
+                                progress.isWarning -> if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7)
+                                else -> if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7)
                             },
                             statusColor = when {
-                                progress.isExceeded -> Color(0xFFDC2626)
-                                progress.isWarning -> Color(0xFFB45309)
-                                else -> Color(0xFF16A34A)
+                                progress.isExceeded -> if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626)
+                                progress.isWarning -> if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFFB45309)
+                                else -> if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A)
                             },
                             progressColor = when {
                                 progress.isExceeded -> Color(0xFFDC2626)
@@ -686,8 +686,8 @@ fun BudgetsScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        color = cardBg,
+                        border = BorderStroke(1.dp, cardBorder)
                     ) {
                         Column(
                             modifier = Modifier
@@ -700,13 +700,13 @@ fun BudgetsScreen(
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFF1F5F9)),
+                                    .background(ArcColors.SurfaceHighlight),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.PieChart,
                                     contentDescription = null,
-                                    tint = Color(0xFF94A3B8),
+                                    tint = ArcColors.TextSecondary,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
@@ -715,13 +715,13 @@ fun BudgetsScreen(
                                 text = "No category budgets configured",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = ArcColors.TextPrimary
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Create category envelopes below to set monthly spending caps.",
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B),
+                                color = ArcColors.TextSecondary,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -1069,15 +1069,15 @@ fun BudgetsScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFFF8FAFC),
-                        border = BorderStroke(1.5.dp, Color(0xFFE2E8F0))
+                        color = ArcColors.SurfaceHighlight,
+                        border = BorderStroke(1.5.dp, ArcColors.Border)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text(
                                 text = "MONTHLY SPENDING LIMIT",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF6B7280),
+                                color = ArcColors.TextSecondary,
                                 letterSpacing = 0.5.sp
                             )
 
@@ -1103,7 +1103,7 @@ fun BudgetsScreen(
                                     textStyle = TextStyle(
                                         fontSize = 28.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF111827)
+                                        color = ArcColors.TextPrimary
                                     ),
                                     cursorBrush = SolidColor(ArcColors.Primary),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -1125,11 +1125,11 @@ fun BudgetsScreen(
                                         modifier = Modifier
                                             .weight(1f)
                                             .clip(CircleShape)
-                                            .background(if (isSelected) Color(0xFFDCFCE7) else Color.White)
+                                            .background(if (isSelected) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7)) else ArcColors.CardBackground)
                                             .border(
                                                 BorderStroke(
                                                     1.dp,
-                                                    if (isSelected) ArcColors.Primary else Color(0xFFE2E8F0)
+                                                    if (isSelected) ArcColors.Primary else ArcColors.Border
                                                 ),
                                                 CircleShape
                                             )
@@ -1140,7 +1140,7 @@ fun BudgetsScreen(
                                             text = label,
                                             fontSize = 11.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) ArcColors.Primary else Color(0xFF334155),
+                                            color = if (isSelected) ArcColors.Primary else ArcColors.TextPrimary,
                                             modifier = Modifier.padding(vertical = 6.dp)
                                         )
                                     }
@@ -1155,8 +1155,8 @@ fun BudgetsScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFFF8FAFC),
-                        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                        color = ArcColors.SurfaceHighlight,
+                        border = BorderStroke(1.dp, ArcColors.Border)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             val currentCapVal = capAmountText.toDoubleOrNull() ?: 50000.0
@@ -1496,12 +1496,12 @@ fun BudgetsScreen(
                                 text = "Delete Budget?",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = ArcColors.TextPrimary
                             )
                             Text(
                                 text = "Remove spending cap for ${budget.name}",
                                 fontSize = 11.5.sp,
-                                color = Color(0xFF64748B)
+                                color = ArcColors.TextSecondary
                             )
                         }
                     }
@@ -1509,7 +1509,7 @@ fun BudgetsScreen(
                     Text(
                         text = "Are you sure you want to delete this budget limit? Your transactions and spending records will remain completely untouched.",
                         fontSize = 12.5.sp,
-                        color = Color(0xFF475569),
+                        color = ArcColors.TextSecondary,
                         lineHeight = 17.sp
                     )
 
@@ -1520,12 +1520,12 @@ fun BudgetsScreen(
                         OutlinedButton(
                             onClick = { deletingBudget = null },
                             shape = CircleShape,
-                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                            border = BorderStroke(1.dp, ArcColors.Border),
                             modifier = Modifier
                                 .weight(1f)
                                 .height(44.dp)
                         ) {
-                            Text("Cancel", color = Color(0xFF475569), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Text("Cancel", color = ArcColors.TextSecondary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                         }
 
                         Button(
@@ -1617,14 +1617,14 @@ private fun CategoryEnvelopeCard(
                         text = title,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827),
+                        color = ArcColors.TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "Monthly Envelope",
                         fontSize = 11.sp,
-                        color = Color(0xFF6B7280),
+                        color = ArcColors.TextSecondary,
                         maxLines = 1
                     )
                 }
@@ -1654,7 +1654,7 @@ private fun CategoryEnvelopeCard(
                     Icon(
                         imageVector = Icons.Outlined.Edit,
                         contentDescription = "Edit",
-                        tint = Color(0xFF6B7280),
+                        tint = ArcColors.TextSecondary,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -1666,7 +1666,7 @@ private fun CategoryEnvelopeCard(
                     Icon(
                         imageVector = Icons.Outlined.DeleteOutline,
                         contentDescription = "Delete",
-                        tint = Color(0xFF6B7280),
+                        tint = ArcColors.TextSecondary,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -1683,12 +1683,12 @@ private fun CategoryEnvelopeCard(
                     text = "₹${formatCurrency(spent)}",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
+                    color = ArcColors.TextPrimary
                 )
                 Text(
                     text = " / ₹${formatCurrency(limit)}",
                     fontSize = 12.sp,
-                    color = Color(0xFF6B7280)
+                    color = ArcColors.TextSecondary
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
@@ -1709,7 +1709,7 @@ private fun CategoryEnvelopeCard(
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF3F4F6))
+                    .background(ArcColors.Border)
             ) {
                 Box(
                     modifier = Modifier
