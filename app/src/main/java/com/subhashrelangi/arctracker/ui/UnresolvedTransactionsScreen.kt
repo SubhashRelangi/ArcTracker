@@ -40,6 +40,7 @@ import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
 import com.subhashrelangi.arctracker.service.AccountReconciliationManager
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.review.ArcColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -48,13 +49,29 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val emeraldPrimary = Color(0xFF047857)
-private val emeraldLight = Color(0xFFECFDF5)
-private val emeraldBorder = Color(0xFFA7F3D0)
-private val slateTitle = Color(0xFF0F172A)
-private val slateSub = Color(0xFF64748B)
-private val cardBorder = Color(0xFFE2E8F0)
-private val lightBg = Color(0xFFF8FAFC)
+private val emeraldPrimary: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Primary
+
+private val emeraldLight: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.PrimaryLight
+
+private val emeraldBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.PrimaryBorder
+
+private val slateTitle: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+
+private val slateSub: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+
+private val cardBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Border
+
+private val lightBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Background
+
+private val cardBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
 
 enum class UnresolvedFilter {
     ALL,
@@ -108,10 +125,10 @@ fun UnresolvedTransactionsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Surface(
-                color = Color.White,
+                color = lightBg,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(lightBg)
             ) {
                 ArcTrackerHeader(
                     title = if (isSelectionMode) "${selectedExpenseIds.size} Selected" else "Unresolved Transactions",
@@ -126,7 +143,7 @@ fun UnresolvedTransactionsScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(lightBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
@@ -135,7 +152,7 @@ fun UnresolvedTransactionsScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(if (isSelectionMode) emeraldPrimary else Color.White)
+                                    .background(if (isSelectionMode) emeraldPrimary else cardBg)
                                     .border(
                                         BorderStroke(1.dp, if (isSelectionMode) emeraldPrimary else cardBorder),
                                         CircleShape
@@ -162,7 +179,7 @@ fun UnresolvedTransactionsScreen(
             if (isSelectionMode && selectedExpenseIds.isNotEmpty()) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color.White,
+                    color = cardBg,
                     border = BorderStroke(1.dp, cardBorder)
                 ) {
                     Row(
@@ -176,7 +193,7 @@ fun UnresolvedTransactionsScreen(
                         OutlinedButton(
                             onClick = { selectedExpenseIds = emptySet() },
                             border = BorderStroke(1.dp, cardBorder),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = CircleShape,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(46.dp)
@@ -192,7 +209,7 @@ fun UnresolvedTransactionsScreen(
                         Button(
                             onClick = { showBulkAssignDialog = true },
                             colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = CircleShape,
                             modifier = Modifier
                                 .weight(2f)
                                 .height(46.dp)
@@ -314,7 +331,7 @@ fun UnresolvedTransactionsScreen(
                         // Multi-Selection Controller Bar (When in Selection Mode)
                         if (isSelectionMode) {
                             Surface(
-                                color = Color.White,
+                                color = cardBg,
                                 shape = RoundedCornerShape(12.dp),
                                 border = BorderStroke(1.dp, cardBorder),
                                 modifier = Modifier.fillMaxWidth()
@@ -381,7 +398,7 @@ fun UnresolvedTransactionsScreen(
                             // Vault Overview Info Card (Normal Mode)
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
-                                color = Color.White,
+                                color = cardBg,
                                 border = BorderStroke(1.dp, cardBorder),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -418,7 +435,7 @@ fun UnresolvedTransactionsScreen(
                                             Box(
                                                 modifier = Modifier
                                                     .clip(RoundedCornerShape(6.dp))
-                                                    .background(Color(0xFFF1F5F9))
+                                                    .background(ArcColors.SurfaceHighlight)
                                                     .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(6.dp))
                                                     .padding(horizontal = 6.dp, vertical = 2.dp),
                                                 contentAlignment = Alignment.Center
@@ -450,7 +467,7 @@ fun UnresolvedTransactionsScreen(
                     item(key = "empty_state") {
                         Surface(
                             shape = RoundedCornerShape(18.dp),
-                            color = Color.White,
+                            color = cardBg,
                             border = BorderStroke(1.dp, cardBorder),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -603,7 +620,7 @@ private fun ArcUnresolvedFilterPill(
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(if (isSelected) emeraldPrimary else Color(0xFFF1F5F9))
+            .background(if (isSelected) emeraldPrimary else ArcColors.SurfaceHighlight)
             .border(
                 BorderStroke(1.dp, if (isSelected) emeraldPrimary else cardBorder),
                 RoundedCornerShape(999.dp)
@@ -636,7 +653,7 @@ fun UnresolvedTransactionCard(
 
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = if (isSelected) Color(0xFFF0FDF4) else Color.White,
+        color = if (isSelected) emeraldLight else cardBg,
         border = BorderStroke(
             if (isSelected) 1.5.dp else 1.dp,
             if (isSelected) emeraldPrimary else cardBorder
@@ -664,7 +681,7 @@ fun UnresolvedTransactionCard(
                         onCheckedChange = { onToggleSelection() },
                         colors = CheckboxDefaults.colors(
                             checkedColor = emeraldPrimary,
-                            uncheckedColor = Color(0xFF94A3B8)
+                            uncheckedColor = slateSub
                         ),
                         modifier = Modifier.padding(end = 6.dp)
                     )
@@ -674,7 +691,7 @@ fun UnresolvedTransactionCard(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(if (isCredit) emeraldLight else Color(0xFFF1F5F9)),
+                        .background(if (isCredit) emeraldLight else ArcColors.SurfaceHighlight),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -734,7 +751,7 @@ fun UnresolvedTransactionCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFF1F5F9))
+                            .background(ArcColors.SurfaceHighlight)
                             .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(6.dp))
                             .padding(horizontal = 7.dp, vertical = 3.dp),
                         contentAlignment = Alignment.Center
@@ -743,7 +760,7 @@ fun UnresolvedTransactionCard(
                             Icon(
                                 imageVector = Icons.Outlined.CreditCard,
                                 contentDescription = null,
-                                tint = Color(0xFF475569),
+                                tint = slateSub,
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -751,7 +768,7 @@ fun UnresolvedTransactionCard(
                                 text = "••${expense.accountSuffix}",
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF334155),
+                                color = slateTitle,
                                 maxLines = 1
                             )
                         }
@@ -760,8 +777,8 @@ fun UnresolvedTransactionCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFFEF3C7))
-                            .border(BorderStroke(1.dp, Color(0xFFFDE68A)), RoundedCornerShape(6.dp))
+                            .background(Color(0xFFFEF3C7).copy(alpha = 0.2f))
+                            .border(BorderStroke(1.dp, Color(0xFFFDE68A).copy(alpha = 0.4f)), RoundedCornerShape(6.dp))
                             .padding(horizontal = 7.dp, vertical = 3.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -769,7 +786,7 @@ fun UnresolvedTransactionCard(
                             Icon(
                                 imageVector = Icons.Outlined.WarningAmber,
                                 contentDescription = null,
-                                tint = Color(0xFFB45309),
+                                tint = Color(0xFFF59E0B),
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -777,7 +794,7 @@ fun UnresolvedTransactionCard(
                                 text = "No Suffix Detected",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFB45309),
+                                color = Color(0xFFF59E0B),
                                 maxLines = 1
                             )
                         }
@@ -787,7 +804,7 @@ fun UnresolvedTransactionCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFFF8FAFC))
+                        .background(ArcColors.SurfaceHighlight)
                         .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(6.dp))
                         .padding(horizontal = 7.dp, vertical = 3.dp),
                     contentAlignment = Alignment.Center
@@ -815,7 +832,7 @@ fun UnresolvedTransactionCard(
                 Spacer(modifier = Modifier.height(10.dp))
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFF8FAFC),
+                    color = ArcColors.SurfaceHighlight,
                     border = BorderStroke(1.dp, cardBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -824,7 +841,7 @@ fun UnresolvedTransactionCard(
                         text = "\"${rawClean.take(110)}${if (rawClean.length > 110) "..." else ""}\"",
                         fontSize = 11.5.sp,
                         fontStyle = FontStyle.Italic,
-                        color = Color(0xFF475569),
+                        color = slateSub,
                         lineHeight = 16.sp,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
                     )
@@ -840,11 +857,11 @@ fun UnresolvedTransactionCard(
                 ) {
                     OutlinedButton(
                         onClick = onIgnoreClick,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         border = BorderStroke(1.dp, cardBorder),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color(0xFFF8FAFC),
-                            contentColor = Color(0xFF475569)
+                            containerColor = ArcColors.SurfaceHighlight,
+                            contentColor = slateSub
                         ),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                         modifier = Modifier.weight(1f)
@@ -860,13 +877,13 @@ fun UnresolvedTransactionCard(
                             text = "Ignore",
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF475569)
+                            color = slateSub
                         )
                     }
 
                     Button(
                         onClick = onAssignClick,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = emeraldLight,
                             contentColor = emeraldPrimary
@@ -915,7 +932,7 @@ private fun ArcAccountAssignmentDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = Color.White,
+            color = cardBg,
             border = BorderStroke(1.dp, cardBorder),
             shadowElevation = 0.dp,
             modifier = Modifier
@@ -987,7 +1004,7 @@ private fun ArcAccountAssignmentDialog(
                             val isSelected = selectedAccount?.id == account.id
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (isSelected) Color(0xFFF0FDF4) else Color(0xFFF8FAFC),
+                                color = if (isSelected) emeraldLight else ArcColors.SurfaceHighlight,
                                 border = BorderStroke(
                                     1.dp,
                                     if (isSelected) emeraldPrimary else cardBorder
@@ -1012,13 +1029,13 @@ private fun ArcAccountAssignmentDialog(
                                             modifier = Modifier
                                                 .size(36.dp)
                                                 .clip(RoundedCornerShape(10.dp))
-                                                .background(if (isSelected) emeraldLight else Color(0xFFE2E8F0)),
+                                                .background(if (isSelected) emeraldLight else cardBg),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Outlined.AccountBalance,
                                                 contentDescription = null,
-                                                tint = if (isSelected) emeraldPrimary else Color(0xFF475569),
+                                                tint = if (isSelected) emeraldPrimary else slateSub,
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -1045,10 +1062,10 @@ private fun ArcAccountAssignmentDialog(
                                         modifier = Modifier
                                             .size(20.dp)
                                             .clip(CircleShape)
-                                            .background(if (isSelected) emeraldPrimary else Color.White)
+                                            .background(if (isSelected) emeraldPrimary else cardBg)
                                             .border(
                                                 width = if (isSelected) 0.dp else 1.5.dp,
-                                                color = if (isSelected) emeraldPrimary else Color(0xFFCBD5E1),
+                                                color = if (isSelected) emeraldPrimary else cardBorder,
                                                 shape = CircleShape
                                             ),
                                         contentAlignment = Alignment.Center
@@ -1077,7 +1094,7 @@ private fun ArcAccountAssignmentDialog(
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         modifier = Modifier.weight(1f),
                         border = BorderStroke(1.dp, cardBorder)
                     ) {
@@ -1089,7 +1106,7 @@ private fun ArcAccountAssignmentDialog(
                             selectedAccount?.let { onConfirm(it) }
                         },
                         enabled = selectedAccount != null,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         modifier = Modifier.weight(1.3f),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = emeraldPrimary,

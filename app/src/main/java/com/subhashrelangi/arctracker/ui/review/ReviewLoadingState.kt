@@ -29,6 +29,8 @@ fun ReviewLoadingState(modifier: Modifier = Modifier) {
         label = "alpha"
     )
 
+    val shimmerBase = ArcColors.TextPrimary
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -38,8 +40,8 @@ fun ReviewLoadingState(modifier: Modifier = Modifier) {
         repeat(2) {
             Surface(
                 shape = ArcShapes.Card,
-                color = ArcColors.SurfaceCard,
-                border = BorderStroke(1.dp, ArcColors.SurfaceCardBorder),
+                color = ArcColors.CardBackground,
+                border = BorderStroke(1.dp, ArcColors.Border),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
@@ -59,7 +61,7 @@ fun ReviewLoadingState(modifier: Modifier = Modifier) {
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(RoundedCornerShape(21.dp))
-                                    .background(Color.White.copy(alpha = alpha))
+                                    .background(shimmerBase.copy(alpha = alpha * 0.15f))
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
@@ -67,14 +69,14 @@ fun ReviewLoadingState(modifier: Modifier = Modifier) {
                                     modifier = Modifier
                                         .size(width = 120.dp, height = 18.dp)
                                         .clip(RoundedCornerShape(4.dp))
-                                        .background(Color.White.copy(alpha = alpha))
+                                        .background(shimmerBase.copy(alpha = alpha * 0.15f))
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Box(
                                     modifier = Modifier
                                         .size(width = 160.dp, height = 12.dp)
                                         .clip(RoundedCornerShape(4.dp))
-                                        .background(Color.White.copy(alpha = alpha * 0.7f))
+                                        .background(shimmerBase.copy(alpha = alpha * 0.10f))
                                 )
                             }
                         }
@@ -83,7 +85,7 @@ fun ReviewLoadingState(modifier: Modifier = Modifier) {
                             modifier = Modifier
                                 .size(width = 80.dp, height = 22.dp)
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Color.White.copy(alpha = alpha))
+                                .background(shimmerBase.copy(alpha = alpha * 0.15f))
                         )
                     }
 
@@ -92,13 +94,13 @@ fun ReviewLoadingState(modifier: Modifier = Modifier) {
                             modifier = Modifier
                                 .size(width = 100.dp, height = 26.dp)
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(Color.White.copy(alpha = alpha * 0.6f))
+                                .background(shimmerBase.copy(alpha = alpha * 0.10f))
                         )
                         Box(
                             modifier = Modifier
                                 .size(width = 90.dp, height = 26.dp)
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(Color.White.copy(alpha = alpha * 0.6f))
+                                .background(shimmerBase.copy(alpha = alpha * 0.10f))
                         )
                     }
 
@@ -107,7 +109,7 @@ fun ReviewLoadingState(modifier: Modifier = Modifier) {
                             .fillMaxWidth()
                             .height(44.dp)
                             .clip(RoundedCornerShape(22.dp))
-                            .background(Color.White.copy(alpha = alpha * 0.8f))
+                            .background(shimmerBase.copy(alpha = alpha * 0.12f))
                     )
                 }
             }

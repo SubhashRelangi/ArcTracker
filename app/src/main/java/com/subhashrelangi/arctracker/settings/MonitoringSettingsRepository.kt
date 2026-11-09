@@ -3,6 +3,9 @@ package com.subhashrelangi.arctracker.settings
 import android.content.Context
 import android.content.SharedPreferences
 import com.subhashrelangi.arctracker.security.SecureLogger
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Authoritative repository interface for managing ArcTracker's monitoring settings.
@@ -199,6 +202,16 @@ interface MonitoringSettingsRepository {
     fun setProfileLabel(label: String) {}
 
     /**
+     * Observable reactive stream of the user's profile display name.
+     */
+    fun getProfileNameFlow(): StateFlow<String> = MutableStateFlow(getProfileName())
+
+    /**
+     * Observable reactive stream of the user's profile subtitle / vault label.
+     */
+    fun getProfileLabelFlow(): StateFlow<String> = MutableStateFlow(getProfileLabel())
+
+    /**
      * Returns whether developer options are unlocked by the user.
      */
     fun isDeveloperModeUnlocked(): Boolean = false
@@ -207,6 +220,21 @@ interface MonitoringSettingsRepository {
      * Sets whether developer options are unlocked by the user.
      */
     fun setDeveloperModeUnlocked(unlocked: Boolean) {}
+
+    /**
+     * Retrieves the current appearance theme mode (SYSTEM, LIGHT, or DARK).
+     */
+    fun getThemeMode(): AppThemeMode = AppThemeMode.SYSTEM
+
+    /**
+     * Persists the user's selected appearance theme mode.
+     */
+    fun setThemeMode(mode: AppThemeMode) {}
+
+    /**
+     * Reactive stream of the user's selected appearance theme mode.
+     */
+    val themeModeFlow: StateFlow<AppThemeMode> get() = MutableStateFlow(AppThemeMode.SYSTEM)
 
     companion object {
         const val PREFS_NAME = "ArcTrackerPrefs"
@@ -224,6 +252,7 @@ interface MonitoringSettingsRepository {
         const val KEY_PROFILE_NAME = "user_profile_name"
         const val KEY_PROFILE_LABEL = "user_profile_label"
         const val KEY_DEVELOPER_MODE_UNLOCKED = "developer_mode_unlocked"
+        const val KEY_APP_THEME_MODE = "app_theme_mode"
 
         @Volatile
         private var INSTANCE: MonitoringSettingsRepository? = null
@@ -233,7 +262,29 @@ interface MonitoringSettingsRepository {
          */
         fun getInstance(context: Context): MonitoringSettingsRepository {
             return INSTANCE ?: synchronized(this) {
-                val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val appContext = context.applicationContext
+                val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+                // Verify install timestamp: if fresh install or re-install, guarantee initial setup page is presented
+                try {
+                    val packageInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        appContext.packageManager.getPackageInfo(appContext.packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        appContext.packageManager.getPackageInfo(appContext.packageName, 0)
+                    }
+                    val currentInstallTime = packageInfo.firstInstallTime
+                    val recordedInstallTime = prefs.getLong("last_recorded_install_time", 0L)
+                    if (recordedInstallTime != currentInstallTime) {
+                        prefs.edit()
+                            .putLong("last_recorded_install_time", currentInstallTime)
+                            .putBoolean(KEY_INITIAL_ONBOARDING_COMPLETED, false)
+                            .putBoolean(KEY_IS_DEMO_MODE, false)
+                            .putBoolean(KEY_SETUP_IN_PROGRESS, false)
+                            .commit()
+                    }
+                } catch (_: Exception) {}
+
                 val instance = SharedPreferencesMonitoringSettingsRepository(prefs)
                 INSTANCE = instance
                 instance
@@ -563,22 +614,56 @@ class SharedPreferencesMonitoringSettingsRepository(
             .commit()
     }
 
+    private val _profileNameFlow = MutableStateFlow(
+        prefs.getString(MonitoringSettingsRepository.KEY_PROFILE_NAME, null)?.takeIf { it.isNotBlank() } ?: "Personal Wallet"
+    )
+    private val _profileLabelFlow = MutableStateFlow(
+        prefs.getString(MonitoringSettingsRepository.KEY_PROFILE_LABEL, null)?.takeIf { it.isNotBlank() } ?: "Primary Offline Vault"
+    )
+
+    override fun getProfileNameFlow(): StateFlow<String> = _profileNameFlow.asStateFlow()
+    override fun getProfileLabelFlow(): StateFlow<String> = _profileLabelFlow.asStateFlow()
+
     override fun getProfileName(): String = synchronized(lock) {
         val name = prefs.getString(MonitoringSettingsRepository.KEY_PROFILE_NAME, null)
-        if (name.isNullOrBlank() || name == "Subhash Relangi") "Personal Wallet" else name
+        if (name.isNullOrBlank()) "Personal Wallet" else name
     }
 
     override fun setProfileName(name: String): Unit = synchronized(lock) {
-        prefs.edit().putString(MonitoringSettingsRepository.KEY_PROFILE_NAME, name.trim()).apply()
+        val trimmed = name.trim().ifBlank { "Personal Wallet" }
+        prefs.edit().putString(MonitoringSettingsRepository.KEY_PROFILE_NAME, trimmed).commit()
+        _profileNameFlow.value = trimmed
     }
 
     override fun getProfileLabel(): String = synchronized(lock) {
         val label = prefs.getString(MonitoringSettingsRepository.KEY_PROFILE_LABEL, null)
-        if (label.isNullOrBlank() || label == "subhashrelangi@gmail.com") "Primary Offline Vault" else label
+        if (label.isNullOrBlank()) "Primary Offline Vault" else label
     }
 
     override fun setProfileLabel(label: String): Unit = synchronized(lock) {
-        prefs.edit().putString(MonitoringSettingsRepository.KEY_PROFILE_LABEL, label.trim()).apply()
+        val trimmed = label.trim().ifBlank { "Primary Offline Vault" }
+        prefs.edit().putString(MonitoringSettingsRepository.KEY_PROFILE_LABEL, trimmed).commit()
+        _profileLabelFlow.value = trimmed
+    }
+
+    private val _themeModeFlow = MutableStateFlow(
+        AppThemeMode.fromString(
+            prefs.getString(
+                MonitoringSettingsRepository.KEY_APP_THEME_MODE,
+                AppThemeMode.SYSTEM.name
+            )
+        )
+    )
+
+    override val themeModeFlow: StateFlow<AppThemeMode> get() = _themeModeFlow.asStateFlow()
+
+    override fun getThemeMode(): AppThemeMode = synchronized(lock) {
+        _themeModeFlow.value
+    }
+
+    override fun setThemeMode(mode: AppThemeMode): Unit = synchronized(lock) {
+        prefs.edit().putString(MonitoringSettingsRepository.KEY_APP_THEME_MODE, mode.name).commit()
+        _themeModeFlow.value = mode
     }
 
     override fun isDeveloperModeUnlocked(): Boolean = synchronized(lock) {
@@ -774,12 +859,20 @@ class InMemoryMonitoringSettingsRepository(
     private var profileName: String = "Personal Wallet"
     private var profileLabel: String = "Primary Offline Vault"
 
+    private val _profileNameFlow = MutableStateFlow(profileName)
+    private val _profileLabelFlow = MutableStateFlow(profileLabel)
+
+    override fun getProfileNameFlow(): StateFlow<String> = _profileNameFlow.asStateFlow()
+    override fun getProfileLabelFlow(): StateFlow<String> = _profileLabelFlow.asStateFlow()
+
     override fun getProfileName(): String = synchronized(lock) {
         profileName
     }
 
     override fun setProfileName(name: String): Unit = synchronized(lock) {
-        profileName = name.trim()
+        val trimmed = name.trim().ifBlank { "Personal Wallet" }
+        profileName = trimmed
+        _profileNameFlow.value = trimmed
     }
 
     override fun getProfileLabel(): String = synchronized(lock) {
@@ -787,7 +880,21 @@ class InMemoryMonitoringSettingsRepository(
     }
 
     override fun setProfileLabel(label: String): Unit = synchronized(lock) {
-        profileLabel = label.trim()
+        val trimmed = label.trim().ifBlank { "Primary Offline Vault" }
+        profileLabel = trimmed
+        _profileLabelFlow.value = trimmed
+    }
+
+    private var themeMode: AppThemeMode = AppThemeMode.SYSTEM
+    private val _themeModeFlow = MutableStateFlow(AppThemeMode.SYSTEM)
+
+    override val themeModeFlow: StateFlow<AppThemeMode> get() = _themeModeFlow.asStateFlow()
+
+    override fun getThemeMode(): AppThemeMode = synchronized(lock) { themeMode }
+
+    override fun setThemeMode(mode: AppThemeMode): Unit = synchronized(lock) {
+        themeMode = mode
+        _themeModeFlow.value = mode
     }
 
     private var isDeveloperModeUnlocked: Boolean = false

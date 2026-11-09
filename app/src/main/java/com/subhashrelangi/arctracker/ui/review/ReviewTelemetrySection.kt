@@ -115,7 +115,7 @@ private fun TelemetryItem(label: String, value: String) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = label,
-            color = Color(0xFF64748B),
+            color = ArcColors.TextMuted,
             fontSize = 9.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,
@@ -123,7 +123,7 @@ private fun TelemetryItem(label: String, value: String) {
         )
         Text(
             text = value,
-            color = Color(0xFFCBD5E1),
+            color = ArcColors.TextPrimary,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
             lineHeight = 15.sp

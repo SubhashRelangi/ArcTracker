@@ -33,18 +33,35 @@ import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
 import com.subhashrelangi.arctracker.service.AccountReconciliationManager
 import com.subhashrelangi.arctracker.service.InstrumentType
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.review.ArcColors
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val emeraldPrimary = Color(0xFF047857)
-private val emeraldLight = Color(0xFFECFDF5)
-private val emeraldBorder = Color(0xFFA7F3D0)
-private val slateTitle = Color(0xFF0F172A)
-private val slateSub = Color(0xFF64748B)
-private val cardBorder = Color(0xFFE2E8F0)
-private val lightBg = Color(0xFFF8FAFC)
+private val emeraldPrimary: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Primary
+
+private val emeraldLight: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.PrimaryLight
+
+private val emeraldBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.PrimaryBorder
+
+private val slateTitle: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+
+private val slateSub: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+
+private val cardBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Border
+
+private val lightBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Background
+
+private val cardBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,10 +113,10 @@ fun AccountTransactionsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Surface(
-                color = Color.White,
+                color = lightBg,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(lightBg)
             ) {
                 ArcTrackerHeader(
                     title = if (isSelectionMode) "${selectedExpenseIds.size} Selected" else (account?.institutionName ?: "Account Ledger"),
@@ -118,7 +135,7 @@ fun AccountTransactionsScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(lightBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
@@ -127,7 +144,7 @@ fun AccountTransactionsScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(if (isSelectionMode) emeraldPrimary else Color.White)
+                                    .background(if (isSelectionMode) emeraldPrimary else cardBg)
                                     .border(
                                         BorderStroke(1.dp, if (isSelectionMode) emeraldPrimary else cardBorder),
                                         CircleShape
@@ -156,7 +173,7 @@ fun AccountTransactionsScreen(
             if (isSelectionMode && selectedExpenseIds.isNotEmpty()) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color.White,
+                    color = cardBg,
                     border = BorderStroke(1.dp, cardBorder)
                 ) {
                     Row(
@@ -169,9 +186,9 @@ fun AccountTransactionsScreen(
                     ) {
                         OutlinedButton(
                             onClick = { showBulkUnlinkConfirmDialog = true },
-                            border = BorderStroke(1.dp, Color(0xFFFECACA)),
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFFEF2F2)),
-                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, ArcColors.DangerBorder),
+                            colors = ButtonDefaults.outlinedButtonColors(containerColor = ArcColors.DangerContainer),
+                            shape = CircleShape,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(46.dp)
@@ -179,7 +196,7 @@ fun AccountTransactionsScreen(
                             Icon(
                                 imageVector = Icons.Outlined.DeleteOutline,
                                 contentDescription = null,
-                                tint = Color(0xFFDC2626),
+                                tint = ArcColors.Danger,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -194,7 +211,7 @@ fun AccountTransactionsScreen(
                         Button(
                             onClick = { showBulkReassignPicker = true },
                             colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = CircleShape,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(46.dp)
@@ -230,7 +247,7 @@ fun AccountTransactionsScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     shape = RoundedCornerShape(16.dp),
-                    color = Color.White,
+                    color = cardBg,
                     border = BorderStroke(1.dp, cardBorder)
                 ) {
                     Row(
@@ -300,7 +317,7 @@ fun AccountTransactionsScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 6.dp),
                     shape = RoundedCornerShape(12.dp),
-                    color = Color.White,
+                    color = cardBg,
                     border = BorderStroke(1.dp, cardBorder)
                 ) {
                     Row(
@@ -412,7 +429,7 @@ fun AccountTransactionsScreen(
         AlertDialog(
             onDismissRequest = { showBulkReassignPicker = false },
             shape = RoundedCornerShape(20.dp),
-            containerColor = Color.White,
+            containerColor = cardBg,
             title = {
                 Text(
                     text = "Reassign ${selectedExpenseIds.size} Transactions",
@@ -436,7 +453,7 @@ fun AccountTransactionsScreen(
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFFF1F5F9)
+                            color = ArcColors.SurfaceHighlight
                         ) {
                             Text(
                                 text = "No other registered financial accounts found.",
@@ -459,7 +476,7 @@ fun AccountTransactionsScreen(
                                         .fillMaxWidth()
                                         .clickable { tempBulkTarget = candidate },
                                     shape = RoundedCornerShape(12.dp),
-                                    color = if (isSelected) emeraldLight else Color(0xFFF8FAFC),
+                                    color = if (isSelected) emeraldLight else ArcColors.SurfaceHighlight,
                                     border = BorderStroke(
                                         1.dp,
                                         if (isSelected) emeraldPrimary else cardBorder
@@ -513,7 +530,7 @@ fun AccountTransactionsScreen(
                     },
                     enabled = tempBulkTarget != null,
                     colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = CircleShape
                 ) {
                     Text("Continue", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
@@ -530,7 +547,7 @@ fun AccountTransactionsScreen(
             AlertDialog(
                 onDismissRequest = { showBulkReassignConfirmDialog = false },
                 shape = RoundedCornerShape(20.dp),
-                containerColor = Color.White,
+                containerColor = cardBg,
                 title = {
                     Text(
                         text = "Confirm Bulk Reassignment",
@@ -582,7 +599,7 @@ fun AccountTransactionsScreen(
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = CircleShape
                     ) {
                         Text("Confirm Reassignment", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
@@ -601,7 +618,7 @@ fun AccountTransactionsScreen(
         AlertDialog(
             onDismissRequest = { showBulkUnlinkConfirmDialog = false },
             shape = RoundedCornerShape(20.dp),
-            containerColor = Color.White,
+            containerColor = cardBg,
             title = {
                 Text(
                     text = "Unlink ${selectedExpenseIds.size} Transactions?",
@@ -635,7 +652,7 @@ fun AccountTransactionsScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = CircleShape
                 ) {
                     Text("Unlink Records", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
@@ -659,7 +676,7 @@ fun AccountTransactionsScreen(
                     singleNewAccountSelected = null
                 },
                 shape = RoundedCornerShape(20.dp),
-                containerColor = Color.White,
+                containerColor = cardBg,
                 title = {
                     Text(
                         text = "Change Account Link",
@@ -686,7 +703,7 @@ fun AccountTransactionsScreen(
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFFF1F5F9)
+                                color = ArcColors.SurfaceHighlight
                             ) {
                                 Text(
                                     text = "No other registered accounts found.",
@@ -709,7 +726,7 @@ fun AccountTransactionsScreen(
                                             .fillMaxWidth()
                                             .clickable { singleNewAccountSelected = candidate },
                                         shape = RoundedCornerShape(12.dp),
-                                        color = if (isSelected) emeraldLight else Color(0xFFF8FAFC),
+                                        color = if (isSelected) emeraldLight else ArcColors.SurfaceHighlight,
                                         border = BorderStroke(
                                             1.dp,
                                             if (isSelected) emeraldPrimary else cardBorder
@@ -762,7 +779,7 @@ fun AccountTransactionsScreen(
                         },
                         enabled = singleNewAccountSelected != null,
                         colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = CircleShape
                     ) {
                         Text("Continue", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
@@ -782,7 +799,7 @@ fun AccountTransactionsScreen(
                 AlertDialog(
                     onDismissRequest = { showSingleReassignConfirmDialog = false },
                     shape = RoundedCornerShape(20.dp),
-                    containerColor = Color.White,
+                    containerColor = cardBg,
                     title = {
                         Text(
                             text = "Confirm Account Change",
@@ -828,7 +845,7 @@ fun AccountTransactionsScreen(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = CircleShape
                         ) {
                             Text("Reassign Account", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
@@ -848,7 +865,7 @@ fun AccountTransactionsScreen(
         AlertDialog(
             onDismissRequest = { expenseToUnlink = null },
             shape = RoundedCornerShape(20.dp),
-            containerColor = Color.White,
+            containerColor = cardBg,
             title = {
                 Text(
                     text = "Unlink Account?",
@@ -880,7 +897,7 @@ fun AccountTransactionsScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = CircleShape
                 ) {
                     Text("Unlink Account", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
@@ -946,8 +963,8 @@ fun LinkedTransactionCard(
         }
     }
 
-    val iconBgColor = if (isCredit) Color(0xFFECFDF5) else Color(0xFFF1F5F9)
-    val iconTint = if (isCredit) Color(0xFF047857) else Color(0xFF0F172A)
+    val iconBgColor = if (isCredit) emeraldLight else ArcColors.SurfaceHighlight
+    val iconTint = if (isCredit) emeraldPrimary else slateTitle
 
     val formattedAmount = remember(expense.amount) {
         if (expense.amount % 1.0 == 0.0) {
@@ -963,7 +980,7 @@ fun LinkedTransactionCard(
             .fillMaxWidth()
             .clickable(enabled = isSelectionMode) { onToggleSelection() },
         shape = RoundedCornerShape(16.dp),
-        color = if (isSelected) emeraldLight else Color.White,
+        color = if (isSelected) emeraldLight else cardBg,
         border = BorderStroke(1.dp, if (isSelected) emeraldPrimary else cardBorder)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -1033,7 +1050,7 @@ fun LinkedTransactionCard(
                     Spacer(modifier = Modifier.height(2.dp))
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = if (isCredit) emeraldLight else Color(0xFFF1F5F9)
+                        color = if (isCredit) emeraldLight else ArcColors.SurfaceHighlight
                     ) {
                         Text(
                             text = if (isCredit) "Deposit" else "Linked",
@@ -1048,7 +1065,7 @@ fun LinkedTransactionCard(
 
             // Sleek Action Footer Bar (Normal Mode)
             if (!isSelectionMode) {
-                HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                HorizontalDivider(color = cardBorder, thickness = 1.dp)
 
                 Row(
                     modifier = Modifier
@@ -1092,8 +1109,8 @@ fun LinkedTransactionCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFFEF2F2))
-                            .border(BorderStroke(1.dp, Color(0xFFFECACA)), RoundedCornerShape(8.dp))
+                            .background(ArcColors.DangerContainer)
+                            .border(BorderStroke(1.dp, ArcColors.DangerBorder), RoundedCornerShape(8.dp))
                             .clickable { onUnlink() }
                             .padding(horizontal = 10.dp, vertical = 5.dp),
                         contentAlignment = Alignment.Center
@@ -1105,14 +1122,14 @@ fun LinkedTransactionCard(
                             Icon(
                                 imageVector = Icons.Outlined.DeleteOutline,
                                 contentDescription = null,
-                                tint = Color(0xFFDC2626),
+                                tint = ArcColors.Danger,
                                 modifier = Modifier.size(14.dp)
                             )
                             Text(
                                 text = "Unlink",
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFDC2626)
+                                color = ArcColors.Danger
                             )
                         }
                     }

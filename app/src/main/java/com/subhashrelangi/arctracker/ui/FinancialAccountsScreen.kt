@@ -51,12 +51,28 @@ import com.subhashrelangi.arctracker.service.IdentityConfidence
 import com.subhashrelangi.arctracker.service.InstrumentType
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.review.ArcColors
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
+
+private val slateTitle: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+
+private val slateSub: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+
+private val cardBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Border
+
+private val lightBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Background
+
+private val cardBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -174,19 +190,19 @@ fun FinancialAccountsScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color(0xFFF8FAFC),
+        containerColor = lightBg,
         topBar = {
             Surface(
-                color = Color.White,
-                shadowElevation = 0.5.dp,
+                color = lightBg,
+                shadowElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(lightBg)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(lightBg)
                         .statusBarsPadding()
                 ) {
                     ArcTrackerHeader(
@@ -201,15 +217,15 @@ fun FinancialAccountsScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White)
-                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                    .background(cardBg)
+                                    .border(BorderStroke(1.dp, cardBorder), CircleShape)
                                     .clickable { showAddAccountDialog = true },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Add,
                                     contentDescription = "Add Account Manually",
-                                    tint = Color(0xFF0F172A),
+                                    tint = slateTitle,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -306,8 +322,8 @@ fun FinancialAccountsScreen(
                             .fillMaxWidth()
                             .clickable { onNavigateToUnresolved() },
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        colors = CardDefaults.cardColors(containerColor = cardBg),
+                        border = BorderStroke(1.dp, cardBorder),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Row(
@@ -319,7 +335,7 @@ fun FinancialAccountsScreen(
                             Icon(
                                 imageVector = Icons.Filled.CheckCircle,
                                 contentDescription = "Synced",
-                                tint = Color(0xFF10B981),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
@@ -327,13 +343,13 @@ fun FinancialAccountsScreen(
                                 text = "All transactions reconciled to known accounts",
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF475569),
+                                color = slateSub,
                                 modifier = Modifier.weight(1f)
                             )
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                 contentDescription = null,
-                                tint = Color(0xFF94A3B8),
+                                tint = slateSub,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -375,14 +391,14 @@ fun FinancialAccountsScreen(
                             text = "Discovered Accounts",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(999.dp))
-                                .background(Color(0xFFF1F5F9))
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(999.dp))
+                                .background(ArcColors.SurfaceHighlight)
+                                .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(999.dp))
                                 .padding(horizontal = 8.dp, vertical = 3.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -390,7 +406,7 @@ fun FinancialAccountsScreen(
                                 text = "${accounts.size} Linked",
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF475569)
+                                color = slateSub
                             )
                         }
                     }
@@ -414,7 +430,7 @@ fun FinancialAccountsScreen(
                             Icon(
                                 imageVector = Icons.Outlined.SwapVert,
                                 contentDescription = "Reorder",
-                                tint = Color(0xFF475569),
+                                tint = slateSub,
                                 modifier = Modifier.size(17.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
@@ -422,7 +438,7 @@ fun FinancialAccountsScreen(
                                 text = "Reorder",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF475569)
+                                color = slateSub
                             )
                         }
                     }
@@ -511,20 +527,20 @@ fun FinancialAccountsScreen(
         AlertDialog(
             onDismissRequest = { accountToDelete = null },
             shape = RoundedCornerShape(20.dp),
-            containerColor = Color.White,
+            containerColor = cardBg,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFFEE2E2)),
+                            .background(ArcColors.DangerContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.DeleteOutline,
                             contentDescription = null,
-                            tint = Color(0xFFDC2626),
+                            tint = ArcColors.Danger,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -533,7 +549,7 @@ fun FinancialAccountsScreen(
                         text = "Delete ${account.institutionName ?: "Account"}?",
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp,
-                        color = Color(0xFF0F172A)
+                        color = slateTitle
                     )
                 }
             },
@@ -543,12 +559,12 @@ fun FinancialAccountsScreen(
                         text = "$targetTxnCount transaction(s) are currently mapped to ••••${account.accountSuffix}.",
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp,
-                        color = Color(0xFF0F172A)
+                        color = slateTitle
                     )
                     Text(
                         text = "Deleting this account removes it from the monitoring registry and safely returns its transactions to the unassigned triage list.",
                         fontSize = 12.sp,
-                        color = Color(0xFF64748B)
+                        color = slateSub
                     )
                 }
             },
@@ -569,19 +585,19 @@ fun FinancialAccountsScreen(
                             accountToDelete = null
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = RoundedCornerShape(10.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Danger),
+                    shape = CircleShape
                 ) {
-                    Text("Delete Account", fontWeight = FontWeight.Bold)
+                    Text("Delete Account", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
                 OutlinedButton(
                     onClick = { accountToDelete = null },
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, cardBorder)
                 ) {
-                    Text("Cancel", color = Color(0xFF475569))
+                    Text("Cancel", color = slateSub)
                 }
             }
         )
@@ -597,20 +613,20 @@ fun FinancialAccountsScreen(
         AlertDialog(
             onDismissRequest = { accountToMerge = null },
             shape = RoundedCornerShape(20.dp),
-            containerColor = Color.White,
+            containerColor = cardBg,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFF1F5F9)),
+                            .background(ArcColors.SurfaceHighlight),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.CallMerge,
                             contentDescription = null,
-                            tint = Color(0xFF0F172A),
+                            tint = slateTitle,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -619,7 +635,7 @@ fun FinancialAccountsScreen(
                         text = "Merge Account",
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp,
-                        color = Color(0xFF0F172A)
+                        color = slateTitle
                     )
                 }
             },
@@ -631,14 +647,14 @@ fun FinancialAccountsScreen(
                     Text(
                         text = "Consolidate transactions from ${sourceAccount.institutionName ?: "Source"} ••••${sourceAccount.accountSuffix} into a target account:",
                         fontSize = 13.sp,
-                        color = Color(0xFF64748B)
+                        color = slateSub
                     )
 
                     if (candidates.isEmpty()) {
                         Text(
                             text = "No other account available to merge into.",
                             fontSize = 12.sp,
-                            color = Color(0xFFDC2626)
+                            color = ArcColors.Danger
                         )
                     } else {
                         candidates.forEach { candidate ->
@@ -648,8 +664,8 @@ fun FinancialAccountsScreen(
                                     .fillMaxWidth()
                                     .clickable { targetSelected = candidate },
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (isChosen) Color(0xFFF8FAFC) else Color.White,
-                                border = BorderStroke(1.5.dp, if (isChosen) Color(0xFF0F172A) else Color(0xFFE2E8F0))
+                                color = if (isChosen) ArcColors.SurfaceHighlight else cardBg,
+                                border = BorderStroke(1.5.dp, if (isChosen) ArcColors.Primary else cardBorder)
                             ) {
                                 Row(
                                     modifier = Modifier.padding(12.dp),
@@ -658,7 +674,7 @@ fun FinancialAccountsScreen(
                                     RadioButton(
                                         selected = isChosen,
                                         onClick = { targetSelected = candidate },
-                                        colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF0F172A))
+                                        colors = RadioButtonDefaults.colors(selectedColor = ArcColors.Primary)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Column {
@@ -666,12 +682,12 @@ fun FinancialAccountsScreen(
                                             text = "${candidate.institutionName ?: "Account"} ••••${candidate.accountSuffix}",
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.5.sp,
-                                            color = Color(0xFF0F172A)
+                                            color = slateTitle
                                         )
                                         Text(
                                             text = if (candidate.instrumentType == InstrumentType.CARD) "Credit Card" else "Savings Account",
                                             fontSize = 11.5.sp,
-                                            color = Color(0xFF64748B)
+                                            color = slateSub
                                         )
                                     }
                                 }
@@ -700,19 +716,19 @@ fun FinancialAccountsScreen(
                         }
                     },
                     enabled = targetSelected != null,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
-                    shape = RoundedCornerShape(10.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                    shape = CircleShape
                 ) {
-                    Text("Confirm Merge", fontWeight = FontWeight.Bold)
+                    Text("Confirm Merge", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
                 OutlinedButton(
                     onClick = { accountToMerge = null },
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, cardBorder)
                 ) {
-                    Text("Cancel", color = Color(0xFF475569))
+                    Text("Cancel", color = slateSub)
                 }
             }
         )
@@ -733,7 +749,7 @@ fun FinancialAccountsScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 4.dp),
                 shape = RoundedCornerShape(20.dp),
-                color = Color.White,
+                color = cardBg,
                 shadowElevation = 8.dp
             ) {
                 Column(
@@ -751,13 +767,13 @@ fun FinancialAccountsScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFECFDF5)),
+                                .background(ArcColors.PrimaryLight),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.AddCircleOutline,
                                 contentDescription = null,
-                                tint = Color(0xFF059669),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(19.dp)
                             )
                         }
@@ -767,27 +783,27 @@ fun FinancialAccountsScreen(
                                 text = "Link Financial Account",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
-                                color = Color(0xFF0F172A)
+                                color = slateTitle
                             )
                             Spacer(modifier = Modifier.height(1.dp))
                             Text(
                                 text = "Add account for local reconciliation",
                                 fontSize = 11.5.sp,
-                                color = Color(0xFF64748B)
+                                color = slateSub
                             )
                         }
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFF1F5F9))
+                                .background(ArcColors.SurfaceHighlight)
                                 .clickable { showAddAccountDialog = false },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
                                 contentDescription = "Close",
-                                tint = Color(0xFF64748B),
+                                tint = slateSub,
                                 modifier = Modifier.size(15.dp)
                             )
                         }
@@ -796,7 +812,7 @@ fun FinancialAccountsScreen(
                     Text(
                         text = "Register an account to automatically match incoming SMS and banking notifications offline.",
                         fontSize = 11.5.sp,
-                        color = Color(0xFF64748B),
+                        color = slateSub,
                         lineHeight = 16.sp
                     )
 
@@ -806,7 +822,7 @@ fun FinancialAccountsScreen(
                             text = "Bank or Issuer Name",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF475569)
+                            color = slateTitle
                         )
                         OutlinedTextField(
                             value = bankNameInput,
@@ -815,13 +831,13 @@ fun FinancialAccountsScreen(
                                 if (isError) isError = false
                             },
                             placeholder = {
-                                Text("e.g. HDFC Bank, SBI, ICICI", fontSize = 12.5.sp, color = Color(0xFF94A3B8))
+                                Text("e.g. HDFC Bank, SBI, ICICI", fontSize = 12.5.sp, color = slateSub)
                             },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Outlined.AccountBalance,
                                     contentDescription = null,
-                                    tint = Color(0xFF64748B),
+                                    tint = slateSub,
                                     modifier = Modifier.size(17.dp)
                                 )
                             },
@@ -829,14 +845,14 @@ fun FinancialAccountsScreen(
                             textStyle = androidx.compose.ui.text.TextStyle(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF0F172A)
+                                color = slateTitle
                             ),
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFFF8FAFC),
-                                unfocusedContainerColor = Color(0xFFF8FAFC),
-                                focusedBorderColor = Color(0xFF0F172A),
-                                unfocusedBorderColor = Color(0xFFE2E8F0)
+                                focusedContainerColor = ArcColors.SurfaceHighlight,
+                                unfocusedContainerColor = ArcColors.SurfaceHighlight,
+                                focusedBorderColor = ArcColors.Primary,
+                                unfocusedBorderColor = cardBorder
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -848,7 +864,7 @@ fun FinancialAccountsScreen(
                             text = "Account / Card Suffix (Last 4 Digits)",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF475569)
+                            color = slateTitle
                         )
                         OutlinedTextField(
                             value = suffixInput,
@@ -859,13 +875,13 @@ fun FinancialAccountsScreen(
                                 }
                             },
                             placeholder = {
-                                Text("e.g. 4821", fontSize = 12.5.sp, color = Color(0xFF94A3B8))
+                                Text("e.g. 4821", fontSize = 12.5.sp, color = slateSub)
                             },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Outlined.CreditCard,
                                     contentDescription = null,
-                                    tint = Color(0xFF64748B),
+                                    tint = slateSub,
                                     modifier = Modifier.size(17.dp)
                                 )
                             },
@@ -874,14 +890,14 @@ fun FinancialAccountsScreen(
                             textStyle = androidx.compose.ui.text.TextStyle(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF0F172A)
+                                color = slateTitle
                             ),
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFFF8FAFC),
-                                unfocusedContainerColor = Color(0xFFF8FAFC),
-                                focusedBorderColor = Color(0xFF0F172A),
-                                unfocusedBorderColor = Color(0xFFE2E8F0)
+                                focusedContainerColor = ArcColors.SurfaceHighlight,
+                                unfocusedContainerColor = ArcColors.SurfaceHighlight,
+                                focusedBorderColor = ArcColors.Primary,
+                                unfocusedBorderColor = cardBorder
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -893,7 +909,7 @@ fun FinancialAccountsScreen(
                             text = "Instrument Type",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF475569)
+                            color = slateTitle
                         )
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -910,8 +926,8 @@ fun FinancialAccountsScreen(
                                         .weight(1f)
                                         .height(38.dp),
                                     shape = RoundedCornerShape(10.dp),
-                                    color = if (isTypeSelected) Color(0xFF0F172A) else Color(0xFFF8FAFC),
-                                    border = BorderStroke(1.dp, if (isTypeSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0))
+                                    color = if (isTypeSelected) ArcColors.Primary else ArcColors.SurfaceHighlight,
+                                    border = BorderStroke(1.dp, if (isTypeSelected) ArcColors.Primary else cardBorder)
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxSize(),
@@ -921,7 +937,7 @@ fun FinancialAccountsScreen(
                                         Icon(
                                             imageVector = icon,
                                             contentDescription = null,
-                                            tint = if (isTypeSelected) Color.White else Color(0xFF64748B),
+                                            tint = if (isTypeSelected) Color.White else slateSub,
                                             modifier = Modifier.size(15.dp)
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
@@ -929,7 +945,7 @@ fun FinancialAccountsScreen(
                                             text = label,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (isTypeSelected) Color.White else Color(0xFF475569)
+                                            color = if (isTypeSelected) Color.White else slateTitle
                                         )
                                     }
                                 }
@@ -940,7 +956,7 @@ fun FinancialAccountsScreen(
                     if (isError) {
                         Text(
                             text = "Please enter bank name and last 4 digits suffix",
-                            color = Color(0xFFDC2626),
+                            color = ArcColors.Danger,
                             fontSize = 11.sp
                         )
                     }
@@ -957,10 +973,10 @@ fun FinancialAccountsScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(42.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                            shape = CircleShape,
+                            border = BorderStroke(1.dp, cardBorder)
                         ) {
-                            Text("Cancel", color = Color(0xFF475569), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Cancel", color = slateSub, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         }
 
                         Button(
@@ -986,11 +1002,11 @@ fun FinancialAccountsScreen(
                                     showAddAccountDialog = false
                                 }
                             },
+                            colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
                             modifier = Modifier
                                 .weight(1f)
                                 .height(42.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = CircleShape
                         ) {
                             Text("Add Account", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
@@ -1009,8 +1025,8 @@ private fun EmptyInspectorPromptCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(1.dp, cardBorder),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
@@ -1023,13 +1039,13 @@ private fun EmptyInspectorPromptCard() {
                 modifier = Modifier
                     .size(44.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFF1F5F9)),
+                    .background(ArcColors.SurfaceHighlight),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Info,
                     contentDescription = null,
-                    tint = Color(0xFF475569),
+                    tint = slateSub,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -1041,13 +1057,13 @@ private fun EmptyInspectorPromptCard() {
                     text = "Account Inspector",
                     fontSize = 14.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    color = slateTitle
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "Please select an account or card below to inspect its regex parser fingerprint, health, and actions.",
                     fontSize = 12.sp,
-                    color = Color(0xFF64748B),
+                    color = slateSub,
                     lineHeight = 16.5.sp
                 )
             }
@@ -1067,8 +1083,8 @@ private fun EmptyAccountsDiscoveryCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(1.dp, cardBorder),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
@@ -1081,13 +1097,13 @@ private fun EmptyAccountsDiscoveryCard(
                 modifier = Modifier
                     .size(54.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFFECFDF5)),
+                    .background(ArcColors.PrimaryLight),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.AccountBalance,
                     contentDescription = null,
-                    tint = Color(0xFF047857),
+                    tint = ArcColors.Primary,
                     modifier = Modifier.size(26.dp)
                 )
             }
@@ -1098,7 +1114,7 @@ private fun EmptyAccountsDiscoveryCard(
                 text = "No Discovered Accounts",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
+                color = slateTitle
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -1106,7 +1122,7 @@ private fun EmptyAccountsDiscoveryCard(
             Text(
                 text = "ArcTracker detects cards and bank accounts automatically from SMS & UPI alerts. Import past SMS messages or link an account manually to get started.",
                 fontSize = 12.5.sp,
-                color = Color(0xFF64748B),
+                color = slateSub,
                 textAlign = TextAlign.Center,
                 lineHeight = 18.sp
             )
@@ -1123,8 +1139,8 @@ private fun EmptyAccountsDiscoveryCard(
                         modifier = Modifier
                             .weight(1f)
                             .height(42.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.ChatBubbleOutline,
@@ -1142,18 +1158,18 @@ private fun EmptyAccountsDiscoveryCard(
                     modifier = Modifier
                         .weight(1f)
                         .height(42.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0F172A))
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, cardBorder),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = slateTitle)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Add,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
-                        tint = Color(0xFF0F172A)
+                        tint = slateTitle
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Add Manual", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
+                    Text("Add Manual", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = slateTitle)
                 }
             }
         }
@@ -1177,8 +1193,8 @@ private fun FinancialAccountThemedCard(
     val (confLabel, confBg, confBorder, confText) = getConfidenceDisplayTokens(account.confidence)
 
     val isCard = account.instrumentType == InstrumentType.CARD
-    val iconBg = if (isCard) Color(0xFFECFDF5) else Color(0xFFF1F5F9)
-    val iconColor = if (isCard) Color(0xFF047857) else Color(0xFF0F172A)
+    val iconBg = if (isCard) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight
+    val iconColor = if (isCard) ArcColors.Primary else slateTitle
 
     Card(
         modifier = Modifier
@@ -1186,11 +1202,11 @@ private fun FinancialAccountThemedCard(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0xFFF0FDF4) else Color.White
+            containerColor = if (isSelected) ArcColors.PrimaryLight else cardBg
         ),
         border = BorderStroke(
             if (isSelected) 1.5.dp else 1.dp,
-            if (isSelected) Color(0xFF047857) else Color(0xFFE2E8F0)
+            if (isSelected) ArcColors.Primary else cardBorder
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -1232,7 +1248,7 @@ private fun FinancialAccountThemedCard(
                             text = displayName,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A),
+                            color = slateTitle,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false)
@@ -1243,8 +1259,8 @@ private fun FinancialAccountThemedCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(999.dp))
-                                .background(Color(0xFFF1F5F9))
-                                .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(999.dp))
+                                .background(ArcColors.SurfaceHighlight)
+                                .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(999.dp))
                                 .padding(horizontal = 7.dp, vertical = 2.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -1252,7 +1268,7 @@ private fun FinancialAccountThemedCard(
                                 text = "••${account.accountSuffix}",
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF475569)
+                                color = slateSub
                             )
                         }
                     }
@@ -1262,7 +1278,7 @@ private fun FinancialAccountThemedCard(
                     Text(
                         text = subTitle,
                         fontSize = 12.sp,
-                        color = Color(0xFF64748B),
+                        color = slateSub,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1274,8 +1290,8 @@ private fun FinancialAccountThemedCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(999.dp))
-                            .background(Color(0xFFECFDF5))
-                            .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(999.dp))
+                            .background(ArcColors.PrimaryLight)
+                            .border(BorderStroke(1.dp, ArcColors.PrimaryBorder), RoundedCornerShape(999.dp))
                             .padding(horizontal = 8.dp, vertical = 3.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -1286,14 +1302,14 @@ private fun FinancialAccountThemedCard(
                             Icon(
                                 imageVector = Icons.Filled.Check,
                                 contentDescription = null,
-                                tint = Color(0xFF047857),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(12.dp)
                             )
                             Text(
                                 text = "Selected",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF047857)
+                                color = ArcColors.Primary
                             )
                         }
                     }
@@ -1301,7 +1317,7 @@ private fun FinancialAccountThemedCard(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = null,
-                        tint = Color(0xFF94A3B8),
+                        tint = slateSub,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -1309,7 +1325,7 @@ private fun FinancialAccountThemedCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+            HorizontalDivider(color = cardBorder, thickness = 1.dp)
 
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -1328,8 +1344,8 @@ private fun FinancialAccountThemedCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFF8FAFC))
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(6.dp))
+                            .background(ArcColors.SurfaceHighlight)
+                            .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(6.dp))
                             .padding(horizontal = 7.dp, vertical = 3.dp)
                     ) {
                         Row(
@@ -1339,14 +1355,14 @@ private fun FinancialAccountThemedCard(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
                                 contentDescription = null,
-                                tint = Color(0xFF64748B),
+                                tint = slateSub,
                                 modifier = Modifier.size(12.dp)
                             )
                             Text(
                                 text = "$txnCount txns",
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF334155)
+                                color = slateTitle
                             )
                         }
                     }
@@ -1355,8 +1371,8 @@ private fun FinancialAccountThemedCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFF8FAFC))
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(6.dp))
+                            .background(ArcColors.SurfaceHighlight)
+                            .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(6.dp))
                             .padding(horizontal = 7.dp, vertical = 3.dp)
                     ) {
                         Row(
@@ -1366,14 +1382,14 @@ private fun FinancialAccountThemedCard(
                             Icon(
                                 imageVector = sourceIcon,
                                 contentDescription = null,
-                                tint = Color(0xFF64748B),
+                                tint = slateSub,
                                 modifier = Modifier.size(11.dp)
                             )
                             Text(
                                 text = sourceLabel,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF475569)
+                                color = slateSub
                             )
                         }
                     }
@@ -1388,7 +1404,7 @@ private fun FinancialAccountThemedCard(
                         text = "$prefix${formatAmount(amount)}",
                         fontSize = 12.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isOut) Color(0xFF0F172A) else Color(0xFF047857)
+                        color = if (isOut) slateTitle else ArcColors.Primary
                     )
                 } else {
                     Box(
@@ -1439,8 +1455,8 @@ private fun ActiveInspectorThemedCard(
 ) {
     val (displayName, subTitle) = getAccountDisplayTokens(account)
     val isCard = account.instrumentType == InstrumentType.CARD
-    val iconBg = if (isCard) Color(0xFFECFDF5) else Color(0xFFF1F5F9)
-    val iconColor = if (isCard) Color(0xFF047857) else Color(0xFF0F172A)
+    val iconBg = if (isCard) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)) else ArcColors.SurfaceHighlight
+    val iconColor = if (isCard) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)) else ArcColors.TextPrimary
 
     val fingerprint = "${account.institutionId?.uppercase() ?: "ARC"}-${if (account.instrumentType == InstrumentType.CARD) "CC" else "BA"}-${account.accountSuffix.uppercase()}-V2"
 
@@ -1452,8 +1468,8 @@ private fun ActiveInspectorThemedCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.5.dp, Color(0xFF047857)),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(1.5.dp, ArcColors.Primary),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
@@ -1472,14 +1488,14 @@ private fun ActiveInspectorThemedCard(
                         modifier = Modifier
                             .size(7.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF10B981))
+                            .background(ArcColors.Primary)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "ACTIVE INSPECTOR",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF059669),
+                        color = ArcColors.Primary,
                         letterSpacing = 0.5.sp
                     )
                 }
@@ -1491,8 +1507,8 @@ private fun ActiveInspectorThemedCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(999.dp))
-                            .background(Color(0xFFF1F5F9))
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(999.dp))
+                            .background(ArcColors.SurfaceHighlight)
+                            .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(999.dp))
                             .padding(horizontal = 8.dp, vertical = 3.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -1500,7 +1516,7 @@ private fun ActiveInspectorThemedCard(
                             text = "#ACC-${account.accountSuffix}",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF475569)
+                            color = slateSub
                         )
                     }
 
@@ -1508,14 +1524,14 @@ private fun ActiveInspectorThemedCard(
                         modifier = Modifier
                             .size(24.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFF1F5F9))
+                            .background(ArcColors.SurfaceHighlight)
                             .clickable(onClick = onDeselect),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Close,
                             contentDescription = "Unselect",
-                            tint = Color(0xFF64748B),
+                            tint = slateSub,
                             modifier = Modifier.size(14.dp)
                         )
                     }
@@ -1551,7 +1567,7 @@ private fun ActiveInspectorThemedCard(
                         text = displayName,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A),
+                        color = slateTitle,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1559,7 +1575,7 @@ private fun ActiveInspectorThemedCard(
                     Text(
                         text = "$subTitle • ${account.source.name.replace("_", " ")}",
                         fontSize = 11.5.sp,
-                        color = Color(0xFF64748B),
+                        color = slateSub,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1567,7 +1583,7 @@ private fun ActiveInspectorThemedCard(
             }
 
             Spacer(modifier = Modifier.height(14.dp))
-            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+            HorizontalDivider(color = cardBorder, thickness = 1.dp)
             Spacer(modifier = Modifier.height(12.dp))
 
             // Technical Specs Table
@@ -1585,13 +1601,13 @@ private fun ActiveInspectorThemedCard(
                         Text(
                             text = "Net Flow (This Month)",
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                         Text(
                             text = "-₹${formatAmount(outflow)}  /  +₹${formatAmount(inflow)}",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                     }
                 }
@@ -1606,8 +1622,8 @@ private fun ActiveInspectorThemedCard(
                     .fillMaxWidth()
                     .height(44.dp),
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFF8FAFC),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                color = ArcColors.SurfaceHighlight,
+                border = BorderStroke(1.dp, cardBorder)
             ) {
                 Row(
                     modifier = Modifier
@@ -1618,7 +1634,7 @@ private fun ActiveInspectorThemedCard(
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
                         contentDescription = null,
-                        tint = Color(0xFF0F172A),
+                        tint = slateTitle,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -1626,14 +1642,14 @@ private fun ActiveInspectorThemedCard(
                         text = "View Transactions",
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A),
+                        color = slateTitle,
                         modifier = Modifier.weight(1f)
                     )
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(999.dp))
-                            .background(Color.White)
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(999.dp))
+                            .background(cardBg)
+                            .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(999.dp))
                             .padding(horizontal = 8.dp, vertical = 2.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -1641,7 +1657,7 @@ private fun ActiveInspectorThemedCard(
                             text = "$txnCount",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF475569)
+                            color = slateSub
                         )
                     }
                 }
@@ -1660,8 +1676,8 @@ private fun ActiveInspectorThemedCard(
                         .weight(1f)
                         .height(40.dp),
                     shape = RoundedCornerShape(10.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    color = cardBg,
+                    border = BorderStroke(1.dp, cardBorder)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxSize(),
@@ -1671,7 +1687,7 @@ private fun ActiveInspectorThemedCard(
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.CallMerge,
                             contentDescription = null,
-                            tint = Color(0xFF0F172A),
+                            tint = slateTitle,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -1679,7 +1695,7 @@ private fun ActiveInspectorThemedCard(
                             text = "Merge",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                     }
                 }
@@ -1690,8 +1706,8 @@ private fun ActiveInspectorThemedCard(
                         .weight(1f)
                         .height(40.dp),
                     shape = RoundedCornerShape(10.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFFECACA))
+                    color = ArcColors.DangerContainer,
+                    border = BorderStroke(1.dp, ArcColors.DangerBorder)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxSize(),
@@ -1701,7 +1717,7 @@ private fun ActiveInspectorThemedCard(
                         Icon(
                             imageVector = Icons.Outlined.DeleteOutline,
                             contentDescription = null,
-                            tint = Color(0xFFDC2626),
+                            tint = ArcColors.Danger,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -1709,7 +1725,7 @@ private fun ActiveInspectorThemedCard(
                             text = "Delete",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFDC2626)
+                            color = ArcColors.Danger
                         )
                     }
                 }
@@ -1789,13 +1805,13 @@ fun DetailRow(label: String, value: String, isHighlight: Boolean = false) {
         Text(
             text = label,
             fontSize = 12.sp,
-            color = Color(0xFF64748B)
+            color = ArcColors.TextSecondary
         )
         Text(
             text = value,
             fontSize = 12.sp,
             fontWeight = if (isHighlight) FontWeight.Bold else FontWeight.Medium,
-            color = Color(0xFF0F172A),
+            color = ArcColors.TextPrimary,
             fontFamily = if (isHighlight) FontFamily.Monospace else FontFamily.Default
         )
     }

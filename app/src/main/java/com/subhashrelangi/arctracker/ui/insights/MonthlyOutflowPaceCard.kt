@@ -24,6 +24,7 @@ import java.text.NumberFormat
 import java.util.Calendar
 import java.util.Locale
 import kotlin.math.roundToInt
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 
 @Composable
 fun MonthlyOutflowPaceCard(
@@ -121,8 +122,8 @@ fun MonthlyOutflowPaceCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF8FAFC))
-                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(12.dp)),
+                        .background(InsightsTheme.LightSubCardBackground)
+                        .border(BorderStroke(1.dp, InsightsTheme.LightSubCardBorder), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -164,14 +165,14 @@ fun MonthlyOutflowPaceCard(
                     .fillMaxWidth()
                     .height(7.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(Color(0xFFE2E8F0))
+                    .background(InsightsTheme.LightSubCardBorder)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
                         .fillMaxWidth(fraction = utilizationFraction)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(InsightsTheme.CharcoalDark)
+                        .background(ArcColors.Primary)
                 )
             }
 
@@ -224,7 +225,7 @@ fun MonthlyOutflowPaceCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
-                if (isDemoMode || weeklyOutflows.isEmpty()) {
+                if (isDemoMode) {
                     // W1
                     Column(
                         modifier = Modifier.weight(1f),
@@ -236,7 +237,7 @@ fun MonthlyOutflowPaceCard(
                                 .fillMaxWidth()
                                 .height(52.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFE2E8F0))
+                                .background(InsightsTheme.LightSubCardBorder)
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
@@ -278,7 +279,7 @@ fun MonthlyOutflowPaceCard(
                                 .fillMaxWidth()
                                 .height(52.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFE2E8F0))
+                                .background(InsightsTheme.LightSubCardBorder)
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
@@ -325,7 +326,7 @@ fun MonthlyOutflowPaceCard(
                         val barColor = when {
                             isHighest -> InsightsTheme.EmeraldGreenDark
                             wSpend > 0.0 -> InsightsTheme.AmberBrown
-                            else -> Color(0xFFE2E8F0)
+                            else -> InsightsTheme.LightSubCardBorder
                         }
 
                         Column(

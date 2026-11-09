@@ -43,6 +43,7 @@ import com.subhashrelangi.arctracker.service.NotificationNormalizer
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import com.subhashrelangi.arctracker.service.StructuredTransactionExtractor
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
 import com.subhashrelangi.arctracker.utils.IgnoreRulesManager
 import com.subhashrelangi.arctracker.utils.RegexPatternsManager
@@ -52,6 +53,21 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+private val slateTitle: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+
+private val slateSub: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+
+private val cardBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Border
+
+private val lightBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Background
+
+private val cardBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
 
 @Composable
 fun DeveloperOptionsScreen(
@@ -163,11 +179,11 @@ fun DeveloperOptionsScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Surface(
-                color = Color.White,
-                shadowElevation = 0.5.dp,
+                color = lightBg,
+                shadowElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(lightBg)
             ) {
                 // Universal Settings Sub-Page Header
                 ArcTrackerHeader(
@@ -176,7 +192,7 @@ fun DeveloperOptionsScreen(
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(lightBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
@@ -184,8 +200,8 @@ fun DeveloperOptionsScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFFEF2F2))
-                                .border(BorderStroke(1.dp, Color(0xFFFECACA)), CircleShape)
+                                .background(ArcColors.DangerContainer)
+                                .border(BorderStroke(1.dp, ArcColors.DangerBorder), CircleShape)
                                 .clickable {
                                     settingsRepo.setDeveloperModeUnlocked(false)
                                     Toast.makeText(context, "Developer options locked", Toast.LENGTH_SHORT).show()
@@ -196,7 +212,7 @@ fun DeveloperOptionsScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Lock,
                                 contentDescription = "Lock Developer Options",
-                                tint = Color(0xFFDC2626),
+                                tint = ArcColors.Danger,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -208,7 +224,7 @@ fun DeveloperOptionsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF8FAFC))
+                .background(lightBg)
                 .verticalScroll(rememberScrollState())
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 14.dp)
@@ -220,8 +236,10 @@ fun DeveloperOptionsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
-                border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (ArcColors.isDark) Color(0xFF451A03).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
+                ),
+                border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF78350F) else Color(0xFFFDE68A)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
@@ -239,13 +257,13 @@ fun DeveloperOptionsScreen(
                                 modifier = Modifier
                                     .size(28.dp)
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(Color(0xFFFDE68A)),
+                                    .background(if (ArcColors.isDark) Color(0xFF78350F) else Color(0xFFFDE68A)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Terminal,
                                     contentDescription = null,
-                                    tint = Color(0xFF92400E),
+                                    tint = if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFF92400E),
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -254,7 +272,7 @@ fun DeveloperOptionsScreen(
                                 text = "AUDITOR ACCESS",
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF92400E),
+                                color = if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFF92400E),
                                 letterSpacing = 0.5.sp
                             )
                         }
@@ -262,13 +280,13 @@ fun DeveloperOptionsScreen(
                         // Debug build pill
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFFDE68A)
+                            color = if (ArcColors.isDark) Color(0xFF78350F) else Color(0xFFFDE68A)
                         ) {
                             Text(
                                 text = "DEBUG BUILD 5107a09",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF78350F),
+                                color = if (ArcColors.isDark) Color(0xFFFDE68A) else Color(0xFF78350F),
                                 fontFamily = FontFamily.Monospace,
                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                             )
@@ -280,7 +298,7 @@ fun DeveloperOptionsScreen(
                     Text(
                         text = "Developer & Auditor Mode: These tools directly inspect internal SQLite schemas, regex parsers, and system listeners.",
                         fontSize = 12.sp,
-                        color = Color(0xFF78350F),
+                        color = if (ArcColors.isDark) Color(0xFFFDE68A).copy(alpha = 0.9f) else Color(0xFF78350F),
                         lineHeight = 16.sp
                     )
                 }
@@ -290,8 +308,8 @@ fun DeveloperOptionsScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder)
             ) {
                 Row(
                     modifier = Modifier
@@ -314,7 +332,7 @@ fun DeveloperOptionsScreen(
                             text = "Telemetry Listener Daemon",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF0F172A)
+                            color = ArcColors.TextPrimary
                         )
                     }
 
@@ -325,19 +343,19 @@ fun DeveloperOptionsScreen(
                             text = "PID 18492",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF64748B),
+                            color = ArcColors.TextSecondary,
                             fontFamily = FontFamily.Monospace
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (isDaemonOnline) Color(0xFFDCFCE7) else Color(0xFFFEF3C7)
+                            color = if (isDaemonOnline) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7)) else (if (ArcColors.isDark) Color(0xFF78350F) else Color(0xFFFEF3C7))
                         ) {
                             Text(
                                 text = if (isDaemonOnline) "ONLINE" else "STANDBY",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isDaemonOnline) Color(0xFF166534) else Color(0xFF92400E),
+                                color = if (isDaemonOnline) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)) else (if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFF92400E)),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
@@ -371,7 +389,7 @@ fun DeveloperOptionsScreen(
                         Icon(
                             imageVector = Icons.Outlined.Tune,
                             contentDescription = null,
-                            tint = Color(0xFF055B38),
+                            tint = ArcColors.Primary,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -379,7 +397,7 @@ fun DeveloperOptionsScreen(
                             text = "v2.4 Core",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF055B38)
+                            color = ArcColors.Primary
                         )
                     }
                 }
@@ -387,8 +405,8 @@ fun DeveloperOptionsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
+                    border = BorderStroke(1.dp, cardBorder),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column {
@@ -400,7 +418,7 @@ fun DeveloperOptionsScreen(
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace,
-                                    color = Color(0xFF334155),
+                                    color = ArcColors.TextSecondary,
                                     maxLines = 1,
                                     softWrap = false
                                 )
@@ -408,12 +426,12 @@ fun DeveloperOptionsScreen(
                             title = "Regex Pattern Engine",
                             subtitle = "Manage amount, merchant, and type matchers",
                             badgeText = "$activeRulesCount Rules Active",
-                            badgeColor = Color(0xFFDCFCE7),
-                            badgeTextColor = Color(0xFF166534),
+                            badgeColor = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7),
+                            badgeTextColor = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534),
                             onClick = { onNavigate("RegexPatterns") }
                         )
 
-                        Divider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                        HorizontalDivider(color = ArcColors.Border, thickness = 1.dp)
 
                         // Interactive Transaction Parser
                         DevActionRow(
@@ -423,7 +441,7 @@ fun DeveloperOptionsScreen(
                             onClick = { showTestParserDialog = true }
                         )
 
-                        Divider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                        HorizontalDivider(color = ArcColors.Border, thickness = 1.dp)
 
                         // Ingestion Event Logs
                         val unhandledBadge = if (pendingReviewCount > 0) "$pendingReviewCount unhandled" else "18 unhandled"
@@ -432,8 +450,8 @@ fun DeveloperOptionsScreen(
                             title = "Ingestion Event Logs",
                             subtitle = "Live telemetry stream of parsed SMS alerts",
                             badgeText = unhandledBadge,
-                            badgeColor = Color(0xFFFEF3C7),
-                            badgeTextColor = Color(0xFF92400E),
+                            badgeColor = if (ArcColors.isDark) Color(0xFF78350F) else Color(0xFFFEF3C7),
+                            badgeTextColor = if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFF92400E),
                             onClick = { showLogsDialog = true }
                         )
                     }
@@ -449,7 +467,7 @@ fun DeveloperOptionsScreen(
                     text = "ONBOARDING & SETUP SIMULATION",
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF64748B),
+                    color = ArcColors.TextSecondary,
                     letterSpacing = 0.5.sp,
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
@@ -457,8 +475,8 @@ fun DeveloperOptionsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
+                    border = BorderStroke(1.dp, cardBorder),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column {
@@ -470,7 +488,7 @@ fun DeveloperOptionsScreen(
                             onClick = { showReplayConfirmDialog = true }
                         )
 
-                        Divider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                        HorizontalDivider(color = ArcColors.Border, thickness = 1.dp)
 
                         // Simulate First-Time Local Vault Setup
                         DevActionRow(
@@ -515,8 +533,8 @@ fun DeveloperOptionsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
+                    border = BorderStroke(1.dp, cardBorder),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(
@@ -581,10 +599,10 @@ fun DeveloperOptionsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(42.dp),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFF1F5F9),
-                                contentColor = Color(0xFF0F172A)
+                                containerColor = ArcColors.SurfaceHighlight,
+                                contentColor = ArcColors.TextPrimary
                             ),
                             elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp)
@@ -592,7 +610,7 @@ fun DeveloperOptionsScreen(
                             Icon(
                                 imageVector = Icons.Outlined.AccountTree,
                                 contentDescription = null,
-                                tint = Color(0xFF0F172A),
+                                tint = ArcColors.TextPrimary,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -614,10 +632,10 @@ fun DeveloperOptionsScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(40.dp),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFF1F5F9),
-                                    contentColor = Color(0xFF0F172A)
+                                    containerColor = ArcColors.SurfaceHighlight,
+                                    contentColor = ArcColors.TextPrimary
                                 ),
                                 elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
                                 contentPadding = PaddingValues(horizontal = 8.dp)
@@ -625,7 +643,7 @@ fun DeveloperOptionsScreen(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Outlined.FormatListBulleted,
                                     contentDescription = null,
-                                    tint = Color(0xFF0F172A),
+                                    tint = ArcColors.TextPrimary,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -686,10 +704,10 @@ fun DeveloperOptionsScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(40.dp),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFF1F5F9),
-                                    contentColor = Color(0xFF0F172A)
+                                    containerColor = ArcColors.SurfaceHighlight,
+                                    contentColor = ArcColors.TextPrimary
                                 ),
                                 elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
                                 contentPadding = PaddingValues(horizontal = 8.dp)
@@ -697,7 +715,7 @@ fun DeveloperOptionsScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.FileUpload,
                                     contentDescription = null,
-                                    tint = Color(0xFF0F172A),
+                                    tint = ArcColors.TextPrimary,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -728,19 +746,19 @@ fun DeveloperOptionsScreen(
                         text = "EXPERIMENTAL FEATURES",
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF64748B),
+                        color = ArcColors.TextSecondary,
                         letterSpacing = 0.5.sp
                     )
 
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = Color(0xFFE2E8F0)
+                        color = ArcColors.SurfaceHighlight
                     ) {
                         Text(
                             text = "CANARY",
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF475569),
+                            color = ArcColors.TextSecondary,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
@@ -749,8 +767,8 @@ fun DeveloperOptionsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
+                    border = BorderStroke(1.dp, cardBorder),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column {
@@ -768,18 +786,18 @@ fun DeveloperOptionsScreen(
                                         text = "Multi-lingual SMS Heuristics",
                                         fontSize = 13.5.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF0F172A)
+                                        color = ArcColors.TextPrimary
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
-                                        color = Color(0xFFE2E8F0)
+                                        color = ArcColors.SurfaceHighlight
                                     ) {
                                         Text(
                                             text = "BETA",
                                             fontSize = 9.5.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF475569),
+                                            color = ArcColors.TextSecondary,
                                             modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                                         )
                                     }
@@ -788,7 +806,7 @@ fun DeveloperOptionsScreen(
                                 Text(
                                     text = "Hindi / Hinglish token parsing & regional currency anchors",
                                     fontSize = 12.sp,
-                                    color = Color(0xFF64748B),
+                                    color = ArcColors.TextSecondary,
                                     lineHeight = 16.sp
                                 )
                             }
@@ -801,15 +819,15 @@ fun DeveloperOptionsScreen(
                                 },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
-                                    checkedTrackColor = Color(0xFF055B38),
-                                    uncheckedThumbColor = Color.White,
-                                    uncheckedTrackColor = Color(0xFFCBD5E1),
+                                    checkedTrackColor = ArcColors.Primary,
+                                    uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF71717A) else Color.White,
+                                    uncheckedTrackColor = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFCBD5E1),
                                     uncheckedBorderColor = Color.Transparent
                                 )
                             )
                         }
 
-                        Divider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                        HorizontalDivider(color = ArcColors.Border, thickness = 1.dp)
 
                         // Aggressive Noise Suppression
                         Row(
@@ -824,13 +842,13 @@ fun DeveloperOptionsScreen(
                                     text = "Aggressive Noise Suppression",
                                     fontSize = 13.5.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF0F172A)
+                                    color = ArcColors.TextPrimary
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "Silences promotional OTPs & marketing broadcast SMS automatically",
                                     fontSize = 12.sp,
-                                    color = Color(0xFF64748B),
+                                    color = ArcColors.TextSecondary,
                                     lineHeight = 16.sp
                                 )
                             }
@@ -843,9 +861,9 @@ fun DeveloperOptionsScreen(
                                 },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
-                                    checkedTrackColor = Color(0xFF055B38),
-                                    uncheckedThumbColor = Color.White,
-                                    uncheckedTrackColor = Color(0xFFCBD5E1),
+                                    checkedTrackColor = ArcColors.Primary,
+                                    uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF71717A) else Color.White,
+                                    uncheckedTrackColor = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFCBD5E1),
                                     uncheckedBorderColor = Color.Transparent
                                 )
                             )
@@ -858,8 +876,8 @@ fun DeveloperOptionsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                colors = CardDefaults.cardColors(containerColor = cardBg),
+                border = BorderStroke(1.dp, cardBorder),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
@@ -873,13 +891,13 @@ fun DeveloperOptionsScreen(
                             modifier = Modifier
                                 .size(34.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFFEE2E2)),
+                                .background(if (ArcColors.isDark) Color(0xFF451A1A) else Color(0xFFFEE2E2)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.RestartAlt,
                                 contentDescription = null,
-                                tint = Color(0xFFDC2626),
+                                tint = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -889,13 +907,13 @@ fun DeveloperOptionsScreen(
                                 text = "Reset Dev Configuration",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF0F172A)
+                                color = ArcColors.TextPrimary
                             )
                             Spacer(modifier = Modifier.height(3.dp))
                             Text(
                                 text = "Restores default test flags, clears local tokenizer cache, and reloads factory rule tables. Vault records remain encrypted.",
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B),
+                                color = ArcColors.TextSecondary,
                                 lineHeight = 16.sp
                             )
                         }
@@ -908,19 +926,19 @@ fun DeveloperOptionsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(42.dp),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFEF2F2),
-                            contentColor = Color(0xFFDC2626)
+                            containerColor = if (ArcColors.isDark) Color(0xFF451A1A) else Color(0xFFFEF2F2),
+                            contentColor = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626)
                         ),
-                        border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF7F1D1D) else Color(0xFFFECACA)),
                         elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.RestartAlt,
                             contentDescription = null,
-                            tint = Color(0xFFDC2626),
+                            tint = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626),
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -956,7 +974,8 @@ fun DeveloperOptionsScreen(
         Dialog(onDismissRequest = { showDumpSqlDialog = false }) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 520.dp)
@@ -974,19 +993,19 @@ fun DeveloperOptionsScreen(
                                 text = "SQLite Schema DDL",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = ArcColors.TextPrimary
                             )
                             Text(
                                 text = "Extracted from physical sqlite_master",
                                 fontSize = 11.sp,
-                                color = Color(0xFF64748B)
+                                color = ArcColors.TextSecondary
                             )
                         }
                         IconButton(
                             onClick = { showDumpSqlDialog = false },
                             modifier = Modifier.size(28.dp)
                         ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color(0xFF64748B))
+                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = ArcColors.TextSecondary)
                         }
                     }
 
@@ -997,7 +1016,7 @@ fun DeveloperOptionsScreen(
                             .weight(1f)
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF0F172A))
+                            .background(if (ArcColors.isDark) Color(0xFF000000) else Color(0xFF0F172A))
                             .padding(12.dp)
                     ) {
                         Text(
@@ -1019,9 +1038,9 @@ fun DeveloperOptionsScreen(
                         OutlinedButton(
                             onClick = { showDumpSqlDialog = false },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = CircleShape
                         ) {
-                            Text("Close", color = Color(0xFF64748B))
+                            Text("Close", color = ArcColors.TextSecondary)
                         }
 
                         Button(
@@ -1032,8 +1051,8 @@ fun DeveloperOptionsScreen(
                                 showDumpSqlDialog = false
                             },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38))
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
                         ) {
                             Text("Copy SQL", color = Color.White)
                         }
@@ -1054,7 +1073,8 @@ fun DeveloperOptionsScreen(
         Dialog(onDismissRequest = { showTestParserDialog = false }) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .wrapContentHeight()
@@ -1072,19 +1092,19 @@ fun DeveloperOptionsScreen(
                                 text = "Interactive Parser Test",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = ArcColors.TextPrimary
                             )
                             Text(
                                 text = "Tests live StructuredTransactionExtractor engine",
                                 fontSize = 11.sp,
-                                color = Color(0xFF64748B)
+                                color = ArcColors.TextSecondary
                             )
                         }
                         IconButton(
                             onClick = { showTestParserDialog = false },
                             modifier = Modifier.size(28.dp)
                         ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color(0xFF64748B))
+                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = ArcColors.TextSecondary)
                         }
                     }
 
@@ -1092,7 +1112,7 @@ fun DeveloperOptionsScreen(
                     Text(
                         text = "Enter raw notification or SMS text below:",
                         fontSize = 12.sp,
-                        color = Color(0xFF64748B)
+                        color = ArcColors.TextSecondary
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -1103,11 +1123,16 @@ fun DeveloperOptionsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(86.dp),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.5.sp),
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 12.5.sp,
+                            color = ArcColors.TextPrimary
+                        ),
                         shape = RoundedCornerShape(8.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF055B38),
-                            unfocusedBorderColor = Color(0xFFCBD5E1)
+                            focusedBorderColor = ArcColors.Primary,
+                            unfocusedBorderColor = ArcColors.Border,
+                            focusedContainerColor = ArcColors.SurfaceHighlight,
+                            unfocusedContainerColor = ArcColors.SurfaceHighlight
                         )
                     )
 
@@ -1166,8 +1191,8 @@ fun DeveloperOptionsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(40.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38))
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
                     ) {
                         Text("Parse Message (Real Engine)", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
@@ -1176,15 +1201,15 @@ fun DeveloperOptionsScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFF8FAFC),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            color = ArcColors.SurfaceHighlight,
+                            border = BorderStroke(1.dp, ArcColors.Border),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 text = output,
                                 fontSize = 11.5.sp,
                                 fontFamily = FontFamily.Monospace,
-                                color = Color(0xFF0F172A),
+                                color = ArcColors.TextPrimary,
                                 modifier = Modifier.padding(10.dp)
                             )
                         }
@@ -1199,7 +1224,8 @@ fun DeveloperOptionsScreen(
         Dialog(onDismissRequest = { showLogsDialog = false }) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 500.dp)
@@ -1217,19 +1243,19 @@ fun DeveloperOptionsScreen(
                                 text = "Ingestion Event Logs",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = ArcColors.TextPrimary
                             )
                             Text(
                                 text = "Live physical database & listener stream",
                                 fontSize = 11.sp,
-                                color = Color(0xFF64748B)
+                                color = ArcColors.TextSecondary
                             )
                         }
                         IconButton(
                             onClick = { showLogsDialog = false },
                             modifier = Modifier.size(28.dp)
                         ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color(0xFF64748B))
+                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = ArcColors.TextSecondary)
                         }
                     }
 
@@ -1245,7 +1271,7 @@ fun DeveloperOptionsScreen(
                             Text(
                                 text = "No parsed transactions in database yet.\nPerform an SMS scan or trigger an alert.",
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B),
+                                color = ArcColors.TextSecondary,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
@@ -1260,8 +1286,8 @@ fun DeveloperOptionsScreen(
                                 val dateStr = SimpleDateFormat("HH:mm:ss dd-MMM", Locale.US).format(Date(exp.dateMillis))
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
-                                    color = Color(0xFFF0FDF4),
-                                    border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                                    color = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFF0FDF4),
+                                    border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFBBF7D0)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(8.dp)) {
@@ -1274,13 +1300,13 @@ fun DeveloperOptionsScreen(
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 fontFamily = FontFamily.Monospace,
-                                                color = Color(0xFF166534)
+                                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)
                                             )
                                             Text(
                                                 text = "₹${exp.amount}",
                                                 fontSize = 11.5.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF166534)
+                                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)
                                             )
                                         }
                                         Spacer(modifier = Modifier.height(2.dp))
@@ -1288,7 +1314,7 @@ fun DeveloperOptionsScreen(
                                         Text(
                                             text = "${exp.merchant} • ${exp.type} ($acctStr)",
                                             fontSize = 11.5.sp,
-                                            color = Color(0xFF0F172A),
+                                            color = ArcColors.TextPrimary,
                                             fontWeight = FontWeight.Medium
                                         )
                                         if (!exp.rawText.isNullOrBlank()) {
@@ -1297,7 +1323,7 @@ fun DeveloperOptionsScreen(
                                                 text = exp.rawText ?: "",
                                                 fontSize = 10.sp,
                                                 fontFamily = FontFamily.Monospace,
-                                                color = Color(0xFF64748B),
+                                                color = ArcColors.TextSecondary,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
@@ -1315,8 +1341,8 @@ fun DeveloperOptionsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(40.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38))
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
                     ) {
                         Text("Done", color = Color.White)
                     }
@@ -1332,7 +1358,8 @@ fun DeveloperOptionsScreen(
         Dialog(onDismissRequest = { showRawQueueDialog = false }) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .wrapContentHeight()
@@ -1349,13 +1376,13 @@ fun DeveloperOptionsScreen(
                             text = "Raw Notification Queue",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = ArcColors.TextPrimary
                         )
                         IconButton(
                             onClick = { showRawQueueDialog = false },
                             modifier = Modifier.size(28.dp)
                         ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color(0xFF64748B))
+                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = ArcColors.TextSecondary)
                         }
                     }
 
@@ -1363,8 +1390,8 @@ fun DeveloperOptionsScreen(
 
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFF8FAFC),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = ArcColors.SurfaceHighlight,
+                        border = BorderStroke(1.dp, ArcColors.Border),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
@@ -1372,12 +1399,12 @@ fun DeveloperOptionsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("Listener Daemon State:", fontSize = 12.sp, color = Color(0xFF64748B))
+                                Text("Listener Daemon State:", fontSize = 12.sp, color = ArcColors.TextSecondary)
                                 Text(
                                     text = if (isDaemonOnline) "CONNECTED (Active)" else "STANDBY (Idle)",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isDaemonOnline) Color(0xFF166534) else Color(0xFF92400E)
+                                    color = if (isDaemonOnline) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)) else (if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFF92400E))
                                 )
                             }
                             Spacer(modifier = Modifier.height(6.dp))
@@ -1385,24 +1412,24 @@ fun DeveloperOptionsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("In-Memory Buffer Size:", fontSize = 12.sp, color = Color(0xFF64748B))
-                                Text("${activeNotifs.size} notifications", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                                Text("In-Memory Buffer Size:", fontSize = 12.sp, color = ArcColors.TextSecondary)
+                                Text("${activeNotifs.size} notifications", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ArcColors.TextPrimary)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("Pending Ledger Review:", fontSize = 12.sp, color = Color(0xFF64748B))
-                                Text("$pendingReviewCount transactions", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                                Text("Pending Ledger Review:", fontSize = 12.sp, color = ArcColors.TextSecondary)
+                                Text("$pendingReviewCount transactions", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ArcColors.TextPrimary)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("Pipeline Mutex:", fontSize = 12.sp, color = Color(0xFF64748B))
-                                Text("UNLOCKED (Ready)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF166534))
+                                Text("Pipeline Mutex:", fontSize = 12.sp, color = ArcColors.TextSecondary)
+                                Text("UNLOCKED (Ready)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534))
                             }
                         }
                     }
@@ -1412,7 +1439,7 @@ fun DeveloperOptionsScreen(
                     Text(
                         text = if (activeNotifs.isEmpty()) "All background notification captures are committed. Buffer clean." else "Active captures waiting in memory buffer:",
                         fontSize = 11.5.sp,
-                        color = Color(0xFF64748B)
+                        color = ArcColors.TextSecondary
                     )
 
                     if (activeNotifs.isNotEmpty()) {
@@ -1428,7 +1455,7 @@ fun DeveloperOptionsScreen(
                                     text = "• ${notif.packageName} (${SimpleDateFormat("HH:mm:ss", Locale.US).format(Date(notif.postTime))})",
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
-                                    color = Color(0xFF334155)
+                                    color = ArcColors.TextPrimary
                                 )
                             }
                         }
@@ -1441,8 +1468,8 @@ fun DeveloperOptionsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(40.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38))
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
                     ) {
                         Text("Dismiss", color = Color.White)
                     }
@@ -1460,14 +1487,14 @@ fun DeveloperOptionsScreen(
                     text = "Replay Initial Onboarding?",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    color = ArcColors.TextPrimary
                 )
             },
             text = {
                 Text(
                     text = "This resets the initial_onboarding_completed flag and opens the Onboarding screen. Existing ledger transactions remain safe and untouched.",
                     fontSize = 13.sp,
-                    color = Color(0xFF64748B),
+                    color = ArcColors.TextSecondary,
                     lineHeight = 18.sp
                 )
             },
@@ -1478,8 +1505,8 @@ fun DeveloperOptionsScreen(
                         settingsRepo.setInitialOnboardingCompleted(false)
                         onNavigate("InitialOnboarding")
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF055B38)),
-                    shape = RoundedCornerShape(8.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                    shape = CircleShape
                 ) {
                     Text("Replay", color = Color.White)
                 }
@@ -1487,13 +1514,13 @@ fun DeveloperOptionsScreen(
             dismissButton = {
                 OutlinedButton(
                     onClick = { showReplayConfirmDialog = false },
-                    shape = RoundedCornerShape(8.dp)
+                    shape = CircleShape
                 ) {
-                    Text("Cancel", color = Color(0xFF64748B))
+                    Text("Cancel", color = slateSub)
                 }
             },
             shape = RoundedCornerShape(16.dp),
-            containerColor = Color.White
+            containerColor = cardBg
         )
     }
 
@@ -1513,7 +1540,7 @@ fun DeveloperOptionsScreen(
                 Text(
                     text = "This restores default developer diagnostic flags, reenables all default regex patterns, and resets experimental toggles. Vault encryption and transaction data remain fully intact.",
                     fontSize = 13.sp,
-                    color = Color(0xFF64748B),
+                    color = slateSub,
                     lineHeight = 18.sp
                 )
             },
@@ -1535,7 +1562,7 @@ fun DeveloperOptionsScreen(
                         Toast.makeText(context, "Developer configuration reset to defaults", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = CircleShape
                 ) {
                     Text("Reset Config", color = Color.White)
                 }
@@ -1543,13 +1570,13 @@ fun DeveloperOptionsScreen(
             dismissButton = {
                 OutlinedButton(
                     onClick = { showResetConfirmDialog = false },
-                    shape = RoundedCornerShape(8.dp)
+                    shape = CircleShape
                 ) {
-                    Text("Cancel", color = Color(0xFF64748B))
+                    Text("Cancel", color = slateSub)
                 }
             },
             shape = RoundedCornerShape(16.dp),
-            containerColor = Color.White
+            containerColor = cardBg
         )
     }
 }
@@ -1576,7 +1603,7 @@ private fun DevActionRow(
             modifier = Modifier
                 .size(38.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFFF1F5F9)),
+                .background(ArcColors.SurfaceHighlight),
             contentAlignment = Alignment.Center
         ) {
             if (iconContent != null) {
@@ -1585,7 +1612,7 @@ private fun DevActionRow(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = Color(0xFF334155),
+                    tint = ArcColors.TextPrimary,
                     modifier = Modifier.size(19.dp)
                 )
             }
@@ -1598,7 +1625,7 @@ private fun DevActionRow(
                 text = title,
                 fontSize = 13.5.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF0F172A),
+                color = ArcColors.TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1606,7 +1633,7 @@ private fun DevActionRow(
             Text(
                 text = subtitle,
                 fontSize = 12.sp,
-                color = Color(0xFF64748B),
+                color = ArcColors.TextSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1632,7 +1659,7 @@ private fun DevActionRow(
         Icon(
             imageVector = Icons.Default.ChevronRight,
             contentDescription = null,
-            tint = Color(0xFF94A3B8),
+            tint = ArcColors.TextSecondary,
             modifier = Modifier.size(18.dp)
         )
     }
@@ -1650,8 +1677,8 @@ private fun DiagnosticMetricBox(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(10.dp),
-        color = Color(0xFFF8FAFC),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+        color = ArcColors.SurfaceHighlight,
+        border = BorderStroke(1.dp, ArcColors.Border)
     ) {
         Column(
             modifier = Modifier.padding(10.dp)
@@ -1660,7 +1687,7 @@ private fun DiagnosticMetricBox(
                 text = label,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF64748B),
+                color = ArcColors.TextSecondary,
                 letterSpacing = 0.5.sp
             )
 
@@ -1670,7 +1697,7 @@ private fun DiagnosticMetricBox(
                 text = value,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A),
+                color = ArcColors.TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1684,7 +1711,7 @@ private fun DiagnosticMetricBox(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (statusPositive) Color(0xFF166534) else Color(0xFF64748B),
+                        tint = if (statusPositive) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)) else ArcColors.TextSecondary,
                         modifier = Modifier.size(11.dp)
                     )
                     Spacer(modifier = Modifier.width(3.dp))
@@ -1693,7 +1720,7 @@ private fun DiagnosticMetricBox(
                     text = statusText,
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (statusPositive) Color(0xFF166534) else Color(0xFF64748B),
+                    color = if (statusPositive) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)) else ArcColors.TextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

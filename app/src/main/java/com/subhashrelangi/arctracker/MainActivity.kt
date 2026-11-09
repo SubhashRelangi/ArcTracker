@@ -58,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -104,6 +105,17 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Reset demo mode and clear any lingering demo data on launch if onboarding is not completed
+        val settingsRepo = com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository.getInstance(this)
+        if (!settingsRepo.isInitialOnboardingCompleted()) {
+            settingsRepo.setDemoMode(false)
+            settingsRepo.setSetupInProgress(false)
+            val db = com.subhashrelangi.arctracker.data.AppDatabase.getDatabase(this)
+            lifecycleScope.launch(Dispatchers.IO) {
+                com.subhashrelangi.arctracker.data.MockData.clearDemoData(db)
+            }
+        }
+
         // Listen for screen-off events so the app locks immediately when the phone is locked
         val filter = android.content.IntentFilter(android.content.Intent.ACTION_SCREEN_OFF)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -122,13 +134,20 @@ class MainActivity : FragmentActivity() {
 
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
 
+        // Apply screen security immediately on launch
+        if (privacyManager.isScreenSecurityEnabled()) {
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+
         // On launch: require biometric/PIN unlock if App Lock is enabled
         isAppUnlockedState.value = !privacyManager.isAppLockEnabled()
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 privacyManager.screenSecurityFlow.collect { enabled ->
-                    if (enabled && !BuildConfig.DEBUG) {
+                    if (enabled) {
                         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
                     } else {
                         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
@@ -140,6 +159,7 @@ class MainActivity : FragmentActivity() {
         setContent {
             val isAppLockEnabled by privacyManager.appLockFlow.collectAsState()
             val isUnlocked by isAppUnlockedState.collectAsState()
+            val themeMode by settingsRepo.themeModeFlow.collectAsState()
 
             // Inactivity ticker: automatically lock if left idle for 5 minutes
             LaunchedEffect(isAppLockEnabled, isUnlocked) {
@@ -154,7 +174,7 @@ class MainActivity : FragmentActivity() {
                 }
             }
 
-            MaterialTheme {
+            com.subhashrelangi.arctracker.ui.theme.ArcTrackerTheme(themeMode = themeMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -185,6 +205,11 @@ class MainActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
+        if (privacyManager.isScreenSecurityEnabled()) {
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
         if (privacyManager.isAppLockEnabled() && privacyManager.isSessionExpired()) {
             isAppUnlockedState.value = false
         }
@@ -205,6 +230,15 @@ class MainActivity : FragmentActivity() {
             val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
             if (privacyManager.isAppLockEnabled()) {
                 isAppUnlockedState.value = false
+            }
+        }
+        val settingsRepo = com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository.getInstance(this)
+        if (!settingsRepo.isInitialOnboardingCompleted()) {
+            settingsRepo.setDemoMode(false)
+            settingsRepo.setSetupInProgress(false)
+            val db = com.subhashrelangi.arctracker.data.AppDatabase.getDatabase(this)
+            lifecycleScope.launch(Dispatchers.IO) {
+                com.subhashrelangi.arctracker.data.MockData.clearDemoData(db)
             }
         }
     }
@@ -228,6 +262,7 @@ fun ExpenseScreen() {
     val settingsRepo = remember {
         com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository.getInstance(context)
     }
+    val profileName by settingsRepo.getProfileNameFlow().collectAsState()
 
     var isNotificationAccessGranted by remember {
         mutableStateOf(NotificationPermissionHelper.isNotificationAccessGranted(context))
@@ -366,43 +401,75 @@ fun ExpenseScreen() {
         expenses.filter { it.dateMillis in start..end }
     }
 
-    val isOnboardingCompleted = remember {
-        settingsRepo.isInitialOnboardingCompleted()
-    }
-    val isSetupInProgress = remember {
-        settingsRepo.isSetupInProgress()
-    }
+    val isOnboardingCompleted = settingsRepo.isInitialOnboardingCompleted()
+    val isSetupInProgress = settingsRepo.isSetupInProgress()
 
     val activityIntent = (context as? android.app.Activity)?.intent
     val targetRouteFromIntent = remember(activityIntent) {
         activityIntent?.getStringExtra("route")
     }
 
-    var backStack by rememberSaveable {
+    val backStackSaver = remember {
+        Saver<MutableState<List<String>>, List<String>>(
+            save = { state ->
+                if (settingsRepo.isInitialOnboardingCompleted()) {
+                    state.value
+                } else {
+                    listOf("InitialOnboarding")
+                }
+            },
+            restore = { saved ->
+                mutableStateOf(
+                    if (settingsRepo.isInitialOnboardingCompleted()) {
+                        saved.ifEmpty { listOf("Home") }
+                    } else {
+                        listOf("InitialOnboarding")
+                    }
+                )
+            }
+        )
+    }
+
+    var backStack by rememberSaveable(saver = backStackSaver) {
         mutableStateOf(
-            if (!targetRouteFromIntent.isNullOrEmpty()) {
-                listOf("InitialOnboarding", targetRouteFromIntent)
-            } else if (isOnboardingCompleted) {
-                listOf("Home")
-            } else if (isSetupInProgress) {
-                listOf("InitialOnboarding", "LocalFirstSetup")
+            if (isOnboardingCompleted) {
+                if (!targetRouteFromIntent.isNullOrEmpty()) {
+                    listOf("Home", targetRouteFromIntent)
+                } else {
+                    listOf("Home")
+                }
             } else {
                 listOf("InitialOnboarding")
             }
         )
     }
-    val currentRoute = backStack.lastOrNull() ?: "Home"
-
-    var appWasBackgroundedInDemo by rememberSaveable { mutableStateOf(false) }
+    val currentRoute = backStack.lastOrNull() ?: if (isOnboardingCompleted) "Home" else "InitialOnboarding"
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
-                // If user leaves the app while in demo mode (onboarding not completed), record that the app was closed/stopped
-                if (!settingsRepo.isInitialOnboardingCompleted() && settingsRepo.isDemoMode()) {
-                    appWasBackgroundedInDemo = true
+                // If user leaves or closes the app while in demo mode (onboarding not completed),
+                // immediately exit demo mode, wipe mock data, and reset backStack to InitialOnboarding
+                if (!settingsRepo.isInitialOnboardingCompleted()) {
+                    settingsRepo.setDemoMode(false)
+                    settingsRepo.setSetupInProgress(false)
+                    scope.launch(Dispatchers.IO) {
+                        com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
+                    }
+                    backStack = listOf("InitialOnboarding")
                 }
             } else if (event == Lifecycle.Event.ON_RESUME) {
+                // If returning to the app without having completed onboarding, guarantee demo mode is cleared and backStack is on InitialOnboarding
+                if (!settingsRepo.isInitialOnboardingCompleted()) {
+                    if (settingsRepo.isDemoMode() || backStack != listOf("InitialOnboarding")) {
+                        settingsRepo.setDemoMode(false)
+                        settingsRepo.setSetupInProgress(false)
+                        scope.launch(Dispatchers.IO) {
+                            com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
+                        }
+                        backStack = listOf("InitialOnboarding")
+                    }
+                }
                 val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
                 if (isNotificationAccessGranted != granted) {
                     isNotificationAccessGranted = granted
@@ -420,16 +487,6 @@ fun ExpenseScreen() {
                 if (SmsPermissionHelper.isSmsPermissionGranted(context)) {
                     SmsPermissionHelper.setInitialImportCompleted(context, true)
                 }
-
-                // If user closes/leaves the app while in demo mode, returning brings them back to the Setup page!
-                if (appWasBackgroundedInDemo && !settingsRepo.isInitialOnboardingCompleted()) {
-                    appWasBackgroundedInDemo = false
-                    settingsRepo.setDemoMode(false)
-                    scope.launch(Dispatchers.IO) {
-                        com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
-                    }
-                    backStack = listOf("InitialOnboarding")
-                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -438,25 +495,19 @@ fun ExpenseScreen() {
         }
     }
 
-    // If onboarding was not permanently completed (e.g. user was in demo mode),
-    // any app restart / relaunch MUST return to the Initial Welcome Screen or recover setup in progress.
     LaunchedEffect(targetRouteFromIntent) {
-        if (!targetRouteFromIntent.isNullOrEmpty()) {
-            backStack = listOf("InitialOnboarding", targetRouteFromIntent)
-        } else if (!settingsRepo.isInitialOnboardingCompleted()) {
+        if (!settingsRepo.isInitialOnboardingCompleted()) {
             if (settingsRepo.isDemoMode()) {
                 settingsRepo.setDemoMode(false)
                 scope.launch(Dispatchers.IO) {
                     com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
                 }
             }
-            if (settingsRepo.isSetupInProgress()) {
-                if (backStack.lastOrNull() != "LocalFirstSetup") {
-                    backStack = listOf("InitialOnboarding", "LocalFirstSetup")
-                }
-            } else if (backStack != listOf("InitialOnboarding")) {
+            if (backStack != listOf("InitialOnboarding")) {
                 backStack = listOf("InitialOnboarding")
             }
+        } else if (!targetRouteFromIntent.isNullOrEmpty()) {
+            backStack = listOf("Home", targetRouteFromIntent)
         }
     }
 
@@ -501,10 +552,11 @@ fun ExpenseScreen() {
         }
     }
 
-    val isDemoModeActive = !settingsRepo.isInitialOnboardingCompleted() && currentRoute == "Home"
+    val isDemoModeActive = !settingsRepo.isInitialOnboardingCompleted() && settingsRepo.isDemoMode()
     BackHandler(enabled = backStack.size > 1 || isDemoModeActive) {
-        if (isDemoModeActive && backStack.size <= 1) {
+        if (isDemoModeActive && (backStack.size <= 1 || currentRoute == "Home")) {
             settingsRepo.setDemoMode(false)
+            settingsRepo.setSetupInProgress(false)
             scope.launch(Dispatchers.IO) {
                 com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
             }
@@ -520,6 +572,10 @@ fun ExpenseScreen() {
     
     var editingRegexRuleCategory by remember {
         mutableStateOf("Amount")
+    }
+
+    var editingRegexTestMessage by remember {
+        mutableStateOf<String?>(null)
     }
 
     var viewingAccountId by rememberSaveable {
@@ -556,16 +612,24 @@ fun ExpenseScreen() {
         }
 
     Scaffold(
-        containerColor = if (currentRoute in listOf("InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult")) Color.White else if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Settings", "Insights", "Analytics")) Color(0xFFF8FAFC) else MaterialTheme.colorScheme.background,
+        containerColor = com.subhashrelangi.arctracker.ui.theme.ArcColors.Background,
 
         topBar = {
             if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
                 val showSearch = currentRoute in listOf("Home", "Insights", "Analytics", "Settings", "Pending", "Review")
-                val showProfile = currentRoute != "Settings"
+                val showProfile = currentRoute == "Home"
+                val profileInitials = remember(profileName) {
+                    val parts = profileName.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
+                    when {
+                        parts.size >= 2 -> "${parts[0].first().uppercase()}${parts[1].first().uppercase()}"
+                        parts.size == 1 && parts[0].isNotEmpty() -> "${parts[0].first().uppercase()}"
+                        else -> "PV"
+                    }
+                }
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF8FAFC))
+                        .background(com.subhashrelangi.arctracker.ui.theme.ArcColors.Background)
                         .statusBarsPadding()
                 ) {
                     com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
@@ -573,6 +637,7 @@ fun ExpenseScreen() {
                         showSearch = showSearch,
                         isSearchActive = isSearching,
                         showProfile = showProfile,
+                        profileInitials = profileInitials,
                         onSearchClick = {
                             isSearching = !isSearching
                             if (!isSearching) searchQuery = ""
@@ -597,8 +662,8 @@ fun ExpenseScreen() {
                                 query = searchQuery,
                                 onQueryChange = { searchQuery = it },
                                 focusRequester = homeSearchFocusRequester,
-                                backgroundColor = Color.White,
-                                borderColor = Color(0xFFE2E8F0),
+                                backgroundColor = com.subhashrelangi.arctracker.ui.theme.ArcColors.SurfaceHighlight,
+                                borderColor = com.subhashrelangi.arctracker.ui.theme.ArcColors.Border,
                                 placeholderText = when (currentRoute) {
                                     "Insights", "Analytics" -> "Search analytics by category, merchant..."
                                     "Settings" -> "Search settings, accounts, rules..."
@@ -674,12 +739,12 @@ fun ExpenseScreen() {
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White)
-                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                    .background(com.subhashrelangi.arctracker.ui.theme.ArcColors.Surface)
+                                    .border(BorderStroke(1.dp, com.subhashrelangi.arctracker.ui.theme.ArcColors.Border), CircleShape)
                                     .clickable { /* TODO */ },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Outlined.HelpOutline, contentDescription = "Help", tint = Color(0xFF0F172A), modifier = Modifier.size(19.dp))
+                                Icon(Icons.Outlined.HelpOutline, contentDescription = "Help", tint = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextPrimary, modifier = Modifier.size(19.dp))
                             }
                         } else if (currentRoute == "EditRegexPattern") {
                             if (editingRegexRuleId != null) {
@@ -688,9 +753,9 @@ fun ExpenseScreen() {
                                     RegexPatternsManager.resetSystemRule(context, editingRegexRuleId!!)
                                     navigateBack()
                                 }) {
-                                    Icon(Icons.Filled.Refresh, contentDescription = "Reset", tint = Color(0xFF0F172A), modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Filled.Refresh, contentDescription = "Reset", tint = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextPrimary, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Reset", color = Color(0xFF0F172A), fontWeight = FontWeight.Medium)
+                                    Text("Reset", color = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextPrimary, fontWeight = FontWeight.Medium)
                                 }
                             }
                         }
@@ -898,11 +963,13 @@ fun ExpenseScreen() {
                     onAddPattern = { category ->
                         editingRegexRuleId = null
                         editingRegexRuleCategory = category
+                        editingRegexTestMessage = null
                         navigateTo("EditRegexPattern")
                     },
                     onEditPattern = { rule ->
                         editingRegexRuleId = rule.id
                         editingRegexRuleCategory = rule.category
+                        editingRegexTestMessage = rule.testMessage
                         navigateTo("EditRegexPattern")
                     },
                     onNavigateBack = { navigateBack() }
@@ -911,6 +978,7 @@ fun ExpenseScreen() {
                 com.subhashrelangi.arctracker.ui.EditRegexPatternScreen(
                     ruleId = editingRegexRuleId,
                     defaultCategory = editingRegexRuleCategory,
+                    initialTestMessage = editingRegexTestMessage,
                     onBack = { navigateBack() }
                 )
             } else if (currentRoute == "FinancialAccounts") {
@@ -1158,7 +1226,6 @@ fun ExpenseScreen() {
                 currentDestination = destination,
                 reviewBadgeCount = pendingCount,
                 isStatic = true,
-                isLightMode = true,
                 onNavigate = { dest ->
                     navigateTo(dest.route)
                 }
@@ -1348,49 +1415,76 @@ fun ExpenseScreen() {
 
         if (showCompleteAllDialog) {
             val pendingExpenses = expenses.filter { it.isPending }
-            AlertDialog(
-                onDismissRequest = { showCompleteAllDialog = false },
-                title = {
-                    Text("Complete all pending transactions?")
-                },
-                text = {
-                    Text("This will approve all pending transactions currently waiting for review.")
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showCompleteAllDialog = false
-                            val toComplete = expenses.filter { it.isPending }
-                            val ids = toComplete.map { it.id }
-                            if (ids.isEmpty()) return@TextButton
-                            scope.launch {
-                                try {
-                                    val updatedCount = withContext(Dispatchers.IO) {
-                                        expenseDao.approvePendingTransactions(ids)
+            androidx.compose.ui.window.Dialog(onDismissRequest = { showCompleteAllDialog = false }) {
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = com.subhashrelangi.arctracker.ui.theme.ArcColors.CardBackground,
+                    border = BorderStroke(1.dp, com.subhashrelangi.arctracker.ui.theme.ArcColors.Border),
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(22.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            text = "Complete all pending transactions?",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextPrimary
+                        )
+                        Text(
+                            text = "This will approve all pending transactions currently waiting for review and commit them to the ledger.",
+                            fontSize = 13.sp,
+                            color = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextSecondary,
+                            lineHeight = 18.sp
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { showCompleteAllDialog = false },
+                                shape = CircleShape,
+                                border = BorderStroke(1.dp, com.subhashrelangi.arctracker.ui.theme.ArcColors.Border),
+                                modifier = Modifier.weight(1f).height(44.dp)
+                            ) {
+                                Text("Cancel", color = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextSecondary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            }
+                            Button(
+                                onClick = {
+                                    showCompleteAllDialog = false
+                                    val toComplete = expenses.filter { it.isPending }
+                                    val ids = toComplete.map { it.id }
+                                    if (ids.isEmpty()) return@Button
+                                    scope.launch {
+                                        try {
+                                            val updatedCount = withContext(Dispatchers.IO) {
+                                                expenseDao.approvePendingTransactions(ids)
+                                            }
+                                            refreshTrigger++
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(context, "Completed all $updatedCount pending transactions", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            if (e is CancellationException) throw e
+                                            SecureLogger.e("MainActivity", "Failed to batch approve pending transactions", e)
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(context, "Failed to complete pending transactions", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
                                     }
-                                    refreshTrigger++
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(context, "Completed all $updatedCount pending transactions", Toast.LENGTH_SHORT).show()
-                                    }
-                                } catch (e: Exception) {
-                                    if (e is CancellationException) throw e
-                                    SecureLogger.e("MainActivity", "Failed to batch approve pending transactions", e)
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(context, "Failed to complete pending transactions", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
+                                },
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
+                                modifier = Modifier.weight(1.3f).height(44.dp)
+                            ) {
+                                Text("Complete All", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
-                    ) {
-                        Text("Complete All")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showCompleteAllDialog = false }) {
-                        Text("Cancel")
                     }
                 }
-            )
+            }
         }
 
         actionSheetExpense?.let { sheetExpense ->

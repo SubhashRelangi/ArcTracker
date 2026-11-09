@@ -37,13 +37,13 @@ fun LedgerDatabaseFooter(
             modifier = Modifier
                 .size(28.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFF1F5F9)),
+                .background(LedgerColors.SurfaceHighlight),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Outlined.Lock,
                 contentDescription = "Encrypted On-device",
-                tint = Color(0xFF0F172A),
+                tint = LedgerColors.TextPrimary,
                 modifier = Modifier.size(15.dp)
             )
         }
@@ -52,7 +52,7 @@ fun LedgerDatabaseFooter(
 
         Text(
             text = "All $recordCount records synced to private on-device store",
-            color = Color(0xFF0F172A),
+            color = LedgerColors.TextPrimary,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold
         )
@@ -61,7 +61,7 @@ fun LedgerDatabaseFooter(
 
         Text(
             text = "No cloud telemetry • Zero analytics trackers",
-            color = Color(0xFF94A3B8),
+            color = LedgerColors.TextMuted,
             fontSize = 11.sp,
             fontWeight = FontWeight.Normal
         )

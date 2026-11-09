@@ -73,13 +73,13 @@ fun NetSavingsDailyBurnRow(
                         modifier = Modifier
                             .size(28.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFDCFCE7)),
+                            .background(InsightsTheme.EmeraldGreen.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Shield,
                             contentDescription = "Savings",
-                            tint = Color(0xFF16A34A),
+                            tint = InsightsTheme.EmeraldGreen,
                             modifier = Modifier.size(15.dp)
                         )
                     }
@@ -149,13 +149,13 @@ fun NetSavingsDailyBurnRow(
                         modifier = Modifier
                             .size(28.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFF1F5F9)),
+                            .background(InsightsTheme.LightSubCardBackground),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.LocalFireDepartment,
                             contentDescription = "Daily Burn",
-                            tint = Color(0xFF475569),
+                            tint = InsightsTheme.LightTextSecondary,
                             modifier = Modifier.size(15.dp)
                         )
                     }

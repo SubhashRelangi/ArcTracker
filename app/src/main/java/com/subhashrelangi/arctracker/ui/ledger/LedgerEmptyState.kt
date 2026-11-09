@@ -1,5 +1,6 @@
 package com.subhashrelangi.arctracker.ui.ledger
 
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 
 @Composable
 fun LedgerEmptyState(
@@ -87,7 +89,7 @@ fun LedgerEmptyState(
             if (isSearching || isFilterActive) {
                 OutlinedButton(
                     onClick = onClearFilters,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = CircleShape,
                     border = BorderStroke(1.dp, LedgerColors.BorderLight),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = LedgerColors.TextPrimary)
                 ) {
@@ -97,10 +99,10 @@ fun LedgerEmptyState(
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(
                         onClick = onAddTransaction,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black
+                            containerColor = ArcColors.Primary,
+                            contentColor = Color.White
                         )
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -110,7 +112,7 @@ fun LedgerEmptyState(
 
                     OutlinedButton(
                         onClick = onScanSms,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = CircleShape,
                         border = BorderStroke(1.dp, LedgerColors.BorderLight),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = LedgerColors.TextPrimary)
                     ) {

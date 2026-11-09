@@ -24,19 +24,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 
 /**
  * Universal ArcTracker Header.
- * Pure light-theme design matching the Home screen header across all pages.
+ * Dynamically styled with ArcColors tokens to adapt seamlessly across Light and Dark themes.
  *
  * Primary (Tab) screens:
- *   Left: Clean "ArcTracker" brand text (22.sp, bold, #0F172A, -0.5.sp letter spacing)
- *   Right: Circular action buttons (38.dp, white, 1.dp border #E2E8F0, dark icon #0F172A)
+ *   Left: Clean "ArcTracker" brand text (22.sp, bold, ArcColors.TextPrimary, -0.5.sp letter spacing)
+ *   Right: Circular action buttons (38.dp, ArcColors.Surface, 1.dp border ArcColors.Border, ArcColors.TextPrimary)
  *          e.g. Search (optional), Add (optional), Profile (optional), or custom actions.
  *   Height: Fixed 52.dp for exact baseline consistency across all tabs.
  *
  * Child / Secondary screens:
- *   Left: Circular back button (38.dp) + Title (20.sp, bold, #0F172A) + optional Subtitle (12.sp, #64748B)
+ *   Left: Circular back button (38.dp) + Title (20.sp, bold, ArcColors.TextPrimary) + optional Subtitle (12.sp, ArcColors.TextMuted)
  *   Right: Custom actions or action buttons.
  */
 @Composable
@@ -48,6 +49,7 @@ fun ArcTrackerHeader(
     isSearchActive: Boolean = false,
     showAdd: Boolean = false,
     showProfile: Boolean = false,
+    profileInitials: String = "",
     onSearchClick: () -> Unit = {},
     onAddClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
@@ -79,15 +81,15 @@ fun ArcTrackerHeader(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(Color.White)
-                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                        .background(ArcColors.Surface)
+                        .border(BorderStroke(1.dp, ArcColors.Border), CircleShape)
                         .clickable(onClick = onBackClick),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color(0xFF0F172A),
+                        tint = ArcColors.TextPrimary,
                         modifier = Modifier.size(19.dp)
                     )
                 }
@@ -99,7 +101,7 @@ fun ArcTrackerHeader(
                         text = title,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A),
+                        color = ArcColors.TextPrimary,
                         letterSpacing = (-0.4).sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -108,7 +110,7 @@ fun ArcTrackerHeader(
                         Text(
                             text = subtitle,
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B),
+                            color = ArcColors.TextMuted,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -121,7 +123,7 @@ fun ArcTrackerHeader(
                 text = title,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A),
+                color = ArcColors.TextPrimary,
                 letterSpacing = (-0.5).sp
             )
         }
@@ -137,9 +139,9 @@ fun ArcTrackerHeader(
                 actions()
             } else {
                 if (showSearch) {
-                    val searchBg = if (isSearchActive) Color(0xFF0F172A) else Color.White
-                    val searchTint = if (isSearchActive) Color.White else Color(0xFF0F172A)
-                    val searchBorder = if (isSearchActive) Color(0xFF0F172A) else Color(0xFFE2E8F0)
+                    val searchBg = if (isSearchActive) ArcColors.TextPrimary else ArcColors.Surface
+                    val searchTint = if (isSearchActive) ArcColors.Background else ArcColors.TextPrimary
+                    val searchBorder = if (isSearchActive) ArcColors.TextPrimary else ArcColors.Border
                     Box(
                         modifier = Modifier
                             .size(38.dp)
@@ -163,36 +165,52 @@ fun ArcTrackerHeader(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(Color.White)
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .background(ArcColors.Surface)
+                            .border(BorderStroke(1.dp, ArcColors.Border), CircleShape)
                             .clickable(onClick = onAddClick),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Add",
-                            tint = Color(0xFF0F172A),
+                            tint = ArcColors.TextPrimary,
                             modifier = Modifier.size(19.dp)
                         )
                     }
                 }
 
                 if (showProfile) {
+                    val hasInitials = profileInitials.isNotBlank()
                     Box(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(Color.White)
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .background(if (hasInitials) ArcColors.PrimaryLight else ArcColors.Surface)
+                            .border(
+                                BorderStroke(
+                                    1.dp,
+                                    if (hasInitials) ArcColors.PrimaryBorder else ArcColors.Border
+                                ),
+                                CircleShape
+                            )
                             .clickable(onClick = onProfileClick),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Person,
-                            contentDescription = "Profile & Accounts",
-                            tint = Color(0xFF0F172A),
-                            modifier = Modifier.size(19.dp)
-                        )
+                        if (hasInitials) {
+                            Text(
+                                text = profileInitials.take(2).uppercase(),
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ArcColors.Primary
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Outlined.Person,
+                                contentDescription = "Profile & Accounts",
+                                tint = ArcColors.TextPrimary,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
                     }
                 }
             }

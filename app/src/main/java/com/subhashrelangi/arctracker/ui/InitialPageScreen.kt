@@ -35,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -43,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -52,25 +54,27 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.subhashrelangi.arctracker.BuildConfig
 import com.subhashrelangi.arctracker.R
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
+import com.subhashrelangi.arctracker.utils.AppVersion
 import kotlinx.coroutines.launch
 
 // ==========================================
-// Light Theme Color Tokens
+// Theme Color Tokens
 // ==========================================
-private val InitialLightBackground = Color(0xFFFFFFFF)
-private val BrandTextPrimary = Color(0xFF0F172A)
-private val BrandTextSecondary = Color(0xFF64748B)
-private val VersionBadgeBg = Color(0xFFF1F5F9)
-private val VersionBadgeText = Color(0xFF64748B)
-private val StatusIndicatorGreen = Color(0xFF10B981)
-private val PagerIndicatorActive = Color(0xFF0F172A)
-private val PagerIndicatorInactive = Color(0xFFE2E8F0)
-private val PrimaryBtnBg = Color(0xFF0F172A)
-private val PrimaryBtnText = Color(0xFFFFFFFF)
-private val SecondaryBtnBg = Color(0xFFF8FAFC)
-private val SecondaryBtnBorder = Color(0xFFE2E8F0)
-private val SecondaryBtnText = Color(0xFF0F172A)
-private val LockIconGreen = Color(0xFF10B981)
+private val InitialLightBackground: Color @Composable @ReadOnlyComposable get() = ArcColors.Background
+private val BrandTextPrimary: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val BrandTextSecondary: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val VersionBadgeBg: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
+private val VersionBadgeText: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val StatusIndicatorGreen: Color @Composable @ReadOnlyComposable get() = ArcColors.Primary
+private val PagerIndicatorActive: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val PagerIndicatorInactive: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val PrimaryBtnBg: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) ArcColors.Primary else Color(0xFF0F172A)
+private val PrimaryBtnText: Color @Composable @ReadOnlyComposable get() = Color.White
+private val SecondaryBtnBg: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val SecondaryBtnBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val SecondaryBtnText: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val LockIconGreen: Color @Composable @ReadOnlyComposable get() = ArcColors.Primary
 
 /**
  * Initial Page matching requested specifications:
@@ -87,23 +91,26 @@ fun InitialPageScreen(
     onSkipToDashboardClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    // Adapt system status & navigation bars for light theme surface
+    val isDark = ArcColors.isDark
+
+    // Adapt system status & navigation bars for theme surface
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window
             if (window != null) {
                 val insetsController = WindowCompat.getInsetsController(window, view)
-                insetsController.isAppearanceLightStatusBars = true
-                insetsController.isAppearanceLightNavigationBars = true
+                insetsController.isAppearanceLightStatusBars = !isDark
+                insetsController.isAppearanceLightNavigationBars = !isDark
             }
         }
     }
 
-    val isDark = isSystemInDarkTheme()
     // Dark theme logo used for light theme, light theme logo used for dark theme
     val logoResource = if (isDark) R.drawable.ic_logo_light else R.drawable.ic_logo_dark
 
+    val context = LocalContext.current
+    val appVersion = remember(context) { AppVersion.getFormattedVersion(context) }
     val pagerState = rememberPagerState(pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
 
@@ -151,7 +158,7 @@ fun InitialPageScreen(
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = BuildConfig.GITHUB_VERSION.ifEmpty { "v${BuildConfig.VERSION_NAME}" },
+                            text = appVersion,
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = VersionBadgeText

@@ -59,9 +59,25 @@ import com.subhashrelangi.arctracker.data.CategoryVisuals
 import com.subhashrelangi.arctracker.data.ExpenseDao
 import com.subhashrelangi.arctracker.data.TransactionCategory
 import com.subhashrelangi.arctracker.service.CategoryManager
+import com.subhashrelangi.arctracker.ui.review.ArcColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+private val slateTitle: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+
+private val slateSub: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+
+private val cardBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Border
+
+private val lightBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Background
+
+private val cardBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
 
 data class CategoryGlyphOption(
     val key: String,
@@ -116,8 +132,8 @@ private val ALL_CATEGORY_TONES = listOf(
 // In-memory cache to ensure instant frame-1 rendering when navigating between Rules/Aliases and Categories
 private var cachedCategoriesState: List<TransactionCategory> = BuiltInCategories.ALL
 private var cachedCategoryCountsState: Map<String, Int> = emptyMap()
-private var cachedRulesCountState: Int = 14
-private var cachedAliasesCountState: Int = 28
+private var cachedRulesCountState: Int = 0
+private var cachedAliasesCountState: Int = 0
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -151,23 +167,8 @@ fun CategoryManagementScreen(
     val activeRules by ruleDao.getActiveRulesFlow().collectAsState(initial = emptyList())
     val activeAliases by aliasDao.getActiveAliasesFlow().collectAsState(initial = emptyList())
 
-    val rulesCount = remember(activeRules) {
-        if (activeRules.isNotEmpty()) {
-            cachedRulesCountState = activeRules.size
-            activeRules.size
-        } else {
-            cachedRulesCountState
-        }
-    }
-
-    val aliasesCount = remember(activeAliases) {
-        if (activeAliases.isNotEmpty()) {
-            cachedAliasesCountState = activeAliases.size
-            activeAliases.size
-        } else {
-            cachedAliasesCountState
-        }
-    }
+    val rulesCount = activeRules.size
+    val aliasesCount = activeAliases.size
 
     // Ensure built-in categories exist
     LaunchedEffect(Unit) {
@@ -224,9 +225,9 @@ fun CategoryManagementScreen(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
             Surface(
-                color = Color.White,
-                shadowElevation = 0.5.dp,
-                modifier = Modifier.fillMaxWidth().background(Color.White)
+                color = lightBg,
+                shadowElevation = 0.dp,
+                modifier = Modifier.fillMaxWidth().background(lightBg)
             ) {
                 com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
                     title = "Categories",
@@ -234,7 +235,7 @@ fun CategoryManagementScreen(
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(lightBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
@@ -247,15 +248,15 @@ fun CategoryManagementScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White)
-                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                                    .background(cardBg)
+                                    .border(BorderStroke(1.dp, cardBorder), CircleShape)
                                     .clickable(onClick = onNavigateToApplyRules),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.AutoFixHigh,
                                     contentDescription = "Apply Rules",
-                                    tint = Color(0xFF0F172A),
+                                    tint = slateTitle,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -265,7 +266,7 @@ fun CategoryManagementScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFF0F172A))
+                                    .background(ArcColors.Primary)
                                     .clickable {
                                         scope.launch {
                                             listState.animateScrollToItem(4)
@@ -290,7 +291,7 @@ fun CategoryManagementScreen(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF8FAFC))
+                .background(lightBg)
                 .padding(innerPadding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -305,8 +306,8 @@ fun CategoryManagementScreen(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .background(Color(0xFFF8FAFC), RoundedCornerShape(14.dp))
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(14.dp))
+                            .background(cardBg, RoundedCornerShape(14.dp))
+                            .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(14.dp))
                             .clickable(onClick = onNavigateToRules)
                             .padding(12.dp)
                     ) {
@@ -314,13 +315,13 @@ fun CategoryManagementScreen(
                             Box(
                                 modifier = Modifier
                                     .size(36.dp)
-                                    .background(Color(0xFFE2E8F0), RoundedCornerShape(8.dp)),
+                                    .background(ArcColors.SurfaceHighlight, RoundedCornerShape(8.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Tune,
                                     contentDescription = null,
-                                    tint = Color(0xFF475569),
+                                    tint = slateSub,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -330,18 +331,18 @@ fun CategoryManagementScreen(
                                     text = "Rules",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = slateTitle
                                 )
                                 Text(
                                     text = "$rulesCount active",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF64748B)
+                                    color = slateSub
                                 )
                             }
                             Icon(
                                 imageVector = Icons.Filled.ChevronRight,
                                 contentDescription = null,
-                                tint = Color(0xFF94A3B8),
+                                tint = slateSub,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -351,8 +352,8 @@ fun CategoryManagementScreen(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .background(Color(0xFFF8FAFC), RoundedCornerShape(14.dp))
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(14.dp))
+                            .background(cardBg, RoundedCornerShape(14.dp))
+                            .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(14.dp))
                             .clickable(onClick = onNavigateToAliases)
                             .padding(12.dp)
                     ) {
@@ -360,13 +361,13 @@ fun CategoryManagementScreen(
                             Box(
                                 modifier = Modifier
                                     .size(36.dp)
-                                    .background(Color(0xFFE2E8F0), RoundedCornerShape(8.dp)),
+                                    .background(ArcColors.SurfaceHighlight, RoundedCornerShape(8.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Storefront,
                                     contentDescription = null,
-                                    tint = Color(0xFF475569),
+                                    tint = slateSub,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -376,18 +377,18 @@ fun CategoryManagementScreen(
                                     text = "Aliases",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = slateTitle
                                 )
                                 Text(
                                     text = "$aliasesCount mapped",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF64748B)
+                                    color = slateSub
                                 )
                             }
                             Icon(
                                 imageVector = Icons.Filled.ChevronRight,
                                 contentDescription = null,
-                                tint = Color(0xFF94A3B8),
+                                tint = slateSub,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -400,8 +401,8 @@ fun CategoryManagementScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
-                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(12.dp))
+                        .background(ArcColors.SurfaceHighlight, RoundedCornerShape(12.dp))
+                        .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(12.dp))
                         .padding(4.dp)
                 ) {
                     Row(
@@ -413,9 +414,9 @@ fun CategoryManagementScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(if (selectedTab == 0) Color.White else Color.Transparent)
+                                .background(if (selectedTab == 0) cardBg else Color.Transparent)
                                 .then(
-                                    if (selectedTab == 0) Modifier.border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(10.dp))
+                                    if (selectedTab == 0) Modifier.border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(10.dp))
                                     else Modifier
                                 )
                                 .clickable { selectedTab = 0 }
@@ -430,19 +431,20 @@ fun CategoryManagementScreen(
                                     text = "Active",
                                     fontSize = 13.sp,
                                     fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (selectedTab == 0) Color(0xFF0F172A) else Color(0xFF64748B)
+                                    color = if (selectedTab == 0) slateTitle else slateSub
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0xFFF1F5F9), RoundedCornerShape(6.dp))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        .background(ArcColors.SurfaceHighlight, RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = "${activeCategories.size}",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (selectedTab == 0) Color(0xFF0F172A) else Color(0xFF64748B)
+                                        color = if (selectedTab == 0) slateTitle else slateSub
                                     )
                                 }
                             }
@@ -453,9 +455,9 @@ fun CategoryManagementScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(if (selectedTab == 1) Color.White else Color.Transparent)
+                                .background(if (selectedTab == 1) cardBg else Color.Transparent)
                                 .then(
-                                    if (selectedTab == 1) Modifier.border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(10.dp))
+                                    if (selectedTab == 1) Modifier.border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(10.dp))
                                     else Modifier
                                 )
                                 .clickable { selectedTab = 1 }
@@ -470,19 +472,19 @@ fun CategoryManagementScreen(
                                     text = "Archived",
                                     fontSize = 13.sp,
                                     fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (selectedTab == 1) Color(0xFF0F172A) else Color(0xFF64748B)
+                                    color = if (selectedTab == 1) slateTitle else slateSub
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0xFFF1F5F9), RoundedCornerShape(6.dp))
+                                        .background(ArcColors.SurfaceHighlight, RoundedCornerShape(6.dp))
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = "${archivedCategories.size}",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (selectedTab == 1) Color(0xFF0F172A) else Color(0xFF64748B)
+                                        color = if (selectedTab == 1) slateTitle else slateSub
                                     )
                                 }
                             }
@@ -497,8 +499,8 @@ fun CategoryManagementScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White, RoundedCornerShape(16.dp))
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(16.dp))
+                            .background(cardBg, RoundedCornerShape(16.dp))
+                            .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(16.dp))
                             .padding(vertical = 32.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -506,21 +508,21 @@ fun CategoryManagementScreen(
                             text = if (selectedTab == 0) "No active categories" else "No archived categories",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                     }
                 } else {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        colors = CardDefaults.cardColors(containerColor = cardBg),
+                        border = BorderStroke(1.dp, cardBorder),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             displayedList.forEachIndexed { index, category ->
                                 val count = categoryCounts[category.id] ?: 0
-                                CategoryMockRow(
+                                CategoryRowItem(
                                     category = category,
                                     transactionCount = count,
                                     onEdit = { categoryToEdit = category },
@@ -542,7 +544,7 @@ fun CategoryManagementScreen(
                                 // Subtle divider between items inside the section
                                 if (index < displayedList.size - 1) {
                                     HorizontalDivider(
-                                        color = Color(0xFFF1F5F9),
+                                        color = ArcColors.Border,
                                         thickness = 1.dp,
                                         modifier = Modifier.padding(horizontal = 14.dp)
                                     )
@@ -657,7 +659,7 @@ fun CategoryManagementScreen(
             },
             dismissButton = {
                 TextButton(onClick = { categoryToArchive = null }) {
-                    Text("Cancel", color = Color(0xFF0F172A))
+                    Text("Cancel", color = ArcColors.TextPrimary)
                 }
             }
         )
@@ -766,7 +768,7 @@ fun CategoryManagementScreen(
             },
             dismissButton = {
                 TextButton(onClick = { categoryToDelete = null }) {
-                    Text("Cancel", color = Color(0xFF0F172A))
+                    Text("Cancel", color = ArcColors.TextPrimary)
                 }
             }
         )
@@ -778,23 +780,44 @@ fun CategoryManagementScreen(
  * Sleek, proportionate font sizes and clean spacing with divider support.
  */
 @Composable
-private fun CategoryMockRow(
+private fun CategoryRowItem(
     category: TransactionCategory,
     transactionCount: Int,
     onEdit: () -> Unit,
     onArchiveToggle: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val isDark = ArcColors.isDark
     val nameLower = category.name.lowercase()
-    val (containerBg, iconTint, iconVector) = remember(category) {
+    val (containerBg, iconTint, iconVector) = remember(category, isDark) {
         when {
-            nameLower.contains("food") || nameLower.contains("dining") -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), Icons.Default.Restaurant)
-            nameLower.contains("hous") || nameLower.contains("util") -> Triple(Color(0xFFF1F5F9), Color(0xFF64748B), Icons.Default.Bolt)
-            nameLower.contains("shop") || nameLower.contains("gadget") -> Triple(Color(0xFFE2E8F0), Color(0xFF475569), Icons.Default.ShoppingBag)
-            nameLower.contains("travel") || nameLower.contains("commute") -> Triple(Color(0xFFD1FAE5), Color(0xFF059669), Icons.Default.DirectionsCar)
-            nameLower.contains("freelance") || nameLower.contains("saas") -> Triple(Color(0xFFE2E8F0), Color(0xFF475569), Icons.Default.Computer)
+            nameLower.contains("food") || nameLower.contains("dining") -> Triple(
+                if (isDark) Color(0xFFD97706).copy(alpha = 0.22f) else Color(0xFFFEF3C7),
+                Color(0xFFD97706),
+                Icons.Default.Restaurant
+            )
+            nameLower.contains("hous") || nameLower.contains("util") -> Triple(
+                if (isDark) Color(0xFF64748B).copy(alpha = 0.22f) else Color(0xFFF1F5F9),
+                if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                Icons.Default.Bolt
+            )
+            nameLower.contains("shop") || nameLower.contains("gadget") -> Triple(
+                if (isDark) Color(0xFF818CF8).copy(alpha = 0.22f) else Color(0xFFE2E8F0),
+                if (isDark) Color(0xFFA5B4FC) else Color(0xFF475569),
+                Icons.Default.ShoppingBag
+            )
+            nameLower.contains("travel") || nameLower.contains("commute") -> Triple(
+                if (isDark) Color(0xFF059669).copy(alpha = 0.22f) else Color(0xFFD1FAE5),
+                if (isDark) Color(0xFF34D399) else Color(0xFF059669),
+                Icons.Default.DirectionsCar
+            )
+            nameLower.contains("freelance") || nameLower.contains("saas") -> Triple(
+                if (isDark) Color(0xFF38BDF8).copy(alpha = 0.22f) else Color(0xFFE2E8F0),
+                if (isDark) Color(0xFF38BDF8) else Color(0xFF475569),
+                Icons.Default.Computer
+            )
             else -> Triple(
-                CategoryVisuals.getContainerColor(category.colorKey),
+                CategoryVisuals.getContainerColor(category.colorKey, isDark),
                 CategoryVisuals.getColor(category.colorKey),
                 CategoryVisuals.getIcon(category.iconKey)
             )
@@ -832,7 +855,7 @@ private fun CategoryMockRow(
                     text = category.name,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.5.sp,
-                    color = Color(0xFF0F172A),
+                    color = ArcColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -840,7 +863,7 @@ private fun CategoryMockRow(
                 Box(
                     modifier = Modifier
                         .background(
-                            color = if (category.isSystem) Color(0xFFF1F5F9) else Color(0xFFECFDF5),
+                            color = if (category.isSystem) ArcColors.SurfaceHighlight else (if (isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)),
                             shape = RoundedCornerShape(5.dp)
                         )
                         .padding(horizontal = 5.dp, vertical = 1.5.dp)
@@ -849,7 +872,7 @@ private fun CategoryMockRow(
                         text = if (category.isSystem) "System" else "Custom",
                         fontSize = 9.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (category.isSystem) Color(0xFF475569) else Color(0xFF047857)
+                        color = if (category.isSystem) ArcColors.TextSecondary else (if (isDark) Color(0xFF34D399) else Color(0xFF047857))
                     )
                 }
             }
@@ -857,7 +880,7 @@ private fun CategoryMockRow(
             Text(
                 text = "$transactionCount transactions logged",
                 fontSize = 11.5.sp,
-                color = Color(0xFF64748B)
+                color = ArcColors.TextSecondary
             )
         }
 
@@ -871,15 +894,15 @@ private fun CategoryMockRow(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF8FAFC))
-                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                    .background(ArcColors.SurfaceHighlight)
+                    .border(BorderStroke(1.dp, ArcColors.Border), CircleShape)
                     .clickable(onClick = onEdit),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Edit,
                     contentDescription = "Edit Category",
-                    tint = Color(0xFF475569),
+                    tint = ArcColors.TextPrimary,
                     modifier = Modifier.size(15.dp)
                 )
             }
@@ -890,15 +913,15 @@ private fun CategoryMockRow(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF8FAFC))
-                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                        .background(ArcColors.SurfaceHighlight)
+                        .border(BorderStroke(1.dp, ArcColors.Border), CircleShape)
                         .clickable(onClick = onArchiveToggle),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Archive,
                         contentDescription = "Archive",
-                        tint = Color(0xFF475569),
+                        tint = ArcColors.TextPrimary,
                         modifier = Modifier.size(15.dp)
                     )
                 }
@@ -908,15 +931,15 @@ private fun CategoryMockRow(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFFEE2E2))
-                        .border(BorderStroke(1.dp, Color(0xFFFECACA)), CircleShape)
+                        .background(if (isDark) Color(0xFF451A1A) else Color(0xFFFEE2E2))
+                        .border(BorderStroke(1.dp, if (isDark) Color(0xFF7F1D1D) else Color(0xFFFECACA)), CircleShape)
                         .clickable(onClick = onDelete),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.DeleteOutline,
                         contentDescription = "Delete",
-                        tint = Color(0xFFDC2626),
+                        tint = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626),
                         modifier = Modifier.size(15.dp)
                     )
                 }
@@ -945,8 +968,8 @@ private fun AddNewCategoryInlineCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(1.dp, cardBorder),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
@@ -969,14 +992,14 @@ private fun AddNewCategoryInlineCard(
                     text = "Add New Category",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    color = slateTitle
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
                     text = "Custom Node",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF64748B)
+                    color = slateSub
                 )
             }
 
@@ -987,15 +1010,15 @@ private fun AddNewCategoryInlineCard(
                 text = "Category Name",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF475569)
+                color = slateTitle
             )
             Spacer(modifier = Modifier.height(6.dp))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(46.dp)
-                    .background(Color(0xFFF8FAFC), RoundedCornerShape(10.dp))
-                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(10.dp))
+                    .background(ArcColors.SurfaceHighlight, RoundedCornerShape(10.dp))
+                    .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(10.dp))
                     .padding(horizontal = 14.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
@@ -1003,7 +1026,7 @@ private fun AddNewCategoryInlineCard(
                     Text(
                         text = "e.g. Pet Care",
                         fontSize = 13.5.sp,
-                        color = Color(0xFF94A3B8)
+                        color = slateSub
                     )
                 }
                 BasicTextField(
@@ -1012,7 +1035,7 @@ private fun AddNewCategoryInlineCard(
                     singleLine = true,
                     textStyle = TextStyle(
                         fontSize = 13.5.sp,
-                        color = Color(0xFF0F172A),
+                        color = slateTitle,
                         fontWeight = FontWeight.Medium
                     ),
                     cursorBrush = SolidColor(selectedTone.color),
@@ -1031,7 +1054,7 @@ private fun AddNewCategoryInlineCard(
                     text = "Icon Glyph",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF475569)
+                    color = slateTitle
                 )
                 Spacer(modifier = Modifier.weight(1f))
 
@@ -1039,8 +1062,8 @@ private fun AddNewCategoryInlineCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFECFDF5))
-                        .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(10.dp))
+                        .background(ArcColors.PrimaryLight)
+                        .border(BorderStroke(1.dp, ArcColors.PrimaryBorder), RoundedCornerShape(10.dp))
                         .clickable(onClick = onToggleMoreIcons)
                         .padding(horizontal = 9.dp, vertical = 4.dp)
                 ) {
@@ -1048,7 +1071,7 @@ private fun AddNewCategoryInlineCard(
                         text = if (isMoreIconsExpanded) "▲ Less" else "▼ More Icons (${ALL_CATEGORY_GLYPHS.size})",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF047857)
+                        color = ArcColors.Primary
                     )
                 }
             }
@@ -1072,7 +1095,7 @@ private fun AddNewCategoryInlineCard(
                                     .weight(1f)
                                     .height(46.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(if (isSelected) selectedTone.color.copy(alpha = 0.12f) else Color(0xFFF1F5F9))
+                                    .background(if (isSelected) selectedTone.color.copy(alpha = 0.12f) else ArcColors.SurfaceHighlight)
                                     .border(
                                         BorderStroke(
                                             if (isSelected) 1.5.dp else 1.dp,
@@ -1086,7 +1109,7 @@ private fun AddNewCategoryInlineCard(
                                 Icon(
                                     imageVector = item.icon,
                                     contentDescription = null,
-                                    tint = if (isSelected) selectedTone.color else Color(0xFF64748B),
+                                    tint = if (isSelected) selectedTone.color else slateSub,
                                     modifier = Modifier.size(21.dp)
                                 )
                             }
@@ -1106,7 +1129,7 @@ private fun AddNewCategoryInlineCard(
                     text = "Theme Tone",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF475569)
+                    color = slateTitle
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1337,7 +1360,7 @@ fun EditCategoryBottomSheet(
                     onClick = { /* consume clicks so clicks don't hit scrim */ }
                 ),
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            color = Color.White,
+            color = cardBg,
             shadowElevation = 24.dp
         ) {
             Column(
@@ -1369,7 +1392,7 @@ fun EditCategoryBottomSheet(
                         modifier = Modifier
                             .width(38.dp)
                             .height(4.5.dp)
-                            .background(Color(0xFFCBD5E1), RoundedCornerShape(2.dp))
+                            .background(cardBorder, RoundedCornerShape(2.dp))
                     )
                 }
 
@@ -1417,12 +1440,12 @@ fun EditCategoryBottomSheet(
                             text = if (category.isSystem) "Customize System Category" else "Edit Category",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                         Text(
                             text = if (category.isSystem) "Customize icon and theme color" else "Edit category name, icon and color tone",
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B)
+                            color = slateSub
                         )
                     }
 
@@ -1430,12 +1453,12 @@ fun EditCategoryBottomSheet(
                         onClick = onDismiss,
                         modifier = Modifier
                             .size(34.dp)
-                            .background(Color(0xFFF1F5F9), CircleShape)
+                            .background(ArcColors.SurfaceHighlight, CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "Close",
-                            tint = Color(0xFF64748B),
+                            tint = slateSub,
                             modifier = Modifier.size(17.dp)
                         )
                     }
@@ -1457,7 +1480,7 @@ fun EditCategoryBottomSheet(
                             text = "Category Name",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF334155)
+                            color = slateTitle
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         OutlinedTextField(
@@ -1467,23 +1490,23 @@ fun EditCategoryBottomSheet(
                             isError = nameValidation != null,
                             supportingText = {
                                 if (nameValidation != null) {
-                                    Text(nameValidation, color = Color(0xFFDC2626), fontSize = 11.sp)
+                                    Text(nameValidation, color = ArcColors.Danger, fontSize = 11.sp)
                                 }
                             },
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFFF8FAFC),
-                                unfocusedContainerColor = Color(0xFFF8FAFC),
+                                focusedContainerColor = ArcColors.SurfaceHighlight,
+                                unfocusedContainerColor = ArcColors.SurfaceHighlight,
                                 focusedBorderColor = activeTone.color,
-                                unfocusedBorderColor = Color(0xFFE2E8F0)
+                                unfocusedBorderColor = cardBorder
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else {
                         Surface(
-                            color = Color(0xFFF8FAFC),
+                            color = ArcColors.SurfaceHighlight,
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            border = BorderStroke(1.dp, cardBorder),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -1495,20 +1518,20 @@ fun EditCategoryBottomSheet(
                                         text = "Category Name (Locked)",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF64748B)
+                                        color = ArcColors.TextSecondary
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = category.name,
                                         fontSize = 14.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
+                                        color = ArcColors.TextPrimary
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = "System category names are locked to preserve regex rules, but you can fully customize icon & color.",
                                         fontSize = 11.sp,
-                                        color = Color(0xFF64748B)
+                                        color = ArcColors.TextSecondary
                                     )
                                 }
                             }
@@ -1526,15 +1549,15 @@ fun EditCategoryBottomSheet(
                             text = "Icon Glyph",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF334155)
+                            color = ArcColors.TextPrimary
                         )
                         Spacer(modifier = Modifier.weight(1f))
 
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFECFDF5))
-                                .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(10.dp))
+                                .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5))
+                                .border(BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)), RoundedCornerShape(10.dp))
                                 .clickable {
                                     isMoreIconsExpanded = !isMoreIconsExpanded
                                 }
@@ -1544,7 +1567,7 @@ fun EditCategoryBottomSheet(
                                 text = if (isMoreIconsExpanded) "▲ Less" else "▼ More Icons (${ALL_CATEGORY_GLYPHS.size})",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF047857)
+                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
                             )
                         }
                     }
@@ -1567,11 +1590,11 @@ fun EditCategoryBottomSheet(
                                             .weight(1f)
                                             .height(46.dp)
                                             .clip(RoundedCornerShape(10.dp))
-                                            .background(if (isSelected) activeTone.color.copy(alpha = 0.12f) else Color(0xFFF8FAFC))
+                                            .background(if (isSelected) activeTone.color.copy(alpha = 0.12f) else ArcColors.SurfaceHighlight)
                                             .border(
                                                 BorderStroke(
                                                     if (isSelected) 1.5.dp else 1.dp,
-                                                    if (isSelected) activeTone.color else Color(0xFFE2E8F0)
+                                                    if (isSelected) activeTone.color else ArcColors.Border
                                                 ),
                                                 RoundedCornerShape(10.dp)
                                             )
@@ -1601,7 +1624,7 @@ fun EditCategoryBottomSheet(
                             text = "Theme Tone",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF334155)
+                            color = ArcColors.TextPrimary
                         )
                         Spacer(modifier = Modifier.weight(1f))
                         Row(verticalAlignment = Alignment.CenterVertically) {

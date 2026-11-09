@@ -31,19 +31,36 @@ import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.service.*
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.review.ArcColors
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val emeraldPrimary = Color(0xFF047857)
-private val emeraldLight = Color(0xFFECFDF5)
-private val emeraldBorder = Color(0xFFA7F3D0)
-private val slateTitle = Color(0xFF0F172A)
-private val slateSub = Color(0xFF64748B)
-private val cardBorder = Color(0xFFE2E8F0)
-private val lightBg = Color(0xFFF8FAFC)
+private val emeraldPrimary: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Primary
+
+private val emeraldLight: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.PrimaryLight
+
+private val emeraldBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.PrimaryBorder
+
+private val slateTitle: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+
+private val slateSub: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+
+private val cardBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Border
+
+private val lightBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Background
+
+private val cardBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
 
 /**
  * Historical Rule Application & Bulk Re-Categorization Screen (Milestone 12).
@@ -112,10 +129,10 @@ fun HistoricalRuleApplicationScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Surface(
-                color = Color.White,
+                color = lightBg,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(lightBg)
             ) {
                 ArcTrackerHeader(
                     title = "Apply Category Rules",
@@ -123,7 +140,7 @@ fun HistoricalRuleApplicationScreen(
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(lightBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp
                 )
@@ -150,7 +167,7 @@ fun HistoricalRuleApplicationScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = cardBg),
                         border = BorderStroke(1.dp, cardBorder),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
@@ -193,7 +210,7 @@ fun HistoricalRuleApplicationScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(46.dp),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary)
                             ) {
                                 Icon(
@@ -236,7 +253,7 @@ fun HistoricalRuleApplicationScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White)
+                            .background(cardBg)
                             .horizontalScroll(rememberScrollState())
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -251,7 +268,7 @@ fun HistoricalRuleApplicationScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(999.dp))
-                                    .background(if (isTabSelected) emeraldPrimary else Color(0xFFF1F5F9))
+                                    .background(if (isTabSelected) emeraldPrimary else ArcColors.SurfaceHighlight)
                                     .border(
                                         BorderStroke(1.dp, if (isTabSelected) emeraldPrimary else cardBorder),
                                         RoundedCornerShape(999.dp)
@@ -381,7 +398,7 @@ fun HistoricalRuleApplicationScreen(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .height(48.dp),
-                                                shape = RoundedCornerShape(12.dp),
+                                                shape = CircleShape,
                                                 colors = ButtonDefaults.buttonColors(
                                                     containerColor = emeraldPrimary,
                                                     disabledContainerColor = Color(0xFFE2E8F0)
@@ -489,7 +506,7 @@ fun HistoricalRuleApplicationScreen(
                 AlertDialog(
                     onDismissRequest = { showConfirmDialog = false },
                     shape = RoundedCornerShape(20.dp),
-                    containerColor = Color.White,
+                    containerColor = cardBg,
                     icon = {
                         Box(
                             modifier = Modifier
@@ -540,7 +557,7 @@ fun HistoricalRuleApplicationScreen(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = CircleShape
                         ) {
                             Text("Apply $selectedCount Changes", fontWeight = FontWeight.Bold)
                         }
@@ -548,7 +565,7 @@ fun HistoricalRuleApplicationScreen(
                     dismissButton = {
                         OutlinedButton(
                             onClick = { showConfirmDialog = false },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = CircleShape,
                             border = BorderStroke(1.dp, cardBorder)
                         ) {
                             Text("Cancel", color = slateSub, fontWeight = FontWeight.SemiBold)
@@ -562,7 +579,7 @@ fun HistoricalRuleApplicationScreen(
                 AlertDialog(
                     onDismissRequest = { applyResult = null },
                     shape = RoundedCornerShape(20.dp),
-                    containerColor = Color.White,
+                    containerColor = cardBg,
                     icon = {
                         Box(
                             modifier = Modifier
@@ -623,7 +640,7 @@ fun HistoricalRuleApplicationScreen(
                         Button(
                             onClick = { applyResult = null },
                             colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = CircleShape
                         ) {
                             Text("Done", fontWeight = FontWeight.Bold)
                         }
@@ -640,7 +657,7 @@ private fun SummaryHeader(
     onRefresh: () -> Unit
 ) {
     Surface(
-        color = Color.White,
+        color = cardBg,
         modifier = Modifier.fillMaxWidth(),
         border = BorderStroke(1.dp, cardBorder)
     ) {
@@ -780,7 +797,7 @@ private fun PreviewTransactionCard(
             .clickable { onToggleSelection() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0xFFF0FDF4) else Color.White
+            containerColor = if (isSelected) emeraldLight else cardBg
         ),
         border = BorderStroke(
             if (isSelected) 1.5.dp else 1.dp,
@@ -886,7 +903,7 @@ private fun ProtectedTransactionCard(item: HistoricalReassignmentPreviewItem) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
         border = BorderStroke(1.dp, cardBorder),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -973,7 +990,7 @@ private fun MatchingTransactionCard(item: HistoricalReassignmentPreviewItem) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
         border = BorderStroke(1.dp, cardBorder),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -1049,7 +1066,7 @@ private fun UnmatchedTransactionCard(item: HistoricalReassignmentPreviewItem) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
         border = BorderStroke(1.dp, cardBorder),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {

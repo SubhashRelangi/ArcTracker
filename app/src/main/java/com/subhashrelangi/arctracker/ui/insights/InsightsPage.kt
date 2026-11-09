@@ -1,6 +1,7 @@
 package com.subhashrelangi.arctracker.ui.insights
 
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -199,7 +200,7 @@ fun InsightsPage(
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
+                contentPadding = PaddingValues(top = 10.dp, bottom = 120.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Condition A: User has NOT completed setup and is NOT in demo mode -> Show empty setup page
@@ -207,8 +208,8 @@ fun InsightsPage(
                     item(key = "empty_setup_state") {
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            color = ArcColors.CardBackground,
+                            border = BorderStroke(1.dp, ArcColors.Border),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
@@ -225,14 +226,14 @@ fun InsightsPage(
                                     modifier = Modifier
                                         .size(64.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFFF1F5F9))
-                                        .border(1.5.dp, Color(0xFFCBD5E1), CircleShape),
+                                        .background(ArcColors.SurfaceHighlight)
+                                        .border(1.5.dp, ArcColors.Border, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.Leaderboard,
                                         contentDescription = "No Insights",
-                                        tint = Color(0xFF0F172A),
+                                        tint = ArcColors.TextPrimary,
                                         modifier = Modifier.size(32.dp)
                                     )
                                 }
@@ -243,7 +244,7 @@ fun InsightsPage(
                                     text = "No Insights Available",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = ArcColors.TextPrimary
                                 )
 
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -251,7 +252,7 @@ fun InsightsPage(
                                 Text(
                                     text = "Setup has not been completed yet. Connect your SMS or bank notifications to see real-time outflow velocity, category breakdowns, and spending limits.",
                                     fontSize = 13.sp,
-                                    color = Color(0xFF64748B),
+                                    color = ArcColors.TextMuted,
                                     textAlign = TextAlign.Center,
                                     lineHeight = 19.sp
                                 )
@@ -260,8 +261,11 @@ fun InsightsPage(
 
                                 Button(
                                     onClick = onStartSetup,
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
-                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = ArcColors.Primary,
+                                        contentColor = Color.White
+                                    ),
+                                    shape = CircleShape,
                                     contentPadding = PaddingValues(horizontal = 22.dp, vertical = 11.dp)
                                 ) {
                                     Text(
@@ -290,8 +294,8 @@ fun InsightsPage(
                     item(key = "empty_transactions_state") {
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            color = ArcColors.CardBackground,
+                            border = BorderStroke(1.dp, ArcColors.Border),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
@@ -308,14 +312,14 @@ fun InsightsPage(
                                     modifier = Modifier
                                         .size(64.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFFECFDF5))
-                                        .border(1.5.dp, Color(0xFFA7F3D0), CircleShape),
+                                        .background(ArcColors.PrimaryLight)
+                                        .border(1.5.dp, ArcColors.PrimaryBorder, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.Leaderboard,
                                         contentDescription = "No Transactions",
-                                        tint = Color(0xFF047857),
+                                        tint = ArcColors.Primary,
                                         modifier = Modifier.size(32.dp)
                                     )
                                 }
@@ -326,7 +330,7 @@ fun InsightsPage(
                                     text = "No Transactions in this Period",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = ArcColors.TextPrimary
                                 )
 
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -334,7 +338,7 @@ fun InsightsPage(
                                 Text(
                                     text = "There are no recorded expenses or income for this timeframe. Add an expense or import banking alerts to see on-device spending analytics.",
                                     fontSize = 13.sp,
-                                    color = Color(0xFF64748B),
+                                    color = ArcColors.TextMuted,
                                     textAlign = TextAlign.Center,
                                     lineHeight = 19.sp
                                 )
@@ -343,8 +347,8 @@ fun InsightsPage(
 
                                 Button(
                                     onClick = onAddExpenseClick,
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
-                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                                    shape = CircleShape,
                                     contentPadding = PaddingValues(horizontal = 22.dp, vertical = 11.dp)
                                 ) {
                                     Text(
@@ -383,9 +387,9 @@ fun InsightsPage(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(999.dp))
-                                        .background(if (isSelected) InsightsTheme.CharcoalDark else Color.White)
+                                        .background(if (isSelected) ArcColors.Primary else ArcColors.Surface)
                                         .border(
-                                            BorderStroke(1.dp, if (isSelected) InsightsTheme.CharcoalDark else Color(0xFFE2E8F0)),
+                                            BorderStroke(1.dp, if (isSelected) ArcColors.Primary else ArcColors.Border),
                                             RoundedCornerShape(999.dp)
                                         )
                                         .clickable { selectedPill = pillLabel }
@@ -396,7 +400,7 @@ fun InsightsPage(
                                         text = pillLabel,
                                         fontSize = 13.5.sp,
                                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                        color = if (isSelected) Color.White else Color(0xFF334155)
+                                        color = if (isSelected) Color.White else ArcColors.TextSecondary
                                     )
                                 }
                             }
@@ -477,10 +481,10 @@ fun InsightsPage(
         Scaffold(
             topBar = {
                 Surface(
-                    color = Color.White,
+                    color = ArcColors.Background,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(ArcColors.Background)
                 ) {
                     ArcTrackerHeader(
                         title = "Analytics & Insights",
@@ -488,7 +492,7 @@ fun InsightsPage(
                         onBackClick = onNavigateBack,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White)
+                            .background(ArcColors.Background)
                             .statusBarsPadding(),
                         horizontalPadding = 16.dp,
                         actions = {
@@ -496,14 +500,14 @@ fun InsightsPage(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White)
-                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape),
+                                    .background(ArcColors.Surface)
+                                    .border(BorderStroke(1.dp, ArcColors.Border), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.BarChart,
                                     contentDescription = "Analytics",
-                                    tint = Color(0xFF047857),
+                                    tint = ArcColors.Primary,
                                     modifier = Modifier.size(19.dp)
                                 )
                             }
@@ -511,7 +515,7 @@ fun InsightsPage(
                     )
                 }
             },
-            containerColor = Color(0xFFF8FAFC),
+            containerColor = ArcColors.Background,
             content = content
         )
     } else {

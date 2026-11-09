@@ -57,35 +57,36 @@ import com.subhashrelangi.arctracker.R
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.service.InstrumentType
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 // ==========================================
-// Theme Colors matching Light Theme Home Mockup
+// Theme Colors matching Universal ArcColors (Dynamic Light/Dark)
 // ==========================================
-private val HomeLightBg = Color(0xFFF8FAFC)
-private val TextDarkPrimary = Color(0xFF0F172A)
-private val TextDarkSecondary = Color(0xFF475569)
-private val TextDarkMuted = Color(0xFF64748B)
+private val HomeLightBg: Color @Composable @ReadOnlyComposable get() = ArcColors.Background
+private val TextDarkPrimary: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val TextDarkSecondary: Color @Composable @ReadOnlyComposable get() = ArcColors.TextSecondary
+private val TextDarkMuted: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
 
-private val CardBorderLight = Color(0xFFE2E8F0)
-private val CardSurfaceWhite = Color(0xFFFFFFFF)
+private val CardBorderLight: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val CardSurfaceWhite: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
 
-private val EmeraldAccent = Color(0xFF10B981)
-private val EmeraldDarkText = Color(0xFF059669)
-private val EmeraldPillBg = Color(0xFFECFDF5)
-private val EmeraldPillBorder = Color(0xFFA7F3D0)
+private val EmeraldAccent: Color @Composable @ReadOnlyComposable get() = ArcColors.Primary
+private val EmeraldDarkText: Color @Composable @ReadOnlyComposable get() = ArcColors.PrimaryDark
+private val EmeraldPillBg: Color @Composable @ReadOnlyComposable get() = ArcColors.PrimaryLight
+private val EmeraldPillBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.PrimaryBorder
 
-private val AmberBannerBg = Color(0xFFFFFBEB)
-private val AmberBannerBorder = Color(0xFFFDE68A)
-private val AmberTitleText = Color(0xFF78350F)
-private val AmberSubtitleText = Color(0xFF92400E)
+private val AmberBannerBg: Color @Composable @ReadOnlyComposable get() = ArcColors.WarningAmberBg
+private val AmberBannerBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.WarningAmberBorder
+private val AmberTitleText: Color @Composable @ReadOnlyComposable get() = ArcColors.WarningAmber
+private val AmberSubtitleText: Color @Composable @ReadOnlyComposable get() = ArcColors.TextSecondary
 
-private val CoralExpense = Color(0xFFF87171)
-private val SlateHeroBg = Color(0xFF0B0F19)
-private val SlateHeroBorder = Color(0xFF1E293B)
+private val CoralExpense: Color @Composable @ReadOnlyComposable get() = ArcColors.DebitDanger
+private val SlateHeroBg: Color @Composable @ReadOnlyComposable get() = if (!ArcColors.isDark) Color(0xFF0B0F19) else ArcColors.SurfaceElevated
+private val SlateHeroBorder: Color @Composable @ReadOnlyComposable get() = if (!ArcColors.isDark) Color(0xFF1E293B) else ArcColors.Border
 
 /**
  * Visual styling theme for realistic physical fintech cards in the wallet.
@@ -582,10 +583,23 @@ private fun HomeTopHeader(
     onSearchClick: () -> Unit,
     onProfileClick: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settingsRepo = remember { com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository.getInstance(context) }
+    val profileName by settingsRepo.getProfileNameFlow().collectAsState()
+    val profileInitials = remember(profileName) {
+        val parts = profileName.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
+        when {
+            parts.size >= 2 -> "${parts[0].first().uppercase()}${parts[1].first().uppercase()}"
+            parts.size == 1 && parts[0].isNotEmpty() -> "${parts[0].first().uppercase()}"
+            else -> "PV"
+        }
+    }
+
     com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader(
         title = "ArcTracker",
         showSearch = true,
         showProfile = true,
+        profileInitials = profileInitials,
         onSearchClick = onSearchClick,
         onProfileClick = onProfileClick,
         horizontalPadding = 0.dp,
@@ -730,6 +744,9 @@ private fun PhysicalLeatherPocketWallet(
     isDemoMode: Boolean,
     onAccountsClick: () -> Unit
 ) {
+    val radarColor = if (ArcColors.isDark) ArcColors.Border.copy(alpha = 0.35f) else Color(0xFF1E293B).copy(alpha = 0.45f)
+    val stitchColor = if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155).copy(alpha = 0.7f)
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -738,7 +755,6 @@ private fun PhysicalLeatherPocketWallet(
                 // Subtle concentric radar rings radiating outward behind the balance section
                 val centerX = size.width * 0.88f
                 val centerY = size.height * 0.60f
-                val radarColor = Color(0xFF1E293B).copy(alpha = 0.45f)
                 val stroke = Stroke(width = 1.dp.toPx())
                 drawCircle(color = radarColor, radius = 45.dp.toPx(), center = Offset(centerX, centerY), style = stroke)
                 drawCircle(color = radarColor, radius = 90.dp.toPx(), center = Offset(centerX, centerY), style = stroke)
@@ -746,7 +762,6 @@ private fun PhysicalLeatherPocketWallet(
                 drawCircle(color = radarColor, radius = 195.dp.toPx(), center = Offset(centerX, centerY), style = stroke)
 
                 // Realistic leather perimeter dashed stitching
-                val stitchColor = Color(0xFF334155).copy(alpha = 0.7f)
                 val stitchStroke = Stroke(
                     width = 1.2.dp.toPx(),
                     pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
@@ -760,8 +775,8 @@ private fun PhysicalLeatherPocketWallet(
                 )
             },
         shape = RoundedCornerShape(26.dp),
-        color = Color(0xFF0B0F19),
-        border = BorderStroke(1.dp, Color(0xFF1E293B))
+        color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0B0F19),
+        border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
     ) {
         Column(
             modifier = Modifier
@@ -777,8 +792,8 @@ private fun PhysicalLeatherPocketWallet(
                         .fillMaxWidth()
                         .clickable(onClick = onAccountsClick),
                     shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFF131B2A),
-                    border = BorderStroke(1.dp, Color(0xFF1E293B))
+                    color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF131B2A),
+                    border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF1E293B))
                 ) {
                     Row(
                         modifier = Modifier
@@ -790,13 +805,13 @@ private fun PhysicalLeatherPocketWallet(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF1E293B)),
+                                .background(if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF1E293B)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.CreditCard,
                                 contentDescription = "Cards",
-                                tint = Color(0xFF94A3B8),
+                                tint = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -899,26 +914,26 @@ private fun PhysicalLeatherPocketWallet(
             // ----------------------------------------------------
             // B. Front Leather Pocket Flap (Curved Rim + Balance & Split In/Out)
             // ----------------------------------------------------
+            val flapStitchColor = if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155).copy(alpha = 0.65f)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .drawBehind {
                         // Stitching along the top curved rim of the leather flap
-                        val stitchColor = Color(0xFF334155).copy(alpha = 0.65f)
                         val stroke = Stroke(
                             width = 1.dp.toPx(),
                             pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 5f), 0f)
                         )
                         drawLine(
-                            color = stitchColor,
+                            color = flapStitchColor,
                             start = Offset(14.dp.toPx(), 0f),
                             end = Offset(size.width - 14.dp.toPx(), 0f),
                             strokeWidth = 1.dp.toPx()
                         )
                     },
                 shape = RoundedCornerShape(20.dp),
-                color = Color(0xFF111726),
-                border = BorderStroke(1.dp, Color(0xFF1E293B).copy(alpha = 0.8f))
+                color = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF111726),
+                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B).copy(alpha = 0.8f))
             ) {
                 Column(
                     modifier = Modifier
@@ -938,7 +953,7 @@ private fun PhysicalLeatherPocketWallet(
                             Icon(
                                 imageVector = if (selectedCardId == null) Icons.Outlined.AccountBalanceWallet else Icons.Outlined.CreditCard,
                                 contentDescription = "Wallet Icon",
-                                tint = Color(0xFF94A3B8),
+                                tint = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -946,7 +961,7 @@ private fun PhysicalLeatherPocketWallet(
                                 text = heroTitle,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF94A3B8),
+                                color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
                                 letterSpacing = 0.8.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -960,8 +975,8 @@ private fun PhysicalLeatherPocketWallet(
                             Surface(
                                 onClick = { onCardSelect(null) },
                                 shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFF1E293B),
-                                border = BorderStroke(1.dp, Color(0xFF334155))
+                                color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
+                                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.5.dp),
@@ -987,8 +1002,8 @@ private fun PhysicalLeatherPocketWallet(
                             Surface(
                                 onClick = onExpand,
                                 shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFF1E293B),
-                                border = BorderStroke(1.dp, Color(0xFF334155))
+                                color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
+                                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
@@ -1065,8 +1080,8 @@ private fun PhysicalLeatherPocketWallet(
                         Surface(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(14.dp),
-                            color = Color(0xFF0C101A),
-                            border = BorderStroke(1.dp, Color(0xFF1E293B))
+                            color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0C101A),
+                            border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
                         ) {
                             Column(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
@@ -1078,7 +1093,7 @@ private fun PhysicalLeatherPocketWallet(
                                 ) {
                                     Text(
                                         text = "October In",
-                                        color = Color(0xFF94A3B8),
+                                        color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -1086,7 +1101,7 @@ private fun PhysicalLeatherPocketWallet(
                                         modifier = Modifier
                                             .size(19.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0xFF064E3B)),
+                                            .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFF064E3B)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
@@ -1111,8 +1126,8 @@ private fun PhysicalLeatherPocketWallet(
                         Surface(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(14.dp),
-                            color = Color(0xFF0C101A),
-                            border = BorderStroke(1.dp, Color(0xFF1E293B))
+                            color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0C101A),
+                            border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
                         ) {
                             Column(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
@@ -1124,7 +1139,7 @@ private fun PhysicalLeatherPocketWallet(
                                 ) {
                                     Text(
                                         text = "October Out",
-                                        color = Color(0xFF94A3B8),
+                                        color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -1132,13 +1147,13 @@ private fun PhysicalLeatherPocketWallet(
                                         modifier = Modifier
                                             .size(19.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0xFF1E293B)),
+                                            .background(if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.ArrowUpward,
                                             contentDescription = "Expense",
-                                            tint = Color(0xFF94A3B8),
+                                            tint = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
                                             modifier = Modifier.size(11.dp)
                                         )
                                     }
@@ -1181,8 +1196,8 @@ private fun AppleWalletCascadingDeck(
             .fillMaxWidth()
             .clip(RoundedCornerShape(26.dp)),
         shape = RoundedCornerShape(26.dp),
-        color = Color(0xFF0B0F19),
-        border = BorderStroke(1.dp, Color(0xFF1E293B))
+        color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0B0F19),
+        border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
     ) {
         Column(
             modifier = Modifier
@@ -1215,8 +1230,8 @@ private fun AppleWalletCascadingDeck(
                 Surface(
                     onClick = onCollapse,
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFF1E293B),
-                    border = BorderStroke(1.dp, Color(0xFF334155))
+                    color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
+                    border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -1298,8 +1313,8 @@ private fun AppleWalletCascadingDeck(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF111726),
-                border = BorderStroke(1.dp, Color(0xFF1E293B))
+                color = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF111726),
+                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
             ) {
                 Row(
                     modifier = Modifier
@@ -1311,7 +1326,7 @@ private fun AppleWalletCascadingDeck(
                     Column {
                         Text(
                             text = heroTitle,
-                            color = Color(0xFF94A3B8),
+                            color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = 0.5.sp
@@ -1330,8 +1345,8 @@ private fun AppleWalletCascadingDeck(
                             Surface(
                                 onClick = { onCardSelect(null) },
                                 shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFF1E293B),
-                                border = BorderStroke(1.dp, Color(0xFF334155))
+                                color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
+                                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
                             ) {
                                 Text(
                                     text = "Reset",
@@ -1346,8 +1361,8 @@ private fun AppleWalletCascadingDeck(
                         Surface(
                             onClick = onCollapse,
                             shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFF1E293B),
-                            border = BorderStroke(1.dp, Color(0xFF334155))
+                            color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
+                            border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -1417,14 +1432,25 @@ private fun FullRealisticCreditCard(
             )
         }
         WalletCardTheme.PORCELAIN_WHITE -> {
-            CardThemeStyle(
-                bgBrush = Brush.linearGradient(
-                    listOf(Color(0xFFFFFFFF), Color(0xFFF8FAFC), Color(0xFFE2E8F0))
-                ),
-                borderColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFCBD5E1),
-                contentColor = TextDarkPrimary,
-                subtextColor = Color(0xFF64748B)
-            )
+            if (ArcColors.isDark) {
+                CardThemeStyle(
+                    bgBrush = Brush.linearGradient(
+                        listOf(Color(0xFF1E293B), Color(0xFF0F172A), Color(0xFF000000))
+                    ),
+                    borderColor = if (isSelected) Color(0xFF38BDF8) else Color(0xFF334155),
+                    contentColor = Color(0xFFF8FAFC),
+                    subtextColor = Color(0xFF94A3B8)
+                )
+            } else {
+                CardThemeStyle(
+                    bgBrush = Brush.linearGradient(
+                        listOf(Color(0xFFFFFFFF), Color(0xFFF8FAFC), Color(0xFFE2E8F0))
+                    ),
+                    borderColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFCBD5E1),
+                    contentColor = TextDarkPrimary,
+                    subtextColor = Color(0xFF64748B)
+                )
+            }
         }
         WalletCardTheme.EMERALD_SLATE -> {
             CardThemeStyle(
@@ -1508,14 +1534,17 @@ private fun FullRealisticCreditCard(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(
-                                        if (card.theme == WalletCardTheme.PORCELAIN_WHITE) Color(0xFFEFF6FF)
-                                        else Color.White.copy(alpha = 0.22f)
+                                        if (card.theme == WalletCardTheme.PORCELAIN_WHITE) {
+                                            if (ArcColors.isDark) Color(0xFF1E293B) else Color(0xFFEFF6FF)
+                                        } else Color.White.copy(alpha = 0.22f)
                                     )
                                     .padding(horizontal = 6.dp, vertical = 1.5.dp)
                             ) {
                                 Text(
                                     text = "● Active",
-                                    color = if (card.theme == WalletCardTheme.PORCELAIN_WHITE) Color(0xFF2563EB) else Color.White,
+                                    color = if (card.theme == WalletCardTheme.PORCELAIN_WHITE) {
+                                        if (ArcColors.isDark) Color(0xFF38BDF8) else Color(0xFF2563EB)
+                                    } else Color.White,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1699,12 +1728,21 @@ private fun PocketTuckedCard(
             )
         }
         WalletCardTheme.PORCELAIN_WHITE -> {
-            CardThemeStyle(
-                bgBrush = Brush.horizontalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFF1F5F9))),
-                borderColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFCBD5E1),
-                contentColor = TextDarkPrimary,
-                subtextColor = Color(0xFF64748B)
-            )
+            if (ArcColors.isDark) {
+                CardThemeStyle(
+                    bgBrush = Brush.horizontalGradient(listOf(Color(0xFF1E293B), Color(0xFF0F172A))),
+                    borderColor = if (isSelected) Color(0xFF38BDF8) else Color(0xFF334155),
+                    contentColor = Color(0xFFF8FAFC),
+                    subtextColor = Color(0xFF94A3B8)
+                )
+            } else {
+                CardThemeStyle(
+                    bgBrush = Brush.horizontalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFF1F5F9))),
+                    borderColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFCBD5E1),
+                    contentColor = TextDarkPrimary,
+                    subtextColor = Color(0xFF64748B)
+                )
+            }
         }
         WalletCardTheme.EMERALD_SLATE -> {
             CardThemeStyle(
@@ -1818,14 +1856,17 @@ private fun PocketTuckedCard(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(
-                                    if (card.theme == WalletCardTheme.PORCELAIN_WHITE) Color(0xFFEFF6FF)
-                                    else Color.White.copy(alpha = 0.2f)
+                                    if (card.theme == WalletCardTheme.PORCELAIN_WHITE) {
+                                        if (ArcColors.isDark) Color(0xFF1E293B) else Color(0xFFEFF6FF)
+                                    } else Color.White.copy(alpha = 0.2f)
                                 )
                                 .padding(horizontal = 4.dp, vertical = 1.dp)
                         ) {
                             Text(
                                 text = "Active",
-                                color = if (card.theme == WalletCardTheme.PORCELAIN_WHITE) Color(0xFF2563EB) else Color.White,
+                                color = if (card.theme == WalletCardTheme.PORCELAIN_WHITE) {
+                                    if (ArcColors.isDark) Color(0xFF38BDF8) else Color(0xFF2563EB)
+                                } else Color.White,
                                 fontSize = 8.5.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -1983,8 +2024,8 @@ private fun HomeQuickActionsHubCard(
             QuickActionHubItem(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Rounded.Sms,
-                iconColor = Color(0xFF2563EB),
-                iconBgColor = Color(0xFFEFF6FF),
+                iconColor = if (ArcColors.current.isDark) Color(0xFF60A5FA) else Color(0xFF2563EB),
+                iconBgColor = if (ArcColors.current.isDark) Color(0xFF1E293B) else Color(0xFFEFF6FF),
                 title = "Scan SMS",
                 subtitle = "Sync alerts",
                 onClick = onScanSmsClick
@@ -1994,15 +2035,15 @@ private fun HomeQuickActionsHubCard(
                 modifier = Modifier
                     .width(1.dp)
                     .height(34.dp)
-                    .background(Color(0xFFF1F5F9))
+                    .background(CardBorderLight)
             )
 
             // 2. Budgets
             QuickActionHubItem(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Rounded.Savings,
-                iconColor = Color(0xFF059669),
-                iconBgColor = Color(0xFFECFDF5),
+                iconColor = if (ArcColors.current.isDark) Color(0xFF34D399) else Color(0xFF059669),
+                iconBgColor = if (ArcColors.current.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5),
                 title = "Budgets",
                 subtitle = "Spend caps",
                 onClick = onBudgetsClick
@@ -2012,15 +2053,15 @@ private fun HomeQuickActionsHubCard(
                 modifier = Modifier
                     .width(1.dp)
                     .height(34.dp)
-                    .background(Color(0xFFF1F5F9))
+                    .background(CardBorderLight)
             )
 
             // 3. Accounts
             QuickActionHubItem(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Rounded.AccountBalance,
-                iconColor = Color(0xFFD97706),
-                iconBgColor = Color(0xFFFFFBEB),
+                iconColor = if (ArcColors.current.isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
+                iconBgColor = if (ArcColors.current.isDark) Color(0xFF2B1F09) else Color(0xFFFFFBEB),
                 title = "Accounts",
                 subtitle = "Bank vaults",
                 onClick = onAccountsClick
@@ -2030,15 +2071,15 @@ private fun HomeQuickActionsHubCard(
                 modifier = Modifier
                     .width(1.dp)
                     .height(34.dp)
-                    .background(Color(0xFFF1F5F9))
+                    .background(CardBorderLight)
             )
 
             // 4. Export
             QuickActionHubItem(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Rounded.FileDownload,
-                iconColor = Color(0xFF7C3AED),
-                iconBgColor = Color(0xFFF5F3FF),
+                iconColor = if (ArcColors.current.isDark) Color(0xFFA78BFA) else Color(0xFF7C3AED),
+                iconBgColor = if (ArcColors.current.isDark) Color(0xFF2E1A47) else Color(0xFFF5F3FF),
                 title = "Export",
                 subtitle = "CSV / PDF",
                 onClick = onExportClick
@@ -2145,13 +2186,13 @@ private fun HomeRecentActivitySection(
                     text = "View all",
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF2563EB)
+                    color = EmeraldAccent
                 )
                 Spacer(modifier = Modifier.width(3.dp))
                 Icon(
                     imageVector = Icons.Outlined.ArrowForward,
                     contentDescription = "View all transactions",
-                    tint = Color(0xFF2563EB),
+                    tint = EmeraldAccent,
                     modifier = Modifier.size(13.dp)
                 )
             }
@@ -2180,13 +2221,13 @@ private fun HomeRecentActivitySection(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFF1F5F9)),
+                            .background(ArcColors.SurfaceHighlight),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.CreditCard,
                             contentDescription = "No transactions",
-                            tint = Color(0xFF94A3B8),
+                            tint = ArcColors.TextMuted,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -2225,13 +2266,13 @@ private fun HomeRecentActivitySection(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFF1F5F9)),
+                            .background(ArcColors.SurfaceHighlight),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.ReceiptLong,
                             contentDescription = "No transactions",
-                            tint = Color(0xFF94A3B8),
+                            tint = ArcColors.TextMuted,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -2260,7 +2301,7 @@ private fun HomeRecentActivitySection(
 
                     OutlinedButton(
                         onClick = onScanSmsClick,
-                        shape = RoundedCornerShape(20.dp),
+                        shape = CircleShape,
                         border = BorderStroke(1.dp, CardBorderLight),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = TextDarkPrimary
@@ -2289,7 +2330,7 @@ private fun HomeRecentActivitySection(
                         )
                         if (index < items.size - 1) {
                             HorizontalDivider(
-                                color = Color(0xFFF1F5F9),
+                                color = CardBorderLight,
                                 thickness = 1.dp,
                                 modifier = Modifier.padding(horizontal = 14.dp)
                             )
@@ -2314,12 +2355,13 @@ private fun RecentTransactionItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Category Icon Circle
+        val isDark = ArcColors.current.isDark
         val (iconVector, iconTint, iconBg) = when (item.iconType) {
-            "income" -> Triple(Icons.AutoMirrored.Rounded.TrendingUp, EmeraldDarkText, EmeraldPillBg)
-            "dining" -> Triple(Icons.Outlined.Restaurant, Color(0xFFEA580C), Color(0xFFFFF7ED))
-            "shopping" -> Triple(Icons.Outlined.ShoppingBag, Color(0xFF2563EB), Color(0xFFEFF6FF))
-            "utilities" -> Triple(Icons.Outlined.Bolt, Color(0xFFDC2626), Color(0xFFFEF2F2))
-            else -> Triple(Icons.Outlined.CreditCard, Color(0xFF475569), Color(0xFFF1F5F9))
+            "income" -> Triple(Icons.AutoMirrored.Rounded.TrendingUp, EmeraldAccent, EmeraldPillBg)
+            "dining" -> Triple(Icons.Outlined.Restaurant, if (isDark) Color(0xFFFB923C) else Color(0xFFEA580C), if (isDark) Color(0xFF2C1608) else Color(0xFFFFF7ED))
+            "shopping" -> Triple(Icons.Outlined.ShoppingBag, if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB), if (isDark) Color(0xFF1E293B) else Color(0xFFEFF6FF))
+            "utilities" -> Triple(Icons.Outlined.Bolt, if (isDark) Color(0xFFF87171) else Color(0xFFDC2626), if (isDark) Color(0xFF2C1418) else Color(0xFFFEF2F2))
+            else -> Triple(Icons.Outlined.CreditCard, TextDarkSecondary, ArcColors.SurfaceHighlight)
         }
 
         Box(

@@ -5,6 +5,8 @@ import com.subhashrelangi.arctracker.ui.core.ArcFloatingAddExpenseButton
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -31,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -45,145 +48,12 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.NotificationReaderService
+import com.subhashrelangi.arctracker.settings.AppThemeMode
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
+import com.subhashrelangi.arctracker.utils.AppVersion
 import kotlinx.coroutines.delay
 
-// Legacy Color & Component Tokens for backward compatibility with dependent screens
-val purpleColor = Color(0xFF673AB7)
-val lightPurpleColor = Color(0xFFEDE7F6)
-val textColor = Color(0xFF1E1E1E)
-val subtitleColor = Color(0xFF757575)
-val borderColor = Color(0xFFF0F0F0)
-
-@Composable
-fun SettingsCard(title: String? = null, content: @Composable ColumnScope.() -> Unit) {
-    if (title != null) {
-        Text(
-            text = title,
-            color = purpleColor,
-            fontWeight = FontWeight.Bold,
-            fontSize = 13.sp,
-            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
-        )
-    }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, borderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(vertical = 8.dp),
-            content = content
-        )
-    }
-}
-
-@Composable
-fun SettingsRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    isLast: Boolean = false,
-    enabled: Boolean = true,
-    iconTint: Color = purpleColor,
-    iconBgColor: Color = lightPurpleColor,
-    onClick: (() -> Unit)? = null,
-    rightContent: @Composable () -> Unit = {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = "Go",
-            tint = textColor,
-            modifier = Modifier.size(16.dp)
-        )
-    }
-) {
-    val alpha = if (enabled) 1f else 0.38f
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled && onClick != null) { onClick?.invoke() }
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .alpha(alpha),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .background(iconBgColor, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = iconTint,
-                modifier = Modifier.size(16.dp)
-            )
-        }
-        
-        Spacer(modifier = Modifier.width(12.dp))
-        
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-                color = textColor
-            )
-            Text(
-                text = subtitle,
-                fontSize = 11.sp,
-                color = subtitleColor
-            )
-        }
-        
-        rightContent()
-    }
-    
-    if (!isLast) {
-        HorizontalDivider(
-            color = borderColor,
-            thickness = 1.dp,
-            modifier = Modifier.padding(start = 60.dp)
-        )
-    }
-}
-
-@Composable
-fun SettingsSwitchRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    isLast: Boolean = false,
-    enabled: Boolean = true
-) {
-    SettingsRow(
-        icon = icon,
-        title = title,
-        subtitle = subtitle,
-        isLast = isLast,
-        enabled = enabled,
-        rightContent = {
-            Switch(
-                checked = checked,
-                onCheckedChange = if (enabled) onCheckedChange else null,
-                enabled = enabled,
-                modifier = Modifier.scale(0.7f).offset(x = 8.dp),
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = purpleColor,
-                    checkedBorderColor = Color.Transparent,
-                    uncheckedThumbColor = Color.White,
-                    uncheckedTrackColor = Color(0xFFE0E0E0),
-                    uncheckedBorderColor = Color.Transparent
-                )
-            )
-        }
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -197,13 +67,17 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val appVersion = remember(context) { AppVersion.getFormattedVersion(context) }
+    val rawVersion = remember(context) { AppVersion.getRawVersion(context) }
 
     val settingsRepo = remember {
         repository ?: MonitoringSettingsRepository.getInstance(context)
     }
 
-    var profileName by remember { mutableStateOf(settingsRepo.getProfileName()) }
-    var profileLabel by remember { mutableStateOf(settingsRepo.getProfileLabel()) }
+    val currentThemeMode by settingsRepo.themeModeFlow.collectAsState()
+
+    val profileName by settingsRepo.getProfileNameFlow().collectAsState()
+    val profileLabel by settingsRepo.getProfileLabelFlow().collectAsState()
     var showEditProfileSheet by remember { mutableStateOf(false) }
 
     var isDeveloperModeUnlocked by remember {
@@ -322,7 +196,7 @@ fun SettingsScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
+            .background(ArcColors.Background)
     ) {
         val q = searchQuery.trim()
         fun matchesSearch(vararg terms: String): Boolean {
@@ -358,13 +232,16 @@ fun SettingsScreen(
         val showOffline = matchesSearch("100% Offline & Private", "Offline", "Private", "Zero network", "Zero telemetry")
         val hasSecurityMatches = showAppLock || showScreenSec || showOffline
 
+        val showTheme = matchesSearch("App Theme", "Appearance", "Theme", "Dark mode", "Light mode", "System default")
+        val hasAppearanceMatches = showTheme
+
         val showDev = isDeveloperModeUnlocked && matchesSearch("Developer Options", "Developer", "Regex", "Onboarding", "Demo mode")
 
         val showAbout = matchesSearch("About ArcTracker", "About", "Version", "Build", "Architecture")
         val showFeedback = matchesSearch("Feedback & Local Logs", "Feedback", "Diagnostics", "Report", "Review")
         val hasAboutMatches = showAbout || showFeedback
 
-        val hasAnyMatch = showProfile || hasCoreMatches || showTracker || hasTrackingMatches || hasDataMatches || hasSecurityMatches || showDev || hasAboutMatches
+        val hasAnyMatch = showProfile || hasCoreMatches || showTracker || hasTrackingMatches || hasDataMatches || hasSecurityMatches || hasAppearanceMatches || showDev || hasAboutMatches
 
         Column(
             modifier = Modifier
@@ -379,8 +256,8 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .padding(vertical = 32.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    colors = CardDefaults.cardColors(containerColor = ArcColors.CardBackground),
+                    border = BorderStroke(1.dp, ArcColors.Border)
                 ) {
                     Column(
                         modifier = Modifier
@@ -392,13 +269,13 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFF1F5F9)),
+                                .background(ArcColors.SurfaceHighlight),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Search,
                                 contentDescription = null,
-                                tint = Color(0xFF94A3B8),
+                                tint = ArcColors.TextMutedLight,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -407,13 +284,13 @@ fun SettingsScreen(
                             text = "No settings found",
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
-                            color = Color(0xFF0F172A)
+                            color = ArcColors.TextPrimary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "No setting or rule matching \"$q\"",
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B)
+                            color = ArcColors.TextMuted
                         )
                     }
                 }
@@ -426,8 +303,8 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .clickable { showEditProfileSheet = true },
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = ArcColors.CardBackground),
+                    border = BorderStroke(1.dp, ArcColors.Border),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Row(
@@ -444,7 +321,7 @@ fun SettingsScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .clip(CircleShape)
-                                    .background(Color(0xFF064E3B)),
+                                    .background(ArcColors.PrimaryDark),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -462,7 +339,7 @@ fun SettingsScreen(
                                     .align(Alignment.BottomEnd)
                                     .clip(CircleShape)
                                     .background(Color(0xFF15803D))
-                                    .border(BorderStroke(1.5.dp, Color.White), CircleShape),
+                                    .border(BorderStroke(1.5.dp, ArcColors.Surface), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -482,7 +359,7 @@ fun SettingsScreen(
                                     text = profileName,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.5.sp,
-                                    color = Color(0xFF0F172A),
+                                    color = ArcColors.TextPrimary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -490,15 +367,15 @@ fun SettingsScreen(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(Color(0xFFECFDF5))
-                                        .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(6.dp))
+                                        .background(ArcColors.PrimaryLight)
+                                        .border(BorderStroke(1.dp, ArcColors.PrimaryBorder), RoundedCornerShape(6.dp))
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = "Primary Vault",
                                         fontSize = 10.5.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF15803D)
+                                        color = ArcColors.Primary
                                     )
                                 }
                             }
@@ -506,7 +383,7 @@ fun SettingsScreen(
                             Text(
                                 text = profileLabel,
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B),
+                                color = ArcColors.TextMuted,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -515,7 +392,7 @@ fun SettingsScreen(
                         Icon(
                             imageVector = Icons.Outlined.Edit,
                             contentDescription = "Edit Profile",
-                            tint = Color(0xFF94A3B8),
+                            tint = ArcColors.TextMutedLight,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -577,7 +454,18 @@ fun SettingsScreen(
                 }
             }
 
-            // 4. Section: TRACKER ENGINE
+            // 4. Section: APPEARANCE & THEME (Positioned above Tracker Engine)
+            if (hasAppearanceMatches) {
+                SectionHeader(title = "APPEARANCE & THEME")
+                ThemeModeSelectorCard(
+                    currentMode = currentThemeMode,
+                    onSelectMode = { mode ->
+                        settingsRepo.setThemeMode(mode)
+                    }
+                )
+            }
+
+            // 5. Section: TRACKER ENGINE
             if (showTracker) {
                 SectionHeader(
                     title = "TRACKER ENGINE",
@@ -630,21 +518,21 @@ fun SettingsScreen(
                                 text = "Automatic Tracking",
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 13.5.sp,
-                                color = Color(0xFF0F172A)
+                                color = ArcColors.TextPrimary
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(4.dp))
-                                        .background(if (effectiveAutoTracking) Color(0xFFECFDF5) else Color(0xFFF1F5F9))
+                                        .background(if (effectiveAutoTracking) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)) else ArcColors.SurfaceHighlight)
                                         .padding(horizontal = 6.dp, vertical = 1.dp)
                                 ) {
                                     Text(
                                         text = if (effectiveAutoTracking) "Active • Service Bound" else "Inactive • Disconnected",
                                         fontSize = 10.5.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = if (effectiveAutoTracking) Color(0xFF15803D) else Color(0xFF64748B)
+                                        color = if (effectiveAutoTracking) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF15803D)) else ArcColors.TextSecondary
                                     )
                                 }
                             }
@@ -652,7 +540,7 @@ fun SettingsScreen(
                             Text(
                                 text = "Real-time local event listener pipeline active in memory.",
                                 fontSize = 11.5.sp,
-                                color = Color(0xFF64748B)
+                                color = ArcColors.TextSecondary
                             )
                         }
 
@@ -683,7 +571,7 @@ fun SettingsScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 14.dp, vertical = 8.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFF1F5F9))
+                            .background(ArcColors.SurfaceHighlight)
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Row(
@@ -695,7 +583,7 @@ fun SettingsScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.TrendingUp,
                                     contentDescription = "Stats",
-                                    tint = Color(0xFF15803D),
+                                    tint = ArcColors.Primary,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -704,7 +592,7 @@ fun SettingsScreen(
                                 Text(
                                     text = "Today: $displayToday txns • This month: $displayMonth txns",
                                     fontSize = 11.5.sp,
-                                    color = Color(0xFF334155),
+                                    color = ArcColors.TextPrimary,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -712,14 +600,14 @@ fun SettingsScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0xFFE2E8F0))
+                                    .background(ArcColors.BorderSubtle)
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = "INDEXED",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF475569)
+                                    color = ArcColors.TextSecondary
                                 )
                             }
                         }
@@ -762,8 +650,8 @@ fun SettingsScreen(
                             title = "Monitored Apps",
                             subtitle = "Choose which apps can be monitored",
                             badgeText = if (monitoredAppsCount > 0) "$monitoredAppsCount active" else null,
-                            badgeBgColor = Color(0xFFECFDF5),
-                            badgeTextColor = Color(0xFF15803D),
+                            badgeBgColor = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5),
+                            badgeTextColor = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF15803D),
                             enabled = effectiveAutoTracking && effectiveNotifTracking,
                             onClick = { onNavigate("SupportedApps") }
                         )
@@ -942,14 +830,14 @@ fun SettingsScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0xFFECFDF5))
+                                .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "UNLOCKED",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF047857)
+                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
                             )
                         }
                     }
@@ -976,11 +864,11 @@ fun SettingsScreen(
                             icon = Icons.Outlined.Info,
                             title = "About ArcTracker",
                             subtitle = if (isDeveloperModeUnlocked) {
-                                "Version 1.0.0 (Build 5107a09) • Developer options unlocked"
+                                "Version $rawVersion • Developer options unlocked"
                             } else {
-                                "Version 1.0.0 (Build 5107a09) • Local-first architecture"
+                                "Version $rawVersion • Local-first architecture"
                             },
-                            badgeText = "v1.0.0",
+                            badgeText = appVersion,
                             onClick = {
                                 val now = System.currentTimeMillis()
                                 if (now - lastAboutArcTapTimestamp > 2000L) {
@@ -1087,7 +975,7 @@ fun SettingsScreen(
                             type = "message/rfc822"
                             putExtra(Intent.EXTRA_EMAIL, arrayOf("support@arctracker.local"))
                             putExtra(Intent.EXTRA_SUBJECT, "ArcTracker Feedback & Local Report")
-                            putExtra(Intent.EXTRA_TEXT, "Device: Android\nVersion: 1.0.0 (Build 5107a09)\nFeedback:\n")
+                            putExtra(Intent.EXTRA_TEXT, "Device: Android\nVersion: $rawVersion\nFeedback:\n")
                         }
                         context.startActivity(Intent.createChooser(intent, "Send Feedback"))
                     } catch (_: Exception) {
@@ -1120,7 +1008,7 @@ fun SettingsScreen(
         ModalBottomSheet(
             onDismissRequest = { showUpdateDialog = false },
             sheetState = sheetState,
-            containerColor = Color.White,
+            containerColor = ArcColors.CardBackground,
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             dragHandle = {
                 Box(
@@ -1129,7 +1017,7 @@ fun SettingsScreen(
                         .width(36.dp)
                         .height(4.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFCBD5E1))
+                        .background(ArcColors.Border)
                 )
             }
         ) {
@@ -1154,14 +1042,14 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .size(46.dp)
                                 .clip(RoundedCornerShape(13.dp))
-                                .background(Color(0xFFECFDF5))
-                                .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(13.dp)),
+                                .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5))
+                                .border(BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)), RoundedCornerShape(13.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.SystemUpdate,
                                 contentDescription = "ArcTracker Update",
-                                tint = Color(0xFF047857),
+                                tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -1170,13 +1058,13 @@ fun SettingsScreen(
                                 text = "ArcTracker Update",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = ArcColors.TextPrimary
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "Latest stable build on GitHub",
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B)
+                                color = ArcColors.TextSecondary
                             )
                         }
                     }
@@ -1190,7 +1078,7 @@ fun SettingsScreen(
                         Icon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "Close",
-                            tint = Color(0xFF64748B),
+                            tint = ArcColors.TextSecondary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -1203,22 +1091,22 @@ fun SettingsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFFF8FAFC))
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(16.dp))
+                            .background(ArcColors.SurfaceHighlight)
+                            .border(BorderStroke(1.dp, ArcColors.Border), RoundedCornerShape(16.dp))
                             .padding(vertical = 32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(28.dp),
-                            color = Color(0xFF047857),
+                            color = ArcColors.Primary,
                             strokeWidth = 2.5.dp
                         )
                         Text(
                             text = "Checking latest GitHub release...",
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF475569)
+                            color = ArcColors.TextSecondary
                         )
                     }
                 } else {
@@ -1227,8 +1115,8 @@ fun SettingsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFFF8FAFC))
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(16.dp))
+                            .background(ArcColors.SurfaceHighlight)
+                            .border(BorderStroke(1.dp, ArcColors.Border), RoundedCornerShape(16.dp))
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -1240,17 +1128,17 @@ fun SettingsScreen(
                             Text(
                                 text = "Installed Version",
                                 fontSize = 13.sp,
-                                color = Color(0xFF64748B)
+                                color = ArcColors.TextSecondary
                             )
                             Text(
-                                text = "v1.0.0 (5107a09)",
+                                text = appVersion,
                                 fontSize = 13.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = ArcColors.TextPrimary
                             )
                         }
 
-                        HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+                        HorizontalDivider(color = ArcColors.Border, thickness = 1.dp)
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1260,13 +1148,13 @@ fun SettingsScreen(
                             Text(
                                 text = "GitHub Channel",
                                 fontSize = 13.sp,
-                                color = Color(0xFF64748B)
+                                color = ArcColors.TextSecondary
                             )
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFECFDF5))
-                                    .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(8.dp))
+                                    .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5))
+                                    .border(BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)), RoundedCornerShape(8.dp))
                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1274,14 +1162,14 @@ fun SettingsScreen(
                                         modifier = Modifier
                                             .size(7.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0xFF15803D))
+                                            .background(if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF15803D))
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "Latest Release",
                                         fontSize = 12.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF15803D)
+                                        color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF15803D)
                                     )
                                 }
                             }
@@ -1305,9 +1193,9 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF047857),
+                        containerColor = ArcColors.Primary,
                         contentColor = Color.White
                     )
                 ) {
@@ -1340,24 +1228,24 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFF0F172A)
+                        contentColor = ArcColors.TextPrimary
                     ),
-                    border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                    border = BorderStroke(1.dp, ArcColors.Border)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Code,
                         contentDescription = null,
                         modifier = Modifier.size(19.dp),
-                        tint = Color(0xFF334155)
+                        tint = ArcColors.TextPrimary
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "View in GitHub",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF0F172A)
+                        color = ArcColors.TextPrimary
                     )
                 }
             }
@@ -1367,13 +1255,13 @@ fun SettingsScreen(
     // Interactive Edit Local Profile & Vault Identity Modal Bottom Sheet
     if (showEditProfileSheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        var tempName by remember { mutableStateOf(profileName) }
-        var tempLabel by remember { mutableStateOf(profileLabel) }
+        var tempName by remember(profileName, showEditProfileSheet) { mutableStateOf(profileName) }
+        var tempLabel by remember(profileLabel, showEditProfileSheet) { mutableStateOf(profileLabel) }
 
         ModalBottomSheet(
             onDismissRequest = { showEditProfileSheet = false },
             sheetState = sheetState,
-            containerColor = Color.White,
+            containerColor = ArcColors.CardBackground,
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
         ) {
             Column(
@@ -1393,18 +1281,18 @@ fun SettingsScreen(
                             text = "Local Vault Identity",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = ArcColors.TextPrimary
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Customized for local device display & statement exports",
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B)
+                            color = ArcColors.TextSecondary
                         )
                     }
 
                     IconButton(onClick = { showEditProfileSheet = false }) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = Color(0xFF64748B))
+                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = ArcColors.TextSecondary)
                     }
                 }
 
@@ -1413,8 +1301,8 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF8FAFC))
-                        .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(12.dp))
+                        .background(ArcColors.SurfaceHighlight)
+                        .border(BorderStroke(1.dp, ArcColors.Border), RoundedCornerShape(12.dp))
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
@@ -1447,12 +1335,12 @@ fun SettingsScreen(
                             text = tempName.ifBlank { "Personal Vault" },
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = ArcColors.TextPrimary
                         )
                         Text(
                             text = tempLabel.ifBlank { "Offline Local Ledger" },
                             fontSize = 12.sp,
-                            color = Color(0xFF64748B)
+                            color = ArcColors.TextSecondary
                         )
                     }
                 }
@@ -1466,8 +1354,8 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF047857),
-                        focusedLabelColor = Color(0xFF047857)
+                        focusedBorderColor = ArcColors.Primary,
+                        focusedLabelColor = ArcColors.Primary
                     )
                 )
 
@@ -1480,8 +1368,8 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF047857),
-                        focusedLabelColor = Color(0xFF047857)
+                        focusedBorderColor = ArcColors.Primary,
+                        focusedLabelColor = ArcColors.Primary
                     )
                 )
 
@@ -1489,33 +1377,31 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFECFDF5))
-                        .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), RoundedCornerShape(10.dp))
+                        .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5))
+                        .border(BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)), RoundedCornerShape(10.dp))
                         .padding(10.dp)
                 ) {
                     Text(
                         text = "🔒 100% On-Device: Stored strictly in your local Android sandbox. Never uploaded to remote servers.",
                         fontSize = 11.5.sp,
-                        color = Color(0xFF065F46),
+                        color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF065F46),
                         lineHeight = 15.sp
                     )
                 }
 
                 Button(
                     onClick = {
-                        val newName = tempName.trim().ifBlank { "Personal Vault" }
+                        val newName = tempName.trim().ifBlank { "Personal Wallet" }
                         val newLabel = tempLabel.trim().ifBlank { "Primary Offline Vault" }
                         settingsRepo.setProfileName(newName)
                         settingsRepo.setProfileLabel(newLabel)
-                        profileName = newName
-                        profileLabel = newLabel
                         showEditProfileSheet = false
                         Toast.makeText(context, "Profile updated", Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
                 ) {
                     Text(
@@ -1524,6 +1410,209 @@ fun SettingsScreen(
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeModeSelectorCard(
+    currentMode: AppThemeMode,
+    onSelectMode: (AppThemeMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    SettingsGroupCard(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Header Row: Active Theme Overview & Rotating Icon
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val rotation by animateFloatAsState(
+                    targetValue = when (currentMode) {
+                        AppThemeMode.LIGHT -> 180f
+                        AppThemeMode.DARK -> 360f
+                        AppThemeMode.SYSTEM -> 0f
+                    },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    ),
+                    label = "themeIconRotation"
+                )
+
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
+                        )
+                        .border(
+                            BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = when (currentMode) {
+                            AppThemeMode.LIGHT -> Icons.Outlined.LightMode
+                            AppThemeMode.DARK -> Icons.Outlined.DarkMode
+                            AppThemeMode.SYSTEM -> Icons.Outlined.BrightnessAuto
+                        },
+                        contentDescription = "Theme Icon",
+                        tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
+                        modifier = Modifier
+                            .size(22.dp)
+                            .graphicsLayer { rotationZ = rotation }
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "App Theme",
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ArcColors.TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = when (currentMode) {
+                            AppThemeMode.DARK -> "Pure AMOLED Pitch Black"
+                            AppThemeMode.LIGHT -> "Clean Emerald Daylight"
+                            AppThemeMode.SYSTEM -> "Follows Device Appearance"
+                        },
+                        fontSize = 12.sp,
+                        color = ArcColors.TextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
+                        )
+                        .border(
+                            BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(horizontal = 9.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = when (currentMode) {
+                            AppThemeMode.DARK -> "Dark"
+                            AppThemeMode.LIGHT -> "Light"
+                            AppThemeMode.SYSTEM -> "System"
+                        },
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
+                    )
+                }
+            }
+
+            // Animated 3-Segment Button Selector Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(ArcColors.SurfaceHighlight)
+                    .border(BorderStroke(1.dp, ArcColors.Border), RoundedCornerShape(14.dp))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                AppThemeMode.entries.forEach { mode ->
+                    val isSelected = currentMode == mode
+                    val icon = when (mode) {
+                        AppThemeMode.LIGHT -> Icons.Outlined.LightMode
+                        AppThemeMode.DARK -> Icons.Outlined.DarkMode
+                        AppThemeMode.SYSTEM -> Icons.Outlined.BrightnessAuto
+                    }
+                    val label = when (mode) {
+                        AppThemeMode.LIGHT -> "Light"
+                        AppThemeMode.DARK -> "Dark"
+                        AppThemeMode.SYSTEM -> "System"
+                    }
+
+                    val buttonBg by animateColorAsState(
+                        targetValue = if (isSelected) ArcColors.Primary else Color.Transparent,
+                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                        label = "themeBtnBg"
+                    )
+
+                    val contentColor by animateColorAsState(
+                        targetValue = if (isSelected) Color.White else ArcColors.TextSecondary,
+                        animationSpec = tween(durationMillis = 200),
+                        label = "themeContentColor"
+                    )
+
+                    val btnScale by animateFloatAsState(
+                        targetValue = if (isSelected) 1f else 0.97f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        ),
+                        label = "themeBtnScale"
+                    )
+
+                    val iconRotation by animateFloatAsState(
+                        targetValue = if (isSelected) 360f else 0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "themeBtnIconRot"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .graphicsLayer {
+                                scaleX = btnScale
+                                scaleY = btnScale
+                            }
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(buttonBg)
+                            .clickable {
+                                if (!isSelected) {
+                                    onSelectMode(mode)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = label,
+                                tint = contentColor,
+                                modifier = Modifier
+                                    .size(17.dp)
+                                    .graphicsLayer { rotationZ = iconRotation }
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = label,
+                                fontSize = 12.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = contentColor
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1546,7 +1635,7 @@ private fun SectionHeader(
             text = title,
             fontSize = 11.5.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF64748B),
+            color = ArcColors.TextMuted,
             letterSpacing = 0.8.sp
         )
         rightContent?.invoke()
@@ -1554,12 +1643,15 @@ private fun SectionHeader(
 }
 
 @Composable
-private fun SettingsGroupCard(content: @Composable ColumnScope.() -> Unit) {
+private fun SettingsGroupCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        colors = CardDefaults.cardColors(containerColor = ArcColors.CardBackground),
+        border = BorderStroke(1.dp, ArcColors.Border),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         content = content
     )
@@ -1573,12 +1665,12 @@ private fun SettingsItemRow(
     subtitle: String,
     isLast: Boolean = false,
     enabled: Boolean = true,
-    iconTint: Color = Color(0xFF0F172A),
-    iconBgColor: Color = Color(0xFFF1F5F9),
-    titleColor: Color = Color(0xFF0F172A),
+    iconTint: Color = ArcColors.TextPrimary,
+    iconBgColor: Color = ArcColors.SurfaceHighlight,
+    titleColor: Color = ArcColors.TextPrimary,
     badgeText: String? = null,
-    badgeBgColor: Color = Color(0xFFF1F5F9),
-    badgeTextColor: Color = Color(0xFF475569),
+    badgeBgColor: Color = ArcColors.SurfaceHighlight,
+    badgeTextColor: Color = ArcColors.TextSecondary,
     customTrailing: (@Composable () -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
@@ -1631,7 +1723,7 @@ private fun SettingsItemRow(
                 Text(
                     text = subtitle,
                     fontSize = 11.5.sp,
-                    color = Color(0xFF64748B),
+                    color = ArcColors.TextMuted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1663,7 +1755,7 @@ private fun SettingsItemRow(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = "Open",
-                            tint = Color(0xFF94A3B8),
+                            tint = ArcColors.TextMutedLight,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -1673,7 +1765,7 @@ private fun SettingsItemRow(
 
         if (!isLast) {
             HorizontalDivider(
-                color = Color(0xFFF1F5F9),
+                color = ArcColors.BorderSubtle,
                 thickness = 1.dp,
                 modifier = Modifier.padding(start = 64.dp, end = 16.dp)
             )
@@ -1704,13 +1796,13 @@ private fun SettingsSwitchRowItem(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF1F5F9)),
+                    .background(ArcColors.SurfaceHighlight),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = title,
-                    tint = Color(0xFF0F172A),
+                    tint = ArcColors.TextPrimary,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -1722,13 +1814,13 @@ private fun SettingsSwitchRowItem(
                     text = title,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.5.sp,
-                    color = Color(0xFF0F172A)
+                    color = ArcColors.TextPrimary
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
                     fontSize = 11.5.sp,
-                    color = Color(0xFF64748B),
+                    color = ArcColors.TextMuted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1745,7 +1837,7 @@ private fun SettingsSwitchRowItem(
 
         if (!isLast) {
             HorizontalDivider(
-                color = Color(0xFFF1F5F9),
+                color = ArcColors.BorderSubtle,
                 thickness = 1.dp,
                 modifier = Modifier.padding(start = 64.dp, end = 16.dp)
             )
@@ -1776,10 +1868,10 @@ private fun GreenCheckSwitch(
         } else null,
         colors = SwitchDefaults.colors(
             checkedThumbColor = Color.White,
-            checkedTrackColor = Color(0xFF047857),
+            checkedTrackColor = ArcColors.Primary,
             checkedBorderColor = Color.Transparent,
-            uncheckedThumbColor = Color.White,
-            uncheckedTrackColor = Color(0xFFCBD5E1),
+            uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF71717A) else Color.White,
+            uncheckedTrackColor = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFCBD5E1),
             uncheckedBorderColor = Color.Transparent
         )
     )

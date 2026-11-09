@@ -28,13 +28,26 @@ import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.*
 import com.subhashrelangi.arctracker.service.*
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.review.ArcColors
 import kotlinx.coroutines.launch
 
-private val emeraldPrimary = Color(0xFF047857)
-private val slateTitle = Color(0xFF0F172A)
-private val slateSub = Color(0xFF64748B)
-private val cardBorder = Color(0xFFE2E8F0)
-private val lightBg = Color(0xFFF8FAFC)
+private val emeraldPrimary: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Primary
+
+private val slateTitle: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+
+private val slateSub: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+
+private val cardBorder: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Border
+
+private val lightBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.Background
+
+private val cardBg: Color
+    @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,10 +91,10 @@ fun CategoryRulesScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Surface(
-                color = Color.White,
+                color = lightBg,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(lightBg)
             ) {
                 ArcTrackerHeader(
                     title = "Category Rules",
@@ -89,7 +102,7 @@ fun CategoryRulesScreen(
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(lightBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
@@ -98,7 +111,7 @@ fun CategoryRulesScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color.White)
+                                .background(cardBg)
                                 .border(BorderStroke(1.dp, cardBorder), CircleShape)
                                 .clickable { onNavigateToApplyRules(null) },
                             contentAlignment = Alignment.Center
@@ -116,7 +129,7 @@ fun CategoryRulesScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(Color.White)
+                                .background(cardBg)
                                 .border(BorderStroke(1.dp, cardBorder), CircleShape)
                                 .clickable { showAddDialog = true },
                             contentAlignment = Alignment.Center
@@ -233,8 +246,8 @@ fun CategoryRulesScreen(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = emeraldPrimary,
                             unfocusedBorderColor = cardBorder,
-                            focusedContainerColor = Color(0xFFF8FAFC),
-                            unfocusedContainerColor = Color(0xFFF8FAFC),
+                            focusedContainerColor = ArcColors.SurfaceHighlight,
+                            unfocusedContainerColor = ArcColors.SurfaceHighlight,
                             cursorColor = emeraldPrimary
                         )
                     )
@@ -256,11 +269,11 @@ fun CategoryRulesScreen(
                         enabled = testMerchant.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = emeraldPrimary,
-                            disabledContainerColor = Color(0xFFF1F5F9),
+                            disabledContainerColor = ArcColors.SurfaceHighlight,
                             contentColor = Color.White,
                             disabledContentColor = Color(0xFF94A3B8)
                         ),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = CircleShape,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp)
@@ -287,13 +300,29 @@ fun CategoryRulesScreen(
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isHighConfidence) Color(0xFFECFDF5) else Color(0xFFFFFBEB),
-                            border = BorderStroke(1.dp, if (isHighConfidence) Color(0xFFA7F3D0) else Color(0xFFFDE68A))
+                            color = if (isHighConfidence) {
+                                if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
+                            } else {
+                                if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFFFBEB)
+                            },
+                            border = BorderStroke(
+                                1.dp,
+                                if (isHighConfidence) {
+                                    if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)
+                                } else {
+                                    if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFDE68A)
+                                }
+                            )
                         ) {
                             Column(
                                 modifier = Modifier.padding(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
+                                val statusColor = if (isHighConfidence) {
+                                    if (ArcColors.isDark) Color(0xFF34D399) else emeraldPrimary
+                                } else {
+                                    if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFFB45309)
+                                }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -301,7 +330,7 @@ fun CategoryRulesScreen(
                                     Icon(
                                         imageVector = if (isHighConfidence) Icons.Filled.CheckCircle else Icons.Filled.Info,
                                         contentDescription = null,
-                                        tint = if (isHighConfidence) emeraldPrimary else Color(0xFFB45309),
+                                        tint = statusColor,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Text(
@@ -309,7 +338,7 @@ fun CategoryRulesScreen(
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 0.5.sp,
-                                        color = if (isHighConfidence) emeraldPrimary else Color(0xFFB45309)
+                                        color = statusColor
                                     )
                                 }
 
@@ -326,13 +355,13 @@ fun CategoryRulesScreen(
                                     Text(
                                         text = "➜",
                                         fontSize = 13.sp,
-                                        color = if (isHighConfidence) emeraldPrimary else Color(0xFFB45309)
+                                        color = statusColor
                                     )
                                     Text(
                                         text = res.suggestedCategoryName ?: "Uncategorized",
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isHighConfidence) emeraldPrimary else Color(0xFFB45309)
+                                        color = statusColor
                                     )
                                 }
 
@@ -352,7 +381,7 @@ fun CategoryRulesScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 4.dp)
-                    .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
+                    .background(ArcColors.SurfaceHighlight, RoundedCornerShape(12.dp))
                     .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(12.dp))
                     .padding(4.dp)
             ) {
@@ -365,7 +394,7 @@ fun CategoryRulesScreen(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(if (selectedTab == 0) Color.White else Color.Transparent)
+                            .background(if (selectedTab == 0) cardBg else Color.Transparent)
                             .then(
                                 if (selectedTab == 0) Modifier.border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(10.dp))
                                 else Modifier
@@ -387,7 +416,7 @@ fun CategoryRulesScreen(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(if (selectedTab == 1) Color.White else Color.Transparent)
+                            .background(if (selectedTab == 1) cardBg else Color.Transparent)
                             .then(
                                 if (selectedTab == 1) Modifier.border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(10.dp))
                                 else Modifier
@@ -420,14 +449,14 @@ fun CategoryRulesScreen(
                             modifier = Modifier
                                 .size(56.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFECFDF5))
-                                .border(1.dp, Color(0xFFA7F3D0), CircleShape),
+                                .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5))
+                                .border(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Rule,
                                 contentDescription = null,
-                                tint = emeraldPrimary,
+                                tint = if (ArcColors.isDark) Color(0xFF34D399) else emeraldPrimary,
                                 modifier = Modifier.size(28.dp)
                             )
                         }
@@ -533,7 +562,7 @@ fun CategoryRulesScreen(
         AlertDialog(
             onDismissRequest = { ruleToDelete = null },
             shape = RoundedCornerShape(20.dp),
-            containerColor = Color.White,
+            containerColor = cardBg,
             title = {
                 Text(
                     text = "Delete Rule",
@@ -565,7 +594,7 @@ fun CategoryRulesScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = CircleShape
                 ) {
                     Text("Delete Rule", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
@@ -593,7 +622,7 @@ fun RuleCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = Color.White,
+        color = cardBg,
         border = BorderStroke(1.dp, if (isInvalid) Color(0xFFEF4444) else cardBorder)
     ) {
         Row(
@@ -643,8 +672,8 @@ fun RuleCard(
                     // Match Type Badge
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFECFDF5),
-                        border = BorderStroke(1.dp, Color(0xFFA7F3D0))
+                        color = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5),
+                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0))
                     ) {
                         Text(
                             text = when (rule.matchType) {
@@ -656,7 +685,7 @@ fun RuleCard(
                             },
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = emeraldPrimary,
+                            color = if (ArcColors.isDark) Color(0xFF34D399) else emeraldPrimary,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
@@ -704,8 +733,8 @@ fun RuleCard(
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
                     checkedTrackColor = emeraldPrimary,
-                    uncheckedThumbColor = Color(0xFF94A3B8),
-                    uncheckedTrackColor = Color(0xFFE2E8F0)
+                    uncheckedThumbColor = if (ArcColors.isDark) Color(0xFF71717A) else Color(0xFFCBD5E1),
+                    uncheckedTrackColor = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFE2E8F0)
                 )
             )
 
@@ -759,7 +788,7 @@ fun RuleEditorDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(20.dp),
-        containerColor = Color.White,
+        containerColor = cardBg,
         title = {
             Text(
                 text = if (existingRule != null) "Edit Category Rule" else "New Category Rule",
@@ -808,7 +837,7 @@ fun RuleEditorDialog(
                 Box {
                     OutlinedButton(
                         onClick = { matchTypeExpanded = true },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -830,7 +859,7 @@ fun RuleEditorDialog(
                     DropdownMenu(
                         expanded = matchTypeExpanded,
                         onDismissRequest = { matchTypeExpanded = false },
-                        modifier = Modifier.background(Color.White)
+                        modifier = Modifier.background(cardBg)
                     ) {
                         UserRuleMatchType.ALL.forEach { mt ->
                             DropdownMenuItem(
@@ -860,7 +889,7 @@ fun RuleEditorDialog(
                     val currentCat = activeCategories.find { it.id == selectedCategoryId }
                     OutlinedButton(
                         onClick = { categoryExpanded = true },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = CircleShape,
                         border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -876,7 +905,7 @@ fun RuleEditorDialog(
                     DropdownMenu(
                         expanded = categoryExpanded,
                         onDismissRequest = { categoryExpanded = false },
-                        modifier = Modifier.background(Color.White)
+                        modifier = Modifier.background(cardBg)
                     ) {
                         activeCategories.forEach { cat ->
                             DropdownMenuItem(
@@ -933,7 +962,7 @@ fun RuleEditorDialog(
                     onSave(pattern.trim(), selectedCategoryId, selectedMatchType, priority, name.trim().ifBlank { null })
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                shape = RoundedCornerShape(10.dp)
+                shape = CircleShape
             ) {
                 Text("Save Rule", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }

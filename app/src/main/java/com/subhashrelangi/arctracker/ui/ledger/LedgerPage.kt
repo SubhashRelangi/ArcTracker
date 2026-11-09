@@ -315,8 +315,8 @@ fun LedgerPage(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(CircleShape)
-                            .background(Color.White)
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .background(LedgerColors.Surface)
+                            .border(BorderStroke(1.dp, LedgerColors.Border), CircleShape)
                             .clickable {
                                 if (availableMonths.isNotEmpty()) {
                                     showMonthDialog = true
@@ -327,7 +327,7 @@ fun LedgerPage(
                         Icon(
                             imageVector = Icons.Outlined.Tune,
                             contentDescription = "Filter / Month",
-                            tint = Color(0xFF0F172A),
+                            tint = LedgerColors.TextPrimary,
                             modifier = Modifier.size(19.dp)
                         )
                     }
@@ -337,8 +337,8 @@ fun LedgerPage(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(CircleShape)
-                            .background(Color.White)
-                            .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape)
+                            .background(LedgerColors.Surface)
+                            .border(BorderStroke(1.dp, LedgerColors.Border), CircleShape)
                             .clickable {
                                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
                                 csvExportLauncher.launch("ArcTracker_Transactions_$timestamp.csv")
@@ -348,7 +348,7 @@ fun LedgerPage(
                         Icon(
                             imageVector = Icons.Outlined.FileUpload,
                             contentDescription = "Export CSV",
-                            tint = Color(0xFF0F172A),
+                            tint = LedgerColors.TextPrimary,
                             modifier = Modifier.size(19.dp)
                         )
                     }
@@ -432,15 +432,15 @@ fun LedgerPage(
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 2.dp),
                             shape = RoundedCornerShape(18.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            color = LedgerColors.CardBackground,
+                            border = BorderStroke(1.dp, LedgerColors.Border),
                             shadowElevation = 0.5.dp
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 dayExpenses.forEachIndexed { index, expense ->
                                     if (index > 0) {
                                         HorizontalDivider(
-                                            color = Color(0xFFF1F5F9),
+                                            color = LedgerColors.Border,
                                             thickness = 1.dp,
                                             modifier = Modifier.padding(horizontal = 14.dp)
                                         )
@@ -490,7 +490,7 @@ fun LedgerPage(
                 Text(
                     text = "Select Month",
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    color = LedgerColors.TextPrimary
                 )
             },
             text = {
@@ -518,13 +518,13 @@ fun LedgerPage(
                                 ) {
                                     Text(
                                         text = monthOpt.label,
-                                        color = if (isSelected) Color(0xFF059669) else Color(0xFF0F172A),
+                                        color = if (isSelected) LedgerColors.Credit else LedgerColors.TextPrimary,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                     )
                                     if (isSelected) {
                                         Text(
                                             text = "● Active",
-                                            color = Color(0xFF059669),
+                                            color = LedgerColors.Credit,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -537,10 +537,10 @@ fun LedgerPage(
             },
             confirmButton = {
                 TextButton(onClick = { showMonthDialog = false }) {
-                    Text("Close", color = Color(0xFF0F172A), fontWeight = FontWeight.Bold)
+                    Text("Close", color = LedgerColors.TextPrimary, fontWeight = FontWeight.Bold)
                 }
             },
-            containerColor = Color.White,
+            containerColor = LedgerColors.SurfaceElevated,
             shape = RoundedCornerShape(20.dp)
         )
     }

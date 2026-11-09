@@ -1,87 +1,360 @@
 package com.subhashrelangi.arctracker.ui.theme
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 /**
- * Universal ArcTracker Fintech Dark Design Tokens.
- * Derived from the verified LedgerPage and HomePage designs.
- * Serves as the single source of truth for the entire application.
+ * Universal ArcTracker Design Tokens & Color Palette.
+ * Compatible format supporting seamless dynamic switching between Light and Dark themes.
  */
-object ArcColors {
-    // Primary Backgrounds
-    val Background = Color(0xFF090C10)
-    val Surface = Color(0xFF121620)
-    val SurfaceElevated = Color(0xFF161A24)
-    val SurfaceHighlight = Color(0xFF1F2432)
-    val SurfaceMuted = Color(0xFF1F2432)
-    val CardBackground = Color(0xFF131721)
-    val SurfaceCard = Color(0xFF131721)
+@Immutable
+data class ArcColorScheme(
+    // Brand Accents
+    val primary: Color,
+    val primaryDark: Color,
+    val primaryLight: Color,
+    val primaryBorder: Color,
+    val emeraldPrimary: Color,
 
-    // Borders
-    val Border = Color(0xFF1E2432)
-    val BorderSubtle = Color(0xFF262C36)
-    val BorderLight = Color(0xFF30363D)
-    val SurfaceCardBorder = Color(0xFF1E2330)
+    // Canvas & Surface
+    val background: Color,
+    val lightBg: Color,
+    val surface: Color,
+    val surfaceElevated: Color,
+    val surfaceHighlight: Color,
+    val surfaceMuted: Color,
+    val cardBackground: Color,
+    val surfaceCard: Color,
+
+    // Borders & Dividers
+    val border: Color,
+    val borderSubtle: Color,
+    val borderLight: Color,
+    val surfaceCardBorder: Color,
+    val cardBorder: Color,
 
     // Typography
-    val TextPrimary = Color(0xFFFFFFFF)
-    val TextSecondary = Color(0xFF94A3B8)
-    val TextMuted = Color(0xFF64748B)
-    val TextMutedLight = Color(0xFF8B949E)
+    val textPrimary: Color,
+    val textSecondary: Color,
+    val textMuted: Color,
+    val textMutedLight: Color,
+    val slateTitle: Color,
+    val slateSub: Color,
 
-    // Financial indicators - Debits & Credits
-    val Debit = Color(0xFFF43F5E) // Bright red / rose
-    val DebitBg = Color(0xFF2C1317)
-    val DebitBorder = Color(0xFF4A1E24)
+    // Debits & Credits
+    val debit: Color,
+    val debitDanger: Color,
+    val debitBg: Color,
+    val debitBorder: Color,
+    val credit: Color,
+    val creditMuted: Color,
+    val creditBg: Color,
+    val creditBorder: Color,
 
-    val Credit = Color(0xFF00E676) // Bright emerald green
-    val CreditMuted = Color(0xFF10B981)
-    val CreditBg = Color(0xFF0C2419)
-    val CreditBorder = Color(0xFF134C34)
+    // Warning & Review
+    val warning: Color,
+    val warningLight: Color,
+    val warningAmber: Color,
+    val warningAmberDot: Color,
+    val warningAmberBg: Color,
+    val warningAmberBorder: Color,
+    val warningContainer: Color,
+    val warningBorder: Color,
 
-    // Status - Review & Warning
-    val Warning = Color(0xFFF59E0B)
-    val WarningLight = Color(0xFFFBBF24)
-    val WarningAmber = Color(0xFFFBBF24)
-    val WarningAmberDot = Color(0xFFF59E0B)
-    val WarningAmberBg = Color(0xFF2B1F09)
-    val WarningAmberBorder = Color(0xFF4A3612)
-    val WarningContainer = Color(0xFF281D0B)
-    val WarningBorder = Color(0xFF45300F)
+    // Success & Danger
+    val success: Color,
+    val successContainer: Color,
+    val successBorder: Color,
+    val danger: Color,
+    val dangerContainer: Color,
+    val dangerBorder: Color,
 
-    // Status - Success & Danger
-    val Success = Color(0xFF10B981)
-    val SuccessContainer = Color(0xFF0D2218)
-    val SuccessBorder = Color(0xFF1B4D35)
+    // Unresolved
+    val unresolved: Color,
+    val unresolvedBg: Color,
+    val unresolvedBorder: Color,
 
-    val Danger = Color(0xFFEF4444)
-    val DangerContainer = Color(0xFF2C1418)
-    val DangerBorder = Color(0xFF4C1D24)
+    // Badges & Chips
+    val upiBadgeBg: Color,
+    val upiBadgeText: Color,
+    val filterChipBg: Color,
+    val filterChipSelectedBg: Color,
+    val filterChipSelectedText: Color,
+    val chipBackground: Color,
+    val chipBorder: Color,
+    val telemetryBackground: Color,
+    val telemetryBorder: Color,
 
-    // Status - Unresolved
-    val Unresolved = Color(0xFFF87171)
-    val UnresolvedBg = Color(0xFF2C1317)
-    val UnresolvedBorder = Color(0xFF4A1E24)
+    // Navigation Bar
+    val bottomNavBackground: Color,
+    val bottomNavBorder: Color,
+    val bottomNavPillSelected: Color,
+    val bottomNavTextActive: Color,
+    val bottomNavTextInactive: Color,
+    val bottomNavBadgeAmber: Color,
 
-    // Badges & Navigation
-    val UpiBadgeBg = Color(0xFF21262D)
-    val UpiBadgeText = Color(0xFFC9D1D9)
+    val isDark: Boolean
+)
 
-    val FilterChipBg = Color(0xFF161A24)
-    val FilterChipSelectedBg = Color(0xFFFFFFFF)
-    val FilterChipSelectedText = Color(0xFF0F141C)
+val ArcLightColorScheme = ArcColorScheme(
+    primary = Color(0xFF047857),
+    primaryDark = Color(0xFF065F46),
+    primaryLight = Color(0xFFECFDF5),
+    primaryBorder = Color(0xFFA7F3D0),
+    emeraldPrimary = Color(0xFF047857),
 
-    val ChipBackground = Color(0xFF181C26)
-    val ChipBorder = Color(0xFF252B3A)
+    background = Color(0xFFF8FAFC),
+    lightBg = Color(0xFFF8FAFC),
+    surface = Color(0xFFFFFFFF),
+    surfaceElevated = Color(0xFFFFFFFF),
+    surfaceHighlight = Color(0xFFF1F5F9),
+    surfaceMuted = Color(0xFFF1F5F9),
+    cardBackground = Color(0xFFFFFFFF),
+    surfaceCard = Color(0xFFFFFFFF),
 
-    val TelemetryBackground = Color(0xFF0C0E14)
-    val TelemetryBorder = Color(0xFF1B202D)
+    border = Color(0xFFE2E8F0),
+    borderSubtle = Color(0xFFF1F5F9),
+    borderLight = Color(0xFFE2E8F0),
+    surfaceCardBorder = Color(0xFFE2E8F0),
+    cardBorder = Color(0xFFE2E8F0),
 
-    // Navigation Bar Tokens
-    val BottomNavBackground = Color(0xFF13161F)
-    val BottomNavBorder = Color(0xFF1F2432)
-    val BottomNavPillSelected = Color(0xFF262C38)
-    val BottomNavTextActive = Color.White
-    val BottomNavTextInactive = Color(0xFF94A3B8)
-    val BottomNavBadgeAmber = Color(0xFFF59E0B)
+    textPrimary = Color(0xFF0F172A),
+    textSecondary = Color(0xFF475569),
+    textMuted = Color(0xFF64748B),
+    textMutedLight = Color(0xFF94A3B8),
+    slateTitle = Color(0xFF0F172A),
+    slateSub = Color(0xFF64748B),
+
+    debit = Color(0xFF0F172A),
+    debitDanger = Color(0xFFDC2626),
+    debitBg = Color(0xFFFEF2F2),
+    debitBorder = Color(0xFFFECACA),
+
+    credit = Color(0xFF047857),
+    creditMuted = Color(0xFF10B981),
+    creditBg = Color(0xFFECFDF5),
+    creditBorder = Color(0xFFA7F3D0),
+
+    warning = Color(0xFFD97706),
+    warningLight = Color(0xFFF59E0B),
+    warningAmber = Color(0xFFD97706),
+    warningAmberDot = Color(0xFFF59E0B),
+    warningAmberBg = Color(0xFFFFFBEB),
+    warningAmberBorder = Color(0xFFFDE68A),
+    warningContainer = Color(0xFFFFFBEB),
+    warningBorder = Color(0xFFFDE68A),
+
+    success = Color(0xFF047857),
+    successContainer = Color(0xFFECFDF5),
+    successBorder = Color(0xFFA7F3D0),
+
+    danger = Color(0xFFDC2626),
+    dangerContainer = Color(0xFFFEF2F2),
+    dangerBorder = Color(0xFFFECACA),
+
+    unresolved = Color(0xFFD97706),
+    unresolvedBg = Color(0xFFFFFBEB),
+    unresolvedBorder = Color(0xFFFDE68A),
+
+    upiBadgeBg = Color(0xFFEFF6FF),
+    upiBadgeText = Color(0xFF2563EB),
+
+    filterChipBg = Color(0xFFF1F5F9),
+    filterChipSelectedBg = Color(0xFF0F172A),
+    filterChipSelectedText = Color(0xFFFFFFFF),
+
+    chipBackground = Color(0xFFF1F5F9),
+    chipBorder = Color(0xFFE2E8F0),
+
+    telemetryBackground = Color(0xFFF8FAFC),
+    telemetryBorder = Color(0xFFE2E8F0),
+
+    bottomNavBackground = Color(0xFFFFFFFF),
+    bottomNavBorder = Color(0xFFE2E8F0),
+    bottomNavPillSelected = Color(0xFF0F172A),
+    bottomNavTextActive = Color(0xFF047857),
+    bottomNavTextInactive = Color(0xFF64748B),
+    bottomNavBadgeAmber = Color(0xFFD97706),
+
+    isDark = false
+)
+
+val ArcDarkColorScheme = ArcColorScheme(
+    primary = Color(0xFF10B981),
+    primaryDark = Color(0xFF059669),
+    primaryLight = Color(0xFF064E3B),
+    primaryBorder = Color(0xFF047857),
+    emeraldPrimary = Color(0xFF10B981),
+
+    background = Color(0xFF000000),
+    lightBg = Color(0xFF000000),
+    surface = Color(0xFF080808),
+    surfaceElevated = Color(0xFF0E0E0E),
+    surfaceHighlight = Color(0xFF141414),
+    surfaceMuted = Color(0xFF0B0B0B),
+    cardBackground = Color(0xFF080808),
+    surfaceCard = Color(0xFF080808),
+
+    border = Color(0xFF1A1A1A),
+    borderSubtle = Color(0xFF121212),
+    borderLight = Color(0xFF1A1A1A),
+    surfaceCardBorder = Color(0xFF1A1A1A),
+    cardBorder = Color(0xFF1A1A1A),
+
+    textPrimary = Color(0xFFFFFFFF),
+    textSecondary = Color(0xFFA1A1AA),
+    textMuted = Color(0xFF71717A),
+    textMutedLight = Color(0xFF52525B),
+    slateTitle = Color(0xFFFFFFFF),
+    slateSub = Color(0xFFA1A1AA),
+
+    debit = Color(0xFFFFFFFF),
+    debitDanger = Color(0xFFF87171),
+    debitBg = Color(0xFF241013),
+    debitBorder = Color(0xFF45181E),
+
+    credit = Color(0xFF10B981),
+    creditMuted = Color(0xFF34D399),
+    creditBg = Color(0xFF072115),
+    creditBorder = Color(0xFF0E432E),
+
+    warning = Color(0xFFF59E0B),
+    warningLight = Color(0xFFFBBF24),
+    warningAmber = Color(0xFFF59E0B),
+    warningAmberDot = Color(0xFFFBBF24),
+    warningAmberBg = Color(0xFF221706),
+    warningAmberBorder = Color(0xFF422E0D),
+    warningContainer = Color(0xFF201607),
+    warningBorder = Color(0xFF3E2B0B),
+
+    success = Color(0xFF10B981),
+    successContainer = Color(0xFF072115),
+    successBorder = Color(0xFF0E432E),
+
+    danger = Color(0xFFEF4444),
+    dangerContainer = Color(0xFF241013),
+    dangerBorder = Color(0xFF45181E),
+
+    unresolved = Color(0xFFF87171),
+    unresolvedBg = Color(0xFF241013),
+    unresolvedBorder = Color(0xFF45181E),
+
+    upiBadgeBg = Color(0xFF141A28),
+    upiBadgeText = Color(0xFF60A5FA),
+
+    filterChipBg = Color(0xFF101010),
+    filterChipSelectedBg = Color(0xFFFFFFFF),
+    filterChipSelectedText = Color(0xFF000000),
+
+    chipBackground = Color(0xFF101010),
+    chipBorder = Color(0xFF1A1A1A),
+
+    telemetryBackground = Color(0xFF050505),
+    telemetryBorder = Color(0xFF141414),
+
+    bottomNavBackground = Color(0xFF000000),
+    bottomNavBorder = Color(0xFF1A1A1A),
+    bottomNavPillSelected = Color(0xFF141414),
+    bottomNavTextActive = Color(0xFF10B981),
+    bottomNavTextInactive = Color(0xFF71717A),
+    bottomNavBadgeAmber = Color(0xFFF59E0B),
+
+    isDark = true
+)
+
+val LocalArcColors = staticCompositionLocalOf { ArcLightColorScheme }
+
+object ArcColors {
+    val Light: ArcColorScheme = ArcLightColorScheme
+    val Dark: ArcColorScheme = ArcDarkColorScheme
+
+    val current: ArcColorScheme
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalArcColors.current
+
+    val isDark: Boolean @Composable @ReadOnlyComposable get() = LocalArcColors.current.isDark
+
+    // Dynamic Composable Color Token Accessors
+    val Primary: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.primary
+    val PrimaryDark: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.primaryDark
+    val PrimaryLight: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.primaryLight
+    val PrimaryBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.primaryBorder
+    val EmeraldPrimary: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.emeraldPrimary
+
+    val Background: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.background
+    val LightBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.lightBg
+    val Surface: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surface
+    val SurfaceElevated: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceElevated
+    val SurfaceHighlight: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceHighlight
+    val SurfaceMuted: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceMuted
+    val CardBackground: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.cardBackground
+    val SurfaceCard: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceCard
+
+    val Border: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.border
+    val BorderSubtle: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.borderSubtle
+    val BorderLight: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.borderLight
+    val SurfaceCardBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceCardBorder
+    val CardBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.cardBorder
+
+    val TextPrimary: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textPrimary
+    val TextSecondary: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textSecondary
+    val TextMuted: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textMuted
+    val TextMutedLight: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textMutedLight
+    val SlateTitle: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.slateTitle
+    val SlateSub: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.slateSub
+
+    val Debit: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.debit
+    val DebitDanger: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.debitDanger
+    val DebitBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.debitBg
+    val DebitBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.debitBorder
+
+    val Credit: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.credit
+    val CreditMuted: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.creditMuted
+    val CreditBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.creditBg
+    val CreditBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.creditBorder
+
+    val Warning: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warning
+    val WarningLight: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningLight
+    val WarningAmber: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningAmber
+    val WarningAmberDot: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningAmberDot
+    val WarningAmberBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningAmberBg
+    val WarningAmberBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningAmberBorder
+    val WarningContainer: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningContainer
+    val WarningBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningBorder
+
+    val Success: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.success
+    val SuccessContainer: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.successContainer
+    val SuccessBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.successBorder
+
+    val Danger: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.danger
+    val DangerContainer: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.dangerContainer
+    val DangerBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.dangerBorder
+
+    val Unresolved: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.unresolved
+    val UnresolvedBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.unresolvedBg
+    val UnresolvedBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.unresolvedBorder
+
+    val UpiBadgeBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.upiBadgeBg
+    val UpiBadgeText: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.upiBadgeText
+
+    val FilterChipBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.filterChipBg
+    val FilterChipSelectedBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.filterChipSelectedBg
+    val FilterChipSelectedText: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.filterChipSelectedText
+
+    val ChipBackground: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.chipBackground
+    val ChipBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.chipBorder
+
+    val TelemetryBackground: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.telemetryBackground
+    val TelemetryBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.telemetryBorder
+
+    val BottomNavBackground: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.bottomNavBackground
+    val BottomNavBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.bottomNavBorder
+    val BottomNavPillSelected: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.bottomNavPillSelected
+    val BottomNavTextActive: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.bottomNavTextActive
+    val BottomNavTextInactive: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.bottomNavTextInactive
+    val BottomNavBadgeAmber: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.bottomNavBadgeAmber
 }

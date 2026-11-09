@@ -30,11 +30,11 @@ class PrivacySettingsManager private constructor(context: Context) {
     val appLockFlow: StateFlow<Boolean> = _appLockFlow.asStateFlow()
 
     fun isScreenSecurityEnabled(): Boolean {
-        return prefs.getBoolean(KEY_SCREEN_SECURITY, false)
+        return prefs.getBoolean(KEY_SCREEN_SECURITY, true)
     }
 
     fun setScreenSecurityEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_SCREEN_SECURITY, enabled).apply()
+        prefs.edit().putBoolean(KEY_SCREEN_SECURITY, enabled).commit()
         _screenSecurityFlow.value = enabled
     }
 

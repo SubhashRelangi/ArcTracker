@@ -1,5 +1,6 @@
 package com.subhashrelangi.arctracker.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -10,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -17,9 +19,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 
 /**
  * Dialog prompting the user to grant Android Notification Access permission for ArcTracker.
+ * Styled in ArcTracker Emerald Light theme with circular buttons.
  */
 @Composable
 fun NotificationPermissionDialog(
@@ -33,10 +37,11 @@ fun NotificationPermissionDialog(
             dismissOnClickOutside = false
         )
     ) {
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = ArcColors.CardBackground,
+            border = BorderStroke(1.dp, ArcColors.Border),
+            shadowElevation = 8.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
@@ -49,25 +54,26 @@ fun NotificationPermissionDialog(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
-                        .background(Color(0xFFEDE7F6), CircleShape),
+                        .size(60.dp)
+                        .clip(CircleShape)
+                        .background(if (ArcColors.isDark) Color(0xFF064E3B) else ArcColors.PrimaryLight),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Filled.NotificationsActive,
                         contentDescription = "Notification Access",
-                        tint = Color(0xFF673AB7),
+                        tint = ArcColors.Primary,
                         modifier = Modifier.size(28.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 Text(
                     text = "Notification Access Needed",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E1E1E),
+                    color = ArcColors.TextPrimary,
                     textAlign = TextAlign.Center
                 )
 
@@ -76,7 +82,7 @@ fun NotificationPermissionDialog(
                 Text(
                     text = "ArcTracker requires Notification Access to automatically read and record transaction notifications from your UPI and banking apps.\n\nAll notification data stays 100% private and offline on your device.",
                     fontSize = 13.sp,
-                    color = Color(0xFF757575),
+                    color = ArcColors.TextMuted,
                     textAlign = TextAlign.Center,
                     lineHeight = 18.sp
                 )
@@ -85,32 +91,37 @@ fun NotificationPermissionDialog(
 
                 Button(
                     onClick = onGrantClick,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF673AB7),
+                        containerColor = ArcColors.Primary,
                         contentColor = Color.White
                     )
                 ) {
                     Text(
                         text = "Grant Permission",
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                TextButton(
+                OutlinedButton(
                     onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, ArcColors.Border)
                 ) {
                     Text(
                         text = "Not Now",
-                        color = Color(0xFF757575),
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp
+                        color = ArcColors.TextSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.5.sp
                     )
                 }
             }

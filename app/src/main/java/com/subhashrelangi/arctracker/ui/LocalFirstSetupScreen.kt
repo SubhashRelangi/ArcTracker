@@ -37,6 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -63,41 +64,43 @@ import com.subhashrelangi.arctracker.BuildConfig
 import com.subhashrelangi.arctracker.R
 import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
+import com.subhashrelangi.arctracker.utils.AppVersion
 
 // ==========================================
-// Light Theme Color Tokens
+// Theme Color Tokens
 // ==========================================
-private val SetupLightBackground = Color(0xFFFFFFFF)
-private val BrandTextPrimary = Color(0xFF0F172A)
-private val BrandTextSecondary = Color(0xFF64748B)
-private val VersionBadgeBg = Color(0xFFF1F5F9)
-private val VersionBadgeText = Color(0xFF64748B)
-private val StatusIndicatorGreen = Color(0xFF10B981)
+private val SetupLightBackground: Color @Composable @ReadOnlyComposable get() = ArcColors.Background
+private val BrandTextPrimary: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val BrandTextSecondary: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val VersionBadgeBg: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
+private val VersionBadgeText: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val StatusIndicatorGreen: Color @Composable @ReadOnlyComposable get() = ArcColors.Primary
 
 // Step badge
-private val StepPillBg = Color(0xFFECFDF5)
-private val StepPillBorder = Color(0xFFA7F3D0)
-private val StepPillText = Color(0xFF059669)
+private val StepPillBg: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
+private val StepPillBorder: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)
+private val StepPillText: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF059669)
 
 // Cards
-private val CardSurface = Color(0xFFF8FAFC)
-private val CardBorder = Color(0xFFE2E8F0)
-private val IconBoxBg = Color(0xFFF1F5F9)
+private val CardSurface: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val CardBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val IconBoxBg: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
 
 // Status pills
-private val StatusEnabledBg = Color(0xFFECFDF5)
-private val StatusEnabledBorder = Color(0xFFA7F3D0)
-private val StatusEnabledText = Color(0xFF059669)
+private val StatusEnabledBg: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
+private val StatusEnabledBorder: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)
+private val StatusEnabledText: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF059669)
 
-private val StatusDisabledBg = Color(0xFFFEF2F2)
-private val StatusDisabledBorder = Color(0xFFFECACA)
-private val StatusDisabledText = Color(0xFFDC2626)
+private val StatusDisabledBg: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2)
+private val StatusDisabledBorder: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF991B1B) else Color(0xFFFECACA)
+private val StatusDisabledText: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626)
 
 // Buttons
-private val PrimaryBtnBg = Color(0xFF0F172A)
-private val PrimaryBtnText = Color(0xFFFFFFFF)
-private val BackBtnBg = Color(0xFFF8FAFC)
-private val BackBtnBorder = Color(0xFFE2E8F0)
+private val PrimaryBtnBg: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) ArcColors.Primary else Color(0xFF0F172A)
+private val PrimaryBtnText: Color @Composable @ReadOnlyComposable get() = Color.White
+private val BackBtnBg: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val BackBtnBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
 
 /**
  * Clean & essential Notification Permission Setup screen matching Light Theme:
@@ -121,16 +124,18 @@ fun LocalFirstSetupScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val appVersion = remember(context) { AppVersion.getFormattedVersion(context) }
     val lifecycleOwner = LocalLifecycleOwner.current
     val view = LocalView.current
 
     if (!view.isInEditMode) {
+        val isDark = ArcColors.isDark
         SideEffect {
             val window = (view.context as? Activity)?.window
             if (window != null) {
                 val insetsController = WindowCompat.getInsetsController(window, view)
-                insetsController.isAppearanceLightStatusBars = true
-                insetsController.isAppearanceLightNavigationBars = true
+                insetsController.isAppearanceLightStatusBars = !isDark
+                insetsController.isAppearanceLightNavigationBars = !isDark
             }
         }
     }
@@ -209,7 +214,7 @@ fun LocalFirstSetupScreen(
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = BuildConfig.GITHUB_VERSION.ifEmpty { "v${BuildConfig.VERSION_NAME}" },
+                            text = appVersion,
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = VersionBadgeText

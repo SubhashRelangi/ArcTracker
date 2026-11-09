@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,14 +40,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.utils.RegexPatternsManager
 import com.subhashrelangi.arctracker.utils.RegexRule
 import java.util.UUID
 
+private val slateTitle: Color @Composable @ReadOnlyComposable get() = ArcColors.TextPrimary
+private val slateSub: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
+private val cardBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val lightBg: Color @Composable @ReadOnlyComposable get() = ArcColors.Background
+private val cardBg: Color @Composable @ReadOnlyComposable get() = ArcColors.CardBackground
+private val highlightSurface: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EditRegexPatternScreen(
     ruleId: String?,
     defaultCategory: String,
+    initialTestMessage: String? = null,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -81,9 +92,16 @@ fun EditRegexPatternScreen(
     var pattern by remember { mutableStateOf(initialRule.pattern) }
     var testMessage by remember {
         mutableStateOf(
-            initialRule.testMessage ?: "Rs 1,450.00 debited from a/c **4821 on 24-Oct-26 via UPI to ZOMATO. Ref 429104."
+            initialTestMessage?.takeIf { it.isNotBlank() }
+                ?: initialRule.testMessage
+                ?: "Rs 1,450.00 debited from a/c **4821 on 24-Oct-26 via UPI to ZOMATO. Ref 429104."
         )
     }
+
+    var selectedHighlightWord by remember { mutableStateOf<String?>(null) }
+    var showAiPromptDialog by remember { mutableStateOf(false) }
+    var aiPastedText by remember { mutableStateOf("") }
+    var lastSynthesizedSuccess by remember { mutableStateOf<String?>(null) }
 
     var showCheatSheetDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
@@ -147,11 +165,11 @@ fun EditRegexPatternScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Surface(
-                color = Color.White,
+                color = cardBg,
                 shadowElevation = 0.5.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(cardBg)
             ) {
                 ArcTrackerHeader(
                     title = if (ruleId.isNullOrEmpty()) "Add Regex Pattern" else "Edit Regex Pattern",
@@ -159,15 +177,15 @@ fun EditRegexPatternScreen(
                     onBackClick = onBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(cardBg)
                         .statusBarsPadding(),
                     horizontalPadding = 16.dp,
                     actions = {
                         if (initialRule.isSystem && !ruleId.isNullOrEmpty()) {
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = Color(0xFFF1F5F9),
-                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                color = highlightSurface,
+                                border = BorderStroke(1.dp, cardBorder),
                                 modifier = Modifier.clickable {
                                     RegexPatternsManager.resetSystemRule(context, initialRule.id)
                                     Toast.makeText(context, "System rule reset to default", Toast.LENGTH_SHORT).show()
@@ -181,13 +199,13 @@ fun EditRegexPatternScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.Refresh,
                                         contentDescription = "Reset",
-                                        tint = Color(0xFF0F172A),
+                                        tint = slateTitle,
                                         modifier = Modifier.size(15.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "Reset",
-                                        color = Color(0xFF0F172A),
+                                        color = slateTitle,
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 11.5.sp
                                     )
@@ -196,8 +214,8 @@ fun EditRegexPatternScreen(
                         } else if (!initialRule.isSystem && !ruleId.isNullOrEmpty()) {
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = Color(0xFFFEE2E2),
-                                border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                                color = if (ArcColors.isDark) Color(0xFF7F1D1D).copy(alpha = 0.5f) else Color(0xFFFEE2E2),
+                                border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF991B1B) else Color(0xFFFCA5A5)),
                                 modifier = Modifier.clickable { showDeleteConfirmDialog = true }
                             ) {
                                 Row(
@@ -207,13 +225,13 @@ fun EditRegexPatternScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.Delete,
                                         contentDescription = "Delete",
-                                        tint = Color(0xFFDC2626),
+                                        tint = Color(0xFFEF4444),
                                         modifier = Modifier.size(15.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "Delete",
-                                        color = Color(0xFFDC2626),
+                                        color = Color(0xFFEF4444),
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 11.5.sp
                                     )
@@ -224,14 +242,14 @@ fun EditRegexPatternScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White)
-                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), CircleShape),
+                                    .background(cardBg)
+                                    .border(BorderStroke(1.dp, cardBorder), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Shield,
                                     contentDescription = "Local Security",
-                                    tint = Color(0xFF047857),
+                                    tint = ArcColors.Primary,
                                     modifier = Modifier.size(19.dp)
                                 )
                             }
@@ -244,7 +262,7 @@ fun EditRegexPatternScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF8FAFC))
+                .background(lightBg)
                 .verticalScroll(rememberScrollState())
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 14.dp)
@@ -256,8 +274,8 @@ fun EditRegexPatternScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                colors = CardDefaults.cardColors(containerColor = cardBg),
+                border = BorderStroke(1.dp, cardBorder),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
@@ -270,7 +288,9 @@ fun EditRegexPatternScreen(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFF0FDF4)),
+                            .background(
+                                if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFF0FDF4)
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         val iconVector: ImageVector = when {
@@ -283,7 +303,7 @@ fun EditRegexPatternScreen(
                         Icon(
                             imageVector = iconVector,
                             contentDescription = null,
-                            tint = Color(0xFF047857),
+                            tint = ArcColors.Primary,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -296,7 +316,7 @@ fun EditRegexPatternScreen(
                                 text = if (name.isBlank()) "New Regex Rule" else name,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A),
+                                color = slateTitle,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -305,7 +325,7 @@ fun EditRegexPatternScreen(
                         Text(
                             text = if (description.isBlank()) "Deterministic local extraction" else description,
                             fontSize = 11.5.sp,
-                            color = Color(0xFF64748B),
+                            color = slateSub,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -316,28 +336,28 @@ fun EditRegexPatternScreen(
                     if (initialRule.isSystem) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFF1F5F9),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                            color = highlightSurface,
+                            border = BorderStroke(1.dp, cardBorder)
                         ) {
                             Text(
                                 text = "System Rule",
                                 fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF475569),
+                                color = slateSub,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     } else {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFDCFCE7),
-                            border = BorderStroke(1.dp, Color(0xFFBBF7D0))
+                            color = if (ArcColors.isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFDCFCE7),
+                            border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF065F46) else Color(0xFFBBF7D0))
                         ) {
                             Text(
                                 text = "Custom Rule",
                                 fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF166534),
+                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534),
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
@@ -354,7 +374,7 @@ fun EditRegexPatternScreen(
                     text = "TARGET CATEGORY",
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF475569),
+                    color = slateSub,
                     letterSpacing = 0.5.sp
                 )
 
@@ -369,8 +389,8 @@ fun EditRegexPatternScreen(
                         val isSelected = category.equals(cat, ignoreCase = true)
                         Surface(
                             shape = RoundedCornerShape(18.dp),
-                            color = if (isSelected) Color(0xFF0F172A) else Color(0xFFF1F5F9),
-                            border = if (isSelected) null else BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            color = if (isSelected) ArcColors.Primary else highlightSurface,
+                            border = if (isSelected) null else BorderStroke(1.dp, cardBorder),
                             modifier = Modifier.clickable {
                                 if (!initialRule.isSystem) {
                                     category = cat
@@ -381,7 +401,7 @@ fun EditRegexPatternScreen(
                                 text = cat,
                                 fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                color = if (isSelected) Color.White else Color(0xFF475569),
+                                color = if (isSelected) Color.White else slateSub,
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                             )
                         }
@@ -398,15 +418,15 @@ fun EditRegexPatternScreen(
                     text = "PATTERN NAME",
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF475569),
+                    color = slateSub,
                     letterSpacing = 0.5.sp
                 )
 
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    color = if (initialRule.isSystem) Color(0xFFF1F5F9) else Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                    color = if (initialRule.isSystem) highlightSurface else cardBg,
+                    border = BorderStroke(1.dp, cardBorder)
                 ) {
                     Row(
                         modifier = Modifier
@@ -419,7 +439,7 @@ fun EditRegexPatternScreen(
                                 Text(
                                     text = "e.g. Swiggy / Zomato UPI Payee",
                                     fontSize = 13.5.sp,
-                                    color = Color(0xFF94A3B8)
+                                    color = slateSub
                                 )
                             }
                             BasicTextField(
@@ -427,12 +447,12 @@ fun EditRegexPatternScreen(
                                 onValueChange = { if (!initialRule.isSystem) name = it },
                                 textStyle = TextStyle(
                                     fontSize = 13.5.sp,
-                                    color = if (initialRule.isSystem) Color(0xFF64748B) else Color(0xFF0F172A),
+                                    color = if (initialRule.isSystem) slateSub else slateTitle,
                                     fontWeight = FontWeight.Medium
                                 ),
                                 singleLine = true,
                                 enabled = !initialRule.isSystem,
-                                cursorBrush = SolidColor(Color(0xFF047857)),
+                                cursorBrush = SolidColor(ArcColors.Primary),
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -444,7 +464,7 @@ fun EditRegexPatternScreen(
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Clear",
-                                    tint = Color(0xFF94A3B8),
+                                    tint = slateSub,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -462,15 +482,15 @@ fun EditRegexPatternScreen(
                     text = "TARGET TOKEN DESCRIPTION",
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF475569),
+                    color = slateSub,
                     letterSpacing = 0.5.sp
                 )
 
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    color = if (initialRule.isSystem) Color(0xFFF1F5F9) else Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                    color = if (initialRule.isSystem) highlightSurface else cardBg,
+                    border = BorderStroke(1.dp, cardBorder)
                 ) {
                     Row(
                         modifier = Modifier
@@ -483,7 +503,7 @@ fun EditRegexPatternScreen(
                                 Text(
                                     text = "e.g. Extracts merchant name following 'to' or 'towards'",
                                     fontSize = 13.5.sp,
-                                    color = Color(0xFF94A3B8)
+                                    color = slateSub
                                 )
                             }
                             BasicTextField(
@@ -491,13 +511,255 @@ fun EditRegexPatternScreen(
                                 onValueChange = { if (!initialRule.isSystem) description = it },
                                 textStyle = TextStyle(
                                     fontSize = 13.5.sp,
-                                    color = if (initialRule.isSystem) Color(0xFF64748B) else Color(0xFF0F172A),
+                                    color = if (initialRule.isSystem) slateSub else slateTitle,
                                     fontWeight = FontWeight.Normal
                                 ),
                                 enabled = !initialRule.isSystem,
-                                cursorBrush = SolidColor(Color(0xFF047857)),
+                                cursorBrush = SolidColor(ArcColors.Primary),
                                 modifier = Modifier.fillMaxWidth()
                             )
+                        }
+                    }
+                }
+            }
+
+            // 4.5. Quick Highlight Pattern Builder Card (No-AI Builder + AI Assistant)
+            if (!initialRule.isSystem) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
+                    border = BorderStroke(1.dp, cardBorder),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Header
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.AutoAwesome,
+                                        contentDescription = "Highlight Builder",
+                                        tint = ArcColors.Primary,
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "Quick Highlight Builder",
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = slateTitle
+                                    )
+                                    Text(
+                                        text = "Tap target word in SMS to auto-create regex",
+                                        fontSize = 11.sp,
+                                        color = slateSub
+                                    )
+                                }
+                            }
+
+                            // Circular Ask AI button
+                            Button(
+                                onClick = { showAiPromptDialog = true },
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (ArcColors.isDark) highlightSurface else Color(0xFF0F172A)
+                                ),
+                                contentPadding = PaddingValues(horizontal = 11.dp, vertical = 4.dp),
+                                modifier = Modifier.height(30.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.AutoAwesome,
+                                    contentDescription = "Ask AI",
+                                    tint = ArcColors.Primary,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = "Ask AI",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (ArcColors.isDark) slateTitle else Color.White
+                                )
+                            }
+                        }
+
+                        // Sample SMS Word Chips in FlowRow
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = highlightSurface,
+                            border = BorderStroke(1.dp, cardBorder)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "SAMPLE SMS (TAP TARGET TOKEN):",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = slateSub,
+                                    letterSpacing = 0.5.sp
+                                )
+
+                                val sampleTokens = remember(testMessage) {
+                                    testMessage.split(Regex("\\s+")).filter { it.isNotBlank() }
+                                }
+
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    sampleTokens.forEach { rawToken ->
+                                        val cleanToken = rawToken.trimEnd('.', ',', ':', ';', '!', '?')
+                                        val isSelected = selectedHighlightWord.equals(cleanToken, ignoreCase = true) ||
+                                                (selectedHighlightWord != null && rawToken.contains(selectedHighlightWord!!, ignoreCase = true))
+
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (isSelected) ArcColors.Primary else cardBg,
+                                            border = if (isSelected) null else BorderStroke(1.dp, cardBorder),
+                                            modifier = Modifier.clickable {
+                                                selectedHighlightWord = cleanToken
+                                                val synth = com.subhashrelangi.arctracker.utils.VisualRegexSynthesizer.synthesize(
+                                                    fullMessage = testMessage,
+                                                    selectedText = cleanToken,
+                                                    explicitCategory = null
+                                                )
+                                                if (synth != null) {
+                                                    pattern = synth.pattern
+                                                    category = synth.category
+                                                    if (name.isBlank() || name.startsWith("Amount Parser") || name.startsWith("Payee Pattern") || name.startsWith("Account Suffix") || name.startsWith("Custom Token") || name.contains("Signal Pattern") || name.startsWith("Custom")) {
+                                                        name = synth.suggestedName
+                                                    }
+                                                    if (description.isBlank() || description.startsWith("Extracts") || description.startsWith("Identifies") || description.startsWith("Matches")) {
+                                                        description = synth.description
+                                                    }
+                                                    lastSynthesizedSuccess = "Extracted: \"${synth.extractedPreview}\" (${synth.category})"
+                                                    runLiveTest()
+                                                }
+                                            }
+                                        ) {
+                                            Text(
+                                                text = rawToken,
+                                                fontSize = 12.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isSelected) Color.White else slateTitle,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Category Override Quick Pills
+                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text(
+                                text = "INTERPRET SELECTION AS:",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = slateSub,
+                                letterSpacing = 0.5.sp
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val quickCategories = listOf(
+                                    "Merchant / Payee",
+                                    "Amount",
+                                    "Account / Card",
+                                    "Type Debit/Credit",
+                                    "Others"
+                                )
+                                quickCategories.forEach { cat ->
+                                    val isCurrentCat = category.equals(cat, ignoreCase = true)
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (isCurrentCat) ArcColors.Primary else highlightSurface,
+                                        border = if (isCurrentCat) null else BorderStroke(1.dp, cardBorder),
+                                        modifier = Modifier.clickable {
+                                            category = cat
+                                            val targetWord = selectedHighlightWord
+                                            if (!targetWord.isNullOrBlank()) {
+                                                val synth = com.subhashrelangi.arctracker.utils.VisualRegexSynthesizer.synthesize(
+                                                    fullMessage = testMessage,
+                                                    selectedText = targetWord,
+                                                    explicitCategory = cat
+                                                )
+                                                if (synth != null) {
+                                                    pattern = synth.pattern
+                                                    category = synth.category
+                                                    lastSynthesizedSuccess = "Extracted: \"${synth.extractedPreview}\" (${synth.category})"
+                                                    runLiveTest()
+                                                }
+                                            }
+                                        }
+                                    ) {
+                                        Text(
+                                            text = cat,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isCurrentCat) FontWeight.Bold else FontWeight.SemiBold,
+                                            color = if (isCurrentCat) Color.White else slateSub,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Verification Success Banner
+                        if (lastSynthesizedSuccess != null) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (ArcColors.isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFECFDF5),
+                                border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF065F46) else Color(0xFFA7F3D0)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Success",
+                                        tint = ArcColors.Primary,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = "Generated & Verified ✓ $lastSynthesizedSuccess",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF065F46)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -517,14 +779,14 @@ fun EditRegexPatternScreen(
                         text = "REGEX EXPRESSION (JAVA / KOTLIN)",
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF475569),
+                        color = slateSub,
                         letterSpacing = 0.5.sp
                     )
 
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFF0FDF4),
-                        border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                        color = if (ArcColors.isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFF0FDF4),
+                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF065F46) else Color(0xFFBBF7D0)),
                         modifier = Modifier.clickable { showCheatSheetDialog = true }
                     ) {
                         Row(
@@ -534,7 +796,7 @@ fun EditRegexPatternScreen(
                             Icon(
                                 imageVector = Icons.Outlined.HelpOutline,
                                 contentDescription = null,
-                                tint = Color(0xFF047857),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -542,7 +804,7 @@ fun EditRegexPatternScreen(
                                 text = "Syntax Helper",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF047857)
+                                color = ArcColors.Primary
                             )
                         }
                     }
@@ -551,10 +813,10 @@ fun EditRegexPatternScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    color = Color.White,
+                    color = cardBg,
                     border = BorderStroke(
                         1.dp,
-                        if (regexSyntaxError != null) Color(0xFFFCA5A5) else Color(0xFFCBD5E1)
+                        if (regexSyntaxError != null) Color(0xFFEF4444) else cardBorder
                     )
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
@@ -568,7 +830,7 @@ fun EditRegexPatternScreen(
                                         text = "(?i)(?:to|towards)\\s+([A-Za-z0-9 &._-]{2,40})",
                                         fontSize = 12.5.sp,
                                         fontFamily = FontFamily.Monospace,
-                                        color = Color(0xFF94A3B8),
+                                        color = slateSub,
                                         lineHeight = 18.sp
                                     )
                                 }
@@ -581,11 +843,11 @@ fun EditRegexPatternScreen(
                                     textStyle = TextStyle(
                                         fontSize = 12.5.sp,
                                         fontFamily = FontFamily.Monospace,
-                                        color = Color(0xFF047857),
+                                        color = ArcColors.Primary,
                                         fontWeight = FontWeight.Medium,
                                         lineHeight = 18.sp
                                     ),
-                                    cursorBrush = SolidColor(Color(0xFF047857)),
+                                    cursorBrush = SolidColor(ArcColors.Primary),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .heightIn(min = 48.dp)
@@ -603,7 +865,7 @@ fun EditRegexPatternScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.ContentCopy,
                                         contentDescription = "Copy",
-                                        tint = Color(0xFF047857),
+                                        tint = ArcColors.Primary,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -621,13 +883,13 @@ fun EditRegexPatternScreen(
                                     modifier = Modifier
                                         .size(6.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFFDC2626))
+                                        .background(Color(0xFFEF4444))
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "Syntax Error: $regexSyntaxError",
                                     fontSize = 11.sp,
-                                    color = Color(0xFFDC2626),
+                                    color = Color(0xFFEF4444),
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -637,13 +899,13 @@ fun EditRegexPatternScreen(
                                     modifier = Modifier
                                         .size(6.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF10B981))
+                                        .background(ArcColors.Primary)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "Valid Regex Expression ✓",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF166534),
+                                    color = ArcColors.Primary,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -669,8 +931,8 @@ fun EditRegexPatternScreen(
                     quickTokens.forEach { (token, label) ->
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFF1F5F9),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            color = highlightSurface,
+                            border = BorderStroke(1.dp, cardBorder),
                             modifier = Modifier.clickable {
                                 pattern += token
                                 hasEvaluated = false
@@ -685,13 +947,13 @@ fun EditRegexPatternScreen(
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = slateTitle
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = "+",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF047857),
+                                    color = ArcColors.Primary,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -704,8 +966,8 @@ fun EditRegexPatternScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                colors = CardDefaults.cardColors(containerColor = cardBg),
+                border = BorderStroke(1.dp, cardBorder),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
@@ -721,7 +983,7 @@ fun EditRegexPatternScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Terminal,
                                 contentDescription = null,
-                                tint = Color(0xFF047857),
+                                tint = ArcColors.Primary,
                                 modifier = Modifier.size(17.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -729,14 +991,14 @@ fun EditRegexPatternScreen(
                                 text = "Live Pattern Sandbox",
                                 fontSize = 13.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = slateTitle
                             )
                         }
 
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFF0FDF4),
-                            border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                            color = if (ArcColors.isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFF0FDF4),
+                            border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF065F46) else Color(0xFFBBF7D0)),
                             modifier = Modifier.clickable {
                                 testMessage = "Rs 1,450.00 debited from a/c **4821 on 24-Oct-26 via UPI to ZOMATO. Ref 429104."
                                 hasEvaluated = false
@@ -746,7 +1008,7 @@ fun EditRegexPatternScreen(
                                 text = "Insert Sample UPI",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF047857),
+                                color = ArcColors.Primary,
                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                             )
                         }
@@ -756,8 +1018,8 @@ fun EditRegexPatternScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFF8FAFC),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        color = highlightSurface,
+                        border = BorderStroke(1.dp, cardBorder)
                     ) {
                         BasicTextField(
                             value = testMessage,
@@ -767,10 +1029,10 @@ fun EditRegexPatternScreen(
                             },
                             textStyle = TextStyle(
                                 fontSize = 12.5.sp,
-                                color = Color(0xFF0F172A),
+                                color = slateTitle,
                                 lineHeight = 17.sp
                             ),
-                            cursorBrush = SolidColor(Color(0xFF047857)),
+                            cursorBrush = SolidColor(ArcColors.Primary),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 60.dp)
@@ -781,8 +1043,8 @@ fun EditRegexPatternScreen(
                     // Run Test Button
                     Button(
                         onClick = { runLiveTest() },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(42.dp),
@@ -808,8 +1070,8 @@ fun EditRegexPatternScreen(
                         if (testMatched == true && testExtractedToken != null) {
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFFF0FDF4),
-                                border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                                color = if (ArcColors.isDark) Color(0xFF064E3B).copy(alpha = 0.5f) else Color(0xFFF0FDF4),
+                                border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF065F46) else Color(0xFFBBF7D0)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Column(
@@ -821,14 +1083,14 @@ fun EditRegexPatternScreen(
                                             modifier = Modifier
                                                 .size(7.dp)
                                                 .clip(CircleShape)
-                                                .background(Color(0xFF10B981))
+                                                .background(ArcColors.Primary)
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
                                             text = "Pattern Matched Successfully ✓",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF166534)
+                                            color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)
                                         )
                                     }
 
@@ -840,8 +1102,8 @@ fun EditRegexPatternScreen(
                                             }
                                             withStyle(
                                                 style = SpanStyle(
-                                                    background = Color(0xFFBBF7D0),
-                                                    color = Color(0xFF166534),
+                                                    background = if (ArcColors.isDark) Color(0xFF065F46) else Color(0xFFBBF7D0),
+                                                    color = if (ArcColors.isDark) Color(0xFFF8FAFC) else Color(0xFF166534),
                                                     fontWeight = FontWeight.Bold
                                                 )
                                             ) {
@@ -854,7 +1116,7 @@ fun EditRegexPatternScreen(
                                         Text(
                                             text = annotated,
                                             fontSize = 11.5.sp,
-                                            color = Color(0xFF0F172A),
+                                            color = slateTitle,
                                             lineHeight = 16.sp
                                         )
                                     }
@@ -868,20 +1130,20 @@ fun EditRegexPatternScreen(
                                             text = "Extracted Token:",
                                             fontSize = 11.5.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF475569)
+                                            color = slateSub
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = Color(0xFFDCFCE7),
-                                            border = BorderStroke(1.dp, Color(0xFFA7F3D0))
+                                            color = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7),
+                                            border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF065F46) else Color(0xFFA7F3D0))
                                         ) {
                                             Text(
                                                 text = testExtractedToken ?: "",
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 fontFamily = FontFamily.Monospace,
-                                                color = Color(0xFF166534),
+                                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534),
                                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                             )
                                         }
@@ -891,8 +1153,8 @@ fun EditRegexPatternScreen(
                         } else {
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFFFEF2F2),
-                                border = BorderStroke(1.dp, Color(0xFFFECACA)),
+                                color = if (ArcColors.isDark) Color(0xFF7F1D1D).copy(alpha = 0.5f) else Color(0xFFFEF2F2),
+                                border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF991B1B) else Color(0xFFFECACA)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -903,14 +1165,14 @@ fun EditRegexPatternScreen(
                                         modifier = Modifier
                                             .size(7.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0xFFDC2626))
+                                            .background(Color(0xFFEF4444))
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "No Match Found ✕  (Check regex anchors and sample text)",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFDC2626)
+                                        color = Color(0xFFEF4444)
                                     )
                                 }
                             }
@@ -931,8 +1193,8 @@ fun EditRegexPatternScreen(
             ) {
                 OutlinedButton(
                     onClick = onBack,
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, cardBorder),
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp)
@@ -941,7 +1203,7 @@ fun EditRegexPatternScreen(
                         text = "Cancel",
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF475569)
+                        color = slateSub
                     )
                 }
 
@@ -978,8 +1240,8 @@ fun EditRegexPatternScreen(
                         }
                         onBack()
                     },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
                     modifier = Modifier
                         .weight(1.4f)
                         .height(48.dp)
@@ -1002,13 +1264,219 @@ fun EditRegexPatternScreen(
         }
     }
 
+    // AI Regex Assistant Dialog
+    if (showAiPromptDialog) {
+        Dialog(onDismissRequest = { showAiPromptDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = ArcColors.Primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "Ask AI (ChatGPT / Claude)",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = slateTitle
+                                )
+                                Text(
+                                    text = "Generate regex with AI, 100% private & offline",
+                                    fontSize = 11.5.sp,
+                                    color = slateSub
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = { showAiPromptDialog = false },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = slateSub,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    // Step 1: Copy AI Prompt
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "STEP 1: COPY PROMPT FOR CHATGPT",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = slateSub,
+                            letterSpacing = 0.5.sp
+                        )
+
+                        val generatedPrompt = remember(testMessage, category) {
+                            com.subhashrelangi.arctracker.utils.VisualRegexSynthesizer.buildAiPrompt(testMessage, category)
+                        }
+
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            color = highlightSurface,
+                            border = BorderStroke(1.dp, cardBorder)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text(
+                                    text = generatedPrompt,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = slateTitle,
+                                    maxLines = 5,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(generatedPrompt))
+                                Toast.makeText(context, "Prompt copied to clipboard! Paste it into ChatGPT.", Toast.LENGTH_SHORT).show()
+                            },
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.ContentCopy,
+                                contentDescription = "Copy",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Copy Prompt to Clipboard", color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Step 2: Paste AI Response
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "STEP 2: PASTE AI RESPONSE HERE",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = slateSub,
+                            letterSpacing = 0.5.sp
+                        )
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(110.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            color = highlightSurface,
+                            border = BorderStroke(1.dp, cardBorder)
+                        ) {
+                            Box(modifier = Modifier.padding(10.dp)) {
+                                if (aiPastedText.isEmpty()) {
+                                    Text(
+                                        text = "Paste ChatGPT's JSON response or regex pattern here...",
+                                        fontSize = 12.sp,
+                                        color = slateSub
+                                    )
+                                }
+                                BasicTextField(
+                                    value = aiPastedText,
+                                    onValueChange = { aiPastedText = it },
+                                    textStyle = TextStyle(
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = slateTitle
+                                    ),
+                                    cursorBrush = SolidColor(ArcColors.Primary),
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    }
+
+                    // Dialog Actions
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { showAiPromptDialog = false },
+                            shape = CircleShape,
+                            modifier = Modifier.weight(1f),
+                            border = BorderStroke(1.dp, cardBorder)
+                        ) {
+                            Text("Cancel", color = slateSub, fontSize = 12.5.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                val parsed = com.subhashrelangi.arctracker.utils.VisualRegexSynthesizer.parseAiResponse(aiPastedText)
+                                if (parsed != null) {
+                                    pattern = parsed.pattern
+                                    category = parsed.category
+                                    name = parsed.suggestedName
+                                    description = parsed.description
+                                    lastSynthesizedSuccess = "Imported from AI: \"${parsed.pattern}\""
+                                    runLiveTest()
+                                    showAiPromptDialog = false
+                                    Toast.makeText(context, "AI Regex pattern applied successfully!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Could not extract pattern. Paste the full JSON or regex.", Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                            modifier = Modifier.weight(1.4f)
+                        ) {
+                            Text("Apply Pattern", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Syntax Cheat Sheet Dialog
     if (showCheatSheetDialog) {
         Dialog(onDismissRequest = { showCheatSheetDialog = false }) {
             Surface(
                 shape = RoundedCornerShape(18.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp)
@@ -1028,7 +1496,7 @@ fun EditRegexPatternScreen(
                             text = "Regex Syntax Guide",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = slateTitle
                         )
                         IconButton(
                             onClick = { showCheatSheetDialog = false },
@@ -1037,7 +1505,7 @@ fun EditRegexPatternScreen(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Close",
-                                tint = Color(0xFF64748B),
+                                tint = slateSub,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -1054,8 +1522,8 @@ fun EditRegexPatternScreen(
                     cheatItems.forEach { (token, desc) ->
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFF8FAFC),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            color = highlightSurface,
+                            border = BorderStroke(1.dp, cardBorder),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(10.dp)) {
@@ -1064,13 +1532,13 @@ fun EditRegexPatternScreen(
                                     fontSize = 12.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF047857)
+                                    color = ArcColors.Primary
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = desc,
                                     fontSize = 11.5.sp,
-                                    color = Color(0xFF475569)
+                                    color = slateSub
                                 )
                             }
                         }
@@ -1078,11 +1546,17 @@ fun EditRegexPatternScreen(
 
                     Button(
                         onClick = { showCheatSheetDialog = false },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (ArcColors.isDark) highlightSurface else Color(0xFF0F172A)
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Got it", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Got it",
+                            color = if (ArcColors.isDark) slateTitle else Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -1094,8 +1568,8 @@ fun EditRegexPatternScreen(
         Dialog(onDismissRequest = { showDeleteConfirmDialog = false }) {
             Surface(
                 shape = RoundedCornerShape(18.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                color = cardBg,
+                border = BorderStroke(1.dp, cardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp)
@@ -1111,13 +1585,15 @@ fun EditRegexPatternScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFFEE2E2)),
+                                .background(
+                                    if (ArcColors.isDark) Color(0xFF7F1D1D).copy(alpha = 0.5f) else Color(0xFFFEE2E2)
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Delete,
                                 contentDescription = null,
-                                tint = Color(0xFFDC2626),
+                                tint = Color(0xFFEF4444),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -1127,12 +1603,12 @@ fun EditRegexPatternScreen(
                                 text = "Delete Pattern",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = slateTitle
                             )
                             Text(
                                 text = "This custom rule will be permanently deleted.",
                                 fontSize = 11.5.sp,
-                                color = Color(0xFF64748B)
+                                color = slateSub
                             )
                         }
                     }
@@ -1143,11 +1619,11 @@ fun EditRegexPatternScreen(
                     ) {
                         OutlinedButton(
                             onClick = { showDeleteConfirmDialog = false },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = CircleShape,
                             modifier = Modifier.weight(1f),
-                            border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                            border = BorderStroke(1.dp, cardBorder)
                         ) {
-                            Text("Cancel", color = Color(0xFF475569), fontSize = 13.sp)
+                            Text("Cancel", color = slateSub, fontSize = 13.sp)
                         }
 
                         Button(
@@ -1157,7 +1633,7 @@ fun EditRegexPatternScreen(
                                 Toast.makeText(context, "Regex pattern deleted", Toast.LENGTH_SHORT).show()
                                 onBack()
                             },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
                             modifier = Modifier.weight(1f)
                         ) {

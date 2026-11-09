@@ -95,7 +95,10 @@ object CategoryVisuals {
         }
     }
 
-    fun getContainerColor(key: String): Color {
+    fun getContainerColor(key: String, isDark: Boolean = false): Color {
+        if (isDark) {
+            return getColor(key).copy(alpha = 0.22f)
+        }
         return when (key.lowercase()) {
             "orange" -> Color(0xFFFFF3E0)
             "purple" -> Color(0xFFF3E5F5)

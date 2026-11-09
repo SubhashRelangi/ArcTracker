@@ -1,66 +1,73 @@
 package com.subhashrelangi.arctracker.ui.ledger
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.ui.theme.ArcShapes
 import com.subhashrelangi.arctracker.ui.theme.ArcSpacing
+import com.subhashrelangi.arctracker.ui.theme.LocalArcColors
 
 /**
  * Design tokens and centralized color palette for ArcTracker LedgerPage.
- * Pure light-theme aesthetic exactly matching the reference mockup.
+ * Dynamically resolves to Light or Dark theme via Universal ArcColors.
  */
 object LedgerColors {
+    val Light = ArcColors.Light
+    val Dark = ArcColors.Dark
+
     // Backgrounds
-    val Background = Color(0xFFF8FAFC)       // Crisp light slate background
-    val Surface = Color(0xFFFFFFFF)          // Pure white card surfaces
-    val SurfaceElevated = Color(0xFFFFFFFF)
-    val SurfaceHighlight = Color(0xFFF1F5F9)
-    val CardBackground = Color(0xFFFFFFFF)
+    val Background: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.background
+    val Surface: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surface
+    val SurfaceElevated: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceElevated
+    val SurfaceHighlight: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceHighlight
+    val CardBackground: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.cardBackground
 
     // Search and Input
-    val SearchBg = Color(0xFFF1F5F9)
-    val SearchBorder = Color(0xFFE2E8F0)
+    val SearchBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.surfaceHighlight
+    val SearchBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.border
 
     // Borders
-    val Border = Color(0xFFE2E8F0)
-    val BorderSubtle = Color(0xFFF1F5F9)
-    val BorderLight = Color(0xFFE2E8F0)
+    val Border: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.border
+    val BorderSubtle: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.borderSubtle
+    val BorderLight: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.borderLight
 
     // Typography
-    val TextPrimary = Color(0xFF0F172A)      // Deep dark slate / near black
-    val TextSecondary = Color(0xFF475569)    // Medium slate
-    val TextMuted = Color(0xFF64748B)        // Muted slate
-    val TextMutedLight = Color(0xFF94A3B8)   // Light muted caption slate
+    val TextPrimary: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textPrimary
+    val TextSecondary: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textSecondary
+    val TextMuted: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textMuted
+    val TextMutedLight: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.textMutedLight
 
     // Financial indicators
-    val Debit = Color(0xFF0F172A)           // Outflows in mockup are dark bold
-    val DebitMuted = Color(0xFFEF4444)      // Soft red accent if needed
-    val DebitBg = Color(0xFFF1F5F9)
-    val DebitBorder = Color(0xFFE2E8F0)
+    val Debit: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.debit
+    val DebitMuted: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.debitDanger
+    val DebitBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.debitBg
+    val DebitBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.debitBorder
 
-    val Credit = Color(0xFF059669)          // Vibrant emerald green for inflows
-    val CreditMuted = Color(0xFF10B981)
-    val CreditBg = Color(0xFFECFDF5)
-    val CreditBorder = Color(0xFFA7F3D0)
+    val Credit: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.credit
+    val CreditMuted: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.creditMuted
+    val CreditBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.creditBg
+    val CreditBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.creditBorder
 
     // Review / Warning
-    val WarningAmber = Color(0xFFD97706)
-    val WarningAmberDot = Color(0xFFF59E0B)
-    val WarningAmberBg = Color(0xFFFFFBEB)
-    val WarningAmberBorder = Color(0xFFFDE68A)
+    val WarningAmber: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningAmber
+    val WarningAmberDot: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningAmberDot
+    val WarningAmberBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningAmberBg
+    val WarningAmberBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningAmberBorder
 
     // Unresolved
-    val Unresolved = Color(0xFFD97706)
-    val UnresolvedBg = Color(0xFFFFFBEB)
-    val UnresolvedBorder = Color(0xFFFDE68A)
+    val Unresolved: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.unresolved
+    val UnresolvedBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.unresolvedBg
+    val UnresolvedBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.unresolvedBorder
 
     // Badges / Tags
-    val UpiBadgeBg = Color(0xFFEFF6FF)
-    val UpiBadgeText = Color(0xFF2563EB)
+    val UpiBadgeBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.upiBadgeBg
+    val UpiBadgeText: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.upiBadgeText
 
     // Filter Chips
-    val FilterChipBg = Color(0xFFF1F5F9)
-    val FilterChipSelectedBg = Color(0xFF0F172A)
-    val FilterChipSelectedText = Color(0xFFFFFFFF)
+    val FilterChipBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.filterChipBg
+    val FilterChipSelectedBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.filterChipSelectedBg
+    val FilterChipSelectedText: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.filterChipSelectedText
 }
 
 object LedgerShapes {
