@@ -2,7 +2,7 @@ package com.subhashrelangi.arctracker
 
 import android.app.Notification
 import com.subhashrelangi.arctracker.service.CapturedNotificationInfo
-import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
+import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import org.junit.After
 import org.junit.Assert.*

@@ -1,7 +1,7 @@
 package com.subhashrelangi.arctracker
 
-import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
-import com.subhashrelangi.arctracker.service.SmsPermissionHelper
+import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
+import com.subhashrelangi.arctracker.engine.ingestion.SmsPermissionHelper
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import org.junit.After
 import org.junit.Assert.assertFalse

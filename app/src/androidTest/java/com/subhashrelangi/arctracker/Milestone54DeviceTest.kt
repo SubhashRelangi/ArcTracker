@@ -3,8 +3,8 @@ package com.subhashrelangi.arctracker
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
-import com.subhashrelangi.arctracker.service.SmsPermissionHelper
+import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
+import com.subhashrelangi.arctracker.engine.ingestion.SmsPermissionHelper
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import org.junit.After
 import org.junit.Assert.*

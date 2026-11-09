@@ -8,7 +8,7 @@ import android.content.Context
 import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
+import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import org.junit.After
 import org.junit.Assert.*

@@ -62,7 +62,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.subhashrelangi.arctracker.BuildConfig
 import com.subhashrelangi.arctracker.R
-import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
+import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.utils.AppVersion

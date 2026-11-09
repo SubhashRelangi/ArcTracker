@@ -10,7 +10,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.service.NotificationContent
-import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
+import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import kotlinx.coroutines.runBlocking

@@ -4,9 +4,9 @@ import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.subhashrelangi.arctracker.data.AppDatabase
-import com.subhashrelangi.arctracker.service.HistoricalSmsImportManager
-import com.subhashrelangi.arctracker.service.SmsPermissionHelper
-import com.subhashrelangi.arctracker.service.SmsScanResult
+import com.subhashrelangi.arctracker.engine.ingestion.HistoricalSmsImportManager
+import com.subhashrelangi.arctracker.engine.ingestion.SmsPermissionHelper
+import com.subhashrelangi.arctracker.engine.ingestion.SmsScanResult
 import com.subhashrelangi.arctracker.engine.persistence.TransactionPersistenceManager
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import kotlinx.coroutines.runBlocking

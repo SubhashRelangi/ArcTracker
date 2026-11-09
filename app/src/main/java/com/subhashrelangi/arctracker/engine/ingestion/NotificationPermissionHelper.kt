@@ -1,4 +1,4 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.ingestion
 
 import android.content.ComponentName
 import android.content.Context
@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
+import com.subhashrelangi.arctracker.service.NotificationReaderService
 
 /**
  * Helper utility for checking Android Notification Access permission

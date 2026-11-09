@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.subhashrelangi.arctracker.service.SmsPermissionHelper
+import com.subhashrelangi.arctracker.engine.ingestion.SmsPermissionHelper
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 
 /**
