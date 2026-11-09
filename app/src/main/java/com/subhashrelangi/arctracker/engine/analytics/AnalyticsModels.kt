@@ -1,4 +1,4 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.analytics
 
 import java.text.SimpleDateFormat
 import java.util.Calendar
