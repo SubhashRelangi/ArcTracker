@@ -1,4 +1,4 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.pipeline
 
 /**
  * High-level determination of whether an actual financial transaction event occurred.

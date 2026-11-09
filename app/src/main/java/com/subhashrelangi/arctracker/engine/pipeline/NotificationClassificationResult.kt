@@ -1,4 +1,4 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.pipeline
 
 /**
  * State indicating whether a notification is financially relevant (Step 4).

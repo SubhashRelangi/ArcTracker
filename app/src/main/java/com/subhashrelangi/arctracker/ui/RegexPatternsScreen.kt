@@ -1,4 +1,5 @@
 package com.subhashrelangi.arctracker.ui
+import com.subhashrelangi.arctracker.engine.pipeline.*
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
@@ -35,9 +36,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.service.CapturedNotificationInfo
-import com.subhashrelangi.arctracker.service.FinancialClassifier
-import com.subhashrelangi.arctracker.service.NotificationNormalizer
-import com.subhashrelangi.arctracker.service.StructuredTransactionExtractor
+import com.subhashrelangi.arctracker.engine.pipeline.FinancialClassifier
+import com.subhashrelangi.arctracker.engine.pipeline.NotificationNormalizer
+import com.subhashrelangi.arctracker.engine.pipeline.StructuredTransactionExtractor
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.utils.IgnoreRulesManager

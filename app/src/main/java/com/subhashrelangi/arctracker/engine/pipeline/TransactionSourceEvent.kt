@@ -1,4 +1,5 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.pipeline
+import com.subhashrelangi.arctracker.service.CapturedNotificationInfo
 
 /**
  * Normalized source event boundary abstraction (Milestone 1).

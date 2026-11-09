@@ -1,4 +1,4 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.pipeline
 
 /**
  * High-level validation decision state for a structured transaction candidate (Step 6).
