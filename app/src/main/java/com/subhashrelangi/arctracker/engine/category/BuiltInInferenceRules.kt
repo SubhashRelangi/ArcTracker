@@ -1,4 +1,4 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.category
 
 /**
  * High-confidence curated built-in category inference rules (Milestone 10).

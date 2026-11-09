@@ -1,7 +1,7 @@
 package com.subhashrelangi.arctracker.engine.analytics
 
 import com.subhashrelangi.arctracker.data.*
-import com.subhashrelangi.arctracker.service.CategorySource
+import com.subhashrelangi.arctracker.engine.category.CategorySource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn

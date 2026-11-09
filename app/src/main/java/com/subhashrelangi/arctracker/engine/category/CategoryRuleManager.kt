@@ -1,4 +1,4 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.category
 
 import com.subhashrelangi.arctracker.data.TransactionCategoryDao
 import com.subhashrelangi.arctracker.data.UserCategoryRule

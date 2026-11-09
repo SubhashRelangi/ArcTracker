@@ -1,4 +1,4 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.category
 
 /**
  * Category matching strategies for deterministic evaluation.

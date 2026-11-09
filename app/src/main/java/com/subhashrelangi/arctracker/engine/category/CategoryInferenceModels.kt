@@ -1,4 +1,4 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.category
 
 /**
  * Origin or authority of a transaction's category assignment.

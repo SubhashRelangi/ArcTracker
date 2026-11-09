@@ -1,4 +1,4 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.category
 
 import com.subhashrelangi.arctracker.data.BuiltInCategories
 import com.subhashrelangi.arctracker.data.MerchantAlias
