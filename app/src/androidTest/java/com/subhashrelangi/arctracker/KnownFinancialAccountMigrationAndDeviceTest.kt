@@ -7,8 +7,8 @@ import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.subhashrelangi.arctracker.data.*
-import com.subhashrelangi.arctracker.service.IdentityConfidence
-import com.subhashrelangi.arctracker.service.InstrumentType
+import com.subhashrelangi.arctracker.engine.account.IdentityConfidence
+import com.subhashrelangi.arctracker.engine.account.InstrumentType
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*

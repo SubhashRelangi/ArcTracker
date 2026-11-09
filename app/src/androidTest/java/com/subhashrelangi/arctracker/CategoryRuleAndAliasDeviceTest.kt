@@ -8,6 +8,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.room.Room
 import com.subhashrelangi.arctracker.data.*
+import com.subhashrelangi.arctracker.engine.account.*
 import com.subhashrelangi.arctracker.service.*
 import kotlinx.coroutines.runBlocking
 import org.junit.After

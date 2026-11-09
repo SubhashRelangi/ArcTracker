@@ -536,8 +536,8 @@ object MockData {
                         institutionId = "hdfc",
                         institutionName = "HDFC Bank",
                         accountSuffix = "4012",
-                        instrumentType = com.subhashrelangi.arctracker.service.InstrumentType.BANK_ACCOUNT,
-                        confidence = com.subhashrelangi.arctracker.service.IdentityConfidence.HIGH,
+                        instrumentType = com.subhashrelangi.arctracker.engine.account.InstrumentType.BANK_ACCOUNT,
+                        confidence = com.subhashrelangi.arctracker.engine.account.IdentityConfidence.HIGH,
                         source = AccountSource.USER_CONFIRMED
                     ),
                     KnownFinancialAccount(
@@ -545,8 +545,8 @@ object MockData {
                         institutionId = "sbi",
                         institutionName = "SBI Card",
                         accountSuffix = "9821",
-                        instrumentType = com.subhashrelangi.arctracker.service.InstrumentType.CARD,
-                        confidence = com.subhashrelangi.arctracker.service.IdentityConfidence.HIGH,
+                        instrumentType = com.subhashrelangi.arctracker.engine.account.InstrumentType.CARD,
+                        confidence = com.subhashrelangi.arctracker.engine.account.IdentityConfidence.HIGH,
                         source = AccountSource.USER_CONFIRMED
                     ),
                     KnownFinancialAccount(
@@ -554,8 +554,8 @@ object MockData {
                         institutionId = "icici",
                         institutionName = "ICICI Bank",
                         accountSuffix = "1089",
-                        instrumentType = com.subhashrelangi.arctracker.service.InstrumentType.BANK_ACCOUNT,
-                        confidence = com.subhashrelangi.arctracker.service.IdentityConfidence.HIGH,
+                        instrumentType = com.subhashrelangi.arctracker.engine.account.InstrumentType.BANK_ACCOUNT,
+                        confidence = com.subhashrelangi.arctracker.engine.account.IdentityConfidence.HIGH,
                         source = AccountSource.USER_CONFIRMED
                     ),
                     KnownFinancialAccount(
@@ -563,8 +563,8 @@ object MockData {
                         institutionId = "axis",
                         institutionName = "Axis Bank Card",
                         accountSuffix = "3301",
-                        instrumentType = com.subhashrelangi.arctracker.service.InstrumentType.CARD,
-                        confidence = com.subhashrelangi.arctracker.service.IdentityConfidence.HIGH,
+                        instrumentType = com.subhashrelangi.arctracker.engine.account.InstrumentType.CARD,
+                        confidence = com.subhashrelangi.arctracker.engine.account.IdentityConfidence.HIGH,
                         source = AccountSource.USER_CONFIRMED
                     )
                 )

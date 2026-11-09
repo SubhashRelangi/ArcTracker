@@ -1,7 +1,8 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.account
 
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
+import com.subhashrelangi.arctracker.service.StructuredTransactionCandidate
 
 /**
  * Pure, deterministic account matcher connecting extracted live notification account metadata

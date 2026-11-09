@@ -2,8 +2,8 @@ package com.subhashrelangi.arctracker
 
 import com.subhashrelangi.arctracker.backup.*
 import com.subhashrelangi.arctracker.data.*
-import com.subhashrelangi.arctracker.service.IdentityConfidence
-import com.subhashrelangi.arctracker.service.InstrumentType
+import com.subhashrelangi.arctracker.engine.account.IdentityConfidence
+import com.subhashrelangi.arctracker.engine.account.InstrumentType
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before

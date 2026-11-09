@@ -42,7 +42,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import com.subhashrelangi.arctracker.data.*
-import com.subhashrelangi.arctracker.service.AccountReconciliationManager
+import com.subhashrelangi.arctracker.engine.account.AccountReconciliationManager
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import java.text.NumberFormat

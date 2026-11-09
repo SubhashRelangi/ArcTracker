@@ -1,5 +1,7 @@
 package com.subhashrelangi.arctracker.service
 
+import com.subhashrelangi.arctracker.engine.account.AccountIdentityExtractor
+
 /**
  * Deduplication / correlation decision for a transaction candidate (Step 7).
  */

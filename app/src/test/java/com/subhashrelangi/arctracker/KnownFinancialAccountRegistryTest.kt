@@ -3,8 +3,8 @@ package com.subhashrelangi.arctracker
 import com.subhashrelangi.arctracker.data.AccountSource
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
-import com.subhashrelangi.arctracker.service.IdentityConfidence
-import com.subhashrelangi.arctracker.service.InstrumentType
+import com.subhashrelangi.arctracker.engine.account.IdentityConfidence
+import com.subhashrelangi.arctracker.engine.account.InstrumentType
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test

@@ -1,4 +1,6 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.account
+
+import com.subhashrelangi.arctracker.service.ScannedTransactionItem
 
 /**
  * Types of financial instruments identified from SMS messages (Step 3).

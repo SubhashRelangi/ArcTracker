@@ -41,11 +41,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.service.DedupDecision
-import com.subhashrelangi.arctracker.service.FinancialAccountGroup
-import com.subhashrelangi.arctracker.service.FinancialAccountGrouper
+import com.subhashrelangi.arctracker.engine.account.FinancialAccountGroup
+import com.subhashrelangi.arctracker.engine.account.FinancialAccountGrouper
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.service.HistoricalSmsImportManager
-import com.subhashrelangi.arctracker.service.InstrumentType
+import com.subhashrelangi.arctracker.engine.account.InstrumentType
 import com.subhashrelangi.arctracker.service.ScannedTransactionItem
 import com.subhashrelangi.arctracker.service.SmsImportResult
 import com.subhashrelangi.arctracker.service.SmsPermissionHelper

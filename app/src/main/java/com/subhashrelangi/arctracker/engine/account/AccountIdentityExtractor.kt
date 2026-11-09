@@ -1,4 +1,8 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.account
+
+import com.subhashrelangi.arctracker.service.ScannedTransactionItem
+import com.subhashrelangi.arctracker.service.TransactionDirection
+import com.subhashrelangi.arctracker.service.ValidatedTransactionCandidate
 
 /**
  * Pure, deterministic extractor for financial institution and account/instrument identity (Step 3).

@@ -1,4 +1,4 @@
-package com.subhashrelangi.arctracker.service
+package com.subhashrelangi.arctracker.engine.account
 
 /**
  * Account types supported for user-configured bank account context (Milestone 1).
