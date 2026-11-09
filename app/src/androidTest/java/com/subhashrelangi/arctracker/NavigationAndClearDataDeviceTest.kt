@@ -7,7 +7,7 @@ import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.service.HistoricalSmsImportManager
 import com.subhashrelangi.arctracker.service.SmsPermissionHelper
 import com.subhashrelangi.arctracker.service.SmsScanResult
-import com.subhashrelangi.arctracker.service.TransactionPersistenceManager
+import com.subhashrelangi.arctracker.engine.persistence.TransactionPersistenceManager
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import kotlinx.coroutines.runBlocking
 import com.subhashrelangi.arctracker.data.Expense

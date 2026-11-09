@@ -39,7 +39,7 @@ import com.subhashrelangi.arctracker.engine.account.AccountReconciliationManager
 import com.subhashrelangi.arctracker.backup.BackupManager
 import com.subhashrelangi.arctracker.service.CategoryManager
 import com.subhashrelangi.arctracker.ui.MonthOption
-import com.subhashrelangi.arctracker.service.TransactionManager
+import com.subhashrelangi.arctracker.engine.persistence.TransactionManager
 import com.subhashrelangi.arctracker.ui.DarkDeleteConfirmDialog
 import com.subhashrelangi.arctracker.ui.TransactionActionSheet
 import com.subhashrelangi.arctracker.ui.TransactionDetailDialog
