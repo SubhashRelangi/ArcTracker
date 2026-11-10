@@ -108,7 +108,8 @@ data class StructuredTransactionCandidate(
     val temporalEvidence: TemporalTransactionEvidence? = null,
     val eventAssessment: TransactionEventAssessment? = null,
     val accountEnrichment: AccountEnrichment? = null,
-    val accountMatchResult: KnownFinancialAccountMatchResult? = null
+    val accountMatchResult: KnownFinancialAccountMatchResult? = null,
+    val confidenceProfile: TransactionConfidenceProfile? = null
 ) {
     /**
      * Retrieves the evidence object for a specific field if present.

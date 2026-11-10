@@ -204,6 +204,29 @@ object TransactionValidator {
         }
 
         // ----------------------------------------------------
+        // 2.6 Transaction DNA Verification Bridge (Layer 3.5)
+        // ----------------------------------------------------
+        val confidenceProfile = candidate.confidenceProfile
+            ?: (candidate.rawContent?.let { TransactionDnaVerifier.verify(it) }
+                ?: classification?.normalized?.normalizedCombinedText?.let { TransactionDnaVerifier.verify(it) }
+                ?: TransactionDnaVerifier.verify(candidate.sourceNotificationKey))
+
+        when (confidenceProfile.verdict) {
+            VerificationVerdict.CONFIRMED_FINANCIAL -> {
+                supportingSignals.add("TRANSACTION_DNA_CONFIRMED (${confidenceProfile.score} pts)")
+                validationReasons.add("Confirmed financial transaction DNA with physical banking anchors: ${confidenceProfile.matchedAnchors.joinToString(", ")}")
+            }
+            VerificationVerdict.PROBABLE_FINANCIAL -> {
+                supportingSignals.add("TRANSACTION_DNA_PROBABLE (${confidenceProfile.score} pts)")
+                validationReasons.add("Probable financial transaction DNA (${confidenceProfile.score} pts)")
+            }
+            VerificationVerdict.UNVERIFIED_PROMOTIONAL -> {
+                contradictingSignals.add("TRANSACTION_DNA_UNVERIFIED (${confidenceProfile.score} pts)")
+                warnings.add("Lacks physical banking transaction anchors (${confidenceProfile.score} pts): unverified or promotional text")
+            }
+        }
+
+        // ----------------------------------------------------
         // 3. Amount vs Evidence & Secondary Amounts
         // ----------------------------------------------------
         if (amount != null) {

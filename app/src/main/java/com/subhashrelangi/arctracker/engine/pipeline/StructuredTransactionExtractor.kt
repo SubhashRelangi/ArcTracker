@@ -234,6 +234,12 @@ object StructuredTransactionExtractor {
             return emptyList()
         }
 
+        // Layer 3.5: Transaction DNA Verification Bridge
+        val notifDnaProfile = TransactionDnaVerifier.verify(notification.normalizedCombinedText)
+        if (!notifDnaProfile.meetsExtractionThreshold) {
+            return emptyList()
+        }
+
         val segments = segmentNotification(notification)
         val candidates = mutableListOf<StructuredTransactionCandidate>()
 
@@ -241,6 +247,10 @@ object StructuredTransactionExtractor {
             for ((index, segment) in segments.withIndex()) {
                 val segAssessment = ActualTransactionEventGate.assessClause(segment)
                 if (segAssessment.actualEvent == ActualEventStatus.FALSE) {
+                    continue
+                }
+                val segDnaProfile = TransactionDnaVerifier.verify(segment)
+                if (!segDnaProfile.meetsExtractionThreshold && !notifDnaProfile.meetsExtractionThreshold) {
                     continue
                 }
                 val candidate = extractFromSegment(
@@ -251,7 +261,8 @@ object StructuredTransactionExtractor {
                     totalSegments = segments.size
                 )
                 if (candidate != null) {
-                    candidates.add(candidate.copy(eventAssessment = segAssessment))
+                    val finalProfile = if (segDnaProfile.meetsExtractionThreshold) segDnaProfile else notifDnaProfile
+                    candidates.add(candidate.copy(eventAssessment = segAssessment, confidenceProfile = finalProfile))
                 }
             }
         }
@@ -261,7 +272,7 @@ object StructuredTransactionExtractor {
             val singleCandidate = extractInternal(notification, classification)
             val candAssessment = ActualTransactionEventGate.assessCandidate(singleCandidate, classification)
             if (candAssessment.actualEvent != ActualEventStatus.FALSE) {
-                candidates.add(singleCandidate.copy(eventAssessment = candAssessment))
+                candidates.add(singleCandidate.copy(eventAssessment = candAssessment, confidenceProfile = notifDnaProfile))
             }
         }
 
@@ -512,7 +523,8 @@ object StructuredTransactionExtractor {
             transactionDateString = temporal.dateString,
             transactionTimeString = temporal.timeString,
             temporalEvidence = temporal.temporalEvidence,
-            eventAssessment = ActualTransactionEventGate.assessClause(segmentText, extractedAmount)
+            eventAssessment = ActualTransactionEventGate.assessClause(segmentText, extractedAmount),
+            confidenceProfile = TransactionDnaVerifier.verify(segmentText)
         )
     }
 
@@ -599,7 +611,8 @@ object StructuredTransactionExtractor {
             transactionDateString = temporal.dateString,
             transactionTimeString = temporal.timeString,
             temporalEvidence = temporal.temporalEvidence,
-            eventAssessment = ActualTransactionEventGate.assess(text, notification.packageName, extractedAmount)
+            eventAssessment = ActualTransactionEventGate.assess(text, notification.packageName, extractedAmount),
+            confidenceProfile = TransactionDnaVerifier.verify(text)
         )
     }
 
