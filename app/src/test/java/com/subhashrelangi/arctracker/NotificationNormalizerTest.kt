@@ -1,7 +1,7 @@
 package com.subhashrelangi.arctracker
 import com.subhashrelangi.arctracker.engine.pipeline.*
 
-import com.subhashrelangi.arctracker.service.CapturedNotificationInfo
+import com.subhashrelangi.arctracker.engine.pipeline.CapturedNotificationInfo
 import com.subhashrelangi.arctracker.engine.pipeline.NotificationNormalizer
 import org.junit.Assert.*
 import org.junit.Test

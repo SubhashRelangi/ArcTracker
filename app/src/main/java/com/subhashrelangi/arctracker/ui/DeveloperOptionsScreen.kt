@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.data.Expense
-import com.subhashrelangi.arctracker.service.CapturedNotificationInfo
+import com.subhashrelangi.arctracker.engine.pipeline.CapturedNotificationInfo
 import com.subhashrelangi.arctracker.engine.pipeline.FinancialClassifier
 import com.subhashrelangi.arctracker.engine.pipeline.NotificationNormalizer
 import com.subhashrelangi.arctracker.service.NotificationReaderService

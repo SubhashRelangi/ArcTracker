@@ -35,7 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.subhashrelangi.arctracker.service.CapturedNotificationInfo
+import com.subhashrelangi.arctracker.engine.pipeline.CapturedNotificationInfo
 import com.subhashrelangi.arctracker.engine.pipeline.FinancialClassifier
 import com.subhashrelangi.arctracker.engine.pipeline.NotificationNormalizer
 import com.subhashrelangi.arctracker.engine.pipeline.StructuredTransactionExtractor

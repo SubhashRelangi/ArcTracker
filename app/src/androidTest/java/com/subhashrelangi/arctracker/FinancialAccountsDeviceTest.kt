@@ -1,4 +1,5 @@
 package com.subhashrelangi.arctracker
+import com.subhashrelangi.arctracker.engine.pipeline.CapturedNotificationInfo
 import com.subhashrelangi.arctracker.engine.ingestion.*
 import com.subhashrelangi.arctracker.engine.persistence.*
 

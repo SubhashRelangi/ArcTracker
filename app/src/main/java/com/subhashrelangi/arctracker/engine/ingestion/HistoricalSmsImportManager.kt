@@ -1,5 +1,4 @@
 package com.subhashrelangi.arctracker.engine.ingestion
-import com.subhashrelangi.arctracker.service.CapturedNotificationInfo
 import com.subhashrelangi.arctracker.engine.persistence.*
 import com.subhashrelangi.arctracker.engine.pipeline.*
 
@@ -37,20 +36,6 @@ data class SmsImportProgress(
     val duplicatesSkipped: Int = 0,
     val reviewPendingCount: Int = 0,
     val isCancelled: Boolean = false
-)
-
-/**
- * Individual transaction item analyzed during the SCAN phase.
- * Holds all structured candidate intelligence needed for the subsequent IMPORT phase.
- */
-data class ScannedTransactionItem(
-    val candidate: ValidatedTransactionCandidate,
-    val sourceEvent: TransactionSourceEvent,
-    val plannedDecision: DedupDecision,
-    val matchStrategy: MatchStrategy,
-    val matchedRecordId: String? = null,
-    val reason: String,
-    val accountIdentity: FinancialAccountIdentity = FinancialAccountIdentity()
 )
 
 /**

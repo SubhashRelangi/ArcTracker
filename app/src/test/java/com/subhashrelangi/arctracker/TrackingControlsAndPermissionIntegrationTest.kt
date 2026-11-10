@@ -1,6 +1,6 @@
 package com.subhashrelangi.arctracker
 
-import com.subhashrelangi.arctracker.service.NotificationContent
+import com.subhashrelangi.arctracker.engine.pipeline.NotificationContent
 import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import com.subhashrelangi.arctracker.settings.AppCatalog

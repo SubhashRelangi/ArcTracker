@@ -1,8 +1,8 @@
 package com.subhashrelangi.arctracker
 
 import com.subhashrelangi.arctracker.data.Expense
-import com.subhashrelangi.arctracker.service.CapturedNotificationInfo
-import com.subhashrelangi.arctracker.service.NotificationContent
+import com.subhashrelangi.arctracker.engine.pipeline.CapturedNotificationInfo
+import com.subhashrelangi.arctracker.engine.pipeline.NotificationContent
 import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import com.subhashrelangi.arctracker.settings.AppCatalog

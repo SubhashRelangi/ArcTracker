@@ -121,7 +121,7 @@ import com.subhashrelangi.arctracker.engine.ingestion.HistoricalSmsImportManager
 import com.subhashrelangi.arctracker.engine.account.IdentityConfidence
 import com.subhashrelangi.arctracker.engine.account.InstrumentType
 import com.subhashrelangi.arctracker.engine.pipeline.MatchStrategy
-import com.subhashrelangi.arctracker.engine.ingestion.ScannedTransactionItem
+import com.subhashrelangi.arctracker.engine.account.ScannedTransactionItem
 import com.subhashrelangi.arctracker.engine.ingestion.SmsImportResult
 import com.subhashrelangi.arctracker.engine.ingestion.SmsPermissionHelper
 import com.subhashrelangi.arctracker.engine.ingestion.SmsScanProgress

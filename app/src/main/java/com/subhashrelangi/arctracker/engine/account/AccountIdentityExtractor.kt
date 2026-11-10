@@ -1,7 +1,6 @@
 package com.subhashrelangi.arctracker.engine.account
 import com.subhashrelangi.arctracker.engine.pipeline.*
 
-import com.subhashrelangi.arctracker.engine.ingestion.ScannedTransactionItem
 import com.subhashrelangi.arctracker.engine.pipeline.TransactionDirection
 import com.subhashrelangi.arctracker.engine.pipeline.ValidatedTransactionCandidate
 

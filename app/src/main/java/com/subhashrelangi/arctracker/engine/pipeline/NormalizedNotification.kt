@@ -1,5 +1,4 @@
 package com.subhashrelangi.arctracker.engine.pipeline
-import com.subhashrelangi.arctracker.service.CapturedNotificationInfo
 
 /**
  * Normalized representation of a captured notification (Step 3).

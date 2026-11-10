@@ -47,7 +47,7 @@ import com.subhashrelangi.arctracker.engine.account.FinancialAccountGrouper
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.engine.ingestion.HistoricalSmsImportManager
 import com.subhashrelangi.arctracker.engine.account.InstrumentType
-import com.subhashrelangi.arctracker.engine.ingestion.ScannedTransactionItem
+import com.subhashrelangi.arctracker.engine.account.ScannedTransactionItem
 import com.subhashrelangi.arctracker.engine.ingestion.SmsImportResult
 import com.subhashrelangi.arctracker.engine.ingestion.SmsPermissionHelper
 import com.subhashrelangi.arctracker.engine.ingestion.SmsScanProgress

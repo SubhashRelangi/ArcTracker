@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import com.subhashrelangi.arctracker.data.MockData
-import com.subhashrelangi.arctracker.service.CapturedNotificationInfo
+import com.subhashrelangi.arctracker.engine.pipeline.CapturedNotificationInfo
 import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import org.junit.After
