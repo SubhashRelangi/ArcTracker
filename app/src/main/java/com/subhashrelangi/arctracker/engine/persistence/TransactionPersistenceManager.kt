@@ -855,10 +855,12 @@ object TransactionPersistenceManager {
     fun buildNote(candidate: StructuredTransactionCandidate, extraNote: String? = null): String {
         val parts = mutableListOf<String>()
         candidate.utr?.let { parts.add("UTR: $it") }
-        candidate.referenceId?.let { if (it != candidate.utr) parts.add("Ref: $it") }
+        candidate.rrn?.let { if (it != candidate.utr) parts.add("RRN: $it") }
+        candidate.referenceId?.let { if (it != candidate.utr && it != candidate.rrn) parts.add("Ref: $it") }
         candidate.accountSuffix?.let { parts.add("A/c: XX$it") }
         candidate.cardSuffix?.let { parts.add("Card: XX$it") }
         candidate.upiId?.let { parts.add("UPI: $it") }
+        candidate.bank?.let { parts.add("Bank: $it") }
         extraNote?.let { parts.add(it) }
         return parts.joinToString(" | ")
     }

@@ -456,7 +456,21 @@ object StructuredTransactionExtractor {
         val upiId = extractUpiId(segmentText, evidenceMap) ?: extractUpiId(wholeNotification.normalizedCombinedText, evidenceMap)
 
         // 5. Merchant / Counterparty Extraction from segment
-        val (merchant, counterparty) = extractMerchantAndCounterparty(segmentText, upiId, evidenceMap)
+        var (merchant, counterparty) = extractMerchantAndCounterparty(segmentText, upiId, evidenceMap)
+        val titleTextSegment = wholeNotification.normalizedTitle ?: wholeNotification.raw.title
+        if (merchant == null && !titleTextSegment.isNullOrBlank()) {
+            val titleMerchant = extractMerchantFromTitle(titleTextSegment)
+            if (titleMerchant != null) {
+                merchant = titleMerchant
+                if (counterparty == null) counterparty = titleMerchant
+                evidenceMap["merchant"] = FieldEvidence(
+                    fieldName = "merchant",
+                    extractedValue = titleMerchant,
+                    sourceSnippet = titleTextSegment,
+                    ruleOrPattern = "TITLE_MERCHANT_EXTRACTION"
+                )
+            }
+        }
 
         // 6. Reference IDs (UTR, RRN, UPI Ref, Gen Ref) from segment, falling back to whole text
         val segmentRefs = extractReferences(segmentText, evidenceMap)
@@ -560,7 +574,21 @@ object StructuredTransactionExtractor {
         val upiId = extractUpiId(text, evidenceMap)
 
         // 5. Merchant / Counterparty Extraction
-        val (merchant, counterparty) = extractMerchantAndCounterparty(text, upiId, evidenceMap)
+        var (merchant, counterparty) = extractMerchantAndCounterparty(text, upiId, evidenceMap)
+        val titleTextInternal = notification.normalizedTitle ?: notification.raw.title
+        if (merchant == null && !titleTextInternal.isNullOrBlank()) {
+            val titleMerchant = extractMerchantFromTitle(titleTextInternal)
+            if (titleMerchant != null) {
+                merchant = titleMerchant
+                if (counterparty == null) counterparty = titleMerchant
+                evidenceMap["merchant"] = FieldEvidence(
+                    fieldName = "merchant",
+                    extractedValue = titleMerchant,
+                    sourceSnippet = titleTextInternal,
+                    ruleOrPattern = "TITLE_MERCHANT_EXTRACTION"
+                )
+            }
+        }
 
         // 6. Reference IDs (UTR, RRN, UPI Ref, Gen Ref)
         val (refId, utr, rrn, upiTxnId) = extractReferences(text, evidenceMap)
@@ -1117,6 +1145,68 @@ object StructuredTransactionExtractor {
         } else {
             Pair(cleaned, null)
         }
+    }
+
+    private val GENERIC_APP_OR_NOTIFICATION_TITLES = setOf(
+        "google pay", "gpay", "phonepe", "paytm", "bhim", "bhim upi", "cred",
+        "amazon pay", "mobikwik", "freecharge", "whatsapp", "messages", "sms",
+        "banking alert", "bank alert", "payment alert", "transaction alert",
+        "notification", "alert", "security alert", "system", "android system", "bank"
+    )
+
+    private val NON_STANDALONE_TITLE_KEYWORDS = setOf(
+        "bank", "banking", "bk", "alert", "alerts", "notification", "notifications",
+        "notice", "update", "updates", "reminder", "message", "messages", "sms",
+        "otp", "statement", "balance", "bal", "offer", "win", "prize",
+        "recharge", "bill", "due", "payment", "payments", "pay", "transaction",
+        "transactions", "txn", "security", "system", "service", "services",
+        "debit", "credit", "credited", "debited", "upi", "wallet", "account", "a/c"
+    )
+
+    private val BANK_CODE_PATTERNS = listOf(
+        "ippb", "sbi", "apgb", "hdfc", "icici", "axis", "pnb", "bob", "kotak",
+        "canara", "idfc", "indusind", "yesbank", "rbl", "federal", "unionbank"
+    )
+
+    fun extractMerchantFromTitle(title: String?): String? {
+        if (title.isNullOrBlank()) return null
+        val trimmed = title.trim()
+        val lower = trimmed.lowercase()
+        if (lower in GENERIC_APP_OR_NOTIFICATION_TITLES) return null
+
+        // 1. Action title e.g. "Paid to Ramesh", "Payment to Swiggy", "Transfer to Ravi"
+        val actionTitleMatch = Regex("""\b(?:paid|sent|transferred|transfer|payment)\s+(?:to|at|towards)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,40})""", RegexOption.IGNORE_CASE).find(trimmed)
+        if (actionTitleMatch != null) {
+            val name = actionTitleMatch.groups[1]?.value?.trim()?.trimEnd('.', ',', ';', ':', '!', '-')
+            if (!name.isNullOrBlank() && name.length >= 2 && !name.equals("unknown", ignoreCase = true) && name.lowercase() !in GENERIC_APP_OR_NOTIFICATION_TITLES) {
+                return name
+            }
+        }
+
+        // 2. Incoming title e.g. "Refund from Amazon", "Received from Subhash"
+        val incomingTitleMatch = Regex("""\b(?:received|refund\s+of|money\s+received)\s+from\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,40})""", RegexOption.IGNORE_CASE).find(trimmed)
+        if (incomingTitleMatch != null) {
+            val name = incomingTitleMatch.groups[1]?.value?.trim()?.trimEnd('.', ',', ';', ':', '!', '-')
+            if (!name.isNullOrBlank() && name.length >= 2 && !name.equals("unknown", ignoreCase = true) && name.lowercase() !in GENERIC_APP_OR_NOTIFICATION_TITLES) {
+                return name
+            }
+        }
+
+        // 3. Standalone clean contact/merchant title e.g. "Ramesh Kumar", "Chai Point", "Swiggy"
+        // Disqualify if title contains any banking, telecom, or system keywords
+        val words = lower.split(Regex("""[^a-z0-9]+""")).filter { it.isNotBlank() }
+        val hasDisallowedWord = words.any { it in NON_STANDALONE_TITLE_KEYWORDS }
+        val isSmsOrBankSenderCode = Regex("""^[A-Za-z]{2}-[A-Za-z0-9]+$|^[A-Z0-9]{4,8}$""").matches(trimmed)
+        val hasBankToken = BANK_CODE_PATTERNS.any { lower.contains(it) }
+
+        if (!hasDisallowedWord && !isSmsOrBankSenderCode && !hasBankToken && trimmed.length in 2..40 && !Regex("""^\d+$""").matches(trimmed)) {
+            val cleaned = trimmed.replace(Regex("""(?i)\s*[-|]\s*(?:payment|upi|alert|successful).*$"""), "").trim()
+            if (cleaned.length >= 2 && cleaned.lowercase() !in GENERIC_APP_OR_NOTIFICATION_TITLES) {
+                return cleaned
+            }
+        }
+
+        return null
     }
 
     private data class ExtractedReferences(
