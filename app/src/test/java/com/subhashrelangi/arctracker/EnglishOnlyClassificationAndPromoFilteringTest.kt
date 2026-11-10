@@ -322,4 +322,174 @@ class EnglishOnlyClassificationAndPromoFilteringTest {
         val hindiBank = "आपके खाते में credited Rs.1500 Ref 987654"
         assertFalse(LanguagePolicyHelper.shouldRejectAsUnsupportedLanguage(hindiBank))
     }
+
+    // =========================================================================
+    // Targeted Promotional vs Genuine Wallet/UPI Tests (User Evidence Scenarios)
+    // =========================================================================
+
+    @Test
+    fun test13_promotionalPrizeMoney_classifiedAsNonFinancialPromo_notInPendingReview() = runBlocking {
+        val msg = "Order now and win 33333 prize money! Flat Rs. 100 off on your meal when paid using PhonePe"
+        val normalized = createNormalized(msg, title = "Swiggy Offer", packageName = "in.swiggy.android")
+
+        val classification = FinancialClassifier.classify(normalized)
+        assertEquals(FinancialRelevance.NON_FINANCIAL, classification.financialRelevance)
+        assertTrue(classification.isNoise)
+        assertTrue(
+            classification.noiseCategory == NoiseCategory.PROMOTIONAL_OR_OFFER ||
+            classification.noiseCategory == NoiseCategory.HYPOTHETICAL_OR_OFFER_TERMS
+        )
+
+        val candidates = StructuredTransactionExtractor.extractAll(classification)
+        assertTrue("Prize money promotional offer must produce zero candidates", candidates.isEmpty())
+
+        val event = TransactionSourceEvent(
+            sourceType = TransactionSourceType.SMS_HISTORY,
+            sourceId = "promo_sms_33333",
+            sender = "SWIGGY",
+            rawText = msg,
+            eventTimestamp = System.currentTimeMillis()
+        )
+        val persistenceResults = TransactionPersistenceManager.processSourceEvent(event, fakeDao)
+        assertEquals(0, fakeDao.getCount())
+        assertEquals(0, fakeDao.getPendingExpensesList().size)
+        assertTrue(persistenceResults.all { it is ExpensePersistenceResult.IgnoredNonFinancial })
+    }
+
+    @Test
+    fun test14_promotionalBlinkitOffer_classifiedAsNonFinancialPromo_notInPendingReview() = runBlocking {
+        val msg = "Blinkit: Rs. 50 discount on your order! Sent with love"
+        val normalized = createNormalized(msg, title = "Blinkit Deals", packageName = "com.grofers.customerapp")
+
+        val classification = FinancialClassifier.classify(normalized)
+        assertEquals(FinancialRelevance.NON_FINANCIAL, classification.financialRelevance)
+        assertTrue(classification.isNoise)
+        assertEquals(NoiseCategory.PROMOTIONAL_OR_OFFER, classification.noiseCategory)
+
+        val candidates = StructuredTransactionExtractor.extractAll(classification)
+        assertTrue("Blinkit promotional discount must produce zero candidates", candidates.isEmpty())
+
+        val event = TransactionSourceEvent(
+            sourceType = TransactionSourceType.NOTIFICATION,
+            sourceId = "blinkit_promo_1",
+            sender = "Blinkit",
+            rawText = msg,
+            eventTimestamp = System.currentTimeMillis()
+        )
+        val persistenceResults = TransactionPersistenceManager.processSourceEvent(event, fakeDao)
+        assertEquals(0, fakeDao.getCount())
+        assertEquals(0, fakeDao.getPendingExpensesList().size)
+        assertTrue(persistenceResults.all { it is ExpensePersistenceResult.IgnoredNonFinancial })
+    }
+
+    @Test
+    fun test15_promotionalPhonePeSip_classifiedAsNonFinancialPromo_notInPendingReview() = runBlocking {
+        val msg = "PhonePe: Start a SIP for Rs 10 today! Amount transferred automatically from your bank"
+        val normalized = createNormalized(msg, title = "PhonePe Wealth", packageName = "com.phonepe.app")
+
+        val classification = FinancialClassifier.classify(normalized)
+        assertEquals(FinancialRelevance.NON_FINANCIAL, classification.financialRelevance)
+        assertTrue(classification.isNoise)
+        assertEquals(NoiseCategory.PROMOTIONAL_OR_OFFER, classification.noiseCategory)
+
+        val candidates = StructuredTransactionExtractor.extractAll(classification)
+        assertTrue("PhonePe SIP wealth promotion must produce zero candidates", candidates.isEmpty())
+
+        val event = TransactionSourceEvent(
+            sourceType = TransactionSourceType.NOTIFICATION,
+            sourceId = "phonepe_sip_promo_1",
+            sender = "PhonePe",
+            rawText = msg,
+            eventTimestamp = System.currentTimeMillis()
+        )
+        val persistenceResults = TransactionPersistenceManager.processSourceEvent(event, fakeDao)
+        assertEquals(0, fakeDao.getCount())
+        assertEquals(0, fakeDao.getPendingExpensesList().size)
+        assertTrue(persistenceResults.all { it is ExpensePersistenceResult.IgnoredNonFinancial })
+    }
+
+    @Test
+    fun test16_genuinePhonePeWalletTransaction_classifiedAsFinancialDebit_accepted() = runBlocking {
+        val msg = "Paid Rs. 150 to Swiggy using PhonePe Wallet"
+        val normalized = createNormalized(msg, title = "PhonePe", packageName = "com.phonepe.app")
+
+        val classification = FinancialClassifier.classify(normalized)
+        assertEquals(FinancialRelevance.FINANCIAL, classification.financialRelevance)
+        assertFalse(classification.isNoise)
+        assertEquals(DirectionHint.DEBIT_HINT, classification.directionHint)
+
+        val candidate = StructuredTransactionExtractor.extractDirect(normalized, classification)
+        assertNotNull(candidate)
+        assertEquals(150.0, candidate!!.amount)
+        assertEquals(TransactionDirection.DEBIT, candidate.direction)
+        assertEquals("Swiggy", candidate.merchant)
+
+        val event = TransactionSourceEvent(
+            sourceType = TransactionSourceType.NOTIFICATION,
+            sourceId = "phonepe_txn_1",
+            sender = "PhonePe",
+            rawText = msg,
+            eventTimestamp = System.currentTimeMillis()
+        )
+        val persistenceResults = TransactionPersistenceManager.processSourceEvent(event, fakeDao)
+        assertEquals(1, fakeDao.getCount())
+        val saved = fakeDao.getAllExpensesList().first()
+        assertEquals(150.0, saved.amount, 0.001)
+        assertEquals("Food & Dining", saved.category)
+        assertTrue(persistenceResults.any { it is ExpensePersistenceResult.Inserted })
+    }
+
+    @Test
+    fun test17_genuineP2PTransfer_classifiedAsFinancialDebit_accepted() = runBlocking {
+        val msg = "Paid Rs. 500 to Ramesh on PhonePe"
+        val normalized = createNormalized(msg, title = "PhonePe", packageName = "com.phonepe.app")
+
+        val classification = FinancialClassifier.classify(normalized)
+        assertEquals(FinancialRelevance.FINANCIAL, classification.financialRelevance)
+        assertFalse(classification.isNoise)
+        assertEquals(DirectionHint.DEBIT_HINT, classification.directionHint)
+
+        val candidate = StructuredTransactionExtractor.extractDirect(normalized, classification)
+        assertNotNull(candidate)
+        assertEquals(500.0, candidate!!.amount)
+        assertEquals(TransactionDirection.DEBIT, candidate.direction)
+
+        val event = TransactionSourceEvent(
+            sourceType = TransactionSourceType.NOTIFICATION,
+            sourceId = "phonepe_p2p_1",
+            sender = "PhonePe",
+            rawText = msg,
+            eventTimestamp = System.currentTimeMillis()
+        )
+        val persistenceResults = TransactionPersistenceManager.processSourceEvent(event, fakeDao)
+        assertEquals(1, fakeDao.getCount())
+        assertTrue(persistenceResults.any { it is ExpensePersistenceResult.Inserted })
+    }
+
+    @Test
+    fun test18_genuineMerchantPayment_classifiedAsFinancialDebit_accepted() = runBlocking {
+        val msg = "Payment of Rs. 200 to Chai Point is successful"
+        val normalized = createNormalized(msg, title = "Payment Alert", packageName = "com.phonepe.app")
+
+        val classification = FinancialClassifier.classify(normalized)
+        assertEquals(FinancialRelevance.FINANCIAL, classification.financialRelevance)
+        assertFalse(classification.isNoise)
+        assertEquals(DirectionHint.DEBIT_HINT, classification.directionHint)
+
+        val candidate = StructuredTransactionExtractor.extractDirect(normalized, classification)
+        assertNotNull(candidate)
+        assertEquals(200.0, candidate!!.amount)
+        assertEquals(TransactionDirection.DEBIT, candidate.direction)
+
+        val event = TransactionSourceEvent(
+            sourceType = TransactionSourceType.NOTIFICATION,
+            sourceId = "phonepe_merchant_1",
+            sender = "PhonePe",
+            rawText = msg,
+            eventTimestamp = System.currentTimeMillis()
+        )
+        val persistenceResults = TransactionPersistenceManager.processSourceEvent(event, fakeDao)
+        assertEquals(1, fakeDao.getCount())
+        assertTrue(persistenceResults.any { it is ExpensePersistenceResult.Inserted })
+    }
 }

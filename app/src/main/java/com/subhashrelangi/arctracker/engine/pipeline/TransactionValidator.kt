@@ -213,7 +213,22 @@ object TransactionValidator {
                 val isBalanceSnippet = snippetLower.contains("available balance") || snippetLower.contains("avl bal") || snippetLower.contains("account balance is") || snippetLower.contains("balance is") || snippetLower.contains("bal is") || snippetLower.contains("your account balance")
                 val isOtpSnippet = snippetLower.contains("otp") || snippetLower.contains("one time password")
                 val isLimitSnippet = snippetLower.contains("limit") || snippetLower.contains("transaction limit")
-                val isPlanOrOfferSnippet = snippetLower.contains("recharge plan") || snippetLower.contains("plan for") || snippetLower.contains("get spotify premium") || snippetLower.contains("subscribe now") || snippetLower.contains("offer price") || snippetLower.contains("cashback offer")
+                val isPlanOrOfferSnippet = snippetLower.contains("recharge plan") ||
+                    snippetLower.contains("plan for") ||
+                    snippetLower.contains("get spotify premium") ||
+                    snippetLower.contains("subscribe now") ||
+                    snippetLower.contains("offer price") ||
+                    snippetLower.contains("cashback offer") ||
+                    snippetLower.contains("prize money") ||
+                    snippetLower.contains("cash prize") ||
+                    snippetLower.contains("bumper prize") ||
+                    snippetLower.contains("lucky winner") ||
+                    snippetLower.contains("lucky draw") ||
+                    (snippetLower.contains("flat") && snippetLower.contains("off")) ||
+                    snippetLower.contains("start a sip") ||
+                    snippetLower.contains("start sip") ||
+                    snippetLower.contains("pre-approved") ||
+                    snippetLower.contains("sent with love")
 
                 if (isBalanceSnippet && !snippetLower.contains("debited") && !snippetLower.contains("paid") && !snippetLower.contains("credited")) {
                     rejectionReasons.add("Amount evidence corresponds to balance inquiry rather than transaction event")

@@ -44,7 +44,20 @@ object NoiseDetector {
         Regex("""\b(?:get\s+a\s+chance\s+to\s+win)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:use\s+[a-z0-9_]{4,15})\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:no\s+extra\s+fees|no\s+fees|zero\s+fees)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\bdebit\s+card\s+offers?\b""", RegexOption.IGNORE_CASE)
+        Regex("""\bdebit\s+card\s+offers?\b""", RegexOption.IGNORE_CASE),
+        // Contests, Lotteries & Prize Money (e.g. "win 33333 prize money")
+        Regex("""\b(?:win\s+(?:a\s+)?(?:cash\s+)?prize|win\s+(?:rs\.?|inr|₹)?\s*[\d,]+\s*(?:prize\s+money|cash\s+prize|jackpot|in\s+rewards?)|prize\s+money|cash\s+prize|bumper\s+prize|lucky\s+(?:draw|winner)|jackpot)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:you\s+can\s+win|stand\s+a\s+chance\s+to\s+win|play\s+and\s+win|spin\s+(?:and|to)\s+win)\b""", RegexOption.IGNORE_CASE),
+        // Food, Grocery, Quick-Commerce Delivery Marketing (e.g. Swiggy, Blinkit, Zomato, Zepto)
+        Regex("""\b(?:craving|hungry|tasty\s+dishes|delivered\s+in\s+\d+\s+mins?|minutes?\s+delivery|your\s+cart\s+is\s+waiting|free\s+delivery\s+on\s+orders?|on\s+orders?\s+above|min\s+order\s+value)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:apply\s+coupon|coupon\s+code|promo\s+code|voucher\s+code|discount\s+on\s+your\s+order)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:sent\s+with\s+love\b)\b""", RegexOption.IGNORE_CASE),
+        // Fintech Wealth Products, SIP, Gold, Loans & Referral Promos (e.g. PhonePe SIP for 10)
+        Regex("""\b(?:start\s+(?:a\s+)?sip|sip\s+(?:for|starting\s+at|of)?\s*(?:rs\.?|inr|₹)?\s*[\d,]+|daily\s+sip|monthly\s+sip)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:invest\s+in\s+(?:digital\s+)?gold|invest\s+in\s+mutual\s+funds?|24k\s+gold\s+at\s+just|buy\s+gold\s+for)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:refer\s+and\s+earn|refer\s+your\s+friends?|invite\s+friends?\s+and\s+get|invite\s+and\s+earn)\b""", RegexOption.IGNORE_CASE),
+        // Conditional payment incentives (e.g. "when paid using PhonePe", "orders paid using...")
+        Regex("""\b(?:when\s+paid\s+(?:using|with|via)|if\s+paid\s+(?:using|with|via)|on\s+orders?\s+paid\s+(?:using|with|via)|paid\s+orders?\s+above|orders?\s+paid\s+with)\b""", RegexOption.IGNORE_CASE)
     )
 
     // 3. Loan / Credit marketing patterns
@@ -71,7 +84,7 @@ object NoiseDetector {
 
     // Strong confirmed completed transaction pattern (to prevent true recharge/payment confirmations from being flagged as promo offers)
     private val CONFIRMED_COMPLETED_TRANSACTION_PATTERN = Regex(
-        """\b(debited|credited|paid|spent|sent|transferred|withdrawn|deposited|refunded|recharge(?:d)?\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed|processed)|payment\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed|processed)|transaction\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed|processed)|recharge of\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed|processed))\b""",
+        """\b(?:(?:is\s+|was\s+|has been\s+)?debited|credited|paid\s+(?:rs\.?|inr|₹)?\s*[\d,]+|paid\s+(?:to|at|for|towards)|paid\s+using\s+(?:card|a/c|account)|transferred\s+to|spent\s+(?:rs\.?|inr|₹)?\s*[\d,]+|spent\s+(?:at|on|for)|sent\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?\s+to|transferred\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?\s+to|withdrawn\s+from|deposited\s+(?:in|into|to)|refunded\s+to|refund\s+of|recharge(?:d)?\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed|processed)|payment\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed|processed)|transaction\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed|processed)|recharge of\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed|processed))\b""",
         RegexOption.IGNORE_CASE
     )
 
@@ -180,7 +193,8 @@ object NoiseDetector {
         }
 
         val hasCompletedAction = COMPLETED_TRANSACTION_ACTION_PATTERN.containsMatchIn(text)
-        val hasConfirmedTransaction = CONFIRMED_COMPLETED_TRANSACTION_PATTERN.containsMatchIn(text)
+        val hasConditionalPaid = Regex("""\b(?:when\s+paid|if\s+paid|orders?\s+paid)\b""", RegexOption.IGNORE_CASE).containsMatchIn(text)
+        val hasConfirmedTransaction = CONFIRMED_COMPLETED_TRANSACTION_PATTERN.containsMatchIn(text) && !hasConditionalPaid
 
         // 3. Check Promotional / Offers
         for (pattern in PROMOTIONAL_PATTERNS) {

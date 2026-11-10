@@ -69,9 +69,10 @@ object ActualTransactionEventGate {
     private val FUTURE_ACTION_PATTERNS = listOf(
         Regex("""\b(?:pay\s+your|pay\s+the|pay\s+bill|pay\s+bills|pay\s+any|pay\s+today|pay\s+online|pay\s+using)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:pay\s+another\s+(?:rs\.?|inr|₹)?\s*[\d,]+)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:pay\b(?!\s+(?:to|at|for)\b)|can pay|pay now|tap to pay|click to pay|how to pay|to pay|will pay|should pay|please pay)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:can pay|pay now|tap to pay|click to pay|how to pay|to pay|will pay|should pay|please pay)\b""", RegexOption.IGNORE_CASE),
         Regex("""\bpay\b.*?\b(?:and\s+get|to\s+get|to\s+win|and\s+win|to\s+receive|and\s+receive)\b""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)),
         Regex("""\b(?:when\s+you\s+pay|if\s+you\s+pay|on\s+paying|after\s+paying)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:when\s+paid\s+(?:using|with|via)|if\s+paid\s+(?:using|with|via)|on\s+orders?\s+paid\s+(?:using|with|via)|paid\s+orders?\s+above|orders?\s+paid\s+with)\b""", RegexOption.IGNORE_CASE),
         Regex("""\blearn\s+how\s+to\s+make\s+a(?:\s+.*?)?\s+payment\b""", RegexOption.IGNORE_CASE),
         Regex("""\bis\s+one\s+bill\s+away\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:recharge\s+now|recharge\s+today|recharge\s+online|tap\s+to\s+recharge|click\s+to\s+recharge)\b""", RegexOption.IGNORE_CASE),
@@ -91,7 +92,19 @@ object ActualTransactionEventGate {
         Regex("""\b(?:win\s+up\s+to|earn\s+up\s+to|get\s+up\s+to)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:reward\s+points?\s+expiring|scratch\s+card)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:save\s+on\s+your\s+next|invite\s+friends\s+and\s+earn)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\bdebit\s+card\s+offers?\b""", RegexOption.IGNORE_CASE)
+        Regex("""\bdebit\s+card\s+offers?\b""", RegexOption.IGNORE_CASE),
+        // Contests & Prize Money (e.g. "win 33333 prize money")
+        Regex("""\b(?:win\s+(?:a\s+)?(?:cash\s+)?prize|win\s+(?:rs\.?|inr|₹)?\s*[\d,]+\s*(?:prize\s+money|cash\s+prize|jackpot|in\s+rewards?)|prize\s+money|cash\s+prize|bumper\s+prize|lucky\s+(?:draw|winner)|jackpot)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:you\s+can\s+win|stand\s+a\s+chance\s+to\s+win|play\s+and\s+win|spin\s+(?:and|to)\s+win)\b""", RegexOption.IGNORE_CASE),
+        // Food, Grocery, Delivery marketing (Swiggy, Blinkit, Zomato, Zepto)
+        Regex("""\b(?:craving|hungry|tasty\s+dishes|delivered\s+in\s+\d+\s+mins?|minutes?\s+delivery|your\s+cart\s+is\s+waiting|free\s+delivery\s+on\s+orders?|on\s+orders?\s+above|min\s+order\s+value)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:apply\s+coupon|coupon\s+code|promo\s+code|voucher\s+code|discount\s+on\s+your\s+order)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:sent\s+with\s+love\b)\b""", RegexOption.IGNORE_CASE),
+        // Fintech Wealth Products, SIP, Gold, Loans & Referrals (PhonePe, Paytm, GPay)
+        Regex("""\b(?:start\s+(?:a\s+)?sip|sip\s+(?:for|starting\s+at|of)?\s*(?:rs\.?|inr|₹)?\s*[\d,]+|daily\s+sip|monthly\s+sip)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:invest\s+in\s+(?:digital\s+)?gold|invest\s+in\s+mutual\s+funds?|24k\s+gold\s+at\s+just|buy\s+gold\s+for)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:refer\s+and\s+earn|refer\s+your\s+friends?|invite\s+friends?\s+and\s+get|invite\s+and\s+earn)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:pre-approved\s+(?:personal\s+)?loan|instant\s+loan\s+of\s+up\s+to|zero\s+processing\s+fees?|check\s+loan\s+eligibility|loan\s+offer)\b""", RegexOption.IGNORE_CASE)
     )
 
     // 6. Negative Evidence: Informational / Balance / Limit Statements
@@ -201,8 +214,16 @@ object ActualTransactionEventGate {
         val hasPositiveSignal = hasCompletedDebit || hasCompletedCredit || hasStatus
         val hasCurrency = CURRENCY_PATTERN.containsMatchIn(text) || candidateAmount != null
 
-        // 1. Clear False: No completed action, but future, promotional, or informational patterns present
-        if (!hasPositiveSignal && (hasFutureAction || hasPromotional || hasInformational)) {
+        val hasConditionalPaid = Regex("""\b(?:when\s+paid|if\s+paid|orders?\s+paid)\b""", RegexOption.IGNORE_CASE).containsMatchIn(text)
+        val hasConfirmedAction = Regex(
+            """\b(?:(?:is\s+|was\s+|has been\s+)?debited\s+(?:from|in|by)|(?:is\s+|was\s+|has been\s+)?debited\b|spent\s+(?:at|on|for)|(?:paid|transferred|sent)\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?\s+(?:to|at|for|towards|using|via)\b|(?:paid|transferred|sent)\s+(?:to|at|for)\s+[A-Za-z0-9 &._-]+|transferred\s+to\b|paid\s+using\s+(?:card|a/c|account)|payment\s+to\s+[A-Za-z0-9 &._-]+\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed)|payment\s+of\s+(?:rs\.?|inr|₹)?\s*[\d,]+.*?(?:was\s+|is\s+|has been\s+)?(?:successful|completed)|credited\s+(?:to|in|into|with)|recharge\s+of\s+(?:rs\.?|inr|₹)?\s*[\d,]+.*?(?:was\s+|is\s+|has been\s+)?(?:successful|completed))\b""",
+            RegexOption.IGNORE_CASE
+        ).containsMatchIn(text) && !hasConditionalPaid
+
+        // 1. Clear False: Promotional or future action without confirmed transaction evidence
+        if ((!hasPositiveSignal && (hasFutureAction || hasPromotional || hasInformational)) ||
+            ((hasFutureAction || hasPromotional) && !hasConfirmedAction)
+        ) {
             val eventType = when {
                 hasFutureAction -> TransactionEventType.FUTURE_ACTION
                 hasPromotional -> TransactionEventType.PROMOTIONAL
