@@ -339,11 +339,11 @@ class NotificationDeviceCaptureTest {
         assertEquals(FinancialRelevance.FINANCIAL, classification.financialRelevance)
 
         // 4. Structured Extraction
-        val candidate = StructuredTransactionExtractor.extract(normalized)
+        val candidate = StructuredTransactionExtractor.extract(classification)
         assertNotNull(candidate)
 
         // 5. Validation + Confidence (Step 6)
-        val validationResult = TransactionValidator.validate(candidate!!)
+        val validationResult = TransactionValidator.validate(candidate!!, classification)
 
         assertEquals(ValidationState.ACCEPTABLE, validationResult.validationState)
         assertEquals(EvidenceLevel.VERY_STRONG, validationResult.evidenceLevel)
@@ -397,11 +397,11 @@ class NotificationDeviceCaptureTest {
         assertEquals(FinancialRelevance.FINANCIAL, classification.financialRelevance)
 
         // 4. Structured Extraction
-        val candidate = StructuredTransactionExtractor.extract(normalized)
+        val candidate = StructuredTransactionExtractor.extract(classification)
         assertNotNull(candidate)
 
         // 5. Validation + Confidence (Step 6)
-        val validationResult = TransactionValidator.validate(candidate!!)
+        val validationResult = TransactionValidator.validate(candidate!!, classification)
         assertTrue(validationResult.isAcceptable)
 
         // 6. Deduplication + Cross-Source Correlation (Step 7)
