@@ -71,7 +71,7 @@ class TransactionPersistenceDeviceTest {
         assertEquals(850.0, persisted.amount, 0.001)
         assertEquals("Zomato", persisted.merchant)
         assertEquals("Debit", persisted.type)
-        assertEquals("Food", persisted.tag)
+        assertEquals("Food & Dining", persisted.tag)
         assertFalse("Real valid transaction must not be marked as pending", persisted.isPending)
     }
 
