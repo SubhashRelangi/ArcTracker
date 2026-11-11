@@ -247,13 +247,20 @@ fun FinancialAccountsScreen(
             // 1. Triage Banner (Only when pending transactions exist!)
             if (pendingTriageCount > 0) {
                 item(key = "triage_banner_active") {
+                    val triageBg = if (ArcColors.isDark) ArcColors.WarningAmberBg else Color(0xFFFEF3C7)
+                    val triageBorder = if (ArcColors.isDark) ArcColors.WarningAmberBorder else Color(0xFFFDE68A)
+                    val triageIconBg = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFFFDE68A)
+                    val triageAccent = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFF92400E)
+                    val triageSubText = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF78350F)
+                    val triageButtonBg = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color.White
+
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onNavigateToUnresolved() },
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
-                        border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+                        colors = CardDefaults.cardColors(containerColor = triageBg),
+                        border = BorderStroke(1.dp, triageBorder),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Row(
@@ -266,13 +273,13 @@ fun FinancialAccountsScreen(
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFFDE68A)),
+                                    .background(triageIconBg),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Schedule,
                                     contentDescription = "Triage",
-                                    tint = Color(0xFF92400E),
+                                    tint = triageAccent,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
@@ -284,13 +291,13 @@ fun FinancialAccountsScreen(
                                     text = "TRIAGE REQUIRED • $pendingTriageCount Pending",
                                     fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF92400E)
+                                    color = triageAccent
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "$pendingTriageCount transaction(s) waiting for account assignment",
                                     fontSize = 12.sp,
-                                    color = Color(0xFF78350F),
+                                    color = triageSubText,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -302,14 +309,14 @@ fun FinancialAccountsScreen(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White)
-                                    .border(BorderStroke(1.dp, Color(0xFFFDE68A)), CircleShape),
+                                    .background(triageButtonBg)
+                                    .border(BorderStroke(1.dp, triageBorder), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                     contentDescription = "Open Triage",
-                                    tint = Color(0xFF92400E),
+                                    tint = triageAccent,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -1228,7 +1235,8 @@ private fun FinancialAccountThemedCard(
 ) {
     val (displayName, subTitle) = getAccountDisplayTokens(account)
     val (sourceLabel, sourceIcon) = getSourceDisplayTokens(account.source)
-    val (confLabel, confBg, confBorder, confText) = getConfidenceDisplayTokens(account.confidence)
+    val isDarkTheme = ArcColors.isDark
+    val (confLabel, confBg, confBorder, confText) = getConfidenceDisplayTokens(account.confidence, isDarkTheme)
 
     val isCard = account.instrumentType == InstrumentType.CARD
     val iconBg = if (isCard) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight
@@ -1806,11 +1814,23 @@ private fun getSourceDisplayTokens(source: AccountSource): Pair<String, ImageVec
     }
 }
 
-private fun getConfidenceDisplayTokens(confidence: IdentityConfidence): Tuple4<String, Color, Color, Color> {
+private fun getConfidenceDisplayTokens(confidence: IdentityConfidence, isDark: Boolean = false): Tuple4<String, Color, Color, Color> {
     return when (confidence) {
-        IdentityConfidence.HIGH -> Tuple4("Verified", Color(0xFFECFDF5), Color(0xFFA7F3D0), Color(0xFF047857))
-        IdentityConfidence.MEDIUM -> Tuple4("Medium", Color(0xFFFEF3C7), Color(0xFFFDE68A), Color(0xFFB45309))
-        else -> Tuple4("Unverified", Color(0xFFF1F5F9), Color(0xFFE2E8F0), Color(0xFF64748B))
+        IdentityConfidence.HIGH -> if (isDark) {
+            Tuple4("Verified", Color(0xFF0B1F17), Color(0xFF164433), Color(0xFF34D399))
+        } else {
+            Tuple4("Verified", Color(0xFFECFDF5), Color(0xFFA7F3D0), Color(0xFF047857))
+        }
+        IdentityConfidence.MEDIUM -> if (isDark) {
+            Tuple4("Medium", Color(0xFF1C170D), Color(0xFF3D2E14), Color(0xFFFBBF24))
+        } else {
+            Tuple4("Medium", Color(0xFFFEF3C7), Color(0xFFFDE68A), Color(0xFFB45309))
+        }
+        else -> if (isDark) {
+            Tuple4("Unverified", Color(0xFF18181D), Color(0xFF27272A), Color(0xFF94A3B8))
+        } else {
+            Tuple4("Unverified", Color(0xFFF1F5F9), Color(0xFFE2E8F0), Color(0xFF64748B))
+        }
     }
 }
 

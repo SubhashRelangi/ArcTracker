@@ -424,8 +424,8 @@ fun AddExpenseDialog(
                                             .weight(0.7f)
                                             .height(52.dp),
                                         shape = CircleShape,
-                                        color = if (ArcColors.isDark) Color(0xFF450A0A) else Color(0xFFFEE2E2),
-                                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF991B1B) else Color(0xFFFECACA))
+                                        color = ArcColors.DangerContainer,
+                                        border = BorderStroke(1.dp, ArcColors.DangerBorder)
                                     ) {
                                         Row(
                                             modifier = Modifier.fillMaxSize(),

@@ -481,7 +481,7 @@ fun BudgetsScreen(
                                 .weight(1f)
                                 .height(36.dp)
                                 .clip(CircleShape)
-                                .background(if (is80Selected) (if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7)) else ArcColors.SurfaceHighlight)
+                                .background(if (is80Selected) (if (ArcColors.isDark) ArcColors.WarningAmberBg else Color(0xFFFEF3C7)) else ArcColors.SurfaceHighlight)
                                 .clickable { selectedAlertThreshold = 80 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -489,7 +489,7 @@ fun BudgetsScreen(
                                 text = "80%",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (is80Selected) (if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFFB45309)) else ArcColors.TextSecondary
+                                color = if (is80Selected) (if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309)) else ArcColors.TextSecondary
                             )
                         }
 
@@ -500,7 +500,7 @@ fun BudgetsScreen(
                                 .weight(1f)
                                 .height(36.dp)
                                 .clip(CircleShape)
-                                .background(if (is90Selected) (if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7)) else ArcColors.SurfaceHighlight)
+                                .background(if (is90Selected) (if (ArcColors.isDark) ArcColors.WarningAmberBg else Color(0xFFFEF3C7)) else ArcColors.SurfaceHighlight)
                                 .clickable { selectedAlertThreshold = 90 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -587,17 +587,17 @@ fun BudgetsScreen(
                             },
                             statusBg = when {
                                 progress.isExceeded -> if (ArcColors.isDark) Color(0xFF451A1A) else Color(0xFFFEE2E2)
-                                progress.isWarning -> if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7)
+                                progress.isWarning -> if (ArcColors.isDark) ArcColors.WarningAmberBg else Color(0xFFFEF3C7)
                                 else -> if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7)
                             },
                             statusColor = when {
                                 progress.isExceeded -> if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626)
-                                progress.isWarning -> if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFFB45309)
+                                progress.isWarning -> if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309)
                                 else -> if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF16A34A)
                             },
                             progressColor = when {
                                 progress.isExceeded -> Color(0xFFDC2626)
-                                progress.isWarning -> Color(0xFF92400E)
+                                progress.isWarning -> if (ArcColors.isDark) Color(0xFFF59E0B) else Color(0xFFD97706)
                                 else -> ArcColors.Primary
                             },
                             onEdit = { editingBudget = progress.budget },
@@ -609,14 +609,14 @@ fun BudgetsScreen(
                     CategoryEnvelopeCard(
                         title = "Food & Dining",
                         icon = Icons.Outlined.Restaurant,
-                        iconBg = if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7),
+                        iconBg = if (ArcColors.isDark) ArcColors.WarningAmberBg else Color(0xFFFEF3C7),
                         iconTint = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
                         spent = 12450.0,
                         limit = 15000.0,
                         statusText = "80% Threshold",
-                        statusBg = if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7),
-                        statusColor = if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFFB45309),
-                        progressColor = if (ArcColors.isDark) Color(0xFFF59E0B) else Color(0xFF92400E),
+                        statusBg = if (ArcColors.isDark) ArcColors.WarningAmberBg else Color(0xFFFEF3C7),
+                        statusColor = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
+                        progressColor = if (ArcColors.isDark) Color(0xFFF59E0B) else Color(0xFFD97706),
                         onEdit = {
                             val cat = allCategories.find { it.id == "food_dining" }
                             quickSelectedCategory = cat
@@ -666,14 +666,14 @@ fun BudgetsScreen(
                     CategoryEnvelopeCard(
                         title = "Transport & Commute",
                         icon = Icons.Outlined.DirectionsCar,
-                        iconBg = if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7),
+                        iconBg = if (ArcColors.isDark) ArcColors.WarningAmberBg else Color(0xFFFEF3C7),
                         iconTint = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
                         spent = 4120.0,
                         limit = 5000.0,
                         statusText = "82% Used",
-                        statusBg = if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7),
-                        statusColor = if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFFB45309),
-                        progressColor = if (ArcColors.isDark) Color(0xFFF59E0B) else Color(0xFF92400E),
+                        statusBg = if (ArcColors.isDark) ArcColors.WarningAmberBg else Color(0xFFFEF3C7),
+                        statusColor = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
+                        progressColor = if (ArcColors.isDark) Color(0xFFF59E0B) else Color(0xFFD97706),
                         onEdit = {
                             val cat = allCategories.find { it.id == "transport" }
                             quickSelectedCategory = cat
@@ -1177,14 +1177,14 @@ fun BudgetsScreen(
                                 Spacer(modifier = Modifier.weight(1f))
                                 Box(
                                     modifier = Modifier
-                                        .background(if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFEF3C7), CircleShape)
+                                        .background(if (ArcColors.isDark) ArcColors.WarningAmberBg else Color(0xFFFEF3C7), CircleShape)
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = "$currentPercent% • ₹${formatCurrency(notifyThresholdAmount.toDouble())}",
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFFB45309)
+                                        color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309)
                                     )
                                 }
                             }

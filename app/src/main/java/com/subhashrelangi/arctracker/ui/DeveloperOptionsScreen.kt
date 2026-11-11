@@ -238,9 +238,9 @@ fun DeveloperOptionsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (ArcColors.isDark) Color(0xFF451A03).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
+                    containerColor = if (ArcColors.isDark) ArcColors.WarningAmberBg else Color(0xFFFEF3C7)
                 ),
-                border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF78350F) else Color(0xFFFDE68A)),
+                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.WarningAmberBorder else Color(0xFFFDE68A)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
@@ -258,13 +258,13 @@ fun DeveloperOptionsScreen(
                                 modifier = Modifier
                                     .size(28.dp)
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(if (ArcColors.isDark) Color(0xFF78350F) else Color(0xFFFDE68A)),
+                                    .background(if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFFFDE68A)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Terminal,
                                     contentDescription = null,
-                                    tint = if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFF92400E),
+                                    tint = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFF92400E),
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -273,7 +273,7 @@ fun DeveloperOptionsScreen(
                                 text = "AUDITOR ACCESS",
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFF92400E),
+                                color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFF92400E),
                                 letterSpacing = 0.5.sp
                             )
                         }
@@ -281,13 +281,13 @@ fun DeveloperOptionsScreen(
                         // Debug build pill
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (ArcColors.isDark) Color(0xFF78350F) else Color(0xFFFDE68A)
+                            color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFFFDE68A)
                         ) {
                             Text(
                                 text = "DEBUG BUILD 5107a09",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (ArcColors.isDark) Color(0xFFFDE68A) else Color(0xFF78350F),
+                                color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFF78350F),
                                 fontFamily = FontFamily.Monospace,
                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                             )
@@ -299,7 +299,7 @@ fun DeveloperOptionsScreen(
                     Text(
                         text = "Developer & Auditor Mode: These tools directly inspect internal SQLite schemas, regex parsers, and system listeners.",
                         fontSize = 12.sp,
-                        color = if (ArcColors.isDark) Color(0xFFFDE68A).copy(alpha = 0.9f) else Color(0xFF78350F),
+                        color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF78350F),
                         lineHeight = 16.sp
                     )
                 }
@@ -350,13 +350,13 @@ fun DeveloperOptionsScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (isDaemonOnline) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7)) else (if (ArcColors.isDark) Color(0xFF78350F) else Color(0xFFFEF3C7))
+                            color = if (isDaemonOnline) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7)) else (if (ArcColors.isDark) ArcColors.WarningAmberBg else Color(0xFFFEF3C7))
                         ) {
                             Text(
                                 text = if (isDaemonOnline) "ONLINE" else "STANDBY",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isDaemonOnline) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)) else (if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFF92400E)),
+                                color = if (isDaemonOnline) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)) else (if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFF92400E)),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
@@ -451,8 +451,8 @@ fun DeveloperOptionsScreen(
                             title = "Ingestion Event Logs",
                             subtitle = "Live telemetry stream of parsed SMS alerts",
                             badgeText = unhandledBadge,
-                            badgeColor = if (ArcColors.isDark) Color(0xFF78350F) else Color(0xFFFEF3C7),
-                            badgeTextColor = if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFF92400E),
+                            badgeColor = if (ArcColors.isDark) ArcColors.WarningAmberBg else Color(0xFFFEF3C7),
+                            badgeTextColor = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFF92400E),
                             onClick = { showLogsDialog = true }
                         )
                     }
@@ -1405,7 +1405,7 @@ fun DeveloperOptionsScreen(
                                     text = if (isDaemonOnline) "CONNECTED (Active)" else "STANDBY (Idle)",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isDaemonOnline) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)) else (if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFF92400E))
+                                    color = if (isDaemonOnline) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)) else (if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFF92400E))
                                 )
                             }
                             Spacer(modifier = Modifier.height(6.dp))

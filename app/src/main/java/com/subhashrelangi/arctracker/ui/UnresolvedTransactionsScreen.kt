@@ -40,7 +40,7 @@ import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
 import com.subhashrelangi.arctracker.engine.account.AccountReconciliationManager
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
-import com.subhashrelangi.arctracker.ui.review.ArcColors
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -777,8 +777,8 @@ fun UnresolvedTransactionCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFFEF3C7).copy(alpha = 0.2f))
-                            .border(BorderStroke(1.dp, Color(0xFFFDE68A).copy(alpha = 0.4f)), RoundedCornerShape(6.dp))
+                            .background(ArcColors.WarningAmberBg)
+                            .border(BorderStroke(1.dp, ArcColors.WarningAmberBorder), RoundedCornerShape(6.dp))
                             .padding(horizontal = 7.dp, vertical = 3.dp),
                         contentAlignment = Alignment.Center
                     ) {

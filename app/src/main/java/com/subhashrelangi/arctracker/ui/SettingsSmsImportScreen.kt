@@ -1701,7 +1701,7 @@ private fun BankAccountReviewCard(
                         .clip(RoundedCornerShape(10.dp))
                         .background(
                             if (isUnidentified) {
-                                if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
+                                ArcColors.WarningAmberBg
                             } else highlightSurface
                         ),
                     contentAlignment = Alignment.Center
@@ -1908,7 +1908,7 @@ private fun RealScannedItemCard(
                     Box(
                         modifier = Modifier
                             .background(
-                                if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7),
+                                ArcColors.WarningAmberBg,
                                 CircleShape
                             )
                             .padding(horizontal = 6.dp, vertical = 2.dp)

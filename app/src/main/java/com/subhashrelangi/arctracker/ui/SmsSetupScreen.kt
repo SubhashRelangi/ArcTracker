@@ -2192,7 +2192,7 @@ private fun SmsImportCompleteContent(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp),
                     color = CardBg,
-                    border = BorderStroke(1.dp, if (reviewCount > 0) (if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFDE68A)) else CardBorderUnselected)
+                    border = BorderStroke(1.dp, if (reviewCount > 0) ArcColors.WarningAmberBorder else CardBorderUnselected)
                 ) {
                     Column(
                         modifier = Modifier.padding(13.dp)
@@ -2215,7 +2215,7 @@ private fun SmsImportCompleteContent(
                                     .clip(RoundedCornerShape(7.dp))
                                     .background(
                                         if (reviewCount > 0) {
-                                            if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
+                                            ArcColors.WarningAmberBg
                                         } else CardSurface
                                     ),
                                 contentAlignment = Alignment.Center
@@ -2309,12 +2309,12 @@ private fun SmsImportCompleteContent(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 color = if (reviewCount > 0) {
-                    if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.35f) else Color(0xFFFFFBEB)
+                    ArcColors.WarningAmberBg
                 } else CardSurface,
                 border = BorderStroke(
                     1.dp,
                     if (reviewCount > 0) {
-                        if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFDE68A)
+                        ArcColors.WarningAmberBorder
                     } else CardBorder
                 )
             ) {
@@ -2483,7 +2483,7 @@ private fun AccountGroupCard(
                     .clip(RoundedCornerShape(10.dp))
                     .background(
                         if (isUnidentified) {
-                            if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
+                            ArcColors.WarningAmberBg
                         } else CardSurface
                     ),
                 contentAlignment = Alignment.Center
@@ -2536,9 +2536,9 @@ private fun AccountGroupCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7))
+                                .background(ArcColors.WarningAmberBg)
                                 .border(
-                                    BorderStroke(0.8.dp, if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFDE68A)),
+                                    BorderStroke(0.8.dp, ArcColors.WarningAmberBorder),
                                     RoundedCornerShape(4.dp)
                                 )
                                 .padding(horizontal = 6.dp, vertical = 2.dp)

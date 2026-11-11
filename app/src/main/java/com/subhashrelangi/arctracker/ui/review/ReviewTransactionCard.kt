@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.CategoryVisuals
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.TransactionCategory
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -115,13 +116,13 @@ fun ReviewTransactionCard(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFFEF3C7)),
+                            .background(ArcColors.WarningAmberBg),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = categoryVisualIcon,
                             contentDescription = null,
-                            tint = Color(0xFFD97706),
+                            tint = ArcColors.WarningAmber,
                             modifier = Modifier.size(20.dp)
                         )
                     }

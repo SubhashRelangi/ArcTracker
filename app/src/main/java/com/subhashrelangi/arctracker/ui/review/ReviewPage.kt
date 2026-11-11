@@ -752,7 +752,8 @@ fun ReviewPage(
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
-                                    color = if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
+                                    color = ArcColors.WarningAmberBg,
+                                    border = BorderStroke(1.dp, ArcColors.WarningAmberBorder)
                                 ) {
                                     Text(
                                         text = "${filteredUnlinkedItems.size} unlinked",
@@ -1290,8 +1291,8 @@ fun ReviewPage(
                                         }
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7),
-                                            border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFDE68A))
+                                            color = ArcColors.WarningAmberBg,
+                                            border = BorderStroke(1.dp, ArcColors.WarningAmberBorder)
                                         ) {
                                             Row(
                                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
@@ -1321,8 +1322,8 @@ fun ReviewPage(
                                     Spacer(modifier = Modifier.height(14.dp))
                                     Surface(
                                         shape = RoundedCornerShape(12.dp),
-                                        color = if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.35f) else Color(0xFFFFFBEB),
-                                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFEF08A)),
+                                        color = ArcColors.WarningAmberBg,
+                                        border = BorderStroke(1.dp, ArcColors.WarningAmberBorder),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Row(
@@ -1348,7 +1349,7 @@ fun ReviewPage(
                                                 Text(
                                                     text = activeItem.patternDescription ?: "",
                                                     fontSize = 11.5.sp,
-                                                    color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFF78350F),
+                                                    color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF78350F),
                                                     lineHeight = 16.sp
                                                 )
                                             }
@@ -1800,7 +1801,8 @@ fun ReviewPage(
                                                 val nextLabel = if (nextItem.ambiguityLabel.equals("Needs Review", ignoreCase = true)) "To Review" else nextItem.ambiguityLabel
                                                 Surface(
                                                     shape = RoundedCornerShape(4.dp),
-                                                    color = if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
+                                                    color = ArcColors.WarningAmberBg,
+                                                    border = BorderStroke(0.8.dp, ArcColors.WarningAmberBorder)
                                                 ) {
                                                     Text(
                                                         text = nextLabel,
@@ -2598,8 +2600,8 @@ private fun ActiveUnlinkedAccountCard(
                 } else {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFFFBEB),
-                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFEF3C7))
+                        color = ArcColors.WarningAmberBg,
+                        border = BorderStroke(1.dp, ArcColors.WarningAmberBorder)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
