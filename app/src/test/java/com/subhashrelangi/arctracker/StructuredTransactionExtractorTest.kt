@@ -1,5 +1,7 @@
 package com.subhashrelangi.arctracker
+import com.subhashrelangi.arctracker.engine.pipeline.*
 
+import com.subhashrelangi.arctracker.engine.account.*
 import com.subhashrelangi.arctracker.service.*
 import org.junit.Assert.*
 import org.junit.Test
@@ -408,5 +410,63 @@ class StructuredTransactionExtractorTest {
         val bal = candidate?.secondaryAmounts?.find { it.type == SecondaryAmountType.BALANCE }
         assertNotNull(bal)
         assertEquals(9500.0, bal?.amount)
+    }
+
+    // --- Title-Aware Merchant & Identity Extraction (Zero Data Loss) ---
+
+    @Test
+    fun test40_titleMerchantExtraction_personNameInTitle() {
+        val notif = createNotification(
+            title = "Ramesh Kumar",
+            text = "Paid ₹500 via UPI Ref 123456789012"
+        )
+        val candidate = StructuredTransactionExtractor.extract(notif)
+
+        assertNotNull(candidate)
+        assertEquals(500.0, candidate?.amount)
+        assertEquals("Ramesh Kumar", candidate?.merchant)
+        assertEquals("123456789012", candidate?.upiTransactionId)
+    }
+
+    @Test
+    fun test41_titleMerchantExtraction_paidToInTitle() {
+        val notif = createNotification(
+            title = "Paid to Chai Point",
+            text = "₹100 debited from PhonePe Wallet"
+        )
+        val candidate = StructuredTransactionExtractor.extract(notif)
+
+        assertNotNull(candidate)
+        assertEquals(100.0, candidate?.amount)
+        assertEquals("Chai Point", candidate?.merchant)
+    }
+
+    @Test
+    fun test42_titleMerchantExtraction_genericAppTitleIgnored() {
+        val notif = createNotification(
+            title = "Google Pay",
+            text = "Paid ₹200 to Starbucks"
+        )
+        val candidate = StructuredTransactionExtractor.extract(notif)
+
+        assertNotNull(candidate)
+        assertEquals(200.0, candidate?.amount)
+        assertEquals("Starbucks", candidate?.merchant)
+        assertNotEquals("Google Pay", candidate?.merchant)
+    }
+
+    @Test
+    fun test43_noteEnclosure_retainsRrnAndBank() {
+        val notif = createNotification(
+            title = "Payment Alert",
+            text = "₹500 paid to Swiggy. RRN 987654321012. HDFC Bank"
+        )
+        val candidate = StructuredTransactionExtractor.extract(notif)
+
+        assertNotNull(candidate)
+        assertEquals("987654321012", candidate?.rrn)
+
+        val note = com.subhashrelangi.arctracker.engine.persistence.TransactionPersistenceManager.buildNote(candidate!!)
+        assertTrue("Note must retain RRN", note.contains("RRN: 987654321012"))
     }
 }

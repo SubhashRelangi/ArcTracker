@@ -1,8 +1,8 @@
 package com.subhashrelangi.arctracker
 
 import android.content.Context
-import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
-import com.subhashrelangi.arctracker.service.SmsPermissionHelper
+import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
+import com.subhashrelangi.arctracker.engine.ingestion.SmsPermissionHelper
 import com.subhashrelangi.arctracker.settings.InMemoryMonitoringSettingsRepository
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import org.junit.After

@@ -1,10 +1,14 @@
 package com.subhashrelangi.arctracker
+import com.subhashrelangi.arctracker.engine.pipeline.CapturedNotificationInfo
+import com.subhashrelangi.arctracker.engine.ingestion.*
+import com.subhashrelangi.arctracker.engine.persistence.*
 
 import android.content.Context
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.subhashrelangi.arctracker.data.*
+import com.subhashrelangi.arctracker.engine.account.*
 import com.subhashrelangi.arctracker.service.*
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -54,13 +58,13 @@ class FinancialAccountsDeviceTest {
         NotificationReaderService.clearActiveNotifications()
     }
 
-    // 1. Existing Room v4 database opens.
+    // 1. Existing Room database opens.
     // 2. Existing known accounts appear.
     // 3. Existing linked transactions appear under the correct account.
     // 4. Same-suffix accounts remain separate.
     @Test
     fun test01_roomV4Opens_andAccountsAppear_separateSameSuffix() = runBlocking {
-        assertEquals(4, database.openHelper.readableDatabase.version)
+        assertEquals(AppDatabase.DATABASE_VERSION, database.openHelper.readableDatabase.version)
 
         val hdfc = KnownFinancialAccount(
             id = "hdfc_bank_account_9020",
@@ -345,5 +349,55 @@ class FinancialAccountsDeviceTest {
         val inRepo = accountRepo.getById("hdfc_bank_account_9020")
         assertNotNull(inRepo)
         assertEquals("9020", inRepo!!.accountSuffix)
+    }
+
+    // 18. Verify registerAccount does not crash when invoked from Main Thread, persists account, and backfills
+    @Test
+    fun test07_manualRegisterAccount_fromMainThread_dispatchesSafelyAndBackfills() = runBlocking {
+        // Pre-insert an unlinked transaction with accountSuffix 4321
+        expenseDao.insert(
+            Expense(
+                id = 9999,
+                amount = 850.0,
+                merchant = "Blue Tokai",
+                type = "Debit",
+                tag = "Food",
+                dateMillis = System.currentTimeMillis(),
+                accountSuffix = "4321",
+                accountId = null
+            )
+        )
+
+        val unlinkedBefore = expenseDao.getExpensesWithoutAccount()
+        assertTrue(unlinkedBefore.any { it.id == 9999 })
+
+        val newAccount = KnownFinancialAccount.create(
+            institutionId = "icici",
+            institutionName = "ICICI Bank",
+            accountSuffix = "4321",
+            instrumentType = InstrumentType.BANK_ACCOUNT,
+            confidence = IdentityConfidence.HIGH,
+            source = AccountSource.USER_CONFIRMED
+        )
+
+        // Invoke registerAccount directly
+        val registered = manager.registerAccount(newAccount)
+        assertNotNull(registered)
+        assertEquals("4321", registered.accountSuffix)
+
+        // Verify account exists in repo
+        val inDb = accountRepo.getById(registered.id)
+        assertNotNull(inDb)
+        assertEquals("ICICI Bank", inDb!!.institutionName)
+
+        // Backfill and verify transaction is linked
+        val backfiller = AccountReconciliationBackfiller(expenseDao, accountRepo)
+        val res = backfiller.backfill()
+        val count = res.reconciledCount
+        assertTrue("Expected at least 1 backfilled transaction", count >= 1)
+
+        val after = expenseDao.getExpensesByAccountId(registered.id)
+        assertEquals(1, after.size)
+        assertEquals(9999, after[0].id)
     }
 }

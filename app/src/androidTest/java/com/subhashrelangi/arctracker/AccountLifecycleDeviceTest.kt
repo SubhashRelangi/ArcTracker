@@ -1,10 +1,14 @@
 package com.subhashrelangi.arctracker
+import com.subhashrelangi.arctracker.engine.pipeline.CapturedNotificationInfo
+import com.subhashrelangi.arctracker.engine.ingestion.*
+import com.subhashrelangi.arctracker.engine.persistence.*
 
 import android.content.Context
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.subhashrelangi.arctracker.data.*
+import com.subhashrelangi.arctracker.engine.account.*
 import com.subhashrelangi.arctracker.service.*
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -66,8 +70,8 @@ class AccountLifecycleDeviceTest {
      */
     @Test
     fun test01_roomV4Opens_andDeleteAccountUnlinksTransactionsSafely() = runBlocking {
-        // 1. Room v4 opens
-        assertEquals(4, database.openHelper.readableDatabase.version)
+        // 1. Room opens
+        assertEquals(AppDatabase.DATABASE_VERSION, database.openHelper.readableDatabase.version)
 
         // Setup account
         val hdfc = KnownFinancialAccount(

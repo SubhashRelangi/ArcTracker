@@ -1,7 +1,7 @@
 package com.subhashrelangi.arctracker.data
 
 import androidx.room.*
-import com.subhashrelangi.arctracker.service.InstrumentType
+import com.subhashrelangi.arctracker.engine.account.InstrumentType
 
 /**
  * Data Access Object for [KnownFinancialAccount] (Milestone 2).

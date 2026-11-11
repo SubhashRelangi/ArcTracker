@@ -18,8 +18,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.subhashrelangi.arctracker.data.AccountSource
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
-import com.subhashrelangi.arctracker.service.IdentityConfidence
-import com.subhashrelangi.arctracker.service.InstrumentType
+import com.subhashrelangi.arctracker.engine.account.IdentityConfidence
+import com.subhashrelangi.arctracker.engine.account.InstrumentType
 
 /**
  * Modal dialog for quickly registering a new financial account or wallet.

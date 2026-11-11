@@ -2,8 +2,8 @@ package com.subhashrelangi.arctracker
 
 import com.subhashrelangi.arctracker.data.*
 import com.subhashrelangi.arctracker.service.CategoryManager
-import com.subhashrelangi.arctracker.service.TransactionFilter
-import com.subhashrelangi.arctracker.service.TransactionManager
+import com.subhashrelangi.arctracker.engine.persistence.TransactionFilter
+import com.subhashrelangi.arctracker.engine.persistence.TransactionManager
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*

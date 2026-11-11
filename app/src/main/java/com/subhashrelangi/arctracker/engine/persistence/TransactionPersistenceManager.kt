@@ -1,0 +1,926 @@
+package com.subhashrelangi.arctracker.engine.persistence
+
+import com.subhashrelangi.arctracker.engine.ingestion.DiagnosticEventManager
+import com.subhashrelangi.arctracker.engine.ingestion.DiagnosticCategory
+import com.subhashrelangi.arctracker.engine.pipeline.*
+
+import android.content.Context
+import com.subhashrelangi.arctracker.data.AppDatabase
+import com.subhashrelangi.arctracker.data.Expense
+import com.subhashrelangi.arctracker.data.ExpenseDao
+import com.subhashrelangi.arctracker.engine.account.*
+import com.subhashrelangi.arctracker.engine.account.KnownFinancialAccountMatchResult
+import com.subhashrelangi.arctracker.engine.category.*
+import com.subhashrelangi.arctracker.security.SecureLogger
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+/**
+ * Result of attempting to persist or correlate a transaction candidate in the Room database (Step 8).
+ */
+sealed class ExpensePersistenceResult {
+    open val matchResult: KnownFinancialAccountMatchResult? get() = null
+    open val accountEnrichment: AccountEnrichment? get() = matchResult?.accountEnrichment
+
+    data class Inserted(val expense: Expense, val isPending: Boolean, val reason: String, override val matchResult: KnownFinancialAccountMatchResult? = null) : ExpensePersistenceResult()
+    data class Updated(val updatedExpense: Expense, val previousExpense: Expense, val changeDescription: String, override val matchResult: KnownFinancialAccountMatchResult? = null) : ExpensePersistenceResult()
+    data class SkippedDuplicate(val existingExpense: Expense, val reason: String, override val matchResult: KnownFinancialAccountMatchResult? = null) : ExpensePersistenceResult()
+    data class Enriched(val enrichedExpense: Expense, val correlationInfo: String, override val matchResult: KnownFinancialAccountMatchResult? = null) : ExpensePersistenceResult()
+    data class ReviewPending(val expense: Expense, val reason: String, override val matchResult: KnownFinancialAccountMatchResult? = null) : ExpensePersistenceResult()
+    data class IgnoredNonFinancial(val reason: String) : ExpensePersistenceResult()
+    data class Rejected(val reason: String) : ExpensePersistenceResult()
+    data class Error(val throwable: Throwable, val message: String) : ExpensePersistenceResult()
+}
+
+/**
+ * Step 8: Transaction Persistence Manager.
+ *
+ * Connects the in-memory Steps 1-7 transaction processing pipeline with ArcTracker's
+ * Room database and Pending Expenses workflow.
+ *
+ * Responsibilities:
+ * 1. Safe end-to-end execution: Capture -> Normalization -> Classification -> Extraction -> Validation -> Dedup -> Persistence.
+ * 2. Strict idempotency: Never inserts duplicate records on repeated processing.
+ * 3. Pending integration: Candidates requiring review or in pending status are routed to Pending Expenses (isPending = true).
+ * 4. Cross-source correlation: Enriches existing rows (e.g. notification + bank SMS) without creating duplicate entries.
+ * 5. Manual expense safety: Protects user-created manual expenses from being overwritten by notifications.
+ * 6. Concurrency and exception safety: Guaranteed non-crashing operation with linear execution mutex.
+ */
+object TransactionPersistenceManager {
+
+    private const val TAG = "TxnPersistenceManager"
+
+    // Mutex ensuring concurrent incoming notifications/SMS do not race to insert duplicate rows
+    private val pipelineMutex = Mutex()
+
+    // Optional listener for debugging and testing verification
+    var persistenceListener: ((ExpensePersistenceResult) -> Unit)? = null
+
+    // Milestone 4: Optional account matcher for live notification account enrichment
+    var matcher: KnownFinancialAccountMatcher? = null
+
+    // Milestone 11: Optional rule and alias managers for user-defined categorization
+    var ruleManager: CategoryRuleManager? = null
+    var aliasManager: MerchantAliasManager? = null
+
+    /**
+     * Initializes managers safely from [AppDatabase] if not already set.
+     */
+    fun ensureInitialized(database: AppDatabase) {
+        if (matcher == null) {
+            val accountRepo = com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository(database.knownFinancialAccountDao())
+            matcher = KnownFinancialAccountMatcher(accountRepo)
+        }
+        if (ruleManager == null) {
+            ruleManager = CategoryRuleManager(database.userCategoryRuleDao(), database.transactionCategoryDao())
+        }
+        if (aliasManager == null) {
+            aliasManager = MerchantAliasManager(database.merchantAliasDao())
+        }
+    }
+
+    /**
+     * Resolves active user category rules safely without blocking.
+     */
+    suspend fun resolveActiveRules(userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null): List<com.subhashrelangi.arctracker.data.UserCategoryRule>? {
+        if (userRules != null) return userRules
+        return try {
+            ruleManager?.getActiveRules()
+        } catch (e: Exception) {
+            SecureLogger.e(TAG, "Failed to resolve active category rules", e)
+            null
+        }
+    }
+
+    /**
+     * Resolves active merchant aliases safely without blocking.
+     */
+    suspend fun resolveActiveAliases(merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null): List<com.subhashrelangi.arctracker.data.MerchantAlias>? {
+        if (merchantAliases != null) return merchantAliases
+        return try {
+            aliasManager?.getActiveAliases()
+        } catch (e: Exception) {
+            SecureLogger.e(TAG, "Failed to resolve active merchant aliases", e)
+            null
+        }
+    }
+
+    /**
+     * Complete pipeline entry point for a captured notification using ExpenseDao.
+     * Supports one notification containing 0, 1, or N independent transaction candidates.
+     */
+    suspend fun processCapturedNotification(
+        captured: CapturedNotificationInfo,
+        dao: ExpenseDao,
+        accountMatcher: KnownFinancialAccountMatcher? = matcher,
+        userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null,
+        merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null
+    ): ExpensePersistenceResult {
+        val results = processCapturedNotificationAll(captured, dao, accountMatcher, userRules, merchantAliases)
+        return results.firstOrNull { it is ExpensePersistenceResult.Inserted || it is ExpensePersistenceResult.ReviewPending || it is ExpensePersistenceResult.Updated || it is ExpensePersistenceResult.Enriched }
+            ?: results.firstOrNull()
+            ?: ExpensePersistenceResult.IgnoredNonFinancial("No transactions processed")
+    }
+
+    /**
+     * Processes all transaction candidates found within a captured notification.
+     */
+    suspend fun processCapturedNotificationAll(
+        captured: CapturedNotificationInfo,
+        dao: ExpenseDao,
+        accountMatcher: KnownFinancialAccountMatcher? = matcher,
+        userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null,
+        merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null
+    ): List<ExpensePersistenceResult> {
+        return try {
+            // Step 3: Normalization
+            val normalized = NotificationNormalizer.normalize(captured)
+            if (normalized == null) {
+                val res = ExpensePersistenceResult.IgnoredNonFinancial("Notification could not be normalized")
+                persistenceListener?.invoke(res)
+                return listOf(res)
+            }
+
+            // Step 4: Financial Classification + Noise Detection
+            val classification = FinancialClassifier.classify(normalized)
+
+            if (classification.financialRelevance == FinancialRelevance.NON_FINANCIAL) {
+                SecureLogger.d(TAG, "Notification ${captured.notificationKey} ignored: not financially relevant")
+                val res = ExpensePersistenceResult.IgnoredNonFinancial("Notification is not financially relevant")
+                persistenceListener?.invoke(res)
+                return listOf(res)
+            }
+
+            if (classification.isNoise) {
+                val reason = classification.noiseReasons.joinToString("; ").ifBlank { classification.noiseCategory.name }
+                SecureLogger.d(TAG, "Notification ${captured.notificationKey} ignored: classified as noise ($reason)")
+                val res = ExpensePersistenceResult.IgnoredNonFinancial("Notification classified as noise: $reason")
+                persistenceListener?.invoke(res)
+                return listOf(res)
+            }
+
+            // Step 4.5: ACTUAL TRANSACTION EVENT GATE
+            val eventAssessment = ActualTransactionEventGate.assessNotification(normalized, classification)
+            if (eventAssessment.actualEvent == ActualEventStatus.FALSE) {
+                val reason = eventAssessment.diagnosticReasons.joinToString("; ").ifBlank { eventAssessment.eventType.name }
+                SecureLogger.d(TAG, "Notification ${captured.notificationKey} ignored: Actual Transaction Event Gate rejected ($reason)")
+                val res = ExpensePersistenceResult.IgnoredNonFinancial("No actual transaction event: $reason")
+                persistenceListener?.invoke(res)
+                return listOf(res)
+            }
+
+            // Step 5: Structured Transaction Extraction (Support multi-candidate)
+            val candidates = StructuredTransactionExtractor.extractAll(classification)
+            if (candidates.isEmpty()) {
+                SecureLogger.d(TAG, "Notification ${captured.notificationKey} ignored: structured extraction returned empty")
+                val res = ExpensePersistenceResult.IgnoredNonFinancial("No structured transaction candidate could be extracted")
+                persistenceListener?.invoke(res)
+                return listOf(res)
+            }
+
+            val effectiveMatcher = accountMatcher ?: matcher
+            val activeRules = resolveActiveRules(userRules)
+            val activeAliases = resolveActiveAliases(merchantAliases)
+
+            val results = mutableListOf<ExpensePersistenceResult>()
+            val claimedRecordIds = mutableSetOf<String>()
+            for (candidate in candidates) {
+                val validated = TransactionValidator.validate(candidate, classification)
+                if (validated.isRejected) {
+                    val reason = validated.rejectionReasons.joinToString("; ").ifBlank { "Validation rejected" }
+                    DiagnosticEventManager.logEvent(
+                        DiagnosticCategory.VALIDATION_REJECTED,
+                        packageName = candidate.packageName,
+                        reason = reason
+                    )
+                    SecureLogger.d(TAG, "Notification candidate ${candidate.sourceNotificationKey} rejected by validator: $reason")
+                    val res = ExpensePersistenceResult.Rejected("Transaction candidate rejected: $reason")
+                    persistenceListener?.invoke(res)
+                    results.add(res)
+                    continue
+                }
+
+                // Invariant Guard: Strictly reject absent or non-positive amount
+                val amount = candidate.amount
+                if (amount == null || amount <= 0.0 || amount.isNaN() || amount.isInfinite()) {
+                    DiagnosticEventManager.logEvent(
+                        DiagnosticCategory.AMOUNT_UNAVAILABLE,
+                        packageName = candidate.packageName,
+                        reason = "invalid_or_missing_amount"
+                    )
+                    SecureLogger.d(TAG, "Notification candidate ${candidate.sourceNotificationKey} rejected: invalid amount")
+                    val res = ExpensePersistenceResult.Rejected("Transaction amount is absent, non-positive, or non-finite: $amount")
+                    persistenceListener?.invoke(res)
+                    results.add(res)
+                    continue
+                }
+
+                // Direction Invariant Gate: Strictly reject UNKNOWN direction from automatic confirmation
+                if (candidate.direction == TransactionDirection.UNKNOWN) {
+                    DiagnosticEventManager.logEvent(
+                        DiagnosticCategory.DIRECTION_AMBIGUOUS,
+                        packageName = candidate.packageName,
+                        reason = "direction_unknown_or_ambiguous"
+                    )
+                    SecureLogger.d(TAG, "Notification candidate ${candidate.sourceNotificationKey} rejected: ambiguous or unknown direction")
+                    val res = ExpensePersistenceResult.Rejected("Transaction direction is ambiguous or unknown")
+                    persistenceListener?.invoke(res)
+                    results.add(res)
+                    continue
+                }
+
+                // Step 6.5: Known Financial Account Matching & Enrichment (Milestone 4)
+                val matchResult = effectiveMatcher?.match(candidate) ?: KnownFinancialAccountMatchResult.NoAccountData
+                val enrichedCandidate = if (matchResult is KnownFinancialAccountMatchResult.Matched) {
+                    candidate.copy(
+                        accountEnrichment = matchResult.enrichment,
+                        accountMatchResult = matchResult
+                    )
+                } else {
+                    candidate.copy(
+                        accountMatchResult = matchResult
+                    )
+                }
+                val enrichedValidated = validated.copy(candidate = enrichedCandidate)
+
+                val res = processValidatedCandidate(
+                    validated = enrichedValidated,
+                    dao = dao,
+                    claimedRecordIds = claimedRecordIds,
+                    userRules = activeRules,
+                    merchantAliases = activeAliases
+                )
+                results.add(res)
+            }
+
+            results
+        } catch (e: Exception) {
+            SecureLogger.e(TAG, "Unhandled error in processCapturedNotificationAll", e)
+            val res = ExpensePersistenceResult.Error(e, e.message ?: "Pipeline processing error")
+            persistenceListener?.invoke(res)
+            listOf(res)
+        }
+    }
+
+    /**
+     * Complete pipeline entry point for a captured notification using Context/Database.
+     */
+    suspend fun processCapturedNotification(
+        context: Context,
+        captured: CapturedNotificationInfo,
+        database: AppDatabase = AppDatabase.getDatabase(context)
+    ): ExpensePersistenceResult {
+        ensureInitialized(database)
+        return processCapturedNotification(captured, database.expenseDao(), matcher)
+    }
+
+    suspend fun processCapturedNotificationAll(
+        context: Context,
+        captured: CapturedNotificationInfo,
+        database: AppDatabase = AppDatabase.getDatabase(context)
+    ): List<ExpensePersistenceResult> {
+        ensureInitialized(database)
+        return processCapturedNotificationAll(captured, database.expenseDao(), matcher)
+    }
+
+    /**
+     * Unified pipeline entry point for any [TransactionSourceEvent] (Notification or SMS_HISTORY)
+     * using [ExpenseDao] (Milestone 1).
+     */
+    suspend fun processSourceEvent(
+        event: TransactionSourceEvent,
+        dao: ExpenseDao
+    ): List<ExpensePersistenceResult> {
+        val captured = event.toCapturedNotificationInfo()
+        return processCapturedNotificationAll(captured, dao)
+    }
+
+    suspend fun processSourceEvent(
+        context: Context,
+        event: TransactionSourceEvent,
+        database: AppDatabase = AppDatabase.getDatabase(context)
+    ): List<ExpensePersistenceResult> {
+        ensureInitialized(database)
+        return processSourceEvent(event, database.expenseDao())
+    }
+
+    /**
+     * Pipeline entry point for historical SMS messages using ExpenseDao.
+     */
+    suspend fun processSms(
+        smsId: String,
+        sender: String,
+        body: String,
+        timestamp: Long,
+        dao: ExpenseDao
+    ): ExpensePersistenceResult {
+        val event = TransactionSourceEvent(
+            sourceType = TransactionSourceType.SMS_HISTORY,
+            sourceId = "sms_$smsId",
+            sender = sender,
+            rawText = body,
+            eventTimestamp = timestamp,
+            title = sender,
+            category = "sms"
+        )
+        val results = processSourceEvent(event, dao)
+        return results.firstOrNull { it is ExpensePersistenceResult.Inserted || it is ExpensePersistenceResult.ReviewPending || it is ExpensePersistenceResult.Updated || it is ExpensePersistenceResult.Enriched }
+            ?: results.firstOrNull()
+            ?: ExpensePersistenceResult.IgnoredNonFinancial("No transactions processed")
+    }
+
+    /**
+     * Pipeline entry point for historical SMS messages using Context/Database.
+     */
+    suspend fun processSms(
+        context: Context,
+        smsId: String,
+        sender: String,
+        body: String,
+        timestamp: Long,
+        database: AppDatabase = AppDatabase.getDatabase(context)
+    ): ExpensePersistenceResult {
+        ensureInitialized(database)
+        return processSms(smsId, sender, body, timestamp, database.expenseDao())
+    }
+
+    /**
+     * Processes a validated candidate through deduplication and persists the result.
+     */
+    suspend fun processValidatedCandidate(
+        validated: ValidatedTransactionCandidate,
+        dao: ExpenseDao,
+        claimedRecordIds: MutableSet<String>? = null,
+        userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null,
+        merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null
+    ): ExpensePersistenceResult {
+        if (validated.isRejected) {
+            val reason = validated.rejectionReasons.joinToString("; ").ifBlank { "Validation rejected" }
+            val res = ExpensePersistenceResult.Rejected("Transaction candidate rejected: $reason")
+            persistenceListener?.invoke(res)
+            return res
+        }
+
+        val amount = validated.candidate.amount
+        if (amount == null || amount <= 0.0 || amount.isNaN() || amount.isInfinite()) {
+            val res = ExpensePersistenceResult.Rejected("Transaction amount is absent, non-positive, or non-finite: $amount")
+            persistenceListener?.invoke(res)
+            return res
+        }
+
+        // Milestone P2 Step 4: Check if this source event was explicitly deleted and tombstoned
+        val sourceKey = validated.candidate.sourceNotificationKey
+        if (sourceKey.isNotBlank()) {
+            val isTombstoned = dao.isSourceKeyTombstoned(sourceKey) ||
+                    (sourceKey.contains("#") && dao.isSourceKeyTombstoned(sourceKey.substringBefore("#")))
+            if (isTombstoned) {
+                val effectiveRules = resolveActiveRules(userRules)
+                val effectiveAliases = resolveActiveAliases(merchantAliases)
+                val placeholderExpense = mapToExpense(validated.candidate, false, userRules = effectiveRules, merchantAliases = effectiveAliases)
+                val res = ExpensePersistenceResult.SkippedDuplicate(
+                    existingExpense = placeholderExpense,
+                    reason = "Transaction source was previously deleted by user",
+                    matchResult = validated.candidate.accountMatchResult
+                )
+                persistenceListener?.invoke(res)
+                return res
+            }
+        }
+
+        return try {
+            // Targeted query lookup: fetch only relevant correlation/dedup candidates instead of full table
+            val targetedExpenses = findTargetedCandidates(validated, dao)
+            val existingRecords = targetedExpenses
+                .filter { expense ->
+                    claimedRecordIds == null || (!claimedRecordIds.contains(expense.id.toString()) && !claimedRecordIds.contains(expense.notificationKey))
+                }
+                .map { TransactionRecord.fromExpense(it) }
+
+            // Step 7: Deduplication and Cross-Source Correlation
+            val dedupResult = TransactionDeduplicator.evaluate(validated, existingRecords)
+            if (dedupResult.matchedRecordId != null) {
+                claimedRecordIds?.add(dedupResult.matchedRecordId)
+            }
+
+            val effectiveRules = resolveActiveRules(userRules)
+            val effectiveAliases = resolveActiveAliases(merchantAliases)
+
+            // Step 8: Room Database Persistence based on deduplication decision
+            val result = processDedupResult(dedupResult, dao, targetedExpenses, effectiveRules, effectiveAliases)
+            persistenceListener?.invoke(result)
+            result
+        } catch (e: Exception) {
+            SecureLogger.e(TAG, "Error persisting validated transaction candidate", e)
+            val res = ExpensePersistenceResult.Error(e, e.message ?: "Database persistence error")
+            persistenceListener?.invoke(res)
+            res
+        }
+    }
+
+    /**
+     * Performs targeted lookup of relevant past candidates rather than loading the entire table.
+     * Order of lookup:
+     * 1. Exact notificationKey / source identity
+     * 2. Time-window candidates within 48 hours (max window for reference or fingerprint correlation)
+     * 3. Any active pending expenses
+     */
+    suspend fun findTargetedCandidates(
+        validated: ValidatedTransactionCandidate,
+        dao: ExpenseDao
+    ): List<Expense> {
+        val key = validated.candidate.sourceNotificationKey
+        if (key.isNotBlank()) {
+            val exactKeyMatch = dao.getExpenseByNotificationKey(key)
+            if (exactKeyMatch != null) {
+                return listOf(exactKeyMatch)
+            }
+        }
+
+        val candTime = if (validated.candidate.transactionTimestamp > 0) {
+            validated.candidate.transactionTimestamp
+        } else if (validated.candidate.postTime > 0) {
+            validated.candidate.postTime
+        } else {
+            System.currentTimeMillis()
+        }
+        val windowMs = TransactionDeduplicator.REFERENCE_ID_CORRELATION_WINDOW_MS
+        val windowStart = candTime - windowMs
+        val windowEnd = candTime + windowMs
+
+        val windowExpenses = dao.getExpensesBetween(windowStart, windowEnd)
+        val pendingExpenses = dao.getPendingExpensesList()
+
+        val candidateMap = LinkedHashMap<Int, Expense>()
+        for (expense in windowExpenses) {
+            candidateMap[expense.id] = expense
+        }
+        val postTime = validated.candidate.postTime
+        if (postTime > 0 && Math.abs(postTime - candTime) > windowMs) {
+            for (expense in dao.getExpensesBetween(postTime - windowMs, postTime + windowMs)) {
+                candidateMap[expense.id] = expense
+            }
+        }
+        for (expense in pendingExpenses) {
+            candidateMap[expense.id] = expense
+        }
+        return candidateMap.values.toList()
+    }
+
+    suspend fun processValidatedCandidate(
+        validated: ValidatedTransactionCandidate,
+        database: AppDatabase
+    ): ExpensePersistenceResult {
+        return processValidatedCandidate(validated, database.expenseDao())
+    }
+
+    suspend fun processDedupResult(
+        result: TransactionDeduplicationResult,
+        database: AppDatabase,
+        existingExpenses: List<Expense>? = null,
+        userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null,
+        merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null
+    ): ExpensePersistenceResult {
+        ensureInitialized(database)
+        return processDedupResult(result, database.expenseDao(), existingExpenses, userRules, merchantAliases)
+    }
+
+    /**
+     * Executes the persistence operation according to the deduplication decision.
+     * Guaranteed thread-safe via mutex locking.
+     */
+    suspend fun processDedupResult(
+        result: TransactionDeduplicationResult,
+        dao: ExpenseDao,
+        existingExpenses: List<Expense>? = null,
+        userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null,
+        merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null
+    ): ExpensePersistenceResult = pipelineMutex.withLock {
+        try {
+            val key = result.candidate.candidate.sourceNotificationKey
+            val existingByKey = if (key.isNotBlank()) {
+                dao.getExpenseByNotificationKey(key)
+            } else {
+                null
+            }
+
+            val candidate = result.candidate.candidate
+            val candidateAccountId = candidate.accountEnrichment?.accountId
+                ?: (candidate.accountMatchResult as? KnownFinancialAccountMatchResult.Matched)?.account?.id
+            val rawSuffix = candidate.accountSuffix ?: candidate.cardSuffix
+            val candidateAccountSuffix = rawSuffix?.let { AccountIdentityExtractor.safeSuffix(it) }
+                ?: (candidate.accountMatchResult as? KnownFinancialAccountMatchResult.Matched)?.account?.accountSuffix
+
+            when (result.decision) {
+                DedupDecision.DUPLICATE -> {
+                    // Exact duplicate detected!
+                    val existing = existingByKey
+                        ?: (result.matchedRecordId?.let { id ->
+                            existingExpenses?.find { it.id.toString() == id || it.notificationKey == id }
+                        })
+                        ?: (result.matchedRecord?.let { rec ->
+                            existingExpenses?.find { it.id.toString() == rec.id || it.notificationKey == rec.id }
+                        })
+                        ?: mapToExpense(candidate, false, userRules = userRules, merchantAliases = merchantAliases)
+
+                    val resolvedExisting = if (existing.id > 0 && existing.accountId == null && candidateAccountId != null) {
+                        val newSuffix = existing.accountSuffix ?: candidateAccountSuffix
+                        val enriched = existing.copy(
+                            accountId = candidateAccountId,
+                            accountSuffix = newSuffix
+                        )
+                        dao.updateAccountMetadata(existing.id, candidateAccountId, newSuffix)
+                        enriched
+                    } else {
+                        existing
+                    }
+
+                    SecureLogger.d(TAG, "Candidate duplicate skipped for key=$key, reason=${result.reason}")
+                    DiagnosticEventManager.logEvent(
+                        DiagnosticCategory.DUPLICATE_SKIPPED,
+                        packageName = candidate.packageName,
+                        reason = result.reason
+                    )
+                    ExpensePersistenceResult.SkippedDuplicate(resolvedExisting, result.reason, matchResult = candidate.accountMatchResult)
+                }
+
+                DedupDecision.UPDATE_EXISTING -> {
+                    // An update to an existing transaction (e.g. status changed from PENDING to SUCCESS)
+                    val existing = existingByKey
+                        ?: (result.matchedRecordId?.let { id ->
+                            existingExpenses?.find { it.id.toString() == id || it.notificationKey == id }
+                        })
+                        ?: (result.matchedRecord?.let { rec ->
+                            existingExpenses?.find { it.id.toString() == rec.id || it.notificationKey == rec.id }
+                        })
+
+                    if (existing == null) {
+                        // Fallback: insert as new if previous record not located
+                        insertNewCandidate(candidate, result, dao, userRules, merchantAliases)
+                    } else if (existing.source == "MANUAL") {
+                        // Protect user's manual expense: never overwrite manual expense
+                        SecureLogger.i(TAG, "Protecting manual expense id=${existing.id}; skipping overwrite by notification")
+                        ExpensePersistenceResult.SkippedDuplicate(existing, "Protected manual expense cannot be overwritten", matchResult = candidate.accountMatchResult)
+                    } else {
+                        val isNowSuccess = candidate.status == TransactionStatus.SUCCESS
+                        val newAmount = if (existing.amount <= 0.0 && (candidate.amount ?: 0.0) > 0.0) {
+                            candidate.amount!!
+                        } else {
+                            existing.amount
+                        }
+                        val newMerchant = if (isPlaceholderMerchant(existing.merchant) && !isPlaceholderMerchant(candidate.merchant)) {
+                            candidate.merchant!!
+                        } else {
+                            existing.merchant
+                        }
+                        val newNote = enrichNote(existing.note, candidate, "Status: ${candidate.status ?: "SUCCESS"}")
+
+                        val newAccountId = existing.accountId ?: candidateAccountId
+                        val newAccountSuffix = existing.accountSuffix ?: candidateAccountSuffix
+
+                        val updated = existing.copy(
+                            amount = newAmount,
+                            merchant = newMerchant,
+                            isPending = if (isNowSuccess) false else existing.isPending,
+                            note = newNote,
+                            rawText = candidate.rawContent ?: existing.rawText,
+                            accountId = newAccountId,
+                            accountSuffix = newAccountSuffix
+                        )
+                        dao.update(updated)
+                        SecureLogger.d(TAG, "Updated existing transaction id=${updated.id} to isPending=${updated.isPending}")
+                        ExpensePersistenceResult.Updated(updated, existing, result.reason, matchResult = candidate.accountMatchResult)
+                    }
+                }
+
+                DedupDecision.CORRELATED -> {
+                    // Cross-source correlation! (e.g. Bank SMS confirms earlier notification)
+                    // Exactly ONE logical Expense is maintained. No duplicate row inserted!
+                    val existing = existingByKey
+                        ?: (result.matchedRecordId?.let { id ->
+                            existingExpenses?.find { it.id.toString() == id || it.notificationKey == id }
+                        })
+                        ?: (result.matchedRecord?.let { rec ->
+                            existingExpenses?.find { it.id.toString() == rec.id || it.notificationKey == rec.id }
+                        })
+
+                    if (existing == null) {
+                        insertNewCandidate(candidate, result, dao, userRules, merchantAliases)
+                    } else if (existing.source == "MANUAL") {
+                        // Protect user's manual expense: never overwrite or modify manual expense fields
+                        SecureLogger.i(TAG, "Protecting manual expense id=${existing.id}; preserving all user manual fields")
+                        ExpensePersistenceResult.SkippedDuplicate(existing, "Protected manual expense preserved without modification", matchResult = candidate.accountMatchResult)
+                    } else {
+                        val isNowSuccess = candidate.status == TransactionStatus.SUCCESS
+                        val correlationDesc = "Correlated (${result.strategy}): ${result.correlationEvidence ?: result.reason}"
+                        val newNote = enrichNote(existing.note, candidate, correlationDesc)
+
+                        // If correlated record confirms a pending transaction, mark it successful
+                        val newIsPending = if (isNowSuccess && existing.isPending) false else existing.isPending
+
+                        val newAccountId = existing.accountId ?: candidateAccountId
+                        val newAccountSuffix = existing.accountSuffix ?: candidateAccountSuffix
+
+                        val newMerchant = if (isPlaceholderMerchant(existing.merchant) && !isPlaceholderMerchant(candidate.merchant)) {
+                            candidate.merchant!!
+                        } else {
+                            existing.merchant
+                        }
+
+                        val enriched = existing.copy(
+                            merchant = newMerchant,
+                            isPending = newIsPending,
+                            note = newNote,
+                            accountId = newAccountId,
+                            accountSuffix = newAccountSuffix
+                        )
+                        dao.update(enriched)
+                        SecureLogger.d(TAG, "Correlated transaction id=${enriched.id}, enriched note. Row count preserved.")
+                        ExpensePersistenceResult.Enriched(enriched, correlationDesc, matchResult = candidate.accountMatchResult)
+                    }
+                }
+
+                DedupDecision.NEEDS_REVIEW -> {
+                    // Conflicting signals or ambiguous candidate -> Routes to Pending Expenses!
+                    val amount = candidate.amount
+                    if (amount == null || amount <= 0.0 || amount.isNaN() || amount.isInfinite()) {
+                        return@withLock ExpensePersistenceResult.Rejected("Cannot insert review transaction with invalid amount: $amount")
+                    }
+                    if (existingByKey != null) {
+                        return@withLock ExpensePersistenceResult.SkippedDuplicate(existingByKey, "Already recorded", matchResult = candidate.accountMatchResult)
+                    }
+
+                    val reviewExpense = mapToExpense(
+                        candidate = candidate,
+                        isPending = true,
+                        extraNote = "Needs Review: ${result.reason}",
+                        relationshipType = result.relationshipType,
+                        relationshipId = result.relationshipId,
+                        userRules = userRules,
+                        merchantAliases = merchantAliases
+                    )
+                    val newId = dao.insert(reviewExpense)
+                    val saved = reviewExpense.copy(id = newId.toInt())
+                    SecureLogger.d(TAG, "Inserted pending review expense id=${saved.id}, reason=${result.reason}")
+                    ExpensePersistenceResult.ReviewPending(saved, result.reason, matchResult = candidate.accountMatchResult)
+                }
+
+                DedupDecision.NEW_TRANSACTION -> {
+                    // Idempotency check: if key already exists, do not duplicate
+                    if (existingByKey != null) {
+                        DiagnosticEventManager.logEvent(
+                            DiagnosticCategory.DUPLICATE_SKIPPED,
+                            packageName = candidate.packageName,
+                            reason = "idempotency_duplicate_key"
+                        )
+                        SecureLogger.d(TAG, "Candidate with key=$key already exists in DB. Skipping duplicate insert.")
+                        return@withLock ExpensePersistenceResult.SkippedDuplicate(existingByKey, "Already recorded with key $key", matchResult = candidate.accountMatchResult)
+                    }
+
+                    insertNewCandidate(candidate, result, dao, userRules, merchantAliases)
+                }
+            }
+        } catch (e: Exception) {
+            DiagnosticEventManager.logEvent(
+                DiagnosticCategory.PERSISTENCE_FAILED,
+                packageName = result.candidate.candidate.packageName,
+                reason = "db_write_error"
+            )
+            SecureLogger.e(TAG, "Database failure safely handled in processDedupResult", e)
+            ExpensePersistenceResult.Error(e, e.message ?: "Database write failure")
+        }
+    }
+
+    private suspend fun insertNewCandidate(
+        candidate: StructuredTransactionCandidate,
+        result: TransactionDeduplicationResult,
+        dao: ExpenseDao,
+        userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null,
+        merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null
+    ): ExpensePersistenceResult {
+        val amount = candidate.amount
+        if (amount == null || amount <= 0.0 || amount.isNaN() || amount.isInfinite()) {
+            return ExpensePersistenceResult.Rejected("Cannot insert transaction with invalid amount: $amount")
+        }
+
+        val isPending = result.candidate.needsReview ||
+            candidate.status == TransactionStatus.PENDING
+
+        val expense = mapToExpense(
+            candidate = candidate,
+            isPending = isPending,
+            relationshipType = result.relationshipType,
+            relationshipId = result.relationshipId,
+            userRules = userRules,
+            merchantAliases = merchantAliases
+        )
+
+        val saved = if (result.relationshipType != null && result.matchedRecordId != null) {
+            // Self-transfer: atomically insert new transaction and link counterpart in a single Room transaction
+            val relType = result.relationshipType
+            val relId = result.relationshipId ?: "SELF_TRANSFER"
+            dao.insertSelfTransferPair(
+                newExpense = expense,
+                counterpartRecordId = result.matchedRecordId,
+                relationshipType = relType,
+                relationshipId = relId
+            )
+        } else {
+            val newId = dao.insert(expense)
+            expense.copy(id = newId.toInt())
+        }
+
+        DiagnosticEventManager.logEvent(
+            DiagnosticCategory.TRANSACTION_PERSISTED,
+            packageName = candidate.packageName,
+            reason = "id=${saved.id}"
+        )
+
+        SecureLogger.d(TAG, "Inserted transaction id=${saved.id}, isPending=$isPending, relationshipType=${saved.relationshipType}")
+        return ExpensePersistenceResult.Inserted(saved, isPending, result.reason, matchResult = candidate.accountMatchResult)
+    }
+
+    /**
+     * Maps [StructuredTransactionCandidate] to [Expense] entity.
+     */
+    fun mapToExpense(
+        candidate: StructuredTransactionCandidate,
+        isPending: Boolean,
+        extraNote: String? = null,
+        relationshipType: String? = null,
+        relationshipId: String? = null,
+        userRules: List<com.subhashrelangi.arctracker.data.UserCategoryRule>? = null,
+        merchantAliases: List<com.subhashrelangi.arctracker.data.MerchantAlias>? = null
+    ): Expense {
+        val amount = candidate.amount
+            ?: throw IllegalArgumentException("Candidate amount cannot be null when mapping to Expense")
+        require(amount > 0.0 && !amount.isNaN() && !amount.isInfinite()) {
+            "Expense amount must be strictly positive and finite, was $amount"
+        }
+
+        val merchant = candidate.merchant?.takeIf { it.isNotBlank() && !it.equals("Unknown", ignoreCase = true) && !it.equals("Unknown Merchant", ignoreCase = true) }
+            ?: candidate.counterparty?.takeIf { it.isNotBlank() }
+            ?: deriveFallbackMerchant(candidate)
+
+        require(merchant.isNotBlank()) {
+            "Expense merchant cannot be blank, must have a valid name or deterministic fallback"
+        }
+
+        val dateMillis = if (candidate.transactionTimestamp > 0) {
+            candidate.transactionTimestamp
+        } else if (candidate.postTime > 0) {
+            candidate.postTime
+        } else {
+            System.currentTimeMillis()
+        }
+        val type = if (candidate.direction == TransactionDirection.CREDIT) "Credit" else "Debit"
+
+        // Milestone 10 & 11: Category Inference with User Rules & Aliases (pure operation, no runBlocking)
+        val effectiveRules = userRules
+        val effectiveAliases = merchantAliases
+
+        val inferenceResult = try {
+            CategoryInferenceEngine().inferCategory(
+                CategoryInferenceInput(
+                    merchant = merchant,
+                    counterparty = candidate.counterparty,
+                    rawText = candidate.rawContent,
+                    transactionType = type,
+                    amount = amount,
+                    userRules = effectiveRules,
+                    merchantAliases = effectiveAliases
+                )
+            )
+        } catch (e: Exception) {
+            SecureLogger.e(TAG, "Category inference failure safely handled", e)
+            CategoryInferenceResult.noMatch("Inference failure safely handled: ${e.message}")
+        }
+
+
+        val categoryId = if (inferenceResult.isAutoAssignable) inferenceResult.suggestedCategoryId else null
+        val tag = if (inferenceResult.isAutoAssignable) inferenceResult.suggestedCategoryName else inferTag(candidate)
+        val categorySource = if (inferenceResult.isAutoAssignable) CategorySource.INFERRED else CategorySource.NONE
+
+        val note = buildNote(candidate, extraNote)
+        val source = if (candidate.sourceNotificationKey.startsWith("sms_")) "SMS_HISTORY" else "NOTIFICATION"
+
+        val accountId = candidate.accountEnrichment?.accountId
+            ?: (candidate.accountMatchResult as? KnownFinancialAccountMatchResult.Matched)?.account?.id
+        val rawSuffix = candidate.accountSuffix ?: candidate.cardSuffix
+        val accountSuffix = rawSuffix?.let { AccountIdentityExtractor.safeSuffix(it) }
+            ?: (candidate.accountMatchResult as? KnownFinancialAccountMatchResult.Matched)?.account?.accountSuffix
+
+        return Expense(
+            id = 0,
+            amount = amount,
+            merchant = merchant,
+            dateMillis = dateMillis,
+            type = type,
+            notificationKey = candidate.sourceNotificationKey,
+            isPending = isPending,
+            rawText = candidate.rawContent,
+            tag = tag,
+            note = note,
+            source = source,
+            relationshipType = relationshipType,
+            relationshipId = relationshipId,
+            accountId = accountId,
+            accountSuffix = accountSuffix,
+            categoryId = categoryId,
+            categorySource = categorySource
+        )
+    }
+
+    /**
+     * Incurs reasonable expense category tag based on merchant name.
+     */
+    fun inferTag(candidate: StructuredTransactionCandidate): String? {
+        val name = "${candidate.merchant ?: ""} ${candidate.counterparty ?: ""} ${candidate.rawContent ?: ""}".lowercase()
+        return when {
+            name.contains("zomato") || name.contains("swiggy") || name.contains("starbucks") ||
+                name.contains("cafe") || name.contains("restaurant") || name.contains("food") -> "Food"
+            name.contains("amazon") || name.contains("flipkart") || name.contains("myntra") ||
+                name.contains("store") || name.contains("mart") -> "Shopping"
+            name.contains("uber") || name.contains("ola") || name.contains("metro") ||
+                name.contains("travel") || name.contains("rail") || name.contains("flight") -> "Travel"
+            name.contains("bill") || name.contains("electricity") || name.contains("recharge") ||
+                name.contains("bescom") || name.contains("airtel") || name.contains("jio") -> "Bills"
+            name.contains("salary") || name.contains("payroll") || name.contains("corp") -> "Salary"
+            else -> null
+        }
+    }
+
+    /**
+     * Builds structured note containing references, account suffixes, and UTR.
+     */
+    fun buildNote(candidate: StructuredTransactionCandidate, extraNote: String? = null): String {
+        val parts = mutableListOf<String>()
+        candidate.utr?.let { parts.add("UTR: $it") }
+        candidate.rrn?.let { if (it != candidate.utr) parts.add("RRN: $it") }
+        candidate.referenceId?.let { if (it != candidate.utr && it != candidate.rrn) parts.add("Ref: $it") }
+        candidate.accountSuffix?.let { parts.add("A/c: XX$it") }
+        candidate.cardSuffix?.let { parts.add("Card: XX$it") }
+        candidate.upiId?.let { parts.add("UPI: $it") }
+        candidate.bank?.let { parts.add("Bank: $it") }
+        extraNote?.let { parts.add(it) }
+        return parts.joinToString(" | ")
+    }
+
+    /**
+     * Enriches an existing note without duplicating tokens.
+     */
+    fun enrichNote(currentNote: String?, candidate: StructuredTransactionCandidate, enrichment: String): String {
+        val base = currentNote ?: ""
+        val addition = buildNote(candidate, enrichment)
+        return when {
+            base.isBlank() -> addition
+            addition.isBlank() -> base
+            base.contains(addition) -> base
+            else -> "$base | $addition"
+        }
+    }
+
+    /**
+     * Constructs a deterministic, non-blank fallback merchant name based on instrument,
+     * direction, and available identifier signals (Phase 6).
+     */
+    fun deriveFallbackMerchant(candidate: StructuredTransactionCandidate): String {
+        // 1. If UPI ID is present, use it
+        if (!candidate.upiId.isNullOrBlank()) {
+            return candidate.upiId!!
+        }
+
+        // 2. Derive based on instrument and direction
+        val isCredit = candidate.direction == TransactionDirection.CREDIT
+        val hasCard = !candidate.cardSuffix.isNullOrBlank() || candidate.paymentRail?.contains("card", ignoreCase = true) == true
+        val hasUpi = !candidate.upiTransactionId.isNullOrBlank() || candidate.paymentRail?.contains("upi", ignoreCase = true) == true
+        val hasAccount = !candidate.accountSuffix.isNullOrBlank() || candidate.paymentRail?.contains("account", ignoreCase = true) == true || candidate.paymentRail?.contains("bank", ignoreCase = true) == true
+
+        return when {
+            hasCard && isCredit -> "Card Refund"
+            hasCard -> "Card Purchase"
+            hasUpi && isCredit -> "UPI Credit"
+            hasUpi -> "UPI Debit"
+            hasAccount && isCredit -> "Bank Credit"
+            hasAccount -> "Bank Debit"
+            isCredit -> "Bank Credit"
+            else -> "Bank Debit"
+        }
+    }
+
+    /**
+     * Determines whether a merchant name is null, blank, or a synthetic/placeholder fallback
+     * that should be replaced if an authentic merchant name is later discovered.
+     */
+    fun isPlaceholderMerchant(name: String?): Boolean {
+        if (name.isNullOrBlank()) return true
+        val trimmed = name.trim()
+        if (trimmed.equals("Unknown", ignoreCase = true) || trimmed.equals("Unknown Merchant", ignoreCase = true)) return true
+        val fallbackPatterns = setOf(
+            "Bank Debit", "Bank Credit", "Bank Transaction",
+            "UPI Debit", "UPI Credit", "UPI Transaction",
+            "Card Debit", "Card Credit", "Card Transaction", "Card Purchase", "Card Refund",
+            "Wallet Debit", "Wallet Credit", "Wallet Transaction"
+        )
+        return trimmed in fallbackPatterns
+    }
+}

@@ -1,4 +1,5 @@
 package com.subhashrelangi.arctracker
+import com.subhashrelangi.arctracker.engine.pipeline.*
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -7,7 +8,7 @@ import android.content.Context
 import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
+import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import org.junit.After
 import org.junit.Assert.*
@@ -276,26 +277,26 @@ class NotificationDeviceCaptureTest {
         assertNotNull(captured)
 
         // 2. Normalization
-        val normalized = com.subhashrelangi.arctracker.service.NotificationNormalizer.normalize(captured)
+        val normalized = NotificationNormalizer.normalize(captured)
         assertNotNull(normalized)
 
         // 3. Financial Classification
-        val classification = com.subhashrelangi.arctracker.service.FinancialClassifier.classify(normalized!!)
-        assertEquals(com.subhashrelangi.arctracker.service.FinancialRelevance.FINANCIAL, classification.financialRelevance)
+        val classification = FinancialClassifier.classify(normalized!!)
+        assertEquals(FinancialRelevance.FINANCIAL, classification.financialRelevance)
         assertFalse(classification.isNoise)
 
         // 4. Structured Extraction
-        val candidate = com.subhashrelangi.arctracker.service.StructuredTransactionExtractor.extract(classification)
+        val candidate = StructuredTransactionExtractor.extract(normalized)
         assertNotNull(candidate)
         assertEquals(500.0, candidate?.amount)
         assertEquals("Ravi", candidate?.merchant)
         assertEquals("123456789012", candidate?.upiTransactionId)
-        assertEquals(com.subhashrelangi.arctracker.service.TransactionStatus.SUCCESS, candidate?.status)
-        assertEquals(com.subhashrelangi.arctracker.service.TransactionDirection.DEBIT, candidate?.direction)
+        assertEquals(TransactionStatus.SUCCESS, candidate?.status)
+        assertEquals(TransactionDirection.DEBIT, candidate?.direction)
 
         // Verify balance is separated as secondary amount
         assertNotEquals(9500.0, candidate?.amount)
-        val bal = candidate?.secondaryAmounts?.find { it.type == com.subhashrelangi.arctracker.service.SecondaryAmountType.BALANCE }
+        val bal = candidate?.secondaryAmounts?.find { it.type == SecondaryAmountType.BALANCE }
         assertNotNull(bal)
         assertEquals(9500.0, bal?.amount)
     }
@@ -330,22 +331,22 @@ class NotificationDeviceCaptureTest {
         assertNotNull(captured)
 
         // 2. Normalization
-        val normalized = com.subhashrelangi.arctracker.service.NotificationNormalizer.normalize(captured)
+        val normalized = NotificationNormalizer.normalize(captured)
         assertNotNull(normalized)
 
         // 3. Financial Classification
-        val classification = com.subhashrelangi.arctracker.service.FinancialClassifier.classify(normalized!!)
-        assertEquals(com.subhashrelangi.arctracker.service.FinancialRelevance.FINANCIAL, classification.financialRelevance)
+        val classification = FinancialClassifier.classify(normalized!!)
+        assertEquals(FinancialRelevance.FINANCIAL, classification.financialRelevance)
 
         // 4. Structured Extraction
-        val candidate = com.subhashrelangi.arctracker.service.StructuredTransactionExtractor.extract(classification)
+        val candidate = StructuredTransactionExtractor.extract(classification)
         assertNotNull(candidate)
 
         // 5. Validation + Confidence (Step 6)
-        val validationResult = com.subhashrelangi.arctracker.service.TransactionValidator.validate(candidate!!, classification)
+        val validationResult = TransactionValidator.validate(candidate!!, classification)
 
-        assertEquals(com.subhashrelangi.arctracker.service.ValidationState.ACCEPTABLE, validationResult.validationState)
-        assertEquals(com.subhashrelangi.arctracker.service.EvidenceLevel.VERY_STRONG, validationResult.evidenceLevel)
+        assertEquals(ValidationState.ACCEPTABLE, validationResult.validationState)
+        assertEquals(EvidenceLevel.VERY_STRONG, validationResult.evidenceLevel)
         assertTrue(validationResult.isStructurallyValid)
         assertTrue(validationResult.isAcceptable)
         assertFalse(validationResult.isRejected)
@@ -388,39 +389,39 @@ class NotificationDeviceCaptureTest {
         assertNotNull(captured)
 
         // 2. Normalization
-        val normalized = com.subhashrelangi.arctracker.service.NotificationNormalizer.normalize(captured)
+        val normalized = NotificationNormalizer.normalize(captured)
         assertNotNull(normalized)
 
         // 3. Financial Classification
-        val classification = com.subhashrelangi.arctracker.service.FinancialClassifier.classify(normalized!!)
-        assertEquals(com.subhashrelangi.arctracker.service.FinancialRelevance.FINANCIAL, classification.financialRelevance)
+        val classification = FinancialClassifier.classify(normalized!!)
+        assertEquals(FinancialRelevance.FINANCIAL, classification.financialRelevance)
 
         // 4. Structured Extraction
-        val candidate = com.subhashrelangi.arctracker.service.StructuredTransactionExtractor.extract(classification)
+        val candidate = StructuredTransactionExtractor.extract(classification)
         assertNotNull(candidate)
 
         // 5. Validation + Confidence (Step 6)
-        val validationResult = com.subhashrelangi.arctracker.service.TransactionValidator.validate(candidate!!, classification)
+        val validationResult = TransactionValidator.validate(candidate!!, classification)
         assertTrue(validationResult.isAcceptable)
 
         // 6. Deduplication + Cross-Source Correlation (Step 7)
         // Existing bank SMS record received 5 seconds earlier for the same payment
-        val existingSms = com.subhashrelangi.arctracker.service.TransactionRecord(
+        val existingSms = TransactionRecord(
             id = "sms_device_100",
-            sourceType = com.subhashrelangi.arctracker.service.TransactionSourceType.SMS_HISTORY,
+            sourceType = TransactionSourceType.SMS_HISTORY,
             amount = 500.0,
-            direction = com.subhashrelangi.arctracker.service.TransactionDirection.DEBIT,
+            direction = TransactionDirection.DEBIT,
             upiTransactionId = "123456789012",
             timestamp = System.currentTimeMillis() - 5000L
         )
 
-        val dedupResult = com.subhashrelangi.arctracker.service.TransactionDeduplicator.evaluate(
+        val dedupResult = TransactionDeduplicator.evaluate(
             candidate = validationResult,
             existingRecords = listOf(existingSms)
         )
 
-        assertEquals(com.subhashrelangi.arctracker.service.DedupDecision.CORRELATED, dedupResult.decision)
-        assertEquals(com.subhashrelangi.arctracker.service.MatchStrategy.EXPLICIT_REFERENCE_ID, dedupResult.strategy)
+        assertEquals(DedupDecision.CORRELATED, dedupResult.decision)
+        assertEquals(MatchStrategy.EXPLICIT_REFERENCE_ID, dedupResult.strategy)
         assertEquals("sms_device_100", dedupResult.matchedRecordId)
         assertTrue(dedupResult.isCorrelated)
         assertFalse(dedupResult.isNew)

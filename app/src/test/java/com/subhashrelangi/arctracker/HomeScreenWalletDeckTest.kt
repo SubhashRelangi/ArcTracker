@@ -2,7 +2,7 @@ package com.subhashrelangi.arctracker
 
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
-import com.subhashrelangi.arctracker.service.InstrumentType
+import com.subhashrelangi.arctracker.engine.account.InstrumentType
 import com.subhashrelangi.arctracker.ui.WalletCardModel
 import com.subhashrelangi.arctracker.ui.WalletCardTheme
 import org.junit.Assert.assertEquals

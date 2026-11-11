@@ -12,8 +12,8 @@ import com.subhashrelangi.arctracker.security.BackupEncryptionManager
 import com.subhashrelangi.arctracker.security.InvalidPassphraseException
 import com.subhashrelangi.arctracker.security.PrivacySettingsManager
 import com.subhashrelangi.arctracker.security.SensitiveDataSanitizer
-import com.subhashrelangi.arctracker.service.IdentityConfidence
-import com.subhashrelangi.arctracker.service.InstrumentType
+import com.subhashrelangi.arctracker.engine.account.IdentityConfidence
+import com.subhashrelangi.arctracker.engine.account.InstrumentType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After

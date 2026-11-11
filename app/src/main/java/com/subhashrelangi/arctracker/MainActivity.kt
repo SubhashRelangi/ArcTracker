@@ -66,10 +66,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
-import com.subhashrelangi.arctracker.service.AccountReconciliationManager
-import com.subhashrelangi.arctracker.service.NotificationPermissionHelper
-import com.subhashrelangi.arctracker.service.SmsPermissionHelper
-import com.subhashrelangi.arctracker.service.TransactionManager
+import com.subhashrelangi.arctracker.engine.account.AccountReconciliationManager
+import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
+import com.subhashrelangi.arctracker.engine.ingestion.SmsPermissionHelper
+import com.subhashrelangi.arctracker.engine.persistence.TransactionManager
 import com.subhashrelangi.arctracker.security.SecureLogger
 import com.subhashrelangi.arctracker.ui.AddExpenseDialog
 import com.subhashrelangi.arctracker.ui.DarkDeleteConfirmDialog

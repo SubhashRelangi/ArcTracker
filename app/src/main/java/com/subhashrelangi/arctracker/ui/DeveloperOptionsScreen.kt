@@ -1,4 +1,5 @@
 package com.subhashrelangi.arctracker.ui
+import com.subhashrelangi.arctracker.engine.pipeline.*
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -37,11 +38,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.data.Expense
-import com.subhashrelangi.arctracker.service.CapturedNotificationInfo
-import com.subhashrelangi.arctracker.service.FinancialClassifier
-import com.subhashrelangi.arctracker.service.NotificationNormalizer
+import com.subhashrelangi.arctracker.engine.pipeline.CapturedNotificationInfo
+import com.subhashrelangi.arctracker.engine.pipeline.FinancialClassifier
+import com.subhashrelangi.arctracker.engine.pipeline.NotificationNormalizer
 import com.subhashrelangi.arctracker.service.NotificationReaderService
-import com.subhashrelangi.arctracker.service.StructuredTransactionExtractor
+import com.subhashrelangi.arctracker.engine.pipeline.StructuredTransactionExtractor
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader

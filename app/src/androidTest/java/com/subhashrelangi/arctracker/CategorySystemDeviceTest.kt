@@ -1,10 +1,13 @@
 package com.subhashrelangi.arctracker
+import com.subhashrelangi.arctracker.engine.ingestion.*
+import com.subhashrelangi.arctracker.engine.persistence.*
 
 import android.content.Context
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.subhashrelangi.arctracker.data.*
+import com.subhashrelangi.arctracker.engine.account.*
 import com.subhashrelangi.arctracker.service.*
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -110,7 +113,7 @@ class CategorySystemDeviceTest {
 
         // 4. Reopen database and verify everything survives
         reopenDatabase()
-        assertEquals(5, database.openHelper.readableDatabase.version)
+        assertEquals(AppDatabase.DATABASE_VERSION, database.openHelper.readableDatabase.version)
         assertEquals(12, categoryDao.count())
 
         val restoredExpense = expenseDao.getExpenseById(1)
