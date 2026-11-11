@@ -200,14 +200,19 @@ class CategoryInferenceDeviceTest {
         assertEquals(5, v5Db.version)
         v5Db.close()
 
-        // Step 2: Open with Room v6 applying MIGRATION_5_6
+        // Step 2: Open with Room applying migrations through current version
         val roomDb = Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(AppDatabase.MIGRATION_5_6)
+            .addMigrations(
+                AppDatabase.MIGRATION_5_6,
+                AppDatabase.MIGRATION_6_7,
+                AppDatabase.MIGRATION_7_8,
+                AppDatabase.MIGRATION_8_9
+            )
             .allowMainThreadQueries()
             .build()
 
         val v6Db = roomDb.openHelper.readableDatabase
-        assertEquals(6, v6Db.version)
+        assertEquals(AppDatabase.DATABASE_VERSION, v6Db.version)
 
         // Step 3: Verify existing data preserved and categorySource correctly initialized
         val cursor = v6Db.query("SELECT id, merchant, categoryId, categorySource FROM expenses ORDER BY id ASC")
