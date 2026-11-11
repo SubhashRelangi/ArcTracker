@@ -70,8 +70,8 @@ class AccountLifecycleDeviceTest {
      */
     @Test
     fun test01_roomV4Opens_andDeleteAccountUnlinksTransactionsSafely() = runBlocking {
-        // 1. Room v4 opens
-        assertEquals(4, database.openHelper.readableDatabase.version)
+        // 1. Room opens
+        assertEquals(AppDatabase.DATABASE_VERSION, database.openHelper.readableDatabase.version)
 
         // Setup account
         val hdfc = KnownFinancialAccount(

@@ -7,6 +7,8 @@ import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.ExpenseDao
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 
 data class MergeValidationResult(
@@ -51,7 +53,11 @@ class AccountReconciliationManager(
         return knownAccountRepo.getById(id)
     }
 
-    fun registerAccount(account: KnownFinancialAccount): KnownFinancialAccount {
+    suspend fun registerAccount(account: KnownFinancialAccount): KnownFinancialAccount = withContext(Dispatchers.IO) {
+        knownAccountRepo.upsert(account)
+    }
+
+    fun registerAccountBlocking(account: KnownFinancialAccount): KnownFinancialAccount {
         return knownAccountRepo.upsert(account)
     }
 

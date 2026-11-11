@@ -33,6 +33,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -572,17 +574,26 @@ fun FinancialAccountsScreen(
                 Button(
                     onClick = {
                         val target = account
-                        scope.launch {
-                            val res = reconciliationManager.deleteAccount(target.id)
-                            if (res.isSuccess) {
-                                snackbarHostState.showSnackbar("Removed ${target.institutionName ?: "account"} (${res.getOrDefault(0)} transactions unlinked)")
-                                if (selectedAccountId == target.id) {
-                                    selectedAccountId = null
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                val res = reconciliationManager.deleteAccount(target.id)
+                                withContext(Dispatchers.Main) {
+                                    if (res.isSuccess) {
+                                        snackbarHostState.showSnackbar("Removed ${target.institutionName ?: "account"} (${res.getOrDefault(0)} transactions unlinked)")
+                                        if (selectedAccountId == target.id) {
+                                            selectedAccountId = null
+                                        }
+                                    } else {
+                                        snackbarHostState.showSnackbar("Failed to remove account")
+                                    }
+                                    accountToDelete = null
                                 }
-                            } else {
-                                snackbarHostState.showSnackbar("Failed to remove account")
+                            } catch (e: Exception) {
+                                withContext(Dispatchers.Main) {
+                                    snackbarHostState.showSnackbar("Failed to remove account: ${e.message}")
+                                    accountToDelete = null
+                                }
                             }
-                            accountToDelete = null
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Danger),
@@ -701,17 +712,26 @@ fun FinancialAccountsScreen(
                     onClick = {
                         val target = targetSelected
                         if (target != null) {
-                            scope.launch {
-                                val res = reconciliationManager.mergeAccounts(sourceAccount.id, target.id)
-                                if (res.isSuccess) {
-                                    snackbarHostState.showSnackbar("Merged into ${target.institutionName ?: "account"} (${res.getOrDefault(0)} transactions updated)")
-                                    if (selectedAccountId == sourceAccount.id) {
-                                        selectedAccountId = target.id
+                            scope.launch(Dispatchers.IO) {
+                                try {
+                                    val res = reconciliationManager.mergeAccounts(sourceAccount.id, target.id)
+                                    withContext(Dispatchers.Main) {
+                                        if (res.isSuccess) {
+                                            snackbarHostState.showSnackbar("Merged into ${target.institutionName ?: "account"} (${res.getOrDefault(0)} transactions updated)")
+                                            if (selectedAccountId == sourceAccount.id) {
+                                                selectedAccountId = target.id
+                                            }
+                                        } else {
+                                            snackbarHostState.showSnackbar("Failed to merge accounts")
+                                        }
+                                        accountToMerge = null
                                     }
-                                } else {
-                                    snackbarHostState.showSnackbar("Failed to merge accounts")
+                                } catch (e: Exception) {
+                                    withContext(Dispatchers.Main) {
+                                        snackbarHostState.showSnackbar("Failed to merge accounts: ${e.message}")
+                                        accountToMerge = null
+                                    }
                                 }
-                                accountToMerge = null
                             }
                         }
                     },
@@ -995,11 +1015,29 @@ fun FinancialAccountsScreen(
                                     confidence = IdentityConfidence.HIGH,
                                     source = AccountSource.USER_CONFIRMED
                                 )
-                                scope.launch {
-                                    reconciliationManager.registerAccount(newAccount)
-                                    snackbarHostState.showSnackbar("Linked $instName ••••$cleanSuffix")
-                                    selectedAccountId = newAccount.id
-                                    showAddAccountDialog = false
+                                scope.launch(Dispatchers.IO) {
+                                    try {
+                                        reconciliationManager.registerAccount(newAccount)
+                                        val backfiller = com.subhashrelangi.arctracker.engine.account.AccountReconciliationBackfiller(
+                                            expenseDao = database.expenseDao(),
+                                            accountRepository = com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository(database.knownFinancialAccountDao())
+                                        )
+                                        val backfillRes = backfiller.backfill()
+                                        val backfilled = backfillRes.reconciledCount
+                                        withContext(Dispatchers.Main) {
+                                            snackbarHostState.showSnackbar(
+                                                if (backfilled > 0) "Linked $instName ••••$cleanSuffix ($backfilled transactions connected)"
+                                                else "Linked $instName ••••$cleanSuffix"
+                                            )
+                                            selectedAccountId = newAccount.id
+                                            showAddAccountDialog = false
+                                        }
+                                    } catch (e: Exception) {
+                                        withContext(Dispatchers.Main) {
+                                            snackbarHostState.showSnackbar("Failed to add account: ${e.message}")
+                                            showAddAccountDialog = false
+                                        }
+                                    }
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
