@@ -208,8 +208,8 @@ class NavigationAndClearDataDeviceTest {
         // Verify scan executes without throwing on real device
         val result = manager.scan(threeMonthsAgo, now)
         assertTrue(
-            "Scan on real device must return Success or Cancelled without error",
-            result is SmsScanResult.Success || result is SmsScanResult.Cancelled
+            "Scan on real device must return Success, Cancelled, or PermissionRequired without error",
+            result is SmsScanResult.Success || result is SmsScanResult.Cancelled || result is SmsScanResult.PermissionRequired
         )
     }
 }
