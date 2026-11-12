@@ -13,13 +13,22 @@ android {
         applicationId = "com.subhashrelangi.arctracker"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "2.4"
+        versionCode = 9
+        versionName = "1.0.9"
         buildConfigField("String", "GITHUB_VERSION", "\"v${versionName}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+    }
+
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = true
         }
     }
 

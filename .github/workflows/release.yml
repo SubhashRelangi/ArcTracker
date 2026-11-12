@@ -65,12 +65,14 @@ jobs:
           fi
 
       - name: Build and Test Release Artifacts
-        run: ./gradlew testDebugUnitTest assembleRelease bundleRelease
+        run: ./gradlew testDebugUnitTest assembleRelease
 
       - name: Verify Build Artifacts
         run: |
-          test -f "app/build/outputs/apk/release/app-release.apk" || { echo "Release APK not found"; exit 1; }
-          test -f "app/build/outputs/bundle/release/app-release.aab" || { echo "Release AAB not found"; exit 1; }
+          test -f "app/build/outputs/apk/release/app-arm64-v8a-release.apk" || { echo "arm64-v8a APK not found"; exit 1; }
+          test -f "app/build/outputs/apk/release/app-armeabi-v7a-release.apk" || { echo "armeabi-v7a APK not found"; exit 1; }
+          test -f "app/build/outputs/apk/release/app-x86_64-release.apk" || { echo "x86_64 APK not found"; exit 1; }
+          test -f "app/build/outputs/apk/release/app-universal-release.apk" || { echo "Universal APK not found"; exit 1; }
 
       - name: Verify APK Signature
         run: |
@@ -78,10 +80,43 @@ jobs:
           if [ -n "$SDK_ROOT" ]; then
             APKSIGNER=$(find "$SDK_ROOT/build-tools" -name apksigner -type f 2>/dev/null | sort -V | tail -n 1)
             if [ -n "$APKSIGNER" ] && [ -x "$APKSIGNER" ]; then
-              echo "Verifying signature with $APKSIGNER..."
-              "$APKSIGNER" verify --verbose app/build/outputs/apk/release/app-release.apk
+              for apk in app/build/outputs/apk/release/*.apk; do
+                echo "Verifying signature for $apk with $APKSIGNER..."
+                "$APKSIGNER" verify --verbose "$apk"
+              done
             fi
           fi
+
+      - name: Generate Release Assets Guide
+        run: |
+          python3 -c "
+          import os
+
+          def get_size(path):
+              try:
+                  return f'~{os.path.getsize(path) / (1024 * 1024):.1f}MB'
+              except Exception:
+                  return 'N/A'
+
+          arm64 = get_size('app/build/outputs/apk/release/app-arm64-v8a-release.apk')
+          armv7 = get_size('app/build/outputs/apk/release/app-armeabi-v7a-release.apk')
+          x86_64 = get_size('app/build/outputs/apk/release/app-x86_64-release.apk')
+          univ = get_size('app/build/outputs/apk/release/app-universal-release.apk')
+
+          content = f'''### 📦 Release Assets Guide
+          Download the file according to your need, if ur unsure about your phone, Just download \`app-universal-release.apk\`
+
+          | APK File | Architecture | Target Devices | Size |
+          | :--- | :--- | :--- | :--- |
+          | \`app-arm64-v8a-release.apk\` | **64-bit ARM** | Recommended: 95%+ of modern Android phones | {arm64} |
+          | \`app-armeabi-v7a-release.apk\` | **32-bit ARM** | Older 32-bit Android devices | {armv7} |
+          | \`app-x86_64-release.apk\` | **64-bit x86** | Android Emulators, ChromeOS, PCs | {x86_64} |
+          | \`app-universal-release.apk\` | **Universal** | All devices (fallback all-in-one) | {univ} |
+          '''
+
+          with open('release_body.md', 'w') as f:
+              f.write(content.strip() + '\n')
+          "
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -90,12 +125,15 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: ArcTracker ${{ github.ref_name }}
+          body_path: release_body.md
           generate_release_notes: true
           draft: false
           prerelease: false
           files: |
-            app/build/outputs/apk/release/app-release.apk
-            app/build/outputs/bundle/release/app-release.aab
+            app/build/outputs/apk/release/app-arm64-v8a-release.apk
+            app/build/outputs/apk/release/app-armeabi-v7a-release.apk
+            app/build/outputs/apk/release/app-x86_64-release.apk
+            app/build/outputs/apk/release/app-universal-release.apk
 
       - name: Clean up Keystore
         if: always()
