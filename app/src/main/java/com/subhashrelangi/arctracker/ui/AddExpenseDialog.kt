@@ -62,6 +62,7 @@ import com.subhashrelangi.arctracker.data.BuiltInCategories
 import com.subhashrelangi.arctracker.data.CategoryVisuals
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.TransactionCategory
+import com.subhashrelangi.arctracker.engine.account.InstrumentType
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -424,8 +425,8 @@ fun AddExpenseDialog(
                                             .weight(0.7f)
                                             .height(52.dp),
                                         shape = CircleShape,
-                                        color = if (ArcColors.isDark) Color(0xFF450A0A) else Color(0xFFFEE2E2),
-                                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF991B1B) else Color(0xFFFECACA))
+                                        color = ArcColors.DangerContainer,
+                                        border = BorderStroke(1.dp, ArcColors.DangerBorder)
                                     ) {
                                         Row(
                                             modifier = Modifier.fillMaxSize(),
@@ -899,10 +900,11 @@ fun AddExpenseDialog(
                                         color = slateSub
                                     )
                                     val displayName = when {
-                                        selectedAccountName != null && selectedAccountSuffix != null ->
+                                        selectedAccountName != null && !selectedAccountSuffix.isNullOrBlank() ->
                                             "$selectedAccountName ••$selectedAccountSuffix"
-                                        selectedAccountSuffix != null -> "Account ••$selectedAccountSuffix"
-                                        else -> "Cash / Wallet"
+                                        selectedAccountName != null -> selectedAccountName!!
+                                        !selectedAccountSuffix.isNullOrBlank() -> "Account ••$selectedAccountSuffix"
+                                        else -> "Select Account"
                                     }
                                     Text(
                                         text = displayName,
@@ -1601,7 +1603,12 @@ private fun ArcAccountPickerDialog(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Outlined.AccountBalance,
+                                            imageVector = when (acc.instrumentType) {
+                                                InstrumentType.CARD -> Icons.Outlined.CreditCard
+                                                InstrumentType.WALLET -> Icons.Outlined.AccountBalanceWallet
+                                                InstrumentType.CASH -> Icons.Outlined.Payments
+                                                else -> Icons.Outlined.AccountBalance
+                                            },
                                             contentDescription = null,
                                             tint = if (isSelected) {
                                                 if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
@@ -1621,8 +1628,13 @@ private fun ArcAccountPickerDialog(
                                                 if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
                                             } else slateTitle
                                         )
+                                        val subtitleText = when (acc.instrumentType) {
+                                            InstrumentType.WALLET -> "Digital Wallet"
+                                            InstrumentType.CASH -> "Cash in Hand"
+                                            else -> if (acc.accountSuffix.isNotBlank()) "Ending in ••${acc.accountSuffix}" else "Linked Account"
+                                        }
                                         Text(
-                                            text = "Ending in ••${acc.accountSuffix}",
+                                            text = subtitleText,
                                             fontSize = 11.5.sp,
                                             color = slateSub
                                         )

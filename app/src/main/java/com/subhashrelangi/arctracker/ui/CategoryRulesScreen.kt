@@ -301,16 +301,16 @@ fun CategoryRulesScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             color = if (isHighConfidence) {
-                                if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
+                                if (ArcColors.isDark) ArcColors.SuccessContainer else Color(0xFFECFDF5)
                             } else {
-                                if (ArcColors.isDark) Color(0xFF451A03) else Color(0xFFFFFBEB)
+                                if (ArcColors.isDark) ArcColors.WarningAmberBg else Color(0xFFFFFBEB)
                             },
                             border = BorderStroke(
                                 1.dp,
                                 if (isHighConfidence) {
-                                    if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)
+                                    if (ArcColors.isDark) ArcColors.SuccessBorder else Color(0xFFA7F3D0)
                                 } else {
-                                    if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFDE68A)
+                                    if (ArcColors.isDark) ArcColors.WarningAmberBorder else Color(0xFFFDE68A)
                                 }
                             )
                         ) {
@@ -321,7 +321,7 @@ fun CategoryRulesScreen(
                                 val statusColor = if (isHighConfidence) {
                                     if (ArcColors.isDark) Color(0xFF34D399) else emeraldPrimary
                                 } else {
-                                    if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFFB45309)
+                                    if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309)
                                 }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,

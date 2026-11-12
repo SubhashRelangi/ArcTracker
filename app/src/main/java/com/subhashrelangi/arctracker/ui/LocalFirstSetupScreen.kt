@@ -1,6 +1,7 @@
 package com.subhashrelangi.arctracker.ui
 
 import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -168,6 +169,10 @@ fun LocalFirstSetupScreen(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
         isNotificationGranted = NotificationPermissionHelper.isNotificationAccessGranted(context)
+    }
+
+    BackHandler(enabled = onBackClick != null) {
+        onBackClick?.invoke()
     }
 
     Box(

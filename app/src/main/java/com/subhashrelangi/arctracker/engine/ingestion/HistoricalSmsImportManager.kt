@@ -461,15 +461,19 @@ class HistoricalSmsImportManager(
                     !item.accountIdentity.cardSuffix.isNullOrBlank() -> InstrumentType.CARD
                     else -> InstrumentType.BANK_ACCOUNT
                 }
-                val accountId = if (safeSuffix != null) {
-                    com.subhashrelangi.arctracker.data.KnownFinancialAccount.generateId(
-                        item.accountIdentity.institutionId,
-                        instrumentType,
-                        safeSuffix
-                    )
-                } else null
+                val accountId = when (instrumentType) {
+                    InstrumentType.WALLET -> item.accountIdentity.institutionId?.let { "${it}_wallet" } ?: "wallet_unknown"
+                    InstrumentType.CASH -> "cash_liquid"
+                    else -> if (safeSuffix != null) {
+                        com.subhashrelangi.arctracker.data.KnownFinancialAccount.generateId(
+                            item.accountIdentity.institutionId,
+                            instrumentType,
+                            safeSuffix
+                        )
+                    } else null
+                }
 
-                val enrichment = if (accountId != null && safeSuffix != null) {
+                val enrichment = if (accountId != null) {
                     AccountEnrichment(
                         accountId = accountId,
                         institutionId = item.accountIdentity.institutionId,

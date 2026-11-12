@@ -1701,7 +1701,7 @@ private fun BankAccountReviewCard(
                         .clip(RoundedCornerShape(10.dp))
                         .background(
                             if (isUnidentified) {
-                                if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
+                                ArcColors.WarningAmberBg
                             } else highlightSurface
                         ),
                     contentAlignment = Alignment.Center
@@ -1709,6 +1709,8 @@ private fun BankAccountReviewCard(
                     val icon = when {
                         isUnidentified -> Icons.Outlined.HelpOutline
                         group.identity.instrumentType == InstrumentType.CARD -> Icons.Outlined.CreditCard
+                        group.identity.instrumentType == InstrumentType.WALLET -> Icons.Outlined.AccountBalanceWallet
+                        group.identity.instrumentType == InstrumentType.CASH -> Icons.Outlined.Payments
                         else -> Icons.Outlined.AccountBalance
                     }
                     val iconTint = if (isUnidentified) Color(0xFFF59E0B) else slateTitle
@@ -1908,7 +1910,7 @@ private fun RealScannedItemCard(
                     Box(
                         modifier = Modifier
                             .background(
-                                if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7),
+                                ArcColors.WarningAmberBg,
                                 CircleShape
                             )
                             .padding(horizontal = 6.dp, vertical = 2.dp)

@@ -40,7 +40,7 @@ import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
 import com.subhashrelangi.arctracker.engine.account.AccountReconciliationManager
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
-import com.subhashrelangi.arctracker.ui.review.ArcColors
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -568,6 +568,7 @@ fun UnresolvedTransactionsScreen(
             availableAccounts = candidateAccounts,
             onDismiss = { singleTransactionToAssign = null },
             onConfirm = { account ->
+                singleTransactionToAssign = null
                 scope.launch {
                     val result = reconciliationManager.assignAccount(expense.id, account.id)
                     if (result.isSuccess) {
@@ -575,7 +576,6 @@ fun UnresolvedTransactionsScreen(
                     } else {
                         snackbarHostState.showSnackbar("Failed: ${result.exceptionOrNull()?.message}")
                     }
-                    singleTransactionToAssign = null
                 }
             }
         )
@@ -591,16 +591,16 @@ fun UnresolvedTransactionsScreen(
             onDismiss = { showBulkAssignDialog = false },
             onConfirm = { account ->
                 val ids = selectedExpenseIds.toList()
+                showBulkAssignDialog = false
+                selectedExpenseIds = emptySet()
+                isSelectionMode = false
                 scope.launch {
                     val result = reconciliationManager.bulkAssign(ids, account.id)
                     if (result.isSuccess) {
                         snackbarHostState.showSnackbar("Linked ${result.getOrDefault(0)} transactions to ${account.institutionName ?: "account"}")
-                        selectedExpenseIds = emptySet()
-                        isSelectionMode = false
                     } else {
                         snackbarHostState.showSnackbar("Bulk assign failed: ${result.exceptionOrNull()?.message}")
                     }
-                    showBulkAssignDialog = false
                 }
             }
         )
@@ -777,8 +777,8 @@ fun UnresolvedTransactionCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFFEF3C7).copy(alpha = 0.2f))
-                            .border(BorderStroke(1.dp, Color(0xFFFDE68A).copy(alpha = 0.4f)), RoundedCornerShape(6.dp))
+                            .background(ArcColors.WarningAmberBg)
+                            .border(BorderStroke(1.dp, ArcColors.WarningAmberBorder), RoundedCornerShape(6.dp))
                             .padding(horizontal = 7.dp, vertical = 3.dp),
                         contentAlignment = Alignment.Center
                     ) {

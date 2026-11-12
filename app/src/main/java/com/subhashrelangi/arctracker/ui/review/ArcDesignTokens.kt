@@ -40,6 +40,10 @@ object ArcColors {
     val Credit: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.credit
     val Warning: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warning
     val WarningLight: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningLight
+    val WarningAmber: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningAmber
+    val WarningAmberDot: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningAmberDot
+    val WarningAmberBg: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningAmberBg
+    val WarningAmberBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningAmberBorder
     val WarningContainer: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningContainer
     val WarningBorder: Color @Composable @ReadOnlyComposable get() = LocalArcColors.current.warningBorder
 

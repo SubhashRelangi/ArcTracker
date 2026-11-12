@@ -785,10 +785,10 @@ fun IgnoreRulesScreen(
             }
 
             // 4. Auditor's Best Practice Notice (Amber Callout)
-            val calloutBg = if (ArcColors.isDark) Color(0xFF2E1C05) else Color(0xFFFFFBEB)
-            val calloutBorder = if (ArcColors.isDark) Color(0xFF452B09) else Color(0xFFFEF3C7)
-            val calloutTitle = if (ArcColors.isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
-            val calloutText = if (ArcColors.isDark) Color(0xFFFCD34D) else Color(0xFF78350F)
+            val calloutBg = if (ArcColors.isDark) ArcColors.WarningAmberBg else Color(0xFFFFFBEB)
+            val calloutBorder = if (ArcColors.isDark) ArcColors.WarningAmberBorder else Color(0xFFFEF3C7)
+            val calloutTitle = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFF92400E)
+            val calloutText = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF78350F)
 
             Row(
                 modifier = Modifier

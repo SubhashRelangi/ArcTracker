@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -59,6 +60,7 @@ import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.ripple.rememberRipple
@@ -2192,7 +2194,7 @@ private fun SmsImportCompleteContent(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp),
                     color = CardBg,
-                    border = BorderStroke(1.dp, if (reviewCount > 0) (if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFDE68A)) else CardBorderUnselected)
+                    border = BorderStroke(1.dp, if (reviewCount > 0) ArcColors.WarningAmberBorder else CardBorderUnselected)
                 ) {
                     Column(
                         modifier = Modifier.padding(13.dp)
@@ -2215,7 +2217,7 @@ private fun SmsImportCompleteContent(
                                     .clip(RoundedCornerShape(7.dp))
                                     .background(
                                         if (reviewCount > 0) {
-                                            if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
+                                            ArcColors.WarningAmberBg
                                         } else CardSurface
                                     ),
                                 contentAlignment = Alignment.Center
@@ -2309,12 +2311,12 @@ private fun SmsImportCompleteContent(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 color = if (reviewCount > 0) {
-                    if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.35f) else Color(0xFFFFFBEB)
+                    ArcColors.WarningAmberBg
                 } else CardSurface,
                 border = BorderStroke(
                     1.dp,
                     if (reviewCount > 0) {
-                        if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFDE68A)
+                        ArcColors.WarningAmberBorder
                     } else CardBorder
                 )
             ) {
@@ -2483,7 +2485,7 @@ private fun AccountGroupCard(
                     .clip(RoundedCornerShape(10.dp))
                     .background(
                         if (isUnidentified) {
-                            if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7)
+                            ArcColors.WarningAmberBg
                         } else CardSurface
                     ),
                 contentAlignment = Alignment.Center
@@ -2491,6 +2493,8 @@ private fun AccountGroupCard(
                 val icon = when {
                     isUnidentified -> Icons.Outlined.WarningAmber
                     group.identity.instrumentType == InstrumentType.CARD -> Icons.Outlined.CreditCard
+                    group.identity.instrumentType == InstrumentType.WALLET -> Icons.Outlined.AccountBalanceWallet
+                    group.identity.instrumentType == InstrumentType.CASH -> Icons.Outlined.Payments
                     else -> Icons.Outlined.AccountBalance
                 }
                 val iconTint = if (isUnidentified) {
@@ -2536,9 +2540,9 @@ private fun AccountGroupCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(if (ArcColors.isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7))
+                                .background(ArcColors.WarningAmberBg)
                                 .border(
-                                    BorderStroke(0.8.dp, if (ArcColors.isDark) Color(0xFF92400E) else Color(0xFFFDE68A)),
+                                    BorderStroke(0.8.dp, ArcColors.WarningAmberBorder),
                                     RoundedCornerShape(4.dp)
                                 )
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
@@ -2562,6 +2566,20 @@ private fun AccountGroupCard(
                             "${group.transactionCount} transactions require review"
                         } else {
                             "$selectedCountInGroup of ${group.transactionCount} require review"
+                        }
+                    }
+                    group.identity.instrumentType == InstrumentType.WALLET -> {
+                        if (group.transactionCount == selectedCountInGroup || selectedCountInGroup == 0) {
+                            "Digital Wallet • ${group.transactionCount} transactions"
+                        } else {
+                            "Digital Wallet • $selectedCountInGroup of ${group.transactionCount} selected"
+                        }
+                    }
+                    group.identity.instrumentType == InstrumentType.CASH -> {
+                        if (group.transactionCount == selectedCountInGroup || selectedCountInGroup == 0) {
+                            "Liquid Cash • ${group.transactionCount} transactions"
+                        } else {
+                            "Liquid Cash • $selectedCountInGroup of ${group.transactionCount} selected"
                         }
                     }
                     group.identity.instrumentType == InstrumentType.CARD -> {

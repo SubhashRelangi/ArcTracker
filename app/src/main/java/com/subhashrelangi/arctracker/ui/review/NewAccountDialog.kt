@@ -102,36 +102,6 @@ fun NewAccountDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Last 4 digits / identifier
-                Text(
-                    text = "Suffix / Identifier (Optional)",
-                    color = ArcColors.TextMuted,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = accountSuffix,
-                    onValueChange = {
-                        accountSuffix = it
-                        errorMessage = null
-                    },
-                    placeholder = { Text("e.g. 4821 or CASH", color = ArcColors.TextMuted, fontSize = 13.sp) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = ArcColors.TextPrimary,
-                        unfocusedTextColor = ArcColors.TextPrimary,
-                        focusedBorderColor = ArcColors.Primary,
-                        unfocusedBorderColor = ArcColors.Border,
-                        focusedContainerColor = ArcColors.SurfaceHighlight,
-                        unfocusedContainerColor = ArcColors.SurfaceHighlight
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // Type selector
@@ -144,12 +114,13 @@ fun NewAccountDialog(
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     val types = listOf(
                         InstrumentType.BANK_ACCOUNT to "Bank",
                         InstrumentType.CARD to "Card",
-                        InstrumentType.UNKNOWN to "Wallet"
+                        InstrumentType.WALLET to "Wallet",
+                        InstrumentType.CASH to "Cash"
                     )
                     types.forEach { (type, label) ->
                         val isSelected = selectedType == type
@@ -167,7 +138,7 @@ fun NewAccountDialog(
                             Text(
                                 text = label,
                                 color = if (isSelected) ArcColors.Primary else ArcColors.TextMuted,
-                                fontSize = 12.sp,
+                                fontSize = 11.5.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 modifier = Modifier
                                     .padding(vertical = 8.dp)
@@ -175,6 +146,40 @@ fun NewAccountDialog(
                             )
                         }
                     }
+                }
+
+                val isSuffixNeeded = selectedType == InstrumentType.BANK_ACCOUNT || selectedType == InstrumentType.CARD
+
+                if (isSuffixNeeded) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Suffix / Last 4 Digits",
+                        color = ArcColors.TextMuted,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = accountSuffix,
+                        onValueChange = {
+                            if (it.length <= 4 && it.all { char -> char.isDigit() }) {
+                                accountSuffix = it
+                                errorMessage = null
+                            }
+                        },
+                        placeholder = { Text("e.g. 4821", color = ArcColors.TextMuted, fontSize = 13.sp) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = ArcColors.TextPrimary,
+                            unfocusedTextColor = ArcColors.TextPrimary,
+                            focusedBorderColor = ArcColors.Primary,
+                            unfocusedBorderColor = ArcColors.Border,
+                            focusedContainerColor = ArcColors.SurfaceHighlight,
+                            unfocusedContainerColor = ArcColors.SurfaceHighlight
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
                 if (errorMessage != null) {
@@ -191,13 +196,17 @@ fun NewAccountDialog(
                 // Save button
                 Button(
                     onClick = {
-                        val trimmedName = accountName.trim()
-                        if (trimmedName.isBlank()) {
+                        val trimmedName = accountName.trim().ifBlank {
+                            if (selectedType == InstrumentType.CASH) "Liquid Cash" else ""
+                        }
+                        if (trimmedName.isBlank() && selectedType != InstrumentType.CASH) {
                             errorMessage = "Account name is required"
                             return@Button
                         }
-                        val cleanSuffix = accountSuffix.trim().ifBlank {
-                            if (selectedType == InstrumentType.UNKNOWN) "WLT" else "0000"
+                        val cleanSuffix = if (isSuffixNeeded) accountSuffix.trim() else ""
+                        if (isSuffixNeeded && cleanSuffix.length < 2) {
+                            errorMessage = "Please enter last 4 digits suffix"
+                            return@Button
                         }
                         val newAccount = KnownFinancialAccount.create(
                             institutionId = trimmedName.lowercase().replace(" ", "_"),

@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.service.*
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
-import com.subhashrelangi.arctracker.ui.review.ArcColors
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -512,13 +512,13 @@ fun HistoricalRuleApplicationScreen(
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFFEF3C7)),
+                                .background(ArcColors.WarningAmberBg),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.WarningAmber,
                                 contentDescription = null,
-                                tint = Color(0xFFB45309),
+                                tint = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -724,9 +724,9 @@ private fun SummaryHeader(
                 MetricChip(
                     label = "Protected",
                     count = preview.protectedCount,
-                    textColor = Color(0xFFB45309),
-                    bgColor = Color(0xFFFEF3C7),
-                    borderColor = Color(0xFFFDE68A),
+                    textColor = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
+                    bgColor = ArcColors.WarningAmberBg,
+                    borderColor = ArcColors.WarningAmberBorder,
                     modifier = Modifier.weight(1f)
                 )
                 MetricChip(
@@ -943,16 +943,16 @@ private fun ProtectedTransactionCard(item: HistoricalReassignmentPreviewItem) {
             ) {
                 CategoryPill(
                     name = item.currentCategoryName ?: "Uncategorized",
-                    backgroundColor = Color(0xFFFFFBEB),
-                    borderColor = Color(0xFFFDE68A),
-                    textColor = Color(0xFFB45309)
+                    backgroundColor = ArcColors.WarningAmberBg,
+                    borderColor = ArcColors.WarningAmberBorder,
+                    textColor = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309)
                 )
 
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFFEF3C7))
-                        .border(BorderStroke(1.dp, Color(0xFFFDE68A)), RoundedCornerShape(8.dp))
+                        .background(ArcColors.WarningAmberBg)
+                        .border(BorderStroke(1.dp, ArcColors.WarningAmberBorder), RoundedCornerShape(8.dp))
                         .padding(horizontal = 7.dp, vertical = 3.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -963,14 +963,14 @@ private fun ProtectedTransactionCard(item: HistoricalReassignmentPreviewItem) {
                         Icon(
                             imageVector = Icons.Filled.Shield,
                             contentDescription = null,
-                            tint = Color(0xFFB45309),
+                            tint = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
                             modifier = Modifier.size(12.dp)
                         )
                         Text(
                             text = "User Manual Assignment (Protected)",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFB45309)
+                            color = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309)
                         )
                     }
                 }

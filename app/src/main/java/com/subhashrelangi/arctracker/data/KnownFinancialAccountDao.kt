@@ -42,6 +42,24 @@ interface KnownFinancialAccountDao {
     """)
     fun findBySuffix(accountSuffix: String): List<KnownFinancialAccount>
 
+    @Query("""
+        SELECT * FROM known_financial_accounts 
+        WHERE instrumentType = :instrumentType 
+        ORDER BY updatedAt DESC
+    """)
+    fun findByInstrumentType(instrumentType: InstrumentType): List<KnownFinancialAccount>
+
+    @Query("""
+        SELECT * FROM known_financial_accounts 
+        WHERE ((:institutionId IS NULL AND institutionId IS NULL) OR institutionId = :institutionId) 
+          AND instrumentType = :instrumentType 
+        LIMIT 1
+    """)
+    fun findByInstitutionAndType(
+        institutionId: String?,
+        instrumentType: InstrumentType
+    ): KnownFinancialAccount?
+
     @Query("SELECT * FROM known_financial_accounts ORDER BY updatedAt DESC")
     fun getAll(): List<KnownFinancialAccount>
 

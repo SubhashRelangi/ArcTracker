@@ -351,7 +351,9 @@ class AccountReconciliationManager(
             return when (instrumentType) {
                 InstrumentType.BANK_ACCOUNT -> "Bank account ••••$suffix"
                 InstrumentType.CARD -> "Card ••••$suffix"
-                InstrumentType.UNKNOWN -> "Account ••••$suffix"
+                InstrumentType.WALLET -> if (suffix.isNotBlank()) "Wallet ••••$suffix" else "Digital Wallet"
+                InstrumentType.CASH -> "Liquid Cash"
+                InstrumentType.UNKNOWN -> if (suffix.isNotBlank()) "Account ••••$suffix" else "Account"
             }
         }
 

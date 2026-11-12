@@ -274,11 +274,15 @@ fun HomeScreenRedesign(
                 val label = when (acct.instrumentType) {
                     InstrumentType.CARD -> "CARD"
                     InstrumentType.BANK_ACCOUNT -> "BANK"
+                    InstrumentType.WALLET -> "WALLET"
+                    InstrumentType.CASH -> "CASH"
                     else -> "ACCOUNT"
                 }
                 val cardTitle = when (acct.instrumentType) {
                     InstrumentType.CARD -> "$bName Card"
                     InstrumentType.BANK_ACCOUNT -> "$bName Savings"
+                    InstrumentType.WALLET -> bName
+                    InstrumentType.CASH -> bName
                     else -> "$bName Account"
                 }
                 WalletCardModel(

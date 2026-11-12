@@ -416,13 +416,13 @@ fun SettingsScreen(
                     if (showUnresolved) {
                         SettingsItemRow(
                             icon = Icons.Outlined.PendingActions,
-                            iconBgColor = Color(0xFFFEF3C7),
-                            iconTint = Color(0xFFD97706),
+                            iconBgColor = ArcColors.WarningAmberBg,
+                            iconTint = ArcColors.WarningAmber,
                             title = "Unresolved Transactions",
                             subtitle = "Transactions pending account or category linking",
                             badgeText = if (pendingCount > 0) "$pendingCount pending" else null,
-                            badgeBgColor = Color(0xFFFEF3C7),
-                            badgeTextColor = Color(0xFFB45309),
+                            badgeBgColor = ArcColors.WarningAmberBg,
+                            badgeTextColor = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
                             onClick = { onNavigate("UnresolvedTransactions") }
                         )
                     }

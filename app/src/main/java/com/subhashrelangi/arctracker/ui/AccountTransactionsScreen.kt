@@ -265,10 +265,11 @@ fun AccountTransactionsScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = if (account.instrumentType == InstrumentType.CARD) {
-                                    Icons.Outlined.CreditCard
-                                } else {
-                                    Icons.Outlined.AccountBalance
+                                imageVector = when (account.instrumentType) {
+                                    InstrumentType.CARD -> Icons.Outlined.CreditCard
+                                    InstrumentType.WALLET -> Icons.Outlined.AccountBalanceWallet
+                                    InstrumentType.CASH -> Icons.Outlined.Payments
+                                    else -> Icons.Outlined.AccountBalance
                                 },
                                 contentDescription = null,
                                 tint = emeraldPrimary,
@@ -584,18 +585,18 @@ fun AccountTransactionsScreen(
                         onClick = {
                             val ids = selectedExpenseIds.toList()
                             val destId = targetNew.id
+                            showBulkReassignConfirmDialog = false
+                            showBulkReassignPicker = false
+                            bulkNewAccountSelected = null
+                            selectedExpenseIds.clear()
+                            isSelectionMode = false
                             scope.launch {
                                 val result = reconciliationManager.bulkReassign(ids, destId)
                                 if (result.isSuccess) {
                                     snackbarHostState.showSnackbar("Reassigned ${result.getOrDefault(0)} transactions to ${targetNew.institutionName ?: "account"}")
-                                    selectedExpenseIds.clear()
-                                    isSelectionMode = false
                                 } else {
                                     snackbarHostState.showSnackbar("Bulk reassignment failed: ${result.exceptionOrNull()?.message}")
                                 }
-                                showBulkReassignConfirmDialog = false
-                                showBulkReassignPicker = false
-                                bulkNewAccountSelected = null
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
@@ -639,16 +640,16 @@ fun AccountTransactionsScreen(
                 Button(
                     onClick = {
                         val ids = selectedExpenseIds.toList()
+                        showBulkUnlinkConfirmDialog = false
+                        selectedExpenseIds.clear()
+                        isSelectionMode = false
                         scope.launch {
                             val result = reconciliationManager.bulkUnlink(ids)
                             if (result.isSuccess) {
                                 snackbarHostState.showSnackbar("Unlinked ${result.getOrDefault(0)} transactions")
-                                selectedExpenseIds.clear()
-                                isSelectionMode = false
                             } else {
                                 snackbarHostState.showSnackbar("Failed to unlink: ${result.exceptionOrNull()?.message}")
                             }
-                            showBulkUnlinkConfirmDialog = false
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
@@ -832,6 +833,9 @@ fun AccountTransactionsScreen(
                             onClick = {
                                 val targetExpense = expense
                                 val destAccount = targetNewAccount
+                                showSingleReassignConfirmDialog = false
+                                expenseToReassign = null
+                                singleNewAccountSelected = null
                                 scope.launch {
                                     val result = reconciliationManager.reassignAccount(targetExpense.id, destAccount.id)
                                     if (result.isSuccess) {
@@ -839,9 +843,6 @@ fun AccountTransactionsScreen(
                                     } else {
                                         snackbarHostState.showSnackbar("Reassignment failed: ${result.exceptionOrNull()?.message}")
                                     }
-                                    showSingleReassignConfirmDialog = false
-                                    expenseToReassign = null
-                                    singleNewAccountSelected = null
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
@@ -886,6 +887,7 @@ fun AccountTransactionsScreen(
                 Button(
                     onClick = {
                         val targetExpense = expense
+                        expenseToUnlink = null
                         scope.launch {
                             val result = reconciliationManager.unlinkAccount(targetExpense.id)
                             if (result.isSuccess) {
@@ -893,7 +895,6 @@ fun AccountTransactionsScreen(
                             } else {
                                 snackbarHostState.showSnackbar("Failed to unlink: ${result.exceptionOrNull()?.message}")
                             }
-                            expenseToUnlink = null
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
