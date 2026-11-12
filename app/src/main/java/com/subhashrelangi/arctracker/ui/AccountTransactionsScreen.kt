@@ -265,10 +265,11 @@ fun AccountTransactionsScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = if (account.instrumentType == InstrumentType.CARD) {
-                                    Icons.Outlined.CreditCard
-                                } else {
-                                    Icons.Outlined.AccountBalance
+                                imageVector = when (account.instrumentType) {
+                                    InstrumentType.CARD -> Icons.Outlined.CreditCard
+                                    InstrumentType.WALLET -> Icons.Outlined.AccountBalanceWallet
+                                    InstrumentType.CASH -> Icons.Outlined.Payments
+                                    else -> Icons.Outlined.AccountBalance
                                 },
                                 contentDescription = null,
                                 tint = emeraldPrimary,

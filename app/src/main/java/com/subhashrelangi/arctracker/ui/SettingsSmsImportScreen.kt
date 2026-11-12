@@ -1709,6 +1709,8 @@ private fun BankAccountReviewCard(
                     val icon = when {
                         isUnidentified -> Icons.Outlined.HelpOutline
                         group.identity.instrumentType == InstrumentType.CARD -> Icons.Outlined.CreditCard
+                        group.identity.instrumentType == InstrumentType.WALLET -> Icons.Outlined.AccountBalanceWallet
+                        group.identity.instrumentType == InstrumentType.CASH -> Icons.Outlined.Payments
                         else -> Icons.Outlined.AccountBalance
                     }
                     val iconTint = if (isUnidentified) Color(0xFFF59E0B) else slateTitle

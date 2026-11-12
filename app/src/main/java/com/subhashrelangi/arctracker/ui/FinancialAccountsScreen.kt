@@ -9,7 +9,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
+import com.subhashrelangi.arctracker.engine.account.WalletProviderRegistry
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -764,7 +767,12 @@ fun FinancialAccountsScreen(
         var bankNameInput by remember { mutableStateOf("") }
         var suffixInput by remember { mutableStateOf("") }
         var selectedType by remember { mutableStateOf(InstrumentType.BANK_ACCOUNT) }
+        var walletProviderId by remember { mutableStateOf("") }
         var isError by remember { mutableStateOf(false) }
+
+        val installedWallets = remember(context) { WalletProviderRegistry.getInstalledWallets(context) }
+        val allWallets = remember { WalletProviderRegistry.getAllSupportedWallets() }
+        val displayWallets = if (installedWallets.isNotEmpty()) installedWallets else allWallets
 
         Dialog(
             onDismissRequest = { showAddAccountDialog = false }
@@ -834,119 +842,35 @@ fun FinancialAccountsScreen(
                         }
                     }
 
-                    Text(
-                        text = "Register an account to automatically match incoming SMS and banking notifications offline.",
-                        fontSize = 11.5.sp,
-                        color = slateSub,
-                        lineHeight = 16.sp
-                    )
-
-                    // Input 1: Bank / Issuer Name
-                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    // Instrument Type Selector (4 Types: Bank, Card, Wallet, Cash)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            text = "Bank or Issuer Name",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = slateTitle
-                        )
-                        OutlinedTextField(
-                            value = bankNameInput,
-                            onValueChange = {
-                                bankNameInput = it
-                                if (isError) isError = false
-                            },
-                            placeholder = {
-                                Text("e.g. HDFC Bank, SBI, ICICI", fontSize = 12.5.sp, color = slateSub)
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.AccountBalance,
-                                    contentDescription = null,
-                                    tint = slateSub,
-                                    modifier = Modifier.size(17.dp)
-                                )
-                            },
-                            singleLine = true,
-                            textStyle = androidx.compose.ui.text.TextStyle(
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = slateTitle
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = ArcColors.SurfaceHighlight,
-                                unfocusedContainerColor = ArcColors.SurfaceHighlight,
-                                focusedBorderColor = ArcColors.Primary,
-                                unfocusedBorderColor = cardBorder
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    // Input 2: Suffix (Last 4 digits)
-                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text(
-                            text = "Account / Card Suffix (Last 4 Digits)",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = slateTitle
-                        )
-                        OutlinedTextField(
-                            value = suffixInput,
-                            onValueChange = {
-                                if (it.length <= 4 && it.all { char -> char.isDigit() }) {
-                                    suffixInput = it
-                                    if (isError) isError = false
-                                }
-                            },
-                            placeholder = {
-                                Text("e.g. 4821", fontSize = 12.5.sp, color = slateSub)
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.CreditCard,
-                                    contentDescription = null,
-                                    tint = slateSub,
-                                    modifier = Modifier.size(17.dp)
-                                )
-                            },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            textStyle = androidx.compose.ui.text.TextStyle(
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = slateTitle
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = ArcColors.SurfaceHighlight,
-                                unfocusedContainerColor = ArcColors.SurfaceHighlight,
-                                focusedBorderColor = ArcColors.Primary,
-                                unfocusedBorderColor = cardBorder
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    // Input 3: Instrument Type Selector
-                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text(
-                            text = "Instrument Type",
+                            text = "Account Category",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = slateTitle
                         )
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             listOf(
-                                Triple("Bank Account", InstrumentType.BANK_ACCOUNT, Icons.Outlined.AccountBalance),
-                                Triple("Credit Card", InstrumentType.CARD, Icons.Outlined.CreditCard)
+                                Triple("Bank", InstrumentType.BANK_ACCOUNT, Icons.Outlined.AccountBalance),
+                                Triple("Card", InstrumentType.CARD, Icons.Outlined.CreditCard),
+                                Triple("Wallet", InstrumentType.WALLET, Icons.Outlined.AccountBalanceWallet),
+                                Triple("Cash", InstrumentType.CASH, Icons.Outlined.Payments)
                             ).forEach { (label, type, icon) ->
                                 val isTypeSelected = selectedType == type
                                 Surface(
-                                    onClick = { selectedType = type },
+                                    onClick = {
+                                        selectedType = type
+                                        isError = false
+                                        if (type == InstrumentType.CASH) {
+                                            bankNameInput = "Liquid Cash"
+                                        } else if (type == InstrumentType.WALLET && bankNameInput == "Liquid Cash") {
+                                            bankNameInput = ""
+                                        }
+                                    },
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(38.dp),
@@ -963,12 +887,12 @@ fun FinancialAccountsScreen(
                                             imageVector = icon,
                                             contentDescription = null,
                                             tint = if (isTypeSelected) Color.White else slateSub,
-                                            modifier = Modifier.size(15.dp)
+                                            modifier = Modifier.size(13.dp)
                                         )
-                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
                                         Text(
                                             text = label,
-                                            fontSize = 12.sp,
+                                            fontSize = 11.5.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = if (isTypeSelected) Color.White else slateTitle
                                         )
@@ -978,9 +902,299 @@ fun FinancialAccountsScreen(
                         }
                     }
 
+                    // Dynamic Fields based on Type
+                    when (selectedType) {
+                        InstrumentType.WALLET -> {
+                            // Suggest installed payment apps as quick chips
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = if (installedWallets.isNotEmpty()) "Installed Payment Apps" else "Supported Wallets",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = slateTitle
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    displayWallets.forEach { provider ->
+                                        val isProviderSelected = walletProviderId == provider.id
+                                        Surface(
+                                            onClick = {
+                                                walletProviderId = provider.id
+                                                bankNameInput = provider.canonicalName
+                                                isError = false
+                                            },
+                                            shape = RoundedCornerShape(999.dp),
+                                            color = if (isProviderSelected) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight,
+                                            border = BorderStroke(1.dp, if (isProviderSelected) ArcColors.Primary else cardBorder)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.AccountBalanceWallet,
+                                                    contentDescription = null,
+                                                    tint = if (isProviderSelected) ArcColors.Primary else slateSub,
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                                Text(
+                                                    text = provider.canonicalName.replace(" Wallet", "").replace(" Balance", ""),
+                                                    fontSize = 12.sp,
+                                                    fontWeight = if (isProviderSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (isProviderSelected) ArcColors.Primary else slateTitle
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Wallet Display Name
+                            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Text(
+                                    text = "Wallet Display Name",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = slateTitle
+                                )
+                                OutlinedTextField(
+                                    value = bankNameInput,
+                                    onValueChange = {
+                                        bankNameInput = it
+                                        if (isError) isError = false
+                                    },
+                                    placeholder = {
+                                        Text("e.g. PhonePe Wallet, Paytm Wallet", fontSize = 12.5.sp, color = slateSub)
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.AccountBalanceWallet,
+                                            contentDescription = null,
+                                            tint = slateSub,
+                                            modifier = Modifier.size(17.dp)
+                                        )
+                                    },
+                                    singleLine = true,
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = slateTitle
+                                    ),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = ArcColors.SurfaceHighlight,
+                                        unfocusedContainerColor = ArcColors.SurfaceHighlight,
+                                        focusedBorderColor = ArcColors.Primary,
+                                        unfocusedBorderColor = cardBorder
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = ArcColors.SurfaceHighlight,
+                                border = BorderStroke(1.dp, cardBorder),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Info,
+                                        contentDescription = null,
+                                        tint = slateSub,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Each payment app has a single wallet. No account number or suffix is needed.",
+                                        fontSize = 11.5.sp,
+                                        color = slateSub,
+                                        lineHeight = 15.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        InstrumentType.CASH -> {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = ArcColors.SurfaceHighlight,
+                                border = BorderStroke(1.dp, cardBorder),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Payments,
+                                        contentDescription = null,
+                                        tint = ArcColors.Primary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "Liquid Cash Account",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = slateTitle
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Used for tracking physical cash-in-hand and daily expenses. No setup or bank details required.",
+                                            fontSize = 11.5.sp,
+                                            color = slateSub,
+                                            lineHeight = 15.sp
+                                        )
+                                    }
+                                }
+                            }
+
+                            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Text(
+                                    text = "Account Name",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = slateTitle
+                                )
+                                OutlinedTextField(
+                                    value = bankNameInput,
+                                    onValueChange = { bankNameInput = it },
+                                    placeholder = {
+                                        Text("Liquid Cash", fontSize = 12.5.sp, color = slateSub)
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Payments,
+                                            contentDescription = null,
+                                            tint = slateSub,
+                                            modifier = Modifier.size(17.dp)
+                                        )
+                                    },
+                                    singleLine = true,
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = slateTitle
+                                    ),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = ArcColors.SurfaceHighlight,
+                                        unfocusedContainerColor = ArcColors.SurfaceHighlight,
+                                        focusedBorderColor = ArcColors.Primary,
+                                        unfocusedBorderColor = cardBorder
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+
+                        else -> {
+                            // Standard Bank or Card
+                            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Text(
+                                    text = if (selectedType == InstrumentType.CARD) "Card Issuer / Bank Name" else "Bank Name",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = slateTitle
+                                )
+                                OutlinedTextField(
+                                    value = bankNameInput,
+                                    onValueChange = {
+                                        bankNameInput = it
+                                        if (isError) isError = false
+                                    },
+                                    placeholder = {
+                                        Text(
+                                            if (selectedType == InstrumentType.CARD) "e.g. HDFC Card, SBI Card, OneCard" else "e.g. HDFC Bank, SBI, ICICI",
+                                            fontSize = 12.5.sp,
+                                            color = slateSub
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = if (selectedType == InstrumentType.CARD) Icons.Outlined.CreditCard else Icons.Outlined.AccountBalance,
+                                            contentDescription = null,
+                                            tint = slateSub,
+                                            modifier = Modifier.size(17.dp)
+                                        )
+                                    },
+                                    singleLine = true,
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = slateTitle
+                                    ),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = ArcColors.SurfaceHighlight,
+                                        unfocusedContainerColor = ArcColors.SurfaceHighlight,
+                                        focusedBorderColor = ArcColors.Primary,
+                                        unfocusedBorderColor = cardBorder
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+
+                            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Text(
+                                    text = if (selectedType == InstrumentType.CARD) "Card Suffix (Last 4 Digits)" else "Account Suffix (Last 4 Digits)",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = slateTitle
+                                )
+                                OutlinedTextField(
+                                    value = suffixInput,
+                                    onValueChange = {
+                                        if (it.length <= 4 && it.all { char -> char.isDigit() }) {
+                                            suffixInput = it
+                                            if (isError) isError = false
+                                        }
+                                    },
+                                    placeholder = {
+                                        Text("e.g. 4821", fontSize = 12.5.sp, color = slateSub)
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.CreditCard,
+                                            contentDescription = null,
+                                            tint = slateSub,
+                                            modifier = Modifier.size(17.dp)
+                                        )
+                                    },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true,
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = slateTitle
+                                    ),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = ArcColors.SurfaceHighlight,
+                                        unfocusedContainerColor = ArcColors.SurfaceHighlight,
+                                        focusedBorderColor = ArcColors.Primary,
+                                        unfocusedBorderColor = cardBorder
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+
                     if (isError) {
                         Text(
-                            text = "Please enter bank name and last 4 digits suffix",
+                            text = if (selectedType == InstrumentType.WALLET) "Please select or enter a wallet name"
+                            else "Please enter name and last 4 digits suffix",
                             color = ArcColors.Danger,
                             fontSize = 11.sp
                         )
@@ -1006,20 +1220,54 @@ fun FinancialAccountsScreen(
 
                         Button(
                             onClick = {
-                                val cleanSuffix = suffixInput.trim()
-                                val instName = bankNameInput.trim()
-                                if (instName.isBlank() || cleanSuffix.length < 2) {
-                                    isError = true
-                                    return@Button
+                                val newAccount = when (selectedType) {
+                                    InstrumentType.WALLET -> {
+                                        val name = bankNameInput.trim().ifBlank {
+                                            WalletProviderRegistry.getProviderById(walletProviderId)?.canonicalName ?: "Digital Wallet"
+                                        }
+                                        if (name.isBlank()) {
+                                            isError = true
+                                            return@Button
+                                        }
+                                        val pid = if (walletProviderId.isNotBlank()) walletProviderId else name.lowercase().replace(" ", "_")
+                                        KnownFinancialAccount.create(
+                                            institutionId = pid,
+                                            institutionName = name,
+                                            accountSuffix = "",
+                                            instrumentType = InstrumentType.WALLET,
+                                            confidence = IdentityConfidence.HIGH,
+                                            source = AccountSource.USER_CONFIRMED
+                                        )
+                                    }
+                                    InstrumentType.CASH -> {
+                                        val name = bankNameInput.trim().ifBlank { "Liquid Cash" }
+                                        KnownFinancialAccount.create(
+                                            institutionId = "cash",
+                                            institutionName = name,
+                                            accountSuffix = "",
+                                            instrumentType = InstrumentType.CASH,
+                                            confidence = IdentityConfidence.HIGH,
+                                            source = AccountSource.USER_CONFIRMED
+                                        )
+                                    }
+                                    else -> {
+                                        val cleanSuffix = suffixInput.trim()
+                                        val instName = bankNameInput.trim()
+                                        if (instName.isBlank() || cleanSuffix.length < 2) {
+                                            isError = true
+                                            return@Button
+                                        }
+                                        KnownFinancialAccount.create(
+                                            institutionId = instName.lowercase().replace(" ", "_"),
+                                            institutionName = instName,
+                                            accountSuffix = cleanSuffix,
+                                            instrumentType = selectedType,
+                                            confidence = IdentityConfidence.HIGH,
+                                            source = AccountSource.USER_CONFIRMED
+                                        )
+                                    }
                                 }
-                                val newAccount = KnownFinancialAccount.create(
-                                    institutionId = instName.lowercase().replace(" ", "_"),
-                                    institutionName = instName,
-                                    accountSuffix = cleanSuffix,
-                                    instrumentType = selectedType,
-                                    confidence = IdentityConfidence.HIGH,
-                                    source = AccountSource.USER_CONFIRMED
-                                )
+
                                 showAddAccountDialog = false
                                 selectedAccountId = newAccount.id
                                 scope.launch(Dispatchers.IO) {
@@ -1031,10 +1279,12 @@ fun FinancialAccountsScreen(
                                         )
                                         val backfillRes = backfiller.backfill()
                                         val backfilled = backfillRes.reconciledCount
+                                        val displayLabel = newAccount.institutionName ?: "Account"
                                         withContext(Dispatchers.Main) {
+                                            val msg = if (newAccount.accountSuffix.isNotBlank()) "$displayLabel ••••${newAccount.accountSuffix}" else displayLabel
                                             snackbarHostState.showSnackbar(
-                                                if (backfilled > 0) "Linked $instName ••••$cleanSuffix ($backfilled transactions connected)"
-                                                else "Linked $instName ••••$cleanSuffix"
+                                                if (backfilled > 0) "Linked $msg ($backfilled transactions connected)"
+                                                else "Linked $msg"
                                             )
                                         }
                                     } catch (e: Exception) {
@@ -1236,8 +1486,10 @@ private fun FinancialAccountThemedCard(
     val (confLabel, confBg, confBorder, confText) = getConfidenceDisplayTokens(account.confidence, isDarkTheme)
 
     val isCard = account.instrumentType == InstrumentType.CARD
-    val iconBg = if (isCard) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight
-    val iconColor = if (isCard) ArcColors.Primary else slateTitle
+    val isWallet = account.instrumentType == InstrumentType.WALLET
+    val isCash = account.instrumentType == InstrumentType.CASH
+    val iconBg = if (isCard || isWallet || isCash) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight
+    val iconColor = if (isCard || isWallet || isCash) ArcColors.Primary else slateTitle
 
     Card(
         modifier = Modifier
@@ -1272,7 +1524,12 @@ private fun FinancialAccountThemedCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (isCard) Icons.Outlined.CreditCard else Icons.Outlined.AccountBalance,
+                        imageVector = when (account.instrumentType) {
+                            InstrumentType.CARD -> Icons.Outlined.CreditCard
+                            InstrumentType.WALLET -> Icons.Outlined.AccountBalanceWallet
+                            InstrumentType.CASH -> Icons.Outlined.Payments
+                            else -> Icons.Outlined.AccountBalance
+                        },
                         contentDescription = null,
                         tint = iconColor,
                         modifier = Modifier.size(22.dp)
@@ -1299,6 +1556,13 @@ private fun FinancialAccountThemedCard(
 
                         Spacer(modifier = Modifier.width(8.dp))
 
+                        val badgeText = when {
+                            account.accountSuffix.isNotBlank() -> "••${account.accountSuffix}"
+                            account.instrumentType == InstrumentType.WALLET -> "WALLET"
+                            account.instrumentType == InstrumentType.CASH -> "CASH"
+                            else -> "ACCOUNT"
+                        }
+
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(999.dp))
@@ -1308,7 +1572,7 @@ private fun FinancialAccountThemedCard(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "••${account.accountSuffix}",
+                                text = badgeText,
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = slateSub
@@ -1498,10 +1762,17 @@ private fun ActiveInspectorThemedCard(
 ) {
     val (displayName, subTitle) = getAccountDisplayTokens(account)
     val isCard = account.instrumentType == InstrumentType.CARD
-    val iconBg = if (isCard) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)) else ArcColors.SurfaceHighlight
-    val iconColor = if (isCard) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)) else ArcColors.TextPrimary
+    val isWallet = account.instrumentType == InstrumentType.WALLET
+    val isCash = account.instrumentType == InstrumentType.CASH
+    val iconBg = if (isCard || isWallet || isCash) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)) else ArcColors.SurfaceHighlight
+    val iconColor = if (isCard || isWallet || isCash) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)) else ArcColors.TextPrimary
 
-    val fingerprint = "${account.institutionId?.uppercase() ?: "ARC"}-${if (account.instrumentType == InstrumentType.CARD) "CC" else "BA"}-${account.accountSuffix.uppercase()}-V2"
+    val fingerprint = "${account.institutionId?.uppercase() ?: "ARC"}-${when (account.instrumentType) {
+        InstrumentType.CARD -> "CC"
+        InstrumentType.WALLET -> "WLT"
+        InstrumentType.CASH -> "CASH"
+        else -> "BA"
+    }}${if (account.accountSuffix.isNotBlank()) "-${account.accountSuffix.uppercase()}" else ""}-V2"
 
     val dateFormat = remember { SimpleDateFormat("hh:mm a", Locale.US) }
     val formattedTime = remember(account.updatedAt) {
@@ -1547,6 +1818,12 @@ private fun ActiveInspectorThemedCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    val inspectorBadge = when {
+                        account.accountSuffix.isNotBlank() -> "#ACC-${account.accountSuffix}"
+                        account.instrumentType == InstrumentType.WALLET -> "#WALLET"
+                        account.instrumentType == InstrumentType.CASH -> "#CASH"
+                        else -> "#ACC"
+                    }
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(999.dp))
@@ -1556,7 +1833,7 @@ private fun ActiveInspectorThemedCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "#ACC-${account.accountSuffix}",
+                            text = inspectorBadge,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = slateSub
@@ -1596,7 +1873,12 @@ private fun ActiveInspectorThemedCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (isCard) Icons.Outlined.CreditCard else Icons.Outlined.AccountBalance,
+                        imageVector = when (account.instrumentType) {
+                            InstrumentType.CARD -> Icons.Outlined.CreditCard
+                            InstrumentType.WALLET -> Icons.Outlined.AccountBalanceWallet
+                            InstrumentType.CASH -> Icons.Outlined.Payments
+                            else -> Icons.Outlined.AccountBalance
+                        },
                         contentDescription = null,
                         tint = iconColor,
                         modifier = Modifier.size(22.dp)
@@ -1796,6 +2078,8 @@ private fun getAccountDisplayTokens(account: KnownFinancialAccount): Pair<String
     val subTitle = when (account.instrumentType) {
         InstrumentType.CARD -> "Credit Card"
         InstrumentType.BANK_ACCOUNT -> "Savings Account"
+        InstrumentType.WALLET -> "Digital Wallet"
+        InstrumentType.CASH -> "Cash in Hand"
         else -> "Financial Account"
     }
 

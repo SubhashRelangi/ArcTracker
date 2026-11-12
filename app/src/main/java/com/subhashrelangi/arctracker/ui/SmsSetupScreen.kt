@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -59,6 +60,7 @@ import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.ripple.rememberRipple
@@ -2491,6 +2493,8 @@ private fun AccountGroupCard(
                 val icon = when {
                     isUnidentified -> Icons.Outlined.WarningAmber
                     group.identity.instrumentType == InstrumentType.CARD -> Icons.Outlined.CreditCard
+                    group.identity.instrumentType == InstrumentType.WALLET -> Icons.Outlined.AccountBalanceWallet
+                    group.identity.instrumentType == InstrumentType.CASH -> Icons.Outlined.Payments
                     else -> Icons.Outlined.AccountBalance
                 }
                 val iconTint = if (isUnidentified) {
@@ -2562,6 +2566,20 @@ private fun AccountGroupCard(
                             "${group.transactionCount} transactions require review"
                         } else {
                             "$selectedCountInGroup of ${group.transactionCount} require review"
+                        }
+                    }
+                    group.identity.instrumentType == InstrumentType.WALLET -> {
+                        if (group.transactionCount == selectedCountInGroup || selectedCountInGroup == 0) {
+                            "Digital Wallet • ${group.transactionCount} transactions"
+                        } else {
+                            "Digital Wallet • $selectedCountInGroup of ${group.transactionCount} selected"
+                        }
+                    }
+                    group.identity.instrumentType == InstrumentType.CASH -> {
+                        if (group.transactionCount == selectedCountInGroup || selectedCountInGroup == 0) {
+                            "Liquid Cash • ${group.transactionCount} transactions"
+                        } else {
+                            "Liquid Cash • $selectedCountInGroup of ${group.transactionCount} selected"
                         }
                     }
                     group.identity.instrumentType == InstrumentType.CARD -> {

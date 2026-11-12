@@ -2814,7 +2814,12 @@ private fun AccountSelectionDialog(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
-                                                imageVector = if (acc.instrumentType == InstrumentType.CARD) Icons.Outlined.CreditCard else Icons.Outlined.AccountBalance,
+                                                imageVector = when (acc.instrumentType) {
+                                                    InstrumentType.CARD -> Icons.Outlined.CreditCard
+                                                    InstrumentType.WALLET -> Icons.Outlined.AccountBalanceWallet
+                                                    InstrumentType.CASH -> Icons.Outlined.Payments
+                                                    else -> Icons.Outlined.AccountBalance
+                                                },
                                                 contentDescription = null,
                                                 tint = if (isSelected) ArcColors.Primary else ArcColors.TextSecondary,
                                                 modifier = Modifier.size(17.dp)
@@ -2830,8 +2835,13 @@ private fun AccountSelectionDialog(
                                                 fontSize = 13.5.sp,
                                                 color = ArcColors.TextPrimary
                                             )
+                                            val subtitle = when (acc.instrumentType) {
+                                                InstrumentType.WALLET -> "Digital Wallet"
+                                                InstrumentType.CASH -> "Cash in Hand"
+                                                else -> if (acc.accountSuffix.isNotBlank()) "Ending in ••${acc.accountSuffix}" else "Linked Account"
+                                            }
                                             Text(
-                                                text = "Ending in ••${acc.accountSuffix}",
+                                                text = subtitle,
                                                 fontSize = 11.5.sp,
                                                 color = ArcColors.TextSecondary
                                             )
