@@ -568,6 +568,7 @@ fun UnresolvedTransactionsScreen(
             availableAccounts = candidateAccounts,
             onDismiss = { singleTransactionToAssign = null },
             onConfirm = { account ->
+                singleTransactionToAssign = null
                 scope.launch {
                     val result = reconciliationManager.assignAccount(expense.id, account.id)
                     if (result.isSuccess) {
@@ -575,7 +576,6 @@ fun UnresolvedTransactionsScreen(
                     } else {
                         snackbarHostState.showSnackbar("Failed: ${result.exceptionOrNull()?.message}")
                     }
-                    singleTransactionToAssign = null
                 }
             }
         )
@@ -591,16 +591,16 @@ fun UnresolvedTransactionsScreen(
             onDismiss = { showBulkAssignDialog = false },
             onConfirm = { account ->
                 val ids = selectedExpenseIds.toList()
+                showBulkAssignDialog = false
+                selectedExpenseIds = emptySet()
+                isSelectionMode = false
                 scope.launch {
                     val result = reconciliationManager.bulkAssign(ids, account.id)
                     if (result.isSuccess) {
                         snackbarHostState.showSnackbar("Linked ${result.getOrDefault(0)} transactions to ${account.institutionName ?: "account"}")
-                        selectedExpenseIds = emptySet()
-                        isSelectionMode = false
                     } else {
                         snackbarHostState.showSnackbar("Bulk assign failed: ${result.exceptionOrNull()?.message}")
                     }
-                    showBulkAssignDialog = false
                 }
             }
         )

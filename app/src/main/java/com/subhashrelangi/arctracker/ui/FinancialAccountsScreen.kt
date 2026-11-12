@@ -581,24 +581,23 @@ fun FinancialAccountsScreen(
                 Button(
                     onClick = {
                         val target = account
+                        accountToDelete = null
+                        if (selectedAccountId == target.id) {
+                            selectedAccountId = null
+                        }
                         scope.launch(Dispatchers.IO) {
                             try {
                                 val res = reconciliationManager.deleteAccount(target.id)
                                 withContext(Dispatchers.Main) {
                                     if (res.isSuccess) {
                                         snackbarHostState.showSnackbar("Removed ${target.institutionName ?: "account"} (${res.getOrDefault(0)} transactions unlinked)")
-                                        if (selectedAccountId == target.id) {
-                                            selectedAccountId = null
-                                        }
                                     } else {
                                         snackbarHostState.showSnackbar("Failed to remove account")
                                     }
-                                    accountToDelete = null
                                 }
                             } catch (e: Exception) {
                                 withContext(Dispatchers.Main) {
                                     snackbarHostState.showSnackbar("Failed to remove account: ${e.message}")
-                                    accountToDelete = null
                                 }
                             }
                         }
@@ -719,24 +718,23 @@ fun FinancialAccountsScreen(
                     onClick = {
                         val target = targetSelected
                         if (target != null) {
+                            accountToMerge = null
+                            if (selectedAccountId == sourceAccount.id) {
+                                selectedAccountId = target.id
+                            }
                             scope.launch(Dispatchers.IO) {
                                 try {
                                     val res = reconciliationManager.mergeAccounts(sourceAccount.id, target.id)
                                     withContext(Dispatchers.Main) {
                                         if (res.isSuccess) {
                                             snackbarHostState.showSnackbar("Merged into ${target.institutionName ?: "account"} (${res.getOrDefault(0)} transactions updated)")
-                                            if (selectedAccountId == sourceAccount.id) {
-                                                selectedAccountId = target.id
-                                            }
                                         } else {
                                             snackbarHostState.showSnackbar("Failed to merge accounts")
                                         }
-                                        accountToMerge = null
                                     }
                                 } catch (e: Exception) {
                                     withContext(Dispatchers.Main) {
                                         snackbarHostState.showSnackbar("Failed to merge accounts: ${e.message}")
-                                        accountToMerge = null
                                     }
                                 }
                             }
@@ -1022,6 +1020,8 @@ fun FinancialAccountsScreen(
                                     confidence = IdentityConfidence.HIGH,
                                     source = AccountSource.USER_CONFIRMED
                                 )
+                                showAddAccountDialog = false
+                                selectedAccountId = newAccount.id
                                 scope.launch(Dispatchers.IO) {
                                     try {
                                         reconciliationManager.registerAccount(newAccount)
@@ -1036,13 +1036,10 @@ fun FinancialAccountsScreen(
                                                 if (backfilled > 0) "Linked $instName ••••$cleanSuffix ($backfilled transactions connected)"
                                                 else "Linked $instName ••••$cleanSuffix"
                                             )
-                                            selectedAccountId = newAccount.id
-                                            showAddAccountDialog = false
                                         }
                                     } catch (e: Exception) {
                                         withContext(Dispatchers.Main) {
                                             snackbarHostState.showSnackbar("Failed to add account: ${e.message}")
-                                            showAddAccountDialog = false
                                         }
                                     }
                                 }

@@ -608,6 +608,7 @@ fun CategoryManagementScreen(
                     existingCategories = allCategories,
                     onDismiss = { categoryToEdit = null },
                     onConfirm = { newName, newIcon, newColor ->
+                        categoryToEdit = null
                         scope.launch {
                             val result = categoryManager.updateCategory(
                                 id = category.id,
@@ -617,7 +618,6 @@ fun CategoryManagementScreen(
                             )
                             if (result.isSuccess) {
                                 snackbarHostState.showSnackbar("Updated \"${category.name}\"")
-                                categoryToEdit = null
                             } else {
                                 snackbarHostState.showSnackbar(result.exceptionOrNull()?.message ?: "Error updating category")
                             }

@@ -1225,6 +1225,7 @@ fun BudgetsScreen(
                                 return@Button
                             }
 
+                            showMonthlyCapDialog = false
                             scope.launch {
                                 val existing = overallBudgetProgress?.budget
                                 if (existing != null) {
@@ -1246,7 +1247,6 @@ fun BudgetsScreen(
                                         exceededThreshold = 100.0
                                     )
                                 }
-                                showMonthlyCapDialog = false
                             }
                         },
                         modifier = Modifier
@@ -1438,6 +1438,7 @@ fun BudgetsScreen(
             categories = allCategories,
             onDismiss = { editingBudget = null },
             onSave = { name, amount, catId, period, warningThresh, exceededThresh, isEnabled ->
+                editingBudget = null
                 scope.launch {
                     if (initialBudget != null) {
                         budgetManager.updateBudget(
@@ -1451,7 +1452,6 @@ fun BudgetsScreen(
                             )
                         )
                     }
-                    editingBudget = null
                 }
             }
         )
@@ -1530,9 +1530,9 @@ fun BudgetsScreen(
 
                         Button(
                             onClick = {
+                                deletingBudget = null
                                 scope.launch {
                                     budgetManager.deleteBudget(budget.id)
-                                    deletingBudget = null
                                 }
                             },
                             shape = CircleShape,
