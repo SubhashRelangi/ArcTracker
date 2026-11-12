@@ -100,6 +100,15 @@ class KnownFinancialAccountRepository(
         return dao.findByInstitutionAndSuffix(institutionId.trim().lowercase(), safe)
     }
 
+    fun findByInstrumentType(instrumentType: InstrumentType): List<KnownFinancialAccount> =
+        dao.findByInstrumentType(instrumentType)
+
+    fun findByInstitutionAndType(
+        institutionId: String?,
+        instrumentType: InstrumentType
+    ): KnownFinancialAccount? =
+        dao.findByInstitutionAndType(institutionId?.trim()?.lowercase(), instrumentType)
+
     fun getAll(): List<KnownFinancialAccount> = dao.getAll()
 
     fun getAllFlow(): kotlinx.coroutines.flow.Flow<List<KnownFinancialAccount>> = dao.getAllFlow()

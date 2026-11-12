@@ -40,8 +40,10 @@ data class UserAccountContext(
 ) {
     init {
         require(bankName.isNotBlank()) { "Bank name cannot be blank" }
-        require(accountSuffix.isNotBlank() && accountSuffix.all { it.isDigit() }) {
-            "Account suffix must consist of digits only, was: '$accountSuffix'"
+        if (accountType != UserAccountType.WALLET && accountType != UserAccountType.OTHER) {
+            require(accountSuffix.isNotBlank() && accountSuffix.all { it.isDigit() }) {
+                "Account suffix must consist of digits only, was: '$accountSuffix'"
+            }
         }
     }
 

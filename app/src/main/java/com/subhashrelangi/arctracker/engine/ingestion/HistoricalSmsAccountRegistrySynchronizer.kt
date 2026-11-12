@@ -38,6 +38,32 @@ class HistoricalSmsAccountRegistrySynchronizer(
     ): KnownFinancialAccount? {
         val repo = repository ?: return null
 
+        // Digital Wallet & Cash do not require a numeric account suffix
+        if (identity.instrumentType == InstrumentType.WALLET) {
+            val instId = identity.institutionId?.trim()?.lowercase().takeUnless { it.isNullOrBlank() } ?: return null
+            val candidate = KnownFinancialAccount.create(
+                institutionId = instId,
+                institutionName = identity.institutionName ?: "Digital Wallet",
+                accountSuffix = "",
+                instrumentType = InstrumentType.WALLET,
+                confidence = identity.confidence,
+                source = AccountSource.HISTORICAL_SMS
+            )
+            return repo.upsert(candidate)
+        }
+
+        if (identity.instrumentType == InstrumentType.CASH) {
+            val candidate = KnownFinancialAccount.create(
+                institutionId = "cash",
+                institutionName = identity.institutionName ?: "Liquid Cash",
+                accountSuffix = "",
+                instrumentType = InstrumentType.CASH,
+                confidence = identity.confidence,
+                source = AccountSource.HISTORICAL_SMS
+            )
+            return repo.upsert(candidate)
+        }
+
         // 1. Validate account suffix
         val rawSuffix = identity.accountSuffix ?: identity.cardSuffix
         if (rawSuffix.isNullOrBlank()) {

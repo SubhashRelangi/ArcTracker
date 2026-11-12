@@ -66,17 +66,23 @@ data class KnownFinancialAccount(
         fun generateId(
             institutionId: String?,
             instrumentType: InstrumentType,
-            accountSuffix: String
+            accountSuffix: String = ""
         ): String {
             val inst = institutionId?.trim()?.lowercase().takeUnless { it.isNullOrBlank() } ?: "unknown"
             val instrument = instrumentType.name.lowercase()
-            val clean = AccountIdentityExtractor.safeSuffix(accountSuffix) ?: accountSuffix.filter { it.isDigit() }
-            val safe = when {
-                clean.length >= 4 -> clean.takeLast(4)
-                clean.isNotEmpty() -> clean
-                else -> "unknown"
+            return when (instrumentType) {
+                InstrumentType.WALLET -> "${inst}_wallet"
+                InstrumentType.CASH -> "cash_liquid"
+                else -> {
+                    val clean = AccountIdentityExtractor.safeSuffix(accountSuffix) ?: accountSuffix.filter { it.isDigit() }
+                    val safe = when {
+                        clean.length >= 4 -> clean.takeLast(4)
+                        clean.isNotEmpty() -> clean
+                        else -> "unknown"
+                    }
+                    "${inst}_${instrument}_${safe}"
+                }
             }
-            return "${inst}_${instrument}_${safe}"
         }
 
         /**
@@ -85,24 +91,50 @@ data class KnownFinancialAccount(
         fun create(
             institutionId: String? = null,
             institutionName: String? = null,
-            accountSuffix: String,
+            accountSuffix: String = "",
             instrumentType: InstrumentType = InstrumentType.BANK_ACCOUNT,
             confidence: IdentityConfidence = IdentityConfidence.UNKNOWN,
             source: AccountSource = AccountSource.OTHER,
             createdAt: Long = System.currentTimeMillis(),
             updatedAt: Long = createdAt
         ): KnownFinancialAccount {
-            val clean = AccountIdentityExtractor.safeSuffix(accountSuffix) ?: accountSuffix.filter { it.isDigit() }
-            val safe = when {
-                clean.length >= 4 -> clean.takeLast(4)
-                clean.isNotEmpty() -> clean
-                else -> "unknown"
+            val (safe, id) = when (instrumentType) {
+                InstrumentType.WALLET -> {
+                    val inst = institutionId?.trim()?.lowercase().takeUnless { it.isNullOrBlank() } ?: "unknown"
+                    val clean = if (accountSuffix.isNotBlank()) {
+                        AccountIdentityExtractor.safeSuffix(accountSuffix) ?: accountSuffix.filter { it.isDigit() }
+                    } else ""
+                    val safeSuff = if (clean.length >= 4) clean.takeLast(4) else clean
+                    val walletId = if (safeSuff.isNotEmpty()) "${inst}_wallet_${safeSuff}" else "${inst}_wallet"
+                    safeSuff to walletId
+                }
+                InstrumentType.CASH -> {
+                    "" to "cash_liquid"
+                }
+                else -> {
+                    val clean = AccountIdentityExtractor.safeSuffix(accountSuffix) ?: accountSuffix.filter { it.isDigit() }
+                    val s = when {
+                        clean.length >= 4 -> clean.takeLast(4)
+                        clean.isNotEmpty() -> clean
+                        else -> "unknown"
+                    }
+                    s to generateId(institutionId, instrumentType, s)
+                }
             }
-            val id = generateId(institutionId, instrumentType, safe)
+
+            val finalInstId = when (instrumentType) {
+                InstrumentType.CASH -> institutionId?.trim()?.lowercase().takeUnless { it.isNullOrBlank() } ?: "cash"
+                else -> institutionId?.trim()?.lowercase().takeUnless { it.isNullOrBlank() }
+            }
+            val finalInstName = when (instrumentType) {
+                InstrumentType.CASH -> institutionName?.trim().takeUnless { it.isNullOrBlank() } ?: "Liquid Cash"
+                else -> institutionName?.trim().takeUnless { it.isNullOrBlank() }
+            }
+
             return KnownFinancialAccount(
                 id = id,
-                institutionId = institutionId?.trim()?.lowercase().takeUnless { it.isNullOrBlank() },
-                institutionName = institutionName?.trim().takeUnless { it.isNullOrBlank() },
+                institutionId = finalInstId,
+                institutionName = finalInstName,
                 accountSuffix = safe,
                 instrumentType = instrumentType,
                 confidence = confidence,

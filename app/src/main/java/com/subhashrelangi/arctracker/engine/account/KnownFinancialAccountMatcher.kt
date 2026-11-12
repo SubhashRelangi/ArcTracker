@@ -36,6 +36,32 @@ class KnownFinancialAccountMatcher(
     ): KnownFinancialAccountMatchResult {
         val repo = repository ?: return KnownFinancialAccountMatchResult.NoAccountData
 
+        // 1. Digital Wallet Matching (Zero Suffix required)
+        if (instrumentType == InstrumentType.WALLET) {
+            val allWallets = repo.findByInstrumentType(InstrumentType.WALLET)
+            val candidates = if (!institutionId.isNullOrBlank()) {
+                val clean = institutionId.trim().lowercase()
+                allWallets.filter { it.institutionId != null && it.institutionId.equals(clean, ignoreCase = true) }
+            } else {
+                allWallets
+            }
+            return when (candidates.size) {
+                0 -> KnownFinancialAccountMatchResult.Unmatched
+                1 -> KnownFinancialAccountMatchResult.Matched(candidates.first())
+                else -> KnownFinancialAccountMatchResult.Ambiguous(candidates)
+            }
+        }
+
+        // 2. Liquid Cash Matching (Zero Suffix required)
+        if (instrumentType == InstrumentType.CASH) {
+            val allCash = repo.findByInstrumentType(InstrumentType.CASH)
+            return when (allCash.size) {
+                0 -> KnownFinancialAccountMatchResult.Unmatched
+                1 -> KnownFinancialAccountMatchResult.Matched(allCash.first())
+                else -> KnownFinancialAccountMatchResult.Ambiguous(allCash)
+            }
+        }
+
         if (suffix.isNullOrBlank()) {
             return KnownFinancialAccountMatchResult.NoAccountData
         }
@@ -92,6 +118,17 @@ class KnownFinancialAccountMatcher(
      * Strictly ignores package names to prevent inferring banks from UPI applications.
      */
     fun match(candidate: StructuredTransactionCandidate): KnownFinancialAccountMatchResult {
+        // 0. Check for explicit digital wallet references first
+        val raw = candidate.rawContent ?: ""
+        val walletProvider = WalletProviderRegistry.findProviderFromText(raw)
+        if (walletProvider != null && candidate.cardSuffix.isNullOrBlank() && candidate.accountSuffix.isNullOrBlank()) {
+            return match(
+                suffix = null,
+                instrumentType = InstrumentType.WALLET,
+                institutionId = walletProvider.id
+            )
+        }
+
         // 1. Determine suffix and instrument type
         val (suffix, instrumentType) = when {
             !candidate.cardSuffix.isNullOrBlank() -> {

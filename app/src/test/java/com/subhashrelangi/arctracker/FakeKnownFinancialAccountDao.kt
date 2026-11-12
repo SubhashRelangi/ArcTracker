@@ -46,6 +46,22 @@ class FakeKnownFinancialAccountDao : KnownFinancialAccountDao {
         }.sortedByDescending { it.updatedAt }
     }
 
+    override fun findByInstrumentType(instrumentType: InstrumentType): List<KnownFinancialAccount> {
+        return accounts.values.filter {
+            it.instrumentType == instrumentType
+        }.sortedByDescending { it.updatedAt }
+    }
+
+    override fun findByInstitutionAndType(
+        institutionId: String?,
+        instrumentType: InstrumentType
+    ): KnownFinancialAccount? {
+        return accounts.values.firstOrNull {
+            val instMatches = if (institutionId == null) it.institutionId == null else it.institutionId.equals(institutionId, ignoreCase = true)
+            instMatches && it.instrumentType == instrumentType
+        }
+    }
+
     override fun getAll(): List<KnownFinancialAccount> = accounts.values.sortedByDescending { it.updatedAt }
 
     override fun getAllFlow(): Flow<List<KnownFinancialAccount>> = accountsFlow.asStateFlow()

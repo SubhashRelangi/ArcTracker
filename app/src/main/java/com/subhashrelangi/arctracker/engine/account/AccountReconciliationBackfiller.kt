@@ -187,6 +187,8 @@ class AccountReconciliationBackfiller(
         val note = expense.note?.lowercase() ?: ""
         val raw = expense.rawText?.lowercase() ?: ""
         return when {
+            note.contains("wallet") || raw.contains("wallet") || note.contains("gift card") || raw.contains("gift card") || raw.contains("amazon pay balance") -> InstrumentType.WALLET
+            note.contains("liquid cash") || raw.contains("liquid cash") || expense.source.equals("MANUAL_CASH", ignoreCase = true) -> InstrumentType.CASH
             note.contains("card:") || raw.contains("card ending") || raw.contains("debit card") || raw.contains("credit card") -> InstrumentType.CARD
             note.contains("a/c:") || raw.contains("a/c") || raw.contains("account") -> InstrumentType.BANK_ACCOUNT
             else -> InstrumentType.UNKNOWN

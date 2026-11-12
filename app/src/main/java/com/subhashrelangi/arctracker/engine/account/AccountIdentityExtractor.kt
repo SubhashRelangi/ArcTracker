@@ -244,6 +244,23 @@ object AccountIdentityExtractor {
     ): FinancialAccountIdentity {
         val struct = candidate.candidate
 
+        // 0. Priority Zero: Digital Wallet Identification (Zero Suffix)
+        val walletProvider = WalletProviderRegistry.findProviderFromText(rawBody, sender)
+        if (walletProvider != null && struct.cardSuffix.isNullOrBlank() && struct.accountSuffix.isNullOrBlank()) {
+            val hasCardOrAccPattern = CARD_PATTERN.containsMatchIn(rawBody) || ACCOUNT_PATTERN.containsMatchIn(rawBody)
+            if (!hasCardOrAccPattern) {
+                return FinancialAccountIdentity(
+                    institutionId = walletProvider.id,
+                    institutionName = walletProvider.canonicalName,
+                    accountSuffix = null,
+                    cardSuffix = null,
+                    instrumentType = InstrumentType.WALLET,
+                    confidence = IdentityConfidence.HIGH,
+                    evidenceSource = "wallet=${walletProvider.id};body_explicit"
+                )
+            }
+        }
+
         // 1. Instrument Type & Suffix Extraction
         var instrumentType = InstrumentType.UNKNOWN
         var accountSuffix: String? = null
@@ -409,10 +426,13 @@ object AccountIdentityExtractor {
     fun generateGroupId(identity: FinancialAccountIdentity): String {
         val inst = identity.institutionId?.trim()?.lowercase() ?: "unknown"
         val instrument = identity.instrumentType.name.lowercase()
-        val suffix = identity.accountSuffix ?: identity.cardSuffix
-        return when {
-            suffix.isNullOrBlank() -> UNIDENTIFIED_GROUP_ID
-            else -> "${inst}_${instrument}_${suffix}"
+        return when (identity.instrumentType) {
+            InstrumentType.WALLET -> "${inst}_wallet"
+            InstrumentType.CASH -> "cash_liquid"
+            else -> {
+                val suffix = identity.accountSuffix ?: identity.cardSuffix
+                if (suffix.isNullOrBlank()) UNIDENTIFIED_GROUP_ID else "${inst}_${instrument}_${suffix}"
+            }
         }
     }
 }

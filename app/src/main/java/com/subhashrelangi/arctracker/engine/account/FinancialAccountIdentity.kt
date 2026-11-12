@@ -7,6 +7,8 @@ package com.subhashrelangi.arctracker.engine.account
 enum class InstrumentType {
     BANK_ACCOUNT,
     CARD,
+    WALLET,
+    CASH,
     UNKNOWN
 }
 
@@ -39,10 +41,18 @@ data class FinancialAccountIdentity(
     val evidenceSource: String? = null
 ) {
     val isComplete: Boolean
-        get() = !institutionName.isNullOrBlank() && (!accountSuffix.isNullOrBlank() || !cardSuffix.isNullOrBlank())
+        get() = when (instrumentType) {
+            InstrumentType.WALLET -> !institutionName.isNullOrBlank() || !institutionId.isNullOrBlank()
+            InstrumentType.CASH -> true
+            else -> !institutionName.isNullOrBlank() && (!accountSuffix.isNullOrBlank() || !cardSuffix.isNullOrBlank())
+        }
 
     val isPartiallyIdentified: Boolean
-        get() = !institutionName.isNullOrBlank() || !accountSuffix.isNullOrBlank() || !cardSuffix.isNullOrBlank()
+        get() = when (instrumentType) {
+            InstrumentType.WALLET -> !institutionName.isNullOrBlank() || !institutionId.isNullOrBlank()
+            InstrumentType.CASH -> true
+            else -> !institutionName.isNullOrBlank() || !accountSuffix.isNullOrBlank() || !cardSuffix.isNullOrBlank()
+        }
 
     /**
      * User-facing display label.
@@ -50,23 +60,31 @@ data class FinancialAccountIdentity(
      * Examples:
      * - "HDFC Bank ••••4381"
      * - "HDFC Bank Card ••••1234"
+     * - "PhonePe Wallet"
+     * - "Liquid Cash"
      * - "HDFC Bank (Account: Unknown)"
      * - "Unknown Bank ••••4381"
      * - "Unidentified Account"
      */
     fun getDisplayName(): String {
-        val inst = institutionName
-        val suffix = when {
-            !accountSuffix.isNullOrBlank() -> "••••$accountSuffix"
-            !cardSuffix.isNullOrBlank() -> "Card ••••$cardSuffix"
-            else -> null
-        }
+        return when (instrumentType) {
+            InstrumentType.WALLET -> institutionName ?: "Digital Wallet"
+            InstrumentType.CASH -> institutionName ?: "Liquid Cash"
+            else -> {
+                val inst = institutionName
+                val suffix = when {
+                    !accountSuffix.isNullOrBlank() -> "••••$accountSuffix"
+                    !cardSuffix.isNullOrBlank() -> "Card ••••$cardSuffix"
+                    else -> null
+                }
 
-        return when {
-            inst != null && suffix != null -> "$inst $suffix"
-            inst != null -> "$inst (Account: Unknown)"
-            suffix != null -> "Unknown Bank $suffix"
-            else -> "Unidentified Account"
+                when {
+                    inst != null && suffix != null -> "$inst $suffix"
+                    inst != null -> "$inst (Account: Unknown)"
+                    suffix != null -> "Unknown Bank $suffix"
+                    else -> "Unidentified Account"
+                }
+            }
         }
     }
 }
