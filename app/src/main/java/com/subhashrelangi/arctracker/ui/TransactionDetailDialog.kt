@@ -1954,106 +1954,12 @@ internal fun DarkCategoryPickerDialog(
     onCategorySelected: (TransactionCategory) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val isDark = ArcColors.isDark
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(22.dp),
-            color = cardBg,
-            border = BorderStroke(1.dp, cardBorder),
-            shadowElevation = 8.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "Select Category",
-                    color = slateTitle,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-
-                val categories = remember(allCategories) {
-                    if (allCategories.isNotEmpty()) {
-                        allCategories.filter { !it.isArchived }
-                    } else {
-                        BuiltInCategories.ALL
-                    }
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 320.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    categories.forEach { cat ->
-                        val isSelected = cat.id == currentCategoryId || cat.name.equals(currentCategoryName, ignoreCase = true)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) (if (isDark) Color(0xFF064E3B).copy(alpha = 0.35f) else Color(0xFFECFDF5)) else highlightSurface)
-                                .border(1.dp, if (isSelected) (if (isDark) ArcColors.Primary else Color(0xFFA7F3D0)) else cardBorder, RoundedCornerShape(8.dp))
-                                .clickable { onCategorySelected(cat) }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(CategoryVisuals.getContainerColor(cat.colorKey).copy(alpha = 0.25f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = CategoryVisuals.getIcon(cat.iconKey),
-                                    contentDescription = null,
-                                    tint = CategoryVisuals.getColor(cat.colorKey),
-                                    modifier = Modifier.size(15.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(10.dp))
-
-                            Text(
-                                text = cat.name,
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = slateTitle,
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Selected",
-                                    tint = ArcColors.Primary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                OutlinedButton(
-                    onClick = onDismiss,
-                    shape = CircleShape,
-                    border = BorderStroke(1.dp, cardBorder),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(42.dp)
-                ) {
-                    Text("Cancel", color = slateSub, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                }
-            }
-        }
-    }
+    com.subhashrelangi.arctracker.ui.review.CategoryPickerDialog(
+        categories = allCategories,
+        currentCategoryId = currentCategoryId,
+        onCategorySelected = onCategorySelected,
+        onDismissRequest = onDismiss
+    )
 }
 
 @Composable
