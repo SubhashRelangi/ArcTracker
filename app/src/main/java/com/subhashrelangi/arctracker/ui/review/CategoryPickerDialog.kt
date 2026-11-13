@@ -517,6 +517,24 @@ private fun ArcReviewCategorySheet(
 }
 
 /**
+ * Returns a concise, intuitive label for wheel center display to prevent text clipping
+ * and awkward trimming while preserving the exact same meaning.
+ */
+fun getWheelCategoryDisplayName(name: String): String {
+    return when (name.trim().lowercase()) {
+        "food & dining", "food and dining" -> "Food"
+        "travel & transport", "travel and transport", "transport & commute", "commute & transport" -> "Transport"
+        "bills & utilities", "bills and utilities", "housing & utilities" -> "Bills"
+        "healthcare & medical", "healthcare" -> "Health"
+        "cash withdrawal", "atm & cash" -> "Cash"
+        "groceries & essentials" -> "Groceries"
+        "personal care" -> "Personal"
+        "investments & savings" -> "Invest"
+        else -> name.trim()
+    }
+}
+
+/**
  * Signature Arc Circular Rotary Wheel with Needle Arrow Indicator.
  */
 @Composable
@@ -656,7 +674,7 @@ private fun ArcCircularWheelCategoryPicker(
             // 1. Wheel Canvas: Spoke lines, Outer ring, Guide track, Needle Arrow
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val outerRadius = size.width / 2f - 4.dp.toPx()
-                val innerRadius = 46.dp.toPx()
+                val innerRadius = 48.dp.toPx()
 
                 // Dial background circle
                 drawCircle(
@@ -788,7 +806,7 @@ private fun ArcCircularWheelCategoryPicker(
                     border = BorderStroke(2.dp, activeColor),
                     shadowElevation = 4.dp,
                     modifier = Modifier
-                        .size(92.dp)
+                        .size(96.dp)
                         .clip(CircleShape)
                         .clickable {
                             activeCategory?.let {
@@ -800,26 +818,30 @@ private fun ArcCircularWheelCategoryPicker(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(6.dp),
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
                         if (activeCategory != null) {
+                            val shortName = remember(activeCategory.name) {
+                                getWheelCategoryDisplayName(activeCategory.name)
+                            }
                             Icon(
                                 imageVector = CategoryVisuals.getIcon(activeCategory.iconKey),
-                                contentDescription = activeCategory.name,
+                                contentDescription = shortName,
                                 tint = activeColor,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(26.dp)
                             )
 
-                            Spacer(modifier = Modifier.height(3.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
 
                             Text(
-                                text = activeCategory.name,
+                                text = shortName,
                                 color = ArcColors.TextPrimary,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                lineHeight = 13.sp,
+                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                                 textAlign = TextAlign.Center
                             )
