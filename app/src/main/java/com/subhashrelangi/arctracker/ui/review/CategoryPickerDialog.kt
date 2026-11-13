@@ -10,8 +10,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -23,7 +25,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -49,27 +53,53 @@ import kotlinx.coroutines.launch
 import kotlin.math.*
 
 /**
- * Visual styling choices for category pickers.
+ * Extension modifier that renders a clean, native vertical scrollbar on a LazyColumn.
  */
-enum class CategoryPickerStyle {
-    CIRCULAR_WHEEL, // Signature Arc Rotary Wheel (Exclusively for Review Section)
-    HORIZONTAL_SNAP // Universal Industrial Horizontal Snapping Cards (All other screens)
+fun Modifier.verticalScrollbar(
+    state: LazyListState,
+    color: Color = Color.Gray.copy(alpha = 0.5f),
+    width: androidx.compose.ui.unit.Dp = 4.dp
+): Modifier = this.drawWithContent {
+    drawContent()
+    val totalItems = state.layoutInfo.totalItemsCount
+    val visibleItems = state.layoutInfo.visibleItemsInfo.size
+    if (totalItems > 0 && visibleItems < totalItems) {
+        val firstVisible = state.firstVisibleItemIndex
+        val scrollbarHeightRatio = (visibleItems.toFloat() / totalItems.toFloat()).coerceIn(0.12f, 1f)
+        val scrollbarHeight = size.height * scrollbarHeightRatio
+        val maxScrollOffset = size.height - scrollbarHeight
+        val scrollOffsetRatio = (firstVisible.toFloat() / (totalItems - visibleItems).coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
+        val scrollbarOffset = scrollOffsetRatio * maxScrollOffset
+
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(size.width - width.toPx() - 3.dp.toPx(), scrollbarOffset),
+            size = Size(width.toPx(), scrollbarHeight),
+            cornerRadius = CornerRadius(width.toPx() / 2, width.toPx() / 2)
+        )
+    }
 }
 
 /**
- * Selection display modes for category picker in Review section.
+ * Visual styling choices for category pickers.
+ */
+enum class CategoryPickerStyle {
+    CIRCULAR_WHEEL, // Review Section: bottom-to-center bottom sheet with list/grid and wheel options
+    HORIZONTAL_SNAP // Universal Industrial Bottom Sheet with Vertical Scrollbar
+}
+
+/**
+ * Selection display modes for category picker.
  */
 enum class CategoryPickerMode {
-    ROTARY_DIAL, // True Circular Rotary Wheel with Pointer Arrow
-    TACTILE_GRID  // Modern 3-Column Ergonomic Tile Matrix
+    VERTICAL_LIST, // Clean vertical scrollable list with scrollbar
+    TACTILE_GRID,  // 3-Column vertical scrollable grid with scrollbar
+    ROTARY_DIAL    // Interactive circular wheel
 }
 
 /**
  * Universal Industrial Category Picker (BottomSheet Architecture).
- *
- * Supports both:
- * 1. CIRCULAR_WHEEL: Signature tactile rotary dial with needle arrow (Review section).
- * 2. HORIZONTAL_SNAP: Minimalist, industrial-standard horizontal snapping cards (All other screens).
+ * Attached to the bottom of the screen, appears from bottom to center with a vertical scrollbar.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,14 +115,14 @@ fun CategoryPickerDialog(
     }
 
     if (pickerStyle == CategoryPickerStyle.CIRCULAR_WHEEL) {
-        ArcCircularWheelCategorySheet(
+        ArcReviewCategorySheet(
             categories = validCategories,
             currentCategoryId = currentCategoryId,
             onCategorySelected = onCategorySelected,
             onDismissRequest = onDismissRequest
         )
     } else {
-        ArcHorizontalCategorySheet(
+        ArcVerticalCategorySheet(
             categories = validCategories,
             currentCategoryId = currentCategoryId,
             onCategorySelected = onCategorySelected,
@@ -102,11 +132,11 @@ fun CategoryPickerDialog(
 }
 
 /**
- * Minimalist, industrial standard horizontal snapping category picker sheet.
+ * Universal bottom-to-center vertical category picker sheet.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ArcHorizontalCategorySheet(
+private fun ArcVerticalCategorySheet(
     categories: List<TransactionCategory>,
     currentCategoryId: String?,
     onCategorySelected: (TransactionCategory) -> Unit,
@@ -114,6 +144,8 @@ private fun ArcHorizontalCategorySheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val haptic = LocalHapticFeedback.current
+    val listState = rememberLazyListState()
+    var pickerMode by remember { mutableStateOf(CategoryPickerMode.VERTICAL_LIST) }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -131,7 +163,8 @@ private fun ArcHorizontalCategorySheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 24.dp)
+                .heightIn(min = 340.dp, max = 460.dp)
+                .padding(bottom = 20.dp)
         ) {
             // Header
             Row(
@@ -141,7 +174,7 @@ private fun ArcHorizontalCategorySheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Select Category",
                         color = ArcColors.TextPrimary,
@@ -149,110 +182,228 @@ private fun ArcHorizontalCategorySheet(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Tap a category card to apply",
+                        text = if (pickerMode == CategoryPickerMode.VERTICAL_LIST) "Choose category from list below" else "Tap a category tile",
                         color = ArcColors.TextSecondary,
                         fontSize = 12.sp
                     )
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = ArcColors.SurfaceHighlight,
-                    border = BorderStroke(1.dp, ArcColors.Border.copy(alpha = 0.5f))
+                // Mode switcher (List vs Grid)
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(ArcColors.Surface)
+                        .border(1.dp, ArcColors.Border, RoundedCornerShape(20.dp))
+                        .padding(2.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "${categories.size} categories",
-                        color = ArcColors.TextMuted,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    IconButton(
+                        onClick = { pickerMode = CategoryPickerMode.VERTICAL_LIST },
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (pickerMode == CategoryPickerMode.VERTICAL_LIST) ArcColors.PrimaryLight else Color.Transparent
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FormatListBulleted,
+                            contentDescription = "Vertical List Mode",
+                            tint = if (pickerMode == CategoryPickerMode.VERTICAL_LIST) ArcColors.Primary else ArcColors.TextMuted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { pickerMode = CategoryPickerMode.TACTILE_GRID },
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (pickerMode == CategoryPickerMode.TACTILE_GRID) ArcColors.PrimaryLight else Color.Transparent
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.GridView,
+                            contentDescription = "Grid Mode",
+                            tint = if (pickerMode == CategoryPickerMode.TACTILE_GRID) ArcColors.Primary else ArcColors.TextMuted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                IconButton(
+                    onClick = onDismissRequest,
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = ArcColors.TextMuted,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Horizontal Snapping Cards
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(categories, key = { it.id }) { cat ->
-                    val isSelected = cat.id == currentCategoryId
-                    val catColor = CategoryVisuals.getColor(cat.colorKey)
-                    val catIcon = CategoryVisuals.getIcon(cat.iconKey)
+            // Body: Vertical List or Grid with Vertical Scrollbar
+            if (pickerMode == CategoryPickerMode.VERTICAL_LIST) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .verticalScrollbar(listState, color = ArcColors.Border.copy(alpha = 0.7f)),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(categories, key = { it.id }) { cat ->
+                        val isSelected = cat.id == currentCategoryId
+                        val catColor = CategoryVisuals.getColor(cat.colorKey)
+                        val catIcon = CategoryVisuals.getIcon(cat.iconKey)
 
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = if (isSelected) catColor.copy(alpha = 0.18f) else ArcColors.SurfaceHighlight,
-                        border = BorderStroke(
-                            width = if (isSelected) 1.8.dp else 1.dp,
-                            color = if (isSelected) catColor else ArcColors.Border.copy(alpha = 0.5f)
-                        ),
-                        modifier = Modifier
-                            .width(114.dp)
-                            .height(92.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onCategorySelected(cat)
-                                onDismissRequest()
-                            }
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            if (isSelected) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(7.dp)
-                                        .size(16.dp)
-                                        .clip(CircleShape)
-                                        .background(catColor),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(11.dp)
-                                    )
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) catColor.copy(alpha = 0.16f) else ArcColors.SurfaceHighlight,
+                            border = BorderStroke(
+                                width = if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isSelected) catColor else ArcColors.Border.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onCategorySelected(cat)
+                                    onDismissRequest()
                                 }
-                            }
-
-                            Column(
+                        ) {
+                            Row(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 8.dp, vertical = 10.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
+                                    .padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(38.dp)
+                                        .size(34.dp)
                                         .clip(CircleShape)
-                                        .background(catColor.copy(alpha = if (isSelected) 0.35f else 0.16f)),
+                                        .background(catColor.copy(alpha = 0.22f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = catIcon,
                                         contentDescription = cat.name,
                                         tint = catColor,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.height(7.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
 
                                 Text(
                                     text = cat.name,
-                                    color = if (isSelected) ArcColors.TextPrimary else ArcColors.TextSecondary,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center
+                                    color = ArcColors.TextPrimary,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    modifier = Modifier.weight(1f)
                                 )
+
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = catColor,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                val rows = remember(categories) { categories.chunked(3) }
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .verticalScrollbar(listState, color = ArcColors.Border.copy(alpha = 0.7f)),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(rows) { rowCats ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowCats.forEach { cat ->
+                                val isSelected = cat.id == currentCategoryId
+                                val catColor = CategoryVisuals.getColor(cat.colorKey)
+                                val catIcon = CategoryVisuals.getIcon(cat.iconKey)
+
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = if (isSelected) catColor.copy(alpha = 0.18f) else ArcColors.SurfaceHighlight,
+                                    border = BorderStroke(
+                                        width = if (isSelected) 1.5.dp else 1.dp,
+                                        color = if (isSelected) catColor else ArcColors.Border.copy(alpha = 0.4f)
+                                    ),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(78.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onCategorySelected(cat)
+                                            onDismissRequest()
+                                        }
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(6.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .clip(CircleShape)
+                                                .background(catColor.copy(alpha = 0.2f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = catIcon,
+                                                contentDescription = cat.name,
+                                                tint = catColor,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        Text(
+                                            text = cat.name,
+                                            color = if (isSelected) ArcColors.TextPrimary else ArcColors.TextSecondary,
+                                            fontSize = 11.5.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (rowCats.size < 3) {
+                                repeat(3 - rowCats.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
                             }
                         }
                     }
@@ -263,18 +414,21 @@ private fun ArcHorizontalCategorySheet(
 }
 
 /**
- * Signature Arc Circular Wheel Category Sheet (Review Section).
+ * Category sheet for Review section:
+ * Bottom sheet from bottom to center with vertical list, grid, and rotary wheel options.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ArcCircularWheelCategorySheet(
+private fun ArcReviewCategorySheet(
     categories: List<TransactionCategory>,
     currentCategoryId: String?,
     onCategorySelected: (TransactionCategory) -> Unit,
     onDismissRequest: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var pickerMode by remember { mutableStateOf(CategoryPickerMode.ROTARY_DIAL) }
+    val haptic = LocalHapticFeedback.current
+    val listState = rememberLazyListState()
+    var pickerMode by remember { mutableStateOf(CategoryPickerMode.VERTICAL_LIST) }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -292,7 +446,8 @@ private fun ArcCircularWheelCategorySheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 28.dp),
+                .heightIn(min = 340.dp, max = 480.dp)
+                .padding(bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Header Bar
@@ -303,50 +458,54 @@ private fun ArcCircularWheelCategorySheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Select Category",
                         color = ArcColors.TextPrimary,
-                        fontSize = 19.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (pickerMode == CategoryPickerMode.ROTARY_DIAL) "Turn wheel & tap center to select" else "Tap a tile below",
+                        text = when (pickerMode) {
+                            CategoryPickerMode.VERTICAL_LIST -> "Choose category from list below"
+                            CategoryPickerMode.TACTILE_GRID -> "Tap a category tile"
+                            CategoryPickerMode.ROTARY_DIAL -> "Turn wheel & tap center to select"
+                        },
                         color = ArcColors.TextSecondary,
                         fontSize = 12.sp
                     )
                 }
 
-                // Mode Switcher Pill (Dial vs Grid)
+                // Mode Switcher Pill (List vs Grid vs Wheel)
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
                         .background(ArcColors.Surface)
                         .border(1.dp, ArcColors.Border, RoundedCornerShape(20.dp))
-                        .padding(3.dp),
+                        .padding(2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
-                        onClick = { pickerMode = CategoryPickerMode.ROTARY_DIAL },
+                        onClick = { pickerMode = CategoryPickerMode.VERTICAL_LIST },
                         modifier = Modifier
-                            .size(32.dp)
+                            .size(28.dp)
                             .clip(CircleShape)
                             .background(
-                                if (pickerMode == CategoryPickerMode.ROTARY_DIAL) ArcColors.PrimaryLight else Color.Transparent
+                                if (pickerMode == CategoryPickerMode.VERTICAL_LIST) ArcColors.PrimaryLight else Color.Transparent
                             )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Adjust,
-                            contentDescription = "Rotary Dial Mode",
-                            tint = if (pickerMode == CategoryPickerMode.ROTARY_DIAL) ArcColors.Primary else ArcColors.TextMuted,
-                            modifier = Modifier.size(18.dp)
+                            imageVector = Icons.Default.FormatListBulleted,
+                            contentDescription = "Vertical List Mode",
+                            tint = if (pickerMode == CategoryPickerMode.VERTICAL_LIST) ArcColors.Primary else ArcColors.TextMuted,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
 
                     IconButton(
                         onClick = { pickerMode = CategoryPickerMode.TACTILE_GRID },
                         modifier = Modifier
-                            .size(32.dp)
+                            .size(28.dp)
                             .clip(CircleShape)
                             .background(
                                 if (pickerMode == CategoryPickerMode.TACTILE_GRID) ArcColors.PrimaryLight else Color.Transparent
@@ -356,43 +515,216 @@ private fun ArcCircularWheelCategorySheet(
                             imageVector = Icons.Default.GridView,
                             contentDescription = "Tactile Grid Mode",
                             tint = if (pickerMode == CategoryPickerMode.TACTILE_GRID) ArcColors.Primary else ArcColors.TextMuted,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { pickerMode = CategoryPickerMode.ROTARY_DIAL },
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (pickerMode == CategoryPickerMode.ROTARY_DIAL) ArcColors.PrimaryLight else Color.Transparent
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Adjust,
+                            contentDescription = "Rotary Dial Mode",
+                            tint = if (pickerMode == CategoryPickerMode.ROTARY_DIAL) ArcColors.Primary else ArcColors.TextMuted,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                IconButton(
+                    onClick = onDismissRequest,
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = ArcColors.TextMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Body: Switch between True Circular Wheel and Tactile Grid
-            AnimatedContent(
-                targetState = pickerMode,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
-                },
-                label = "PickerModeAnimation"
-            ) { mode ->
-                when (mode) {
-                    CategoryPickerMode.ROTARY_DIAL -> {
-                        ArcCircularWheelCategoryPicker(
-                            categories = categories,
-                            currentCategoryId = currentCategoryId,
-                            onCategoryConfirmed = { cat ->
-                                onCategorySelected(cat)
-                                onDismissRequest()
+            // Body: Switch between Vertical List, Tactile Grid, and Rotary Dial
+            when (pickerMode) {
+                CategoryPickerMode.VERTICAL_LIST -> {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .verticalScrollbar(listState, color = ArcColors.Border.copy(alpha = 0.7f)),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(categories, key = { it.id }) { cat ->
+                            val isSelected = cat.id == currentCategoryId
+                            val catColor = CategoryVisuals.getColor(cat.colorKey)
+                            val catIcon = CategoryVisuals.getIcon(cat.iconKey)
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) catColor.copy(alpha = 0.16f) else ArcColors.SurfaceHighlight,
+                                border = BorderStroke(
+                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                    color = if (isSelected) catColor else ArcColors.Border.copy(alpha = 0.4f)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onCategorySelected(cat)
+                                        onDismissRequest()
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(34.dp)
+                                            .clip(CircleShape)
+                                            .background(catColor.copy(alpha = 0.22f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = catIcon,
+                                            contentDescription = cat.name,
+                                            tint = catColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    Text(
+                                        text = cat.name,
+                                        color = ArcColors.TextPrimary,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = catColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
                             }
-                        )
+                        }
                     }
-                    CategoryPickerMode.TACTILE_GRID -> {
-                        TactileGridCategoryPicker(
-                            categories = categories,
-                            currentCategoryId = currentCategoryId,
-                            onCategorySelected = { cat ->
-                                onCategorySelected(cat)
-                                onDismissRequest()
+                }
+                CategoryPickerMode.TACTILE_GRID -> {
+                    val rows = remember(categories) { categories.chunked(3) }
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .verticalScrollbar(listState, color = ArcColors.Border.copy(alpha = 0.7f)),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(rows) { rowCats ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                rowCats.forEach { cat ->
+                                    val isSelected = cat.id == currentCategoryId
+                                    val catColor = CategoryVisuals.getColor(cat.colorKey)
+                                    val catIcon = CategoryVisuals.getIcon(cat.iconKey)
+
+                                    Surface(
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = if (isSelected) catColor.copy(alpha = 0.18f) else ArcColors.SurfaceHighlight,
+                                        border = BorderStroke(
+                                            width = if (isSelected) 1.5.dp else 1.dp,
+                                            color = if (isSelected) catColor else ArcColors.Border.copy(alpha = 0.4f)
+                                        ),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(78.dp)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .clickable {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                onCategorySelected(cat)
+                                                onDismissRequest()
+                                            }
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(6.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(CircleShape)
+                                                    .background(catColor.copy(alpha = 0.2f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = catIcon,
+                                                    contentDescription = cat.name,
+                                                    tint = catColor,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.height(4.dp))
+
+                                            Text(
+                                                text = cat.name,
+                                                color = if (isSelected) ArcColors.TextPrimary else ArcColors.TextSecondary,
+                                                fontSize = 11.5.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (rowCats.size < 3) {
+                                    repeat(3 - rowCats.size) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
                             }
-                        )
+                        }
                     }
+                }
+                CategoryPickerMode.ROTARY_DIAL -> {
+                    ArcCircularWheelCategoryPicker(
+                        categories = categories,
+                        currentCategoryId = currentCategoryId,
+                        onCategoryConfirmed = { cat ->
+                            onCategorySelected(cat)
+                            onDismissRequest()
+                        }
+                    )
                 }
             }
         }
@@ -401,10 +733,6 @@ private fun ArcCircularWheelCategorySheet(
 
 /**
  * Signature Arc Circular Rotary Wheel with Needle Arrow Indicator.
- *
- * User rotates the circular wheel directly with tactile touch.
- * The pointer needle at 12 o'clock points down to the active category.
- * Snapping and subtle haptics provide precision physical feedback.
  */
 @Composable
 private fun ArcCircularWheelCategoryPicker(
@@ -448,7 +776,6 @@ private fun ArcCircularWheelCategoryPicker(
 
     val dialSurfaceColor = ArcColors.Surface
     val dialBorderColor = ArcColors.Border
-    val primaryThemeColor = ArcColors.Primary
 
     fun animateToCategory(index: Int) {
         val diff = (rotationAngle + index * sliceAngle)
@@ -497,7 +824,7 @@ private fun ArcCircularWheelCategoryPicker(
         val itemSizeDp = 40.dp
         val itemSizePx = with(density) { itemSizeDp.toPx() }
 
-        // Needle Arrow & Wheel Container (TopStart alignment so polar offsets are accurate)
+        // Needle Arrow & Wheel Container
         Box(
             modifier = Modifier
                 .size(wheelSizeDp)
@@ -569,7 +896,7 @@ private fun ArcCircularWheelCategoryPicker(
                     style = Stroke(width = 1.dp.toPx())
                 )
 
-                // Radial Spoke Divider Lines (clean, separating each category sector)
+                // Radial Spoke Divider Lines
                 val sliceCount = categories.size
                 for (i in 0 until sliceCount) {
                     val spokeAngle = currentAngle + (i - 0.5f) * sliceAngle - 90f
@@ -587,7 +914,7 @@ private fun ArcCircularWheelCategoryPicker(
                     )
                 }
 
-                // Clean accent arc on the outer rim under active category (no muddy slice bleed)
+                // Accent arc on outer rim under active category
                 drawArc(
                     color = activeColor.copy(alpha = 0.6f),
                     startAngle = currentAngle + (pointedIndex - 0.45f) * sliceAngle - 90f,
@@ -598,7 +925,7 @@ private fun ArcCircularWheelCategoryPicker(
                     style = Stroke(width = 3.dp.toPx())
                 )
 
-                // Top Arrow Pointer (Precision needle pointing directly down into top item)
+                // Top Arrow Pointer Needle
                 val needleWidth = 12.dp.toPx()
                 val needleHeight = 15.dp.toPx()
                 val needleTopY = 4.dp.toPx()
@@ -618,7 +945,7 @@ private fun ArcCircularWheelCategoryPicker(
                 )
             }
 
-            // 2. Category Badges around the Wheel with vibrant theme colors
+            // 2. Category Badges around the Wheel
             categories.forEachIndexed { index, cat ->
                 val itemAngle = currentAngle + index * sliceAngle - 90f
                 val rad = Math.toRadians(itemAngle.toDouble())
@@ -720,98 +1047,8 @@ private fun ArcCircularWheelCategoryPicker(
 }
 
 /**
- * Modern 3-Column Ergonomic Tile Matrix (Alternative Industrial Mode).
- */
-@Composable
-private fun TactileGridCategoryPicker(
-    categories: List<TransactionCategory>,
-    currentCategoryId: String?,
-    onCategorySelected: (TransactionCategory) -> Unit
-) {
-    val haptic = LocalHapticFeedback.current
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Chunk categories into rows of 3
-        val rows = remember(categories) { categories.chunked(3) }
-
-        rows.forEach { rowCategories ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                rowCategories.forEach { cat ->
-                    val isSelected = cat.id == currentCategoryId
-                    val catColor = CategoryVisuals.getColor(cat.colorKey)
-                    val catIcon = CategoryVisuals.getIcon(cat.iconKey)
-
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (isSelected) ArcColors.PrimaryLight else ArcColors.Surface,
-                        border = BorderStroke(
-                            1.dp,
-                            if (isSelected) ArcColors.Primary else ArcColors.Border
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onCategorySelected(cat)
-                            }
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 6.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(catColor.copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = catIcon,
-                                    contentDescription = null,
-                                    tint = catColor,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Text(
-                                text = cat.name,
-                                color = if (isSelected) ArcColors.Primary else ArcColors.TextPrimary,
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                textAlign = TextAlign.Center,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-
-                // Fill blank slots if the last row has fewer than 3 items
-                if (rowCategories.size < 3) {
-                    repeat(3 - rowCategories.size) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Minimalist, industrial-standard horizontal snapping account picker dialog.
- * Replaces old intrusive centered modal popups across the app.
+ * Minimalist, industrial-standard vertical scrolling account picker dialog.
+ * Attached to the bottom of the screen, appearing from bottom to center with a vertical scrollbar.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -829,6 +1066,7 @@ fun HorizontalAccountPickerDialog(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val haptic = LocalHapticFeedback.current
+    val listState = rememberLazyListState()
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -846,7 +1084,8 @@ fun HorizontalAccountPickerDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 24.dp)
+                .heightIn(min = 320.dp, max = 460.dp)
+                .padding(bottom = 20.dp)
         ) {
             // Header
             Row(
@@ -856,7 +1095,7 @@ fun HorizontalAccountPickerDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
                         color = ArcColors.TextPrimary,
@@ -920,7 +1159,7 @@ fun HorizontalAccountPickerDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 20.dp),
+                        .padding(horizontal = 20.dp, vertical = 24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -931,26 +1170,30 @@ fun HorizontalAccountPickerDialog(
                     )
                 }
             } else {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .verticalScrollbar(listState, color = ArcColors.Border.copy(alpha = 0.7f)),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Optional Cash / Wallet Tile
                     if (allowCashOption) {
                         item(key = "cash_wallet_option") {
                             val isCashSelected = currentAccountId == null && currentAccountSuffix == null
                             Surface(
-                                shape = RoundedCornerShape(16.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 color = if (isCashSelected) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight,
                                 border = BorderStroke(
-                                    width = if (isCashSelected) 1.8.dp else 1.dp,
-                                    color = if (isCashSelected) ArcColors.Primary else ArcColors.Border.copy(alpha = 0.5f)
+                                    width = if (isCashSelected) 1.5.dp else 1.dp,
+                                    color = if (isCashSelected) ArcColors.Primary else ArcColors.Border.copy(alpha = 0.4f)
                                 ),
                                 modifier = Modifier
-                                    .width(140.dp)
-                                    .height(96.dp)
-                                    .clip(RoundedCornerShape(16.dp))
+                                    .fillMaxWidth()
+                                    .height(58.dp)
+                                    .clip(RoundedCornerShape(12.dp))
                                     .clickable {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         if (onCashSelected != null) {
@@ -968,66 +1211,51 @@ fun HorizontalAccountPickerDialog(
                                         onDismissRequest()
                                     }
                             ) {
-                                Box(modifier = Modifier.fillMaxSize()) {
-                                    if (isCashSelected) {
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.TopEnd)
-                                                .padding(7.dp)
-                                                .size(16.dp)
-                                                .clip(CircleShape)
-                                                .background(ArcColors.Primary),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = "Selected",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(11.dp)
-                                            )
-                                        }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (isCashSelected) ArcColors.Primary.copy(alpha = 0.22f) else ArcColors.BorderSubtle
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.AccountBalanceWallet,
+                                            contentDescription = null,
+                                            tint = if (isCashSelected) ArcColors.Primary else ArcColors.TextSecondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
                                     }
 
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 10.dp, vertical = 10.dp),
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(34.dp)
-                                                .clip(CircleShape)
-                                                .background(
-                                                    if (isCashSelected) ArcColors.Primary.copy(alpha = 0.22f) else ArcColors.BorderSubtle
-                                                ),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.AccountBalanceWallet,
-                                                contentDescription = null,
-                                                tint = if (isCashSelected) ArcColors.Primary else ArcColors.TextSecondary,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
+                                    Spacer(modifier = Modifier.width(12.dp))
 
-                                        Spacer(modifier = Modifier.height(6.dp))
-
+                                    Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "Cash / Wallet",
                                             color = ArcColors.TextPrimary,
-                                            fontSize = 12.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
+                                            fontSize = 13.5.sp,
+                                            fontWeight = FontWeight.Bold
                                         )
-
                                         Text(
-                                            text = "Liquid Cash",
+                                            text = "Liquid Cash or untracked wallet",
                                             color = ArcColors.TextSecondary,
-                                            fontSize = 11.sp,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
+                                            fontSize = 11.5.sp
+                                        )
+                                    }
+
+                                    if (isCashSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = ArcColors.Primary,
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }
@@ -1051,71 +1279,52 @@ fun HorizontalAccountPickerDialog(
                         val typeAndSuffix = "${acc.instrumentType.name.replace("_", " ").lowercase().replaceFirstChar { it.titlecase() }} •• ${acc.accountSuffix}"
 
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(12.dp),
                             color = if (isSelected) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight,
                             border = BorderStroke(
-                                width = if (isSelected) 1.8.dp else 1.dp,
-                                color = if (isSelected) ArcColors.Primary else ArcColors.Border.copy(alpha = 0.5f)
+                                width = if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isSelected) ArcColors.Primary else ArcColors.Border.copy(alpha = 0.4f)
                             ),
                             modifier = Modifier
-                                .width(146.dp)
-                                .height(96.dp)
-                                .clip(RoundedCornerShape(16.dp))
+                                .fillMaxWidth()
+                                .height(60.dp)
+                                .clip(RoundedCornerShape(12.dp))
                                 .clickable {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     onAccountSelected(acc)
                                     onDismissRequest()
                                 }
                         ) {
-                            Box(modifier = Modifier.fillMaxSize()) {
-                                if (isSelected) {
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(7.dp)
-                                            .size(16.dp)
-                                            .clip(CircleShape)
-                                            .background(ArcColors.Primary),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = "Selected",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(11.dp)
-                                        )
-                                    }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (isSelected) ArcColors.Primary.copy(alpha = 0.22f) else ArcColors.BorderSubtle
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = bankIcon,
+                                        contentDescription = null,
+                                        tint = if (isSelected) ArcColors.Primary else ArcColors.TextSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
 
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 10.dp, vertical = 10.dp),
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(34.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                if (isSelected) ArcColors.Primary.copy(alpha = 0.22f) else ArcColors.BorderSubtle
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = bankIcon,
-                                            contentDescription = null,
-                                            tint = if (isSelected) ArcColors.Primary else ArcColors.TextSecondary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
+                                Spacer(modifier = Modifier.width(12.dp))
 
-                                    Spacer(modifier = Modifier.height(6.dp))
-
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = institutionTitle,
                                         color = ArcColors.TextPrimary,
-                                        fontSize = 12.5.sp,
+                                        fontSize = 13.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -1124,9 +1333,18 @@ fun HorizontalAccountPickerDialog(
                                     Text(
                                         text = typeAndSuffix,
                                         color = ArcColors.TextSecondary,
-                                        fontSize = 11.sp,
+                                        fontSize = 11.5.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = ArcColors.Primary,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }
@@ -1139,7 +1357,7 @@ fun HorizontalAccountPickerDialog(
 }
 
 /**
- * Generic horizontal item model.
+ * Generic horizontal/vertical option item model.
  */
 data class HorizontalOptionItem(
     val id: String,
@@ -1149,7 +1367,8 @@ data class HorizontalOptionItem(
 )
 
 /**
- * Minimalist, industrial-standard horizontal snapping arbitrary option picker dialog.
+ * Minimalist, industrial-standard vertical scrolling option picker dialog.
+ * Attached to the bottom of the screen, appearing from bottom to center with a vertical scrollbar.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1163,6 +1382,7 @@ fun HorizontalOptionPickerDialog(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val haptic = LocalHapticFeedback.current
+    val listState = rememberLazyListState()
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -1180,7 +1400,8 @@ fun HorizontalOptionPickerDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 24.dp)
+                .heightIn(min = 280.dp, max = 440.dp)
+                .padding(bottom = 20.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -1189,7 +1410,7 @@ fun HorizontalOptionPickerDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
                         color = ArcColors.TextPrimary,
@@ -1218,84 +1439,69 @@ fun HorizontalOptionPickerDialog(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScrollbar(listState, color = ArcColors.Border.copy(alpha = 0.7f)),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(options, key = { it.id }) { item ->
                     val isSelected = item.id == selectedId
 
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = if (isSelected) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight,
                         border = BorderStroke(
-                            width = if (isSelected) 1.8.dp else 1.dp,
-                            color = if (isSelected) ArcColors.Primary else ArcColors.Border.copy(alpha = 0.5f)
+                            width = if (isSelected) 1.5.dp else 1.dp,
+                            color = if (isSelected) ArcColors.Primary else ArcColors.Border.copy(alpha = 0.4f)
                         ),
                         modifier = Modifier
-                            .width(136.dp)
-                            .height(92.dp)
-                            .clip(RoundedCornerShape(16.dp))
+                            .fillMaxWidth()
+                            .height(54.dp)
+                            .clip(RoundedCornerShape(12.dp))
                             .clickable {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 onOptionSelected(item)
                                 onDismissRequest()
                             }
                     ) {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            if (isSelected) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (item.icon != null) {
                                 Box(
                                     modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(7.dp)
-                                        .size(16.dp)
+                                        .size(34.dp)
                                         .clip(CircleShape)
-                                        .background(ArcColors.Primary),
+                                        .background(
+                                            if (isSelected) ArcColors.Primary.copy(alpha = 0.22f) else ArcColors.BorderSubtle
+                                        ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(11.dp)
+                                        imageVector = item.icon,
+                                        contentDescription = null,
+                                        tint = if (isSelected) ArcColors.Primary else ArcColors.TextSecondary,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
+
+                                Spacer(modifier = Modifier.width(12.dp))
                             }
 
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = 10.dp, vertical = 10.dp),
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                if (item.icon != null) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                if (isSelected) ArcColors.Primary.copy(alpha = 0.22f) else ArcColors.BorderSubtle
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = item.icon,
-                                            contentDescription = null,
-                                            tint = if (isSelected) ArcColors.Primary else ArcColors.TextSecondary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                }
-
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = item.title,
                                     color = ArcColors.TextPrimary,
-                                    fontSize = 12.5.sp,
+                                    fontSize = 13.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -1305,11 +1511,20 @@ fun HorizontalOptionPickerDialog(
                                     Text(
                                         text = item.subtitle,
                                         color = ArcColors.TextSecondary,
-                                        fontSize = 11.sp,
+                                        fontSize = 11.5.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                 }
+                            }
+
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = ArcColors.Primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
                     }
