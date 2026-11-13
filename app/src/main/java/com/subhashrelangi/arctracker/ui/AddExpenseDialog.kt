@@ -1,5 +1,6 @@
 package com.subhashrelangi.arctracker.ui
 
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.widget.Toast
@@ -230,103 +231,6 @@ fun AddExpenseDialog(
             selectedAccountSuffix = primary.accountSuffix
             selectedAccountName = primary.institutionName ?: "Bank Account"
         }
-    }
-
-    // Category Picker Dialog
-    if (showCategoryPicker) {
-        ArcCategoryPickerDialog(
-            allCategories = backendCategories,
-            currentCategoryId = selectedCategoryId,
-            currentCategoryName = selectedCategoryName,
-            onCategorySelected = { cat ->
-                selectedCategoryId = cat.id
-                selectedCategoryName = cat.name
-                showCategoryPicker = false
-            },
-            onDismiss = { showCategoryPicker = false }
-        )
-    }
-
-    // Account Picker Dialog
-    if (showAccountPicker) {
-        ArcAccountPickerDialog(
-            knownAccounts = knownAccounts,
-            currentAccountId = selectedAccountId,
-            currentAccountSuffix = selectedAccountSuffix,
-            onAccountSelected = { id, suffix, name ->
-                selectedAccountId = id
-                selectedAccountSuffix = suffix
-                selectedAccountName = name
-                showAccountPicker = false
-            },
-            onDismiss = { showAccountPicker = false }
-        )
-    }
-
-    // Add Tag Dialog
-    if (showAddTagDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddTagDialog = false },
-            containerColor = cardBg,
-            shape = RoundedCornerShape(20.dp),
-            title = {
-                Text(
-                    text = "Add Custom Tag",
-                    color = slateTitle,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp
-                )
-            },
-            text = {
-                Column {
-                    Text(
-                        text = "Enter a tag label without the '#' symbol:",
-                        color = slateSub,
-                        fontSize = 13.sp
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    BasicTextField(
-                        value = newTagInput,
-                        onValueChange = { newTagInput = it },
-                        textStyle = TextStyle(
-                            color = slateTitle,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        cursorBrush = SolidColor(ArcColors.Primary),
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(highlightSurface, RoundedCornerShape(10.dp))
-                            .padding(horizontal = 14.dp, vertical = 12.dp)
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val trimmed = newTagInput.trim().removePrefix("#")
-                        if (trimmed.isNotBlank()) {
-                            if (trimmed !in availableTags) {
-                                availableTags = availableTags + trimmed
-                            }
-                            selectedTags = selectedTags + trimmed
-                        }
-                        newTagInput = ""
-                        showAddTagDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
-                    shape = CircleShape
-                ) {
-                    Text("Add Tag", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddTagDialog = false }) {
-                    Text("Cancel", color = slateSub, fontSize = 13.sp)
-                }
-            }
-        )
     }
 
     BackHandler(onBack = onDismiss)
@@ -1262,6 +1166,106 @@ fun AddExpenseDialog(
                     }
 
                     Spacer(modifier = Modifier.height(32.dp))
+            }
+
+            // Category Picker Sheet
+            if (showCategoryPicker) {
+                ArcCategoryPickerDialog(
+                    allCategories = backendCategories,
+                    currentCategoryId = selectedCategoryId,
+                    currentCategoryName = selectedCategoryName,
+                    onCategorySelected = { cat ->
+                        selectedCategoryId = cat.id
+                        selectedCategoryName = cat.name
+                        showCategoryPicker = false
+                    },
+                    onDismiss = { showCategoryPicker = false }
+                )
+            }
+
+            // Account Picker Sheet
+            if (showAccountPicker) {
+                ArcAccountPickerDialog(
+                    knownAccounts = knownAccounts,
+                    currentAccountId = selectedAccountId,
+                    currentAccountSuffix = selectedAccountSuffix,
+                    onAccountSelected = { id, suffix, name ->
+                        selectedAccountId = id
+                        selectedAccountSuffix = suffix
+                        selectedAccountName = name
+                        showAccountPicker = false
+                    },
+                    onDismiss = { showAccountPicker = false }
+                )
+            }
+
+            // Add Tag Bottom Sheet
+            if (showAddTagDialog) {
+                ArcModalBottomSheet(
+                    onDismissRequest = { showAddTagDialog = false },
+                    title = "Add Custom Tag",
+                    maxHeight = 360.dp
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Enter a tag label without the '#' symbol:",
+                            color = slateSub,
+                            fontSize = 13.sp
+                        )
+                        BasicTextField(
+                            value = newTagInput,
+                            onValueChange = { newTagInput = it },
+                            textStyle = TextStyle(
+                                color = slateTitle,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            cursorBrush = SolidColor(ArcColors.Primary),
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(highlightSurface, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { showAddTagDialog = false },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f).height(44.dp)
+                            ) {
+                                Text("Cancel", color = slateSub, fontSize = 13.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    val trimmed = newTagInput.trim().removePrefix("#")
+                                    if (trimmed.isNotBlank()) {
+                                        if (trimmed !in availableTags) {
+                                            availableTags = availableTags + trimmed
+                                        }
+                                        selectedTags = selectedTags + trimmed
+                                    }
+                                    newTagInput = ""
+                                    showAddTagDialog = false
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f).height(44.dp)
+                            ) {
+                                Text("Add Tag", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
