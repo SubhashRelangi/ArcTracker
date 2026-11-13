@@ -1,5 +1,7 @@
 package com.subhashrelangi.arctracker.ui
 
+import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -1266,77 +1268,22 @@ fun EditRegexPatternScreen(
 
     // AI Regex Assistant Dialog
     if (showAiPromptDialog) {
-        Dialog(onDismissRequest = { showAiPromptDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = cardBg,
-                border = BorderStroke(1.dp, cardBorder),
+        ArcModalBottomSheet(
+            onDismissRequest = { showAiPromptDialog = false },
+            title = "Ask AI (ChatGPT / Claude)",
+            subtitle = "Generate regex with AI, 100% private & offline",
+            icon = Icons.Rounded.AutoAwesome,
+            iconColor = ArcColors.Primary,
+            maxHeight = 560.dp
+        ) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    // Header
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.AutoAwesome,
-                                    contentDescription = null,
-                                    tint = ArcColors.Primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "Ask AI (ChatGPT / Claude)",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = slateTitle
-                                )
-                                Text(
-                                    text = "Generate regex with AI, 100% private & offline",
-                                    fontSize = 11.5.sp,
-                                    color = slateSub
-                                )
-                            }
-                        }
-                        IconButton(
-                            onClick = { showAiPromptDialog = false },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = slateSub,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-
-                    // Step 1: Copy AI Prompt
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                // Step 1: Copy AI Prompt
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             text = "STEP 1: COPY PROMPT FOR CHATGPT",
                             fontSize = 11.sp,
@@ -1466,182 +1413,90 @@ fun EditRegexPatternScreen(
                         }
                     }
                 }
-            }
         }
     }
 
-    // Syntax Cheat Sheet Dialog
+    // Syntax Cheat Sheet Bottom Sheet
     if (showCheatSheetDialog) {
-        Dialog(onDismissRequest = { showCheatSheetDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = cardBg,
-                border = BorderStroke(1.dp, cardBorder),
+        ArcModalBottomSheet(
+            onDismissRequest = { showCheatSheetDialog = false },
+            title = "Regex Syntax Guide",
+            maxHeight = 480.dp
+        ) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Regex Syntax Guide",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = slateTitle
-                        )
-                        IconButton(
-                            onClick = { showCheatSheetDialog = false },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = slateSub,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
+                val cheatItems = listOf(
+                    "(?i)" to "Enables case-insensitive matching across entire regex.",
+                    "(?:to|at|paid to)" to "Non-capturing group matching any alternative word.",
+                    "([0-9,]+\\.?[0-9]*)" to "Captures numbers, commas, and decimal amounts.",
+                    "([A-Za-z0-9 &._-]{2,30})" to "Captures alphanumeric merchant or recipient name.",
+                    "([0-9]{4})" to "Captures 4-digit bank account or card suffix."
+                )
 
-                    val cheatItems = listOf(
-                        "(?i)" to "Enables case-insensitive matching across entire regex.",
-                        "(?:to|at|paid to)" to "Non-capturing group matching any alternative word.",
-                        "([0-9,]+\\.?[0-9]*)" to "Captures numbers, commas, and decimal amounts.",
-                        "([A-Za-z0-9 &._-]{2,30})" to "Captures alphanumeric merchant or recipient name.",
-                        "([0-9]{4})" to "Captures 4-digit bank account or card suffix."
-                    )
-
-                    cheatItems.forEach { (token, desc) ->
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = highlightSurface,
-                            border = BorderStroke(1.dp, cardBorder),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
-                                Text(
-                                    text = token,
-                                    fontSize = 12.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ArcColors.Primary
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = desc,
-                                    fontSize = 11.5.sp,
-                                    color = slateSub
-                                )
-                            }
-                        }
-                    }
-
-                    Button(
-                        onClick = { showCheatSheetDialog = false },
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (ArcColors.isDark) highlightSurface else Color(0xFF0F172A)
-                        ),
+                cheatItems.forEach { (token, desc) ->
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = highlightSurface,
+                        border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            "Got it",
-                            color = if (ArcColors.isDark) slateTitle else Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    // Delete Confirmation Dialog
-    if (showDeleteConfirmDialog) {
-        Dialog(onDismissRequest = { showDeleteConfirmDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = cardBg,
-                border = BorderStroke(1.dp, cardBorder),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (ArcColors.isDark) Color(0xFF7F1D1D).copy(alpha = 0.5f) else Color(0xFFFEE2E2)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Delete,
-                                contentDescription = null,
-                                tint = Color(0xFFEF4444),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
+                        Column(modifier = Modifier.padding(10.dp)) {
                             Text(
-                                text = "Delete Pattern",
-                                fontSize = 15.sp,
+                                text = token,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold,
-                                color = slateTitle
+                                color = ArcColors.Primary
                             )
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "This custom rule will be permanently deleted.",
+                                text = desc,
                                 fontSize = 11.5.sp,
                                 color = slateSub
                             )
                         }
                     }
+                }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { showDeleteConfirmDialog = false },
-                            shape = CircleShape,
-                            modifier = Modifier.weight(1f),
-                            border = BorderStroke(1.dp, cardBorder)
-                        ) {
-                            Text("Cancel", color = slateSub, fontSize = 13.sp)
-                        }
+                Spacer(modifier = Modifier.height(4.dp))
 
-                        Button(
-                            onClick = {
-                                showDeleteConfirmDialog = false
-                                RegexPatternsManager.deleteRule(context, initialRule.id)
-                                Toast.makeText(context, "Regex pattern deleted", Toast.LENGTH_SHORT).show()
-                                onBack()
-                            },
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Delete", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
-                    }
+                Button(
+                    onClick = { showCheatSheetDialog = false },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                    modifier = Modifier.fillMaxWidth().height(44.dp)
+                ) {
+                    Text(
+                        "Got it",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
+    }
+
+    // Delete Confirmation Bottom Sheet
+    if (showDeleteConfirmDialog) {
+        ArcConfirmationBottomSheet(
+            title = "Delete Pattern",
+            message = "This custom rule will be permanently deleted.",
+            confirmText = "Delete",
+            cancelText = "Cancel",
+            icon = Icons.Outlined.Delete,
+            iconColor = Color(0xFFEF4444),
+            isDestructive = true,
+            onConfirm = {
+                showDeleteConfirmDialog = false
+                RegexPatternsManager.deleteRule(context, initialRule.id)
+                Toast.makeText(context, "Regex pattern deleted", Toast.LENGTH_SHORT).show()
+                onBack()
+            },
+            onDismiss = { showDeleteConfirmDialog = false }
+        )
     }
 }

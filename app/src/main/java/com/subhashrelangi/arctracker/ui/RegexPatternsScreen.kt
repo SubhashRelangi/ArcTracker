@@ -1,6 +1,8 @@
 package com.subhashrelangi.arctracker.ui
 import com.subhashrelangi.arctracker.engine.pipeline.*
 
+import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -740,50 +742,23 @@ fun RegexPatternsScreen(
         }
     }
 
-    // Delete Confirmation Dialog
+    // Delete Confirmation Bottom Sheet
     ruleToDelete?.let { rule ->
-        AlertDialog(
-            onDismissRequest = { ruleToDelete = null },
-            title = {
-                Text(
-                    text = "Delete Regex Pattern?",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ArcColors.Danger
-                )
+        ArcConfirmationBottomSheet(
+            title = "Delete Regex Pattern?",
+            message = "Are you sure you want to delete '${rule.name}'? This action cannot be undone.",
+            confirmText = "Delete",
+            cancelText = "Cancel",
+            icon = Icons.Outlined.DeleteOutline,
+            iconColor = ArcColors.Danger,
+            isDestructive = true,
+            onConfirm = {
+                RegexPatternsManager.deleteRule(context, rule.id)
+                rules = RegexPatternsManager.getRules(context)
+                ruleToDelete = null
+                Toast.makeText(context, "Pattern deleted", Toast.LENGTH_SHORT).show()
             },
-            text = {
-                Text(
-                    text = "Are you sure you want to delete '${rule.name}'? This action cannot be undone.",
-                    fontSize = 13.sp,
-                    color = slateSub,
-                    lineHeight = 18.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        RegexPatternsManager.deleteRule(context, rule.id)
-                        rules = RegexPatternsManager.getRules(context)
-                        ruleToDelete = null
-                        Toast.makeText(context, "Pattern deleted", Toast.LENGTH_SHORT).show()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Danger),
-                    shape = CircleShape
-                ) {
-                    Text("Delete", color = Color.White)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { ruleToDelete = null },
-                    shape = CircleShape
-                ) {
-                    Text("Cancel", color = slateSub)
-                }
-            },
-            shape = RoundedCornerShape(16.dp),
-            containerColor = cardBg
+            onDismiss = { ruleToDelete = null }
         )
     }
 }
@@ -1078,79 +1053,78 @@ fun TestRuleDialog(rule: RegexRule, onDismiss: () -> Unit) {
     }
     val match = regex?.find(sampleText)
 
-    AlertDialog(
+    ArcModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
-            Text(text = "Test Pattern Output", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = slateTitle)
-        },
-        text = {
-            Column {
-                if (match != null) {
-                    val matchGreen = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)
-                    Text(
-                        "Result: Pattern Matched ✓",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = matchGreen,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+        title = "Test Pattern Output",
+        maxHeight = 420.dp
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            if (match != null) {
+                val matchGreen = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)
+                Text(
+                    "Result: Pattern Matched ✓",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = matchGreen
+                )
 
-                    val highlightBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFDCFCE7)
-                    val annotatedString = androidx.compose.ui.text.buildAnnotatedString {
-                        append(sampleText.substring(0, match.range.first))
-                        withStyle(
-                            style = SpanStyle(
-                                background = highlightBg,
-                                color = matchGreen,
-                                fontWeight = FontWeight.Bold
-                            )
-                        ) {
-                            append(match.value)
-                        }
-                        append(sampleText.substring(match.range.last + 1))
+                val highlightBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFDCFCE7)
+                val annotatedString = androidx.compose.ui.text.buildAnnotatedString {
+                    append(sampleText.substring(0, match.range.first))
+                    withStyle(
+                        style = SpanStyle(
+                            background = highlightBg,
+                            color = matchGreen,
+                            fontWeight = FontWeight.Bold
+                        )
+                    ) {
+                        append(match.value)
                     }
-
-                    Text(
-                        annotatedString,
-                        fontSize = 12.sp,
-                        color = slateTitle,
-                        lineHeight = 17.sp,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-
-                    val extracted = if (match.groups.size > 1) match.groupValues[1] else match.value
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Extracted Token:", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = slateSub)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = highlightBg
-                        ) {
-                            Text(
-                                extracted,
-                                color = matchGreen,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
-                        }
-                    }
-                } else {
-                    Text("Result: No Match Found ✕", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ArcColors.Danger, modifier = Modifier.padding(bottom = 8.dp))
-                    Text(sampleText, fontSize = 12.sp, color = slateSub, lineHeight = 17.sp)
+                    append(sampleText.substring(match.range.last + 1))
                 }
+
+                Text(
+                    annotatedString,
+                    fontSize = 12.sp,
+                    color = slateTitle,
+                    lineHeight = 17.sp
+                )
+
+                val extracted = if (match.groups.size > 1) match.groupValues[1] else match.value
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Extracted Token:", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = slateSub)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = highlightBg
+                    ) {
+                        Text(
+                            extracted,
+                            color = matchGreen,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+            } else {
+                Text("Result: No Match Found ✕", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ArcColors.Danger)
+                Text(sampleText, fontSize = 12.sp, color = slateSub, lineHeight = 17.sp)
             }
-        },
-        confirmButton = {
+
+            Spacer(modifier = Modifier.height(6.dp))
+
             Button(
                 onClick = onDismiss,
                 colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
-                shape = CircleShape
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(44.dp)
             ) {
-                Text("Close", color = Color.White)
+                Text("Close", color = Color.White, fontWeight = FontWeight.Bold)
             }
-        },
-        shape = RoundedCornerShape(16.dp),
-        containerColor = cardBg
-    )
+        }
+    }
 }

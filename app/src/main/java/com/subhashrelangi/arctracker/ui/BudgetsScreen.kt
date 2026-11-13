@@ -1,5 +1,7 @@
 package com.subhashrelangi.arctracker.ui
 
+import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -984,75 +986,20 @@ fun BudgetsScreen(
         }
         var capError by remember { mutableStateOf<String?>(null) }
 
-        Dialog(onDismissRequest = { showMonthlyCapDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = cardBg,
-                tonalElevation = 6.dp,
-                border = BorderStroke(1.dp, cardBorder),
+        ArcModalBottomSheet(
+            onDismissRequest = { showMonthlyCapDialog = false },
+            title = "Monthly Budget Cap",
+            subtitle = "Overall spending ceiling across all categories",
+            icon = Icons.Outlined.Speed,
+            iconColor = ArcColors.Primary,
+            maxHeight = 560.dp
+        ) {
+            val scrollState = rememberScrollState()
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp)
+                    .verticalScroll(scrollState)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp)
-                ) {
-                    // Header Row with Icon and Close Button
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Speed,
-                                contentDescription = null,
-                                tint = ArcColors.Primary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Monthly Budget Cap",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 17.sp,
-                                color = ArcColors.TextPrimary
-                            )
-                            Text(
-                                text = "Overall spending ceiling across all categories",
-                                fontSize = 11.sp,
-                                color = ArcColors.TextSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(ArcColors.SurfaceHighlight)
-                                .clickable { showMonthlyCapDialog = false },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = ArcColors.TextSecondary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -1272,7 +1219,6 @@ fun BudgetsScreen(
                         )
                     }
                 }
-            }
         }
     }
 
@@ -1316,96 +1262,24 @@ fun BudgetsScreen(
         )
     }
 
-    // Delete Confirmation Dialog
+    // Delete Confirmation Bottom Sheet
     deletingBudget?.let { budget ->
-        androidx.compose.ui.window.Dialog(onDismissRequest = { deletingBudget = null }) {
-            Surface(
-                shape = RoundedCornerShape(22.dp),
-                color = cardBg,
-                border = BorderStroke(1.dp, cardBorder),
-                shadowElevation = 8.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(22.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(if (ArcColors.isDark) Color(0xFF451A1A) else Color(0xFFFEE2E2)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Delete,
-                                contentDescription = null,
-                                tint = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Delete Budget?",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ArcColors.TextPrimary
-                            )
-                            Text(
-                                text = "Remove spending cap for ${budget.name}",
-                                fontSize = 11.5.sp,
-                                color = ArcColors.TextSecondary
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = "Are you sure you want to delete this budget limit? Your transactions and spending records will remain completely untouched.",
-                        fontSize = 12.5.sp,
-                        color = ArcColors.TextSecondary,
-                        lineHeight = 17.sp
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { deletingBudget = null },
-                            shape = CircleShape,
-                            border = BorderStroke(1.dp, ArcColors.Border),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                        ) {
-                            Text("Cancel", color = ArcColors.TextSecondary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                        }
-
-                        Button(
-                            onClick = {
-                                deletingBudget = null
-                                scope.launch {
-                                    budgetManager.deleteBudget(budget.id)
-                                }
-                            },
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                        ) {
-                            Text("Delete", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
-                    }
+        ArcConfirmationBottomSheet(
+            title = "Delete Budget?",
+            message = "Are you sure you want to delete the spending cap for \"${budget.name}\"? Your transactions and spending records will remain completely untouched.",
+            confirmText = "Delete Budget",
+            cancelText = "Cancel",
+            icon = Icons.Outlined.DeleteOutline,
+            iconColor = ArcColors.Danger,
+            isDestructive = true,
+            onConfirm = {
+                deletingBudget = null
+                scope.launch {
+                    budgetManager.deleteBudget(budget.id)
                 }
-            }
-        }
+            },
+            onDismiss = { deletingBudget = null }
+        )
     }
 
     // Detail Dialog
@@ -1606,152 +1480,162 @@ fun BudgetEditDialog(
     var exceededThresholdText by remember { mutableStateOf(budget?.exceededThreshold?.toInt()?.toString() ?: "100") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    AlertDialog(
+    ArcModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text(if (budget == null) "Create Budget" else "Edit Budget") },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                errorMessage?.let { msg ->
-                    Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
-                }
+        title = if (budget == null) "Create Budget" else "Edit Budget",
+        maxHeight = 560.dp
+    ) {
+        val scrollState = rememberScrollState()
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            errorMessage?.let { msg ->
+                Text(msg, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+            }
 
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it; errorMessage = null },
-                    label = { Text("Budget Name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it; errorMessage = null },
+                label = { Text("Budget Name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = amountText,
+                onValueChange = { amountText = it; errorMessage = null },
+                label = { Text("Limit Amount (₹)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = isOverall,
+                    onCheckedChange = { isOverall = it }
                 )
+                Text("Overall Budget (All Expenses)", fontSize = 13.sp)
+            }
 
-                OutlinedTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it; errorMessage = null },
-                    label = { Text("Limit Amount (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        checked = isOverall,
-                        onCheckedChange = { isOverall = it }
-                    )
-                    Text("Overall Budget (All Expenses)", fontSize = 13.sp)
-                }
-
-                if (!isOverall) {
-                    var showCatPicker by remember { mutableStateOf(false) }
-                    val currentCat = categories.find { it.id == selectedCategoryId }
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { showCatPicker = true },
-                        shape = RoundedCornerShape(12.dp),
-                        color = ArcColors.SurfaceHighlight,
-                        border = BorderStroke(1.dp, ArcColors.Border)
+            if (!isOverall) {
+                var showCatPicker by remember { mutableStateOf(false) }
+                val currentCat = categories.find { it.id == selectedCategoryId }
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { showCatPicker = true },
+                    shape = RoundedCornerShape(12.dp),
+                    color = ArcColors.SurfaceHighlight,
+                    border = BorderStroke(1.dp, ArcColors.Border)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (currentCat != null) {
-                                    val catColor = CategoryVisuals.getColor(currentCat.colorKey)
-                                    val catIcon = CategoryVisuals.getIcon(currentCat.iconKey)
-                                    Box(
-                                        modifier = Modifier
-                                            .size(28.dp)
-                                            .clip(CircleShape)
-                                            .background(catColor.copy(alpha = 0.2f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = catIcon,
-                                            contentDescription = null,
-                                            tint = catColor,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(10.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (currentCat != null) {
+                                val catColor = CategoryVisuals.getColor(currentCat.colorKey)
+                                val catIcon = CategoryVisuals.getIcon(currentCat.iconKey)
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .background(catColor.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = catIcon,
+                                        contentDescription = null,
+                                        tint = catColor,
+                                        modifier = Modifier.size(16.dp)
+                                    )
                                 }
-                                Text(
-                                    text = currentCat?.name ?: "Select Category",
-                                    fontSize = 13.5.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = if (currentCat != null) ArcColors.TextPrimary else ArcColors.TextSecondary
-                                )
+                                Spacer(modifier = Modifier.width(10.dp))
                             }
-                            Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = null,
-                                tint = ArcColors.TextSecondary
+                            Text(
+                                text = currentCat?.name ?: "Select Category",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (currentCat != null) ArcColors.TextPrimary else ArcColors.TextSecondary
                             )
                         }
-                    }
-
-                    if (showCatPicker) {
-                        com.subhashrelangi.arctracker.ui.review.CategoryPickerDialog(
-                            categories = categories,
-                            currentCategoryId = selectedCategoryId,
-                            onCategorySelected = { cat ->
-                                selectedCategoryId = cat.id
-                                showCatPicker = false
-                            },
-                            onDismissRequest = { showCatPicker = false },
-                            pickerStyle = com.subhashrelangi.arctracker.ui.review.CategoryPickerStyle.HORIZONTAL_SNAP
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = ArcColors.TextSecondary
                         )
                     }
                 }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val amount = amountText.toDoubleOrNull()
-                    val warning = warningThresholdText.toDoubleOrNull() ?: 80.0
-                    val exceeded = exceededThresholdText.toDoubleOrNull() ?: 100.0
 
-                    if (name.isBlank()) {
-                        errorMessage = "Please enter a budget name"
-                        return@Button
-                    }
-                    if (amount == null || amount <= 0) {
-                        errorMessage = "Please enter a valid amount"
-                        return@Button
-                    }
-
-                    onSave(
-                        name.trim(),
-                        amount,
-                        if (isOverall) null else selectedCategoryId,
-                        selectedPeriod,
-                        warning,
-                        exceeded,
-                        budget?.isEnabled ?: true
+                if (showCatPicker) {
+                    com.subhashrelangi.arctracker.ui.review.CategoryPickerDialog(
+                        categories = categories,
+                        currentCategoryId = selectedCategoryId,
+                        onCategorySelected = { cat ->
+                            selectedCategoryId = cat.id
+                            showCatPicker = false
+                        },
+                        onDismissRequest = { showCatPicker = false },
+                        pickerStyle = com.subhashrelangi.arctracker.ui.review.CategoryPickerStyle.HORIZONTAL_SNAP
                     )
-                },
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
-            ) {
-                Text("Save", fontWeight = FontWeight.Bold)
+                }
             }
-        },
-        dismissButton = {
-            OutlinedButton(
-                onClick = onDismiss,
-                shape = CircleShape,
-                border = BorderStroke(1.dp, ArcColors.Border)
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("Cancel", color = ArcColors.TextSecondary)
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, ArcColors.Border),
+                    modifier = Modifier.weight(1f).height(44.dp)
+                ) {
+                    Text("Cancel", color = ArcColors.TextSecondary)
+                }
+
+                Button(
+                    onClick = {
+                        val amount = amountText.toDoubleOrNull()
+                        val warning = warningThresholdText.toDoubleOrNull() ?: 80.0
+                        val exceeded = exceededThresholdText.toDoubleOrNull() ?: 100.0
+
+                        if (name.isBlank()) {
+                            errorMessage = "Please enter a budget name"
+                            return@Button
+                        }
+                        if (amount == null || amount <= 0) {
+                            errorMessage = "Please enter a valid amount"
+                            return@Button
+                        }
+
+                        onSave(
+                            name.trim(),
+                            amount,
+                            if (isOverall) null else selectedCategoryId,
+                            selectedPeriod,
+                            warning,
+                            exceeded,
+                            budget?.isEnabled ?: true
+                        )
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                    modifier = Modifier.weight(1f).height(44.dp)
+                ) {
+                    Text("Save", fontWeight = FontWeight.Bold, color = Color.White)
+                }
             }
         }
-    )
+    }
 }
 
 @Composable
@@ -1774,55 +1658,55 @@ fun BudgetDetailDialog(
         }
     }
 
-    AlertDialog(
+    ArcModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
-            Text(progress.budget.name, fontWeight = FontWeight.Bold)
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 350.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Text(
-                    text = "Spending: ${currencyFormatter.format(progress.spent)} of ${currencyFormatter.format(progress.limit)} (${String.format(Locale.US, "%.1f", progress.percentageUsed)}%)",
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 13.sp
-                )
+        title = progress.budget.name,
+        maxHeight = 480.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+        ) {
+            Text(
+                text = "Spending: ${currencyFormatter.format(progress.spent)} of ${currencyFormatter.format(progress.limit)} (${String.format(Locale.US, "%.1f", progress.percentageUsed)}%)",
+                fontWeight = FontWeight.Medium,
+                fontSize = 13.sp,
+                color = ArcColors.TextPrimary
+            )
 
-                Spacer(modifier = Modifier.height(12.dp))
-                Text("Contributing Transactions (${contributingTxs.size}):", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Contributing Transactions (${contributingTxs.size}):", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = ArcColors.TextSecondary)
+            Spacer(modifier = Modifier.height(6.dp))
 
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                } else if (contributingTxs.isEmpty()) {
-                    Text("No transactions in this period yet.", fontSize = 12.sp, color = Color.Gray)
-                } else {
-                    contributingTxs.forEach { expense ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(expense.merchant, fontSize = 12.sp, modifier = Modifier.weight(1f), maxLines = 1)
-                            Text(currencyFormatter.format(expense.amount), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            } else if (contributingTxs.isEmpty()) {
+                Text("No transactions in this period yet.", fontSize = 12.sp, color = ArcColors.TextMuted)
+            } else {
+                contributingTxs.forEach { expense ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(expense.merchant, fontSize = 12.sp, modifier = Modifier.weight(1f), maxLines = 1, color = ArcColors.TextPrimary)
+                        Text(currencyFormatter.format(expense.amount), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ArcColors.TextPrimary)
                     }
                 }
             }
-        },
-        confirmButton = {
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Button(
                 onClick = onDismiss,
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                modifier = Modifier.fillMaxWidth().height(44.dp)
             ) {
                 Text("Close", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
-    )
+    }
 }

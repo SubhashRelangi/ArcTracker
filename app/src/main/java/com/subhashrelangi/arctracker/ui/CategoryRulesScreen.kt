@@ -1,5 +1,9 @@
 package com.subhashrelangi.arctracker.ui
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -557,53 +561,29 @@ fun CategoryRulesScreen(
         )
     }
 
-    // Delete Confirmation Dialog
+    // Delete Confirmation Bottom Sheet
     ruleToDelete?.let { rule ->
-        AlertDialog(
-            onDismissRequest = { ruleToDelete = null },
-            shape = RoundedCornerShape(20.dp),
-            containerColor = cardBg,
-            title = {
-                Text(
-                    text = "Delete Rule",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    color = slateTitle
-                )
-            },
-            text = {
-                Text(
-                    text = "Delete category rule for \"${rule.pattern}\"? Existing transaction categories will not be changed.",
-                    fontSize = 13.5.sp,
-                    color = slateSub,
-                    lineHeight = 19.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val id = rule.id
-                        ruleToDelete = null
-                        scope.launch {
-                            val res = rManager.deleteRule(id)
-                            if (res.isSuccess) {
-                                snackbarHostState.showSnackbar("Rule deleted")
-                            } else {
-                                snackbarHostState.showSnackbar(res.exceptionOrNull()?.message ?: "Failed to delete")
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = CircleShape
-                ) {
-                    Text("Delete Rule", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        ArcConfirmationBottomSheet(
+            title = "Delete Rule",
+            message = "Delete category rule for \"${rule.pattern}\"? Existing transaction categories will not be changed.",
+            confirmText = "Delete Rule",
+            cancelText = "Cancel",
+            icon = Icons.Outlined.DeleteOutline,
+            iconColor = ArcColors.Danger,
+            isDestructive = true,
+            onConfirm = {
+                val id = rule.id
+                ruleToDelete = null
+                scope.launch {
+                    val res = rManager.deleteRule(id)
+                    if (res.isSuccess) {
+                        snackbarHostState.showSnackbar("Rule deleted")
+                    } else {
+                        snackbarHostState.showSnackbar(res.exceptionOrNull()?.message ?: "Failed to delete")
+                    }
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { ruleToDelete = null }) {
-                    Text("Cancel", color = slateSub, fontSize = 13.sp)
-                }
-            }
+            onDismiss = { ruleToDelete = null }
         )
     }
 }
@@ -785,188 +765,193 @@ fun RuleEditorDialog(
     var matchTypeExpanded by remember { mutableStateOf(false) }
     var categoryExpanded by remember { mutableStateOf(false) }
 
-    AlertDialog(
+    ArcModalBottomSheet(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(20.dp),
-        containerColor = cardBg,
-        title = {
-            Text(
-                text = if (existingRule != null) "Edit Category Rule" else "New Category Rule",
-                fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
-                color = slateTitle
-            )
-        },
-        text = {
-            Column(
+        title = if (existingRule != null) "Edit Category Rule" else "New Category Rule",
+        maxHeight = 560.dp
+    ) {
+        val scrollState = rememberScrollState()
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            OutlinedTextField(
+                value = pattern,
+                onValueChange = {
+                    pattern = it
+                    errorMessage = null
+                },
+                label = { Text("Merchant / Keyword Pattern *") },
+                singleLine = true,
+                shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = emeraldPrimary,
+                    unfocusedBorderColor = cardBorder,
+                    focusedLabelColor = emeraldPrimary
+                )
+            )
+
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Rule Label (Optional)") },
+                singleLine = true,
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = emeraldPrimary,
+                    unfocusedBorderColor = cardBorder,
+                    focusedLabelColor = emeraldPrimary
+                )
+            )
+
+            // Match Type Selector
+            OutlinedButton(
+                onClick = { matchTypeExpanded = true },
+                shape = CircleShape,
+                border = BorderStroke(1.dp, cardBorder),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedTextField(
-                    value = pattern,
-                    onValueChange = {
-                        pattern = it
-                        errorMessage = null
+                Text(
+                    text = "Match: " + when (selectedMatchType) {
+                        UserRuleMatchType.MERCHANT_EXACT -> "Exact Merchant"
+                        UserRuleMatchType.MERCHANT_TOKEN -> "Merchant Token"
+                        UserRuleMatchType.MERCHANT_CONTAINS -> "Merchant Contains"
+                        UserRuleMatchType.TRANSACTION_TEXT_CONTAINS -> "Transaction Text Contains"
+                        else -> selectedMatchType
                     },
-                    label = { Text("Merchant / Keyword Pattern *") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = emeraldPrimary,
-                        unfocusedBorderColor = cardBorder,
-                        focusedLabelColor = emeraldPrimary
-                    )
+                    fontSize = 13.sp,
+                    color = slateTitle
                 )
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = slateSub)
+            }
 
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Rule Label (Optional)") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = emeraldPrimary,
-                        unfocusedBorderColor = cardBorder,
-                        focusedLabelColor = emeraldPrimary
-                    )
-                )
-
-                // Match Type Selector
-                OutlinedButton(
-                    onClick = { matchTypeExpanded = true },
-                    shape = CircleShape,
-                    border = BorderStroke(1.dp, cardBorder),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Match: " + when (selectedMatchType) {
+            if (matchTypeExpanded) {
+                val matchOptions = UserRuleMatchType.ALL.map { mt ->
+                    com.subhashrelangi.arctracker.ui.review.HorizontalOptionItem(
+                        id = mt,
+                        title = when (mt) {
                             UserRuleMatchType.MERCHANT_EXACT -> "Exact Merchant"
                             UserRuleMatchType.MERCHANT_TOKEN -> "Merchant Token"
                             UserRuleMatchType.MERCHANT_CONTAINS -> "Merchant Contains"
-                            UserRuleMatchType.TRANSACTION_TEXT_CONTAINS -> "Transaction Text Contains"
-                            else -> selectedMatchType
+                            UserRuleMatchType.TRANSACTION_TEXT_CONTAINS -> "Text Contains"
+                            else -> mt
                         },
-                        fontSize = 13.sp,
-                        color = slateTitle
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = slateSub)
-                }
-
-                if (matchTypeExpanded) {
-                    val matchOptions = UserRuleMatchType.ALL.map { mt ->
-                        com.subhashrelangi.arctracker.ui.review.HorizontalOptionItem(
-                            id = mt,
-                            title = when (mt) {
-                                UserRuleMatchType.MERCHANT_EXACT -> "Exact Merchant"
-                                UserRuleMatchType.MERCHANT_TOKEN -> "Merchant Token"
-                                UserRuleMatchType.MERCHANT_CONTAINS -> "Merchant Contains"
-                                UserRuleMatchType.TRANSACTION_TEXT_CONTAINS -> "Text Contains"
-                                else -> mt
-                            },
-                            subtitle = when (mt) {
-                                UserRuleMatchType.MERCHANT_EXACT -> "e.g. Swiggy"
-                                UserRuleMatchType.MERCHANT_TOKEN -> "e.g. Amazon"
-                                UserRuleMatchType.MERCHANT_CONTAINS -> "e.g. Coffee"
-                                else -> "SMS Body"
-                            }
-                        )
-                    }
-                    com.subhashrelangi.arctracker.ui.review.HorizontalOptionPickerDialog(
-                        title = "Select Match Type",
-                        subtitle = "Rule evaluation mode",
-                        options = matchOptions,
-                        selectedId = selectedMatchType,
-                        onDismissRequest = { matchTypeExpanded = false },
-                        onOptionSelected = { opt ->
-                            selectedMatchType = opt.id
-                            matchTypeExpanded = false
+                        subtitle = when (mt) {
+                            UserRuleMatchType.MERCHANT_EXACT -> "e.g. Swiggy"
+                            UserRuleMatchType.MERCHANT_TOKEN -> "e.g. Amazon"
+                            UserRuleMatchType.MERCHANT_CONTAINS -> "e.g. Coffee"
+                            else -> "SMS Body"
                         }
                     )
                 }
-
-                // Category Selector
-                val currentCat = activeCategories.find { it.id == selectedCategoryId }
-                OutlinedButton(
-                    onClick = { categoryExpanded = true },
-                    shape = CircleShape,
-                    border = BorderStroke(1.dp, cardBorder),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (currentCat != null) {
-                        Icon(
-                            imageVector = CategoryVisuals.getIcon(currentCat.iconKey),
-                            contentDescription = null,
-                            tint = CategoryVisuals.getColor(currentCat.colorKey),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                com.subhashrelangi.arctracker.ui.review.HorizontalOptionPickerDialog(
+                    title = "Select Match Type",
+                    subtitle = "Rule evaluation mode",
+                    options = matchOptions,
+                    selectedId = selectedMatchType,
+                    onDismissRequest = { matchTypeExpanded = false },
+                    onOptionSelected = { opt ->
+                        selectedMatchType = opt.id
+                        matchTypeExpanded = false
                     }
-                    Text(
-                        text = "Category: ${currentCat?.name ?: "Select Category"}",
-                        fontSize = 13.sp,
-                        color = slateTitle
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = slateSub)
-                }
-
-                if (categoryExpanded) {
-                    com.subhashrelangi.arctracker.ui.review.CategoryPickerDialog(
-                        categories = activeCategories,
-                        currentCategoryId = selectedCategoryId,
-                        onCategorySelected = { cat ->
-                            selectedCategoryId = cat.id
-                            categoryExpanded = false
-                        },
-                        onDismissRequest = { categoryExpanded = false },
-                        pickerStyle = com.subhashrelangi.arctracker.ui.review.CategoryPickerStyle.HORIZONTAL_SNAP
-                    )
-                }
-
-                // Normalization Preview
-                if (pattern.isNotBlank()) {
-                    Text(
-                        text = "Normalized Pattern: \"${MerchantNormalizer.normalize(pattern, stripPrefixes = false)}\"",
-                        fontSize = 11.sp,
-                        color = slateSub
-                    )
-                }
-
-                errorMessage?.let { err ->
-                    Text(
-                        text = "⚠ $err",
-                        fontSize = 12.sp,
-                        color = Color(0xFFDC2626)
-                    )
-                }
+                )
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (pattern.trim().isBlank()) {
-                        errorMessage = "Pattern cannot be empty"
-                        return@Button
-                    }
-                    if (selectedCategoryId.isBlank()) {
-                        errorMessage = "Please select a category"
-                        return@Button
-                    }
-                    onSave(pattern.trim(), selectedCategoryId, selectedMatchType, priority, name.trim().ifBlank { null })
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                shape = CircleShape
+
+            // Category Selector
+            val currentCat = activeCategories.find { it.id == selectedCategoryId }
+            OutlinedButton(
+                onClick = { categoryExpanded = true },
+                shape = CircleShape,
+                border = BorderStroke(1.dp, cardBorder),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Save Rule", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                if (currentCat != null) {
+                    Icon(
+                        imageVector = CategoryVisuals.getIcon(currentCat.iconKey),
+                        contentDescription = null,
+                        tint = CategoryVisuals.getColor(currentCat.colorKey),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(
+                    text = "Category: ${currentCat?.name ?: "Select Category"}",
+                    fontSize = 13.sp,
+                    color = slateTitle
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = slateSub)
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = slateSub, fontSize = 13.sp)
+
+            if (categoryExpanded) {
+                com.subhashrelangi.arctracker.ui.review.CategoryPickerDialog(
+                    categories = activeCategories,
+                    currentCategoryId = selectedCategoryId,
+                    onCategorySelected = { cat ->
+                        selectedCategoryId = cat.id
+                        categoryExpanded = false
+                    },
+                    onDismissRequest = { categoryExpanded = false },
+                    pickerStyle = com.subhashrelangi.arctracker.ui.review.CategoryPickerStyle.HORIZONTAL_SNAP
+                )
+            }
+
+            // Normalization Preview
+            if (pattern.isNotBlank()) {
+                Text(
+                    text = "Normalized Pattern: \"${MerchantNormalizer.normalize(pattern, stripPrefixes = false)}\"",
+                    fontSize = 11.sp,
+                    color = slateSub
+                )
+            }
+
+            errorMessage?.let { err ->
+                Text(
+                    text = "⚠ $err",
+                    fontSize = 12.sp,
+                    color = Color(0xFFDC2626)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, cardBorder),
+                    modifier = Modifier.weight(1f).height(44.dp)
+                ) {
+                    Text("Cancel", color = slateSub, fontSize = 13.sp)
+                }
+
+                Button(
+                    onClick = {
+                        if (pattern.trim().isBlank()) {
+                            errorMessage = "Pattern cannot be empty"
+                            return@Button
+                        }
+                        if (selectedCategoryId.isBlank()) {
+                            errorMessage = "Please select a category"
+                            return@Button
+                        }
+                        onSave(pattern.trim(), selectedCategoryId, selectedMatchType, priority, name.trim().ifBlank { null })
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f).height(44.dp)
+                ) {
+                    Text("Save Rule", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
             }
         }
-    )
+    }
 }
