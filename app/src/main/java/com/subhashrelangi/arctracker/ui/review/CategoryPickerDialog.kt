@@ -3,19 +3,16 @@ package com.subhashrelangi.arctracker.ui.review
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,25 +21,32 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.CategoryVisuals
 import com.subhashrelangi.arctracker.data.TransactionCategory
+import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import kotlinx.coroutines.launch
-import kotlin.math.abs
+import kotlin.math.*
 
 /**
  * Selection display modes for category picker experimentation.
  */
 enum class CategoryPickerMode {
-    ROTARY_DIAL, // Signature Arc Rotary Wheel with Pointer Arrow
+    ROTARY_DIAL, // True Circular Rotary Wheel with Pointer Arrow
     TACTILE_GRID  // Modern 3-Column Ergonomic Tile Matrix
 }
 
@@ -51,7 +55,7 @@ enum class CategoryPickerMode {
  *
  * Eliminates centered floating modal dialogs and nested scroll traps.
  * Anchors naturally at the bottom thumb zone with tactile haptics and
- * interactive rotary dial / grid view modes.
+ * interactive circular rotary dial / grid view modes.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,14 +72,6 @@ fun CategoryPickerDialog(
     val validCategories = remember(categories) {
         if (categories.isNotEmpty()) categories.filter { !it.isArchived } else categories
     }
-
-    val initialIndex = remember(validCategories, currentCategoryId) {
-        val idx = validCategories.indexOfFirst { it.id == currentCategoryId }
-        if (idx >= 0) idx else 0
-    }
-
-    var selectedIndex by remember { mutableIntStateOf(initialIndex) }
-    val activeCategory = validCategories.getOrNull(selectedIndex) ?: validCategories.firstOrNull()
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -112,7 +108,7 @@ fun CategoryPickerDialog(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (pickerMode == CategoryPickerMode.ROTARY_DIAL) "Rotate dial to select" else "Tap a tile below",
+                        text = if (pickerMode == CategoryPickerMode.ROTARY_DIAL) "Turn the wheel to choose" else "Tap a tile below",
                         color = ArcColors.TextSecondary,
                         fontSize = 12.sp
                     )
@@ -165,7 +161,7 @@ fun CategoryPickerDialog(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Body: Switch between Rotary Dial and Tactile Grid
+            // Body: Switch between True Circular Wheel and Tactile Grid
             AnimatedContent(
                 targetState = pickerMode,
                 transitionSpec = {
@@ -175,10 +171,9 @@ fun CategoryPickerDialog(
             ) { mode ->
                 when (mode) {
                     CategoryPickerMode.ROTARY_DIAL -> {
-                        RotaryDialCategoryPicker(
+                        ArcCircularWheelCategoryPicker(
                             categories = validCategories,
-                            selectedIndex = selectedIndex,
-                            onIndexChanged = { selectedIndex = it },
+                            currentCategoryId = currentCategoryId,
                             onCategoryConfirmed = { cat ->
                                 onCategorySelected(cat)
                                 onDismissRequest()
@@ -202,116 +197,307 @@ fun CategoryPickerDialog(
 }
 
 /**
- * Signature Arc Rotary Wheel with Needle Arrow Indicator.
+ * Signature Arc Circular Rotary Wheel with Needle Arrow Indicator.
+ *
+ * User rotates the circular wheel directly with tactile touch.
+ * The pointer needle at 12 o'clock points down to the active category.
+ * Snapping and subtle haptics provide precision physical feedback.
  */
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun RotaryDialCategoryPicker(
+private fun ArcCircularWheelCategoryPicker(
     categories: List<TransactionCategory>,
-    selectedIndex: Int,
-    onIndexChanged: (Int) -> Unit,
+    currentCategoryId: String?,
     onCategoryConfirmed: (TransactionCategory) -> Unit
 ) {
+    if (categories.isEmpty()) return
+
     val coroutineScope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
-    val lazyListState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex.coerceAtLeast(0))
-    val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = lazyListState)
+    val density = LocalDensity.current
 
-    val activeCategory = categories.getOrNull(selectedIndex) ?: categories.firstOrNull()
+    val initialIndex = remember(categories, currentCategoryId) {
+        val idx = categories.indexOfFirst { it.id == currentCategoryId }
+        if (idx >= 0) idx else 0
+    }
+
+    val sliceAngle = remember(categories.size) { 360f / categories.size.coerceAtLeast(1) }
+    val initialRotation = remember(initialIndex, sliceAngle) { -initialIndex * sliceAngle }
+
+    var rotationAngle by remember { mutableFloatStateOf(initialRotation) }
+    val rotationAnim = remember { Animatable(initialRotation) }
+    var isDragging by remember { mutableStateOf(false) }
+
+    val currentAngle = if (isDragging) rotationAngle else rotationAnim.value
+
+    fun calculateIndex(angle: Float): Int {
+        val normalized = ((-angle % 360f) + 360f) % 360f
+        return (round(normalized / sliceAngle).toInt()) % categories.size
+    }
+
+    val pointedIndex = remember(currentAngle, categories.size) {
+        calculateIndex(currentAngle)
+    }
+
+    var lastHapticIndex by remember { mutableIntStateOf(pointedIndex) }
+
+    val activeCategory = categories.getOrNull(pointedIndex) ?: categories.firstOrNull()
     val activeColor = activeCategory?.let { CategoryVisuals.getColor(it.colorKey) } ?: ArcColors.Primary
 
-    // Sync scroll position with selected index
-    LaunchedEffect(lazyListState.firstVisibleItemIndex) {
-        val centerIdx = lazyListState.firstVisibleItemIndex
-        if (centerIdx in categories.indices && centerIdx != selectedIndex) {
-            onIndexChanged(centerIdx)
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+    fun animateToCategory(index: Int) {
+        val diff = (rotationAngle + index * sliceAngle)
+        val diffNorm = ((diff % 360f) + 540f) % 360f - 180f
+        val target = rotationAngle - diffNorm
+        coroutineScope.launch {
+            rotationAnim.snapTo(rotationAngle)
+            rotationAnim.animateTo(
+                targetValue = target,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            ) {
+                rotationAngle = value
+            }
+        }
+    }
+
+    fun snapToNearest() {
+        val target = round(rotationAngle / sliceAngle) * sliceAngle
+        coroutineScope.launch {
+            rotationAnim.snapTo(rotationAngle)
+            rotationAnim.animateTo(
+                targetValue = target,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            ) {
+                rotationAngle = value
+            }
         }
     }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Active Featured Showcase Card
-        if (activeCategory != null) {
-            Surface(
-                shape = RoundedCornerShape(22.dp),
-                color = ArcColors.Surface,
-                border = BorderStroke(1.5.dp, activeColor.copy(alpha = 0.6f)),
-                shadowElevation = 4.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-            ) {
-                Row(
+        val wheelSizeDp = 280.dp
+        val centerPx = with(density) { (wheelSizeDp / 2f).toPx() }
+        val centerOffset = Offset(centerPx, centerPx)
+        val itemRadiusPx = with(density) { 98.dp.toPx() }
+        val itemSizeDp = 42.dp
+        val itemSizePx = with(density) { itemSizeDp.toPx() }
+        val dialSurfaceColor = ArcColors.Surface
+        val dialBorderColor = ArcColors.Border
+
+        // Needle Arrow & Wheel Container
+        Box(
+            modifier = Modifier
+                .size(wheelSizeDp)
+                .pointerInput(categories.size) {
+                    var lastTouchAngle = 0f
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            isDragging = true
+                            coroutineScope.launch { rotationAnim.snapTo(rotationAngle) }
+                            val dx = offset.x - centerPx
+                            val dy = offset.y - centerPx
+                            lastTouchAngle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+                        },
+                        onDrag = { change, _ ->
+                            change.consume()
+                            val dx = change.position.x - centerPx
+                            val dy = change.position.y - centerPx
+                            val currentTouchAngle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+                            var delta = currentTouchAngle - lastTouchAngle
+                            if (delta > 180f) delta -= 360f
+                            if (delta < -180f) delta += 360f
+
+                            rotationAngle += delta
+                            lastTouchAngle = currentTouchAngle
+
+                            val idx = calculateIndex(rotationAngle)
+                            if (idx != lastHapticIndex) {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                lastHapticIndex = idx
+                            }
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            snapToNearest()
+                        },
+                        onDragCancel = {
+                            isDragging = false
+                            snapToNearest()
+                        }
+                    )
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            // 1. Wheel Canvas: Spoke lines, Outer ring, Guide track, Needle Arrow
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val outerRadius = size.width / 2f - 4.dp.toPx()
+                val innerRadius = 48.dp.toPx()
+
+                // Subtle dial background circle
+                drawCircle(
+                    color = dialSurfaceColor,
+                    radius = outerRadius,
+                    center = centerOffset
+                )
+
+                // Outer border ring
+                drawCircle(
+                    color = dialBorderColor.copy(alpha = 0.5f),
+                    radius = outerRadius,
+                    center = centerOffset,
+                    style = Stroke(width = 1.5.dp.toPx())
+                )
+
+                // Subtle circular orbit guide track for badges
+                drawCircle(
+                    color = dialBorderColor.copy(alpha = 0.2f),
+                    radius = itemRadiusPx,
+                    center = centerOffset,
+                    style = Stroke(width = 1.dp.toPx())
+                )
+
+                // Radial Spoke Divider Lines
+                val sliceCount = categories.size
+                for (i in 0 until sliceCount) {
+                    val spokeAngle = currentAngle + (i - 0.5f) * sliceAngle - 90f
+                    val rad = Math.toRadians(spokeAngle.toDouble())
+                    val startX = centerOffset.x + innerRadius * cos(rad).toFloat()
+                    val startY = centerOffset.y + innerRadius * sin(rad).toFloat()
+                    val endX = centerOffset.x + (outerRadius - 2.dp.toPx()) * cos(rad).toFloat()
+                    val endY = centerOffset.y + (outerRadius - 2.dp.toPx()) * sin(rad).toFloat()
+
+                    drawLine(
+                        color = dialBorderColor.copy(alpha = 0.35f),
+                        start = Offset(startX, startY),
+                        end = Offset(endX, endY),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
+
+                // Active Sector Accent Arc / Glow on rim
+                drawArc(
+                    color = activeColor.copy(alpha = 0.12f),
+                    startAngle = currentAngle + (pointedIndex - 0.5f) * sliceAngle - 90f,
+                    sweepAngle = sliceAngle,
+                    useCenter = true,
+                    topLeft = Offset(centerOffset.x - outerRadius, centerOffset.y - outerRadius),
+                    size = Size(outerRadius * 2, outerRadius * 2)
+                )
+
+                // Top Arrow Pointer (Needle pointing directly down into top item)
+                val needleWidth = 14.dp.toPx()
+                val needleHeight = 16.dp.toPx()
+                val needlePath = Path().apply {
+                    moveTo(centerOffset.x - (needleWidth / 2f), 2.dp.toPx())
+                    lineTo(centerOffset.x + (needleWidth / 2f), 2.dp.toPx())
+                    lineTo(centerOffset.x, 2.dp.toPx() + needleHeight)
+                    close()
+                }
+                drawPath(path = needlePath, color = activeColor)
+
+                // Needle pivot cap
+                drawCircle(
+                    color = Color.White,
+                    radius = 3.dp.toPx(),
+                    center = Offset(centerOffset.x, 4.dp.toPx())
+                )
+            }
+
+            // 2. Category Badges around the Wheel
+            categories.forEachIndexed { index, cat ->
+                val itemAngle = currentAngle + index * sliceAngle - 90f
+                val rad = Math.toRadians(itemAngle.toDouble())
+                val xOffsetPx = centerOffset.x + (itemRadiusPx * cos(rad)).toFloat() - (itemSizePx / 2f)
+                val yOffsetPx = centerOffset.y + (itemRadiusPx * sin(rad)).toFloat() - (itemSizePx / 2f)
+
+                val isPointed = index == pointedIndex
+                val catColor = CategoryVisuals.getColor(cat.colorKey)
+                val catIcon = CategoryVisuals.getIcon(cat.iconKey)
+
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(activeColor.copy(alpha = 0.2f))
-                                .border(1.5.dp, activeColor, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = CategoryVisuals.getIcon(activeCategory.iconKey),
-                                contentDescription = null,
-                                tint = activeColor,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column {
-                            Text(
-                                text = activeCategory.name,
-                                color = ArcColors.TextPrimary,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "Category Target",
-                                color = ArcColors.TextMuted,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-
-                    // Confirm Pill Button
-                    Button(
-                        onClick = { onCategoryConfirmed(activeCategory) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = activeColor,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = "Apply",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                        .offset { IntOffset(xOffsetPx.roundToInt(), yOffsetPx.roundToInt()) }
+                        .size(itemSizeDp)
+                        .scale(if (isPointed) 1.2f else 0.88f)
+                        .alpha(if (isPointed) 1f else 0.65f)
+                        .clip(CircleShape)
+                        .background(if (isPointed) catColor.copy(alpha = 0.25f) else ArcColors.SurfaceElevated)
+                        .border(
+                            width = if (isPointed) 2.5.dp else 1.dp,
+                            color = if (isPointed) catColor else ArcColors.Border,
+                            shape = CircleShape
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            animateToCategory(index)
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = catIcon,
+                        contentDescription = cat.name,
+                        tint = if (isPointed) catColor else ArcColors.TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // 3. Center Hub (Tap to confirm)
+            Surface(
+                shape = CircleShape,
+                color = ArcColors.SurfaceElevated,
+                border = BorderStroke(1.5.dp, activeColor.copy(alpha = 0.7f)),
+                shadowElevation = 6.dp,
+                modifier = Modifier
+                    .size(94.dp)
+                    .clip(CircleShape)
+                    .clickable {
+                        activeCategory?.let { onCategoryConfirmed(it) }
+                    }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    if (activeCategory != null) {
                         Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Confirm",
-                            modifier = Modifier.size(16.dp)
+                            imageVector = CategoryVisuals.getIcon(activeCategory.iconKey),
+                            contentDescription = activeCategory.name,
+                            tint = activeColor,
+                            modifier = Modifier.size(26.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(3.dp))
+
+                        Text(
+                            text = activeCategory.name,
+                            color = ArcColors.TextPrimary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Text(
+                            text = "Tap to choose",
+                            color = ArcColors.TextMuted,
+                            fontSize = 9.sp,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -320,126 +506,32 @@ private fun RotaryDialCategoryPicker(
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        // Pointer Needle Indicator (Pinup Arrow)
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(bottom = 2.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.ArrowDropDown,
-                contentDescription = "Active Indicator",
-                tint = activeColor,
-                modifier = Modifier
-                    .size(32.dp)
-                    .scale(1.3f)
-            )
-        }
-
-        // Horizontal Arc Rotary Carousel Track
-        BoxWithConstraints(
+        // 4. Primary Bottom Confirm Button
+        Button(
+            onClick = {
+                activeCategory?.let { onCategoryConfirmed(it) }
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = activeColor,
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(96.dp)
+                .padding(horizontal = 24.dp)
+                .height(48.dp)
         ) {
-            val itemWidth = 72.dp
-            val halfScreenWidth = maxWidth / 2
-            val sidePadding = (halfScreenWidth - (itemWidth / 2)).coerceAtLeast(0.dp)
-
-            // Background Subtle Arc Glow Line
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .fillMaxWidth()
-                    .height(2.dp)
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(
-                                Color.Transparent,
-                                activeColor.copy(alpha = 0.35f),
-                                activeColor,
-                                activeColor.copy(alpha = 0.35f),
-                                Color.Transparent
-                            )
-                        )
-                    )
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
             )
-
-            LazyRow(
-                state = lazyListState,
-                flingBehavior = snapFlingBehavior,
-                contentPadding = PaddingValues(horizontal = sidePadding),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                itemsIndexed(categories, key = { _, cat -> cat.id }) { index, cat ->
-                    val isSelected = index == selectedIndex
-                    val catColor = CategoryVisuals.getColor(cat.colorKey)
-                    val catIcon = CategoryVisuals.getIcon(cat.iconKey)
-
-                    val scaleAnim by animateFloatAsState(
-                        targetValue = if (isSelected) 1.25f else 0.85f,
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        label = "ItemScale"
-                    )
-
-                    val alphaAnim by animateFloatAsState(
-                        targetValue = if (isSelected) 1f else 0.5f,
-                        animationSpec = tween(150),
-                        label = "ItemAlpha"
-                    )
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .width(itemWidth)
-                            .scale(scaleAnim)
-                            .alpha(alphaAnim)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                                onIndexChanged(index)
-                                coroutineScope.launch {
-                                    lazyListState.animateScrollToItem(index)
-                                }
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            }
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(if (isSelected) catColor.copy(alpha = 0.22f) else ArcColors.Surface)
-                                .border(
-                                    width = if (isSelected) 2.dp else 1.dp,
-                                    color = if (isSelected) catColor else ArcColors.Border,
-                                    shape = CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = catIcon,
-                                contentDescription = cat.name,
-                                tint = if (isSelected) catColor else ArcColors.TextMuted,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = cat.name,
-                            color = if (isSelected) ArcColors.TextPrimary else ArcColors.TextMuted,
-                            fontSize = 10.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Select ${activeCategory?.name ?: "Category"}",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
         }
     }
 }
