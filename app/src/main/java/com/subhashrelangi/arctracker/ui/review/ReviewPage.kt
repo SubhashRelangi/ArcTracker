@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Adjust
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.*
@@ -49,6 +50,7 @@ import com.subhashrelangi.arctracker.data.Expense
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
+import com.subhashrelangi.arctracker.data.BuiltInCategories
 import com.subhashrelangi.arctracker.data.TransactionCategory
 import com.subhashrelangi.arctracker.engine.account.AccountReconciliationManager
 import com.subhashrelangi.arctracker.service.CategoryManager
@@ -1308,7 +1310,7 @@ fun ReviewPage(
                                         }
                                     }
 
-                                    // More Categories Pill
+                                    // Categories Rotary Wheel Pill
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
                                         color = ArcColors.SurfaceHighlight,
@@ -1322,14 +1324,14 @@ fun ReviewPage(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Add,
-                                                contentDescription = "More",
+                                                imageVector = Icons.Default.Adjust,
+                                                contentDescription = "Category Wheel",
                                                 tint = ArcColors.Primary,
                                                 modifier = Modifier.size(13.dp)
                                             )
                                             Spacer(modifier = Modifier.width(3.dp))
                                             Text(
-                                                text = "More",
+                                                text = "Wheel",
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = ArcColors.Primary,
@@ -2922,361 +2924,14 @@ private fun CategorySelectionModalDialog(
     onAddNewCategory: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    var isAddingNew by remember { mutableStateOf(false) }
-    var newCategoryName by remember { mutableStateOf("") }
-
-    val effectiveCategories = remember(categories) {
-        if (categories.isNotEmpty()) {
-            categories
-        } else {
-            listOf(
-                "Food & Dining", "Shopping & Tech", "Transport & Commute",
-                "Bills & Utilities", "Entertainment", "Healthcare & Medical",
-                "Groceries & Essentials", "Travel & Vacation", "Housing & Rent",
-                "Education", "Personal Care", "Investments", "Miscellaneous"
-            ).mapIndexed { idx, name ->
-                TransactionCategory(
-                    id = "default_$idx",
-                    name = name,
-                    iconKey = "category",
-                    colorKey = "default",
-                    isSystem = true,
-                    isArchived = false,
-                    sortOrder = idx,
-                    createdAt = System.currentTimeMillis(),
-                    updatedAt = System.currentTimeMillis()
-                )
-            }
-        }
-    }
-
-    val filteredList = remember(effectiveCategories, searchQuery) {
-        if (searchQuery.isBlank()) effectiveCategories
-        else effectiveCategories.filter { it.name.contains(searchQuery.trim(), ignoreCase = true) }
-    }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = ArcColors.CardBackground,
-            border = BorderStroke(1.dp, ArcColors.Border),
-            shadowElevation = 12.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-            ) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Select Category",
-                            color = ArcColors.TextPrimary,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Choose or create a category",
-                            color = ArcColors.TextMuted,
-                            fontSize = 12.sp
-                        )
-                    }
-
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Color(0xFF64748B),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Search Bar
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = ArcColors.SurfaceHighlight,
-                    border = BorderStroke(1.dp, ArcColors.Border),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 9.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Search,
-                            contentDescription = "Search",
-                            tint = ArcColors.TextMuted,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            singleLine = true,
-                            textStyle = TextStyle(
-                                fontSize = 13.5.sp,
-                                color = ArcColors.TextPrimary,
-                                fontWeight = FontWeight.Normal
-                            ),
-                            modifier = Modifier.weight(1f),
-                            decorationBox = { innerTextField ->
-                                if (searchQuery.isEmpty()) {
-                                    Text(
-                                        text = "Search categories...",
-                                        fontSize = 13.5.sp,
-                                        color = ArcColors.TextMuted
-                                    )
-                                }
-                                innerTextField()
-                            }
-                        )
-                        if (searchQuery.isNotEmpty()) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Clear",
-                                tint = ArcColors.TextMuted,
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { searchQuery = "" }
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Scrollable Category List
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 280.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items(filteredList, key = { it.id }) { cat ->
-                        val isSelected = cat.name.equals(selectedCategoryName, ignoreCase = true)
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (isSelected) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)) else ArcColors.SurfaceHighlight,
-                            border = BorderStroke(
-                                1.dp,
-                                if (isSelected) ArcColors.Primary else ArcColors.Border
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onCategorySelected(cat.name)
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    modifier = Modifier.weight(1f),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(30.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isSelected) (if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFD1FAE5)) else ArcColors.BorderSubtle),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = getCategoryIcon(cat.name),
-                                            contentDescription = null,
-                                            tint = if (isSelected) ArcColors.Primary else ArcColors.TextSecondary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.width(10.dp))
-
-                                    Text(
-                                        text = cat.name,
-                                        fontSize = 13.5.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSelected) ArcColors.Primary else ArcColors.TextPrimary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = ArcColors.Primary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    if (filteredList.isEmpty()) {
-                        item {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = "No category matching \"$searchQuery\"",
-                                    fontSize = 12.5.sp,
-                                    color = ArcColors.TextSecondary
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                HorizontalDivider(color = ArcColors.Border)
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // + Add Category Section
-                if (!isAddingNew) {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFF0FDF4),
-                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFBBF7D0)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                isAddingNew = true
-                                if (searchQuery.isNotBlank() && filteredList.isEmpty()) {
-                                    newCategoryName = searchQuery.trim()
-                                }
-                            }
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 11.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (searchQuery.isNotBlank() && filteredList.isEmpty()) {
-                                    "Create \"${searchQuery.trim()}\" Category"
-                                } else {
-                                    "+ Add New Category"
-                                },
-                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = ArcColors.SurfaceHighlight,
-                            border = BorderStroke(1.dp, ArcColors.Primary),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                BasicTextField(
-                                    value = newCategoryName,
-                                    onValueChange = { newCategoryName = it },
-                                    singleLine = true,
-                                    textStyle = TextStyle(
-                                        fontSize = 13.5.sp,
-                                        color = ArcColors.TextPrimary,
-                                        fontWeight = FontWeight.Medium
-                                    ),
-                                    modifier = Modifier.weight(1f),
-                                    decorationBox = { innerTextField ->
-                                        if (newCategoryName.isEmpty()) {
-                                            Text(
-                                                text = "Enter category name...",
-                                                fontSize = 12.5.sp,
-                                                color = ArcColors.TextMuted
-                                            )
-                                        }
-                                        innerTextField()
-                                    }
-                                )
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    isAddingNew = false
-                                    newCategoryName = ""
-                                },
-                                shape = CircleShape,
-                                modifier = Modifier.weight(1f),
-                                border = BorderStroke(1.dp, ArcColors.Border)
-                            ) {
-                                Text("Cancel", color = ArcColors.TextSecondary, fontSize = 12.sp)
-                            }
-
-                            Button(
-                                onClick = {
-                                    val trimmed = newCategoryName.trim()
-                                    if (trimmed.isNotEmpty()) {
-                                        onAddNewCategory(trimmed)
-                                    }
-                                },
-                                enabled = newCategoryName.isNotBlank(),
-                                shape = CircleShape,
-                                modifier = Modifier.weight(1.4f),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = ArcColors.Primary,
-                                    disabledContainerColor = ArcColors.BorderSubtle
-                                )
-                            ) {
-                                Text("Save & Select", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    val currentCat = categories.find { it.name.equals(selectedCategoryName, ignoreCase = true) }
+    CategoryPickerDialog(
+        categories = if (categories.isNotEmpty()) categories else BuiltInCategories.ALL,
+        currentCategoryId = currentCat?.id,
+        onCategorySelected = { cat ->
+            onCategorySelected(cat.name)
+            onDismiss()
+        },
+        onDismissRequest = onDismiss
+    )
 }
