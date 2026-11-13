@@ -1271,7 +1271,15 @@ fun ReviewPage(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    val quickOptions = (activeItem.suggestedCategories + listOf("Food & Dining", "Shopping & Tech", "Transport & Commute", "Bills & Utilities")).distinct().take(4)
+                                    val quickOptions = remember(selectedCategoryName, activeItem.suggestedCategories) {
+                                        val list = mutableListOf<String>()
+                                        if (selectedCategoryName.isNotBlank()) {
+                                            list.add(selectedCategoryName)
+                                        }
+                                        list.addAll(activeItem.suggestedCategories)
+                                        list.addAll(listOf("Food & Dining", "Shopping", "Travel & Transport", "Bills & Utilities"))
+                                        list.filter { it.isNotBlank() }.distinct().take(5)
+                                    }
                                     quickOptions.forEach { catName ->
                                         val isSelected = catName.equals(selectedCategoryName, ignoreCase = true)
                                         Surface(
@@ -2047,6 +2055,12 @@ fun ReviewPage(
             onCategorySelected = { catName ->
                 selectedCategoryName = catName
                 showCategorySelectionDialog = false
+                activeItem?.let { currentActive ->
+                    val updated = currentActive.copy(
+                        suggestedCategories = (listOf(catName) + currentActive.suggestedCategories).distinct()
+                    )
+                    queueItems = queueItems.map { if (it.id == currentActive.id) updated else it }
+                }
             },
             onAddNewCategory = { newName ->
                 scope.launch {
@@ -2056,6 +2070,12 @@ fun ReviewPage(
                             if (res.isSuccess) {
                                 selectedCategoryName = newName
                                 showCategorySelectionDialog = false
+                                activeItem?.let { currentActive ->
+                                    val updated = currentActive.copy(
+                                        suggestedCategories = (listOf(newName) + currentActive.suggestedCategories).distinct()
+                                    )
+                                    queueItems = queueItems.map { if (it.id == currentActive.id) updated else it }
+                                }
                                 Toast.makeText(context, "Added category: $newName", Toast.LENGTH_SHORT).show()
                             } else {
                                 Toast.makeText(context, res.exceptionOrNull()?.message ?: "Failed to add category", Toast.LENGTH_SHORT).show()

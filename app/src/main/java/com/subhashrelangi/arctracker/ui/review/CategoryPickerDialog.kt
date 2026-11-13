@@ -108,7 +108,7 @@ fun CategoryPickerDialog(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (pickerMode == CategoryPickerMode.ROTARY_DIAL) "Turn the wheel to choose" else "Tap a tile below",
+                        text = if (pickerMode == CategoryPickerMode.ROTARY_DIAL) "Turn wheel & tap center to select" else "Tap a tile below",
                         color = ArcColors.TextSecondary,
                         fontSize = 12.sp
                     )
@@ -471,7 +471,10 @@ private fun ArcCircularWheelCategoryPicker(
                         .size(92.dp)
                         .clip(CircleShape)
                         .clickable {
-                            activeCategory?.let { onCategoryConfirmed(it) }
+                            activeCategory?.let {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onCategoryConfirmed(it)
+                            }
                         }
                 ) {
                     Column(
@@ -486,7 +489,7 @@ private fun ArcCircularWheelCategoryPicker(
                                 imageVector = CategoryVisuals.getIcon(activeCategory.iconKey),
                                 contentDescription = activeCategory.name,
                                 tint = activeColor,
-                                modifier = Modifier.size(26.dp)
+                                modifier = Modifier.size(28.dp)
                             )
 
                             Spacer(modifier = Modifier.height(3.dp))
@@ -494,54 +497,16 @@ private fun ArcCircularWheelCategoryPicker(
                             Text(
                                 text = activeCategory.name,
                                 color = ArcColors.TextPrimary,
-                                fontSize = 11.5.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center
-                            )
-
-                            Text(
-                                text = "Tap to choose",
-                                color = activeColor,
-                                fontSize = 9.5.sp,
-                                fontWeight = FontWeight.Medium,
                                 textAlign = TextAlign.Center
                             )
                         }
                     }
                 }
             }
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        // 4. Primary Bottom Confirm Button (Sleek ArcTracker pill)
-        Button(
-            onClick = {
-                activeCategory?.let { onCategoryConfirmed(it) }
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = primaryThemeColor,
-                contentColor = Color.White
-            ),
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .height(48.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Select ${activeCategory?.name ?: "Category"}",
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
         }
     }
 }
