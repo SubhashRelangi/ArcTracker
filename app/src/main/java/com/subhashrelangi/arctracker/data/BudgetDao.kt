@@ -52,6 +52,9 @@ interface BudgetDao {
     @Query("UPDATE budgets SET isEnabled = 0, updatedAt = :timestamp WHERE categoryId = :categoryId")
     suspend fun disableBudgetsForCategory(categoryId: String, timestamp: Long = System.currentTimeMillis()): Int
 
+    @Query("UPDATE budgets SET categoryId = :newCategoryId, updatedAt = :timestamp WHERE categoryId = :oldCategoryId")
+    suspend fun reassignCategoryId(oldCategoryId: String, newCategoryId: String, timestamp: Long = System.currentTimeMillis()): Int
+
     @Query("UPDATE budgets SET isEnabled = :isEnabled, updatedAt = :timestamp WHERE id = :id")
     suspend fun setBudgetEnabled(id: String, isEnabled: Boolean, timestamp: Long = System.currentTimeMillis()): Int
 

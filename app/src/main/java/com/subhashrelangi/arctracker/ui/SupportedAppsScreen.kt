@@ -38,6 +38,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -961,43 +963,19 @@ fun SupportedAppsScreen(
         )
     }
 
-    // Remove User-Added App Confirmation Dialog
+    // Remove User-Added App Confirmation Bottom Sheet
     if (appToRemove != null) {
         val targetApp = appToRemove!!
-        AlertDialog(
-            onDismissRequest = { appToRemove = null },
-            title = {
-                Text(
-                    text = "Remove ${targetApp.displayName}?",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    color = slateTitle
-                )
-            },
-            text = {
-                Text(
-                    text = "This will remove the app from your Monitored Apps configuration. It will not be monitored until you add it again.",
-                    fontSize = 13.sp,
-                    color = slateSub,
-                    lineHeight = 18.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = { confirmRemove(targetApp) },
-                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Danger),
-                    shape = CircleShape
-                ) {
-                    Text("Remove", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { appToRemove = null }) {
-                    Text("Cancel", color = slateSub)
-                }
-            },
-            containerColor = cardBg,
-            shape = RoundedCornerShape(16.dp)
+        ArcConfirmationBottomSheet(
+            title = "Remove ${targetApp.displayName}?",
+            message = "This will remove the app from your Monitored Apps configuration. It will not be monitored until you add it again.",
+            confirmText = "Remove",
+            cancelText = "Cancel",
+            icon = Icons.Outlined.DeleteOutline,
+            iconColor = ArcColors.Danger,
+            isDestructive = true,
+            onConfirm = { confirmRemove(targetApp) },
+            onDismiss = { appToRemove = null }
         )
     }
 }
@@ -1140,186 +1118,188 @@ fun AddAppSelectorDialog(
         }
     }
 
-    AlertDialog(
+    ArcModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
+        title = "Add Custom App",
+        maxHeight = 560.dp
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Category Selector Pills
             Text(
-                "Add Custom App",
-                fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
-                color = slateTitle
+                text = "Assign Category",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = slateSub
             )
-        },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // Category Selector Pills
-                Text(
-                    text = "Assign Category",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = slateSub
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                AppCategory.values().forEach { cat ->
+                    val isCatSelected = selectedCategory == cat
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isCatSelected) ArcColors.Primary else highlightSurface)
+                            .clickable { selectedCategory = cat }
+                            .padding(vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = when (cat) {
+                                AppCategory.UPI_PAYMENT -> "UPI"
+                                AppCategory.BANKING -> "Banking"
+                                AppCategory.SMS_MESSENGER -> "SMS"
+                            },
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isCatSelected) Color.White else slateSub
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Search field
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Search installed apps...", fontSize = 13.sp, color = slateSub) },
+                singleLine = true,
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = null,
+                        tint = slateSub,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = slateTitle,
+                    unfocusedTextColor = slateTitle,
+                    focusedBorderColor = ArcColors.Primary,
+                    unfocusedBorderColor = cardBorder
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (filteredApps.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    AppCategory.values().forEach { cat ->
-                        val isCatSelected = selectedCategory == cat
-                        Box(
+                    Text(
+                        text = if (searchQuery.isBlank()) "No available installed apps to add." else "No matching apps found.",
+                        fontSize = 12.5.sp,
+                        color = slateSub
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 240.dp)
+                ) {
+                    items(filteredApps, key = { it.packageName }) { app ->
+                        val isSelected = selectedApp?.packageName == app.packageName
+                        Row(
                             modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isCatSelected) ArcColors.Primary else highlightSurface)
-                                .clickable { selectedCategory = cat }
-                                .padding(vertical = 6.dp),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isSelected) highlightSurface else Color.Transparent)
+                                .clickable { selectedApp = app }
+                                .padding(vertical = 8.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = when (cat) {
-                                    AppCategory.UPI_PAYMENT -> "UPI"
-                                    AppCategory.BANKING -> "Banking"
-                                    AppCategory.SMS_MESSENGER -> "SMS"
-                                },
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isCatSelected) Color.White else slateSub
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(highlightSurface),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AppIconView(
+                                    icon = app.icon,
+                                    contentDescription = app.displayName,
+                                    modifier = Modifier.fillMaxSize(),
+                                    fallbackIcon = Icons.Default.Apps
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = app.displayName,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.5.sp,
+                                    color = slateTitle,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = app.packageName,
+                                    fontSize = 11.sp,
+                                    color = slateSub,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { selectedApp = app },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = ArcColors.Primary,
+                                    unselectedColor = slateSub
+                                )
                             )
                         }
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-                // Search field
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search installed apps...", fontSize = 13.sp, color = slateSub) },
-                    singleLine = true,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Search,
-                            contentDescription = null,
-                            tint = slateSub,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    },
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f).height(44.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = slateTitle,
-                        unfocusedTextColor = slateTitle,
-                        focusedBorderColor = ArcColors.Primary,
-                        unfocusedBorderColor = cardBorder
+                    border = BorderStroke(1.dp, cardBorder)
+                ) {
+                    Text("Cancel", color = slateSub, fontSize = 13.5.sp)
+                }
+
+                Button(
+                    onClick = {
+                        selectedApp?.let { onConfirm(it, selectedCategory) }
+                    },
+                    enabled = selectedApp != null,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ArcColors.Primary,
+                        disabledContainerColor = if (ArcColors.isDark) Color(0xFF1E293B) else Color(0xFFCBD5E1)
                     ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                if (filteredApps.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (searchQuery.isBlank()) "No available installed apps to add." else "No matching apps found.",
-                            fontSize = 12.5.sp,
-                            color = slateSub
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 240.dp)
-                    ) {
-                        items(filteredApps, key = { it.packageName }) { app ->
-                            val isSelected = selectedApp?.packageName == app.packageName
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(if (isSelected) highlightSurface else Color.Transparent)
-                                    .clickable { selectedApp = app }
-                                    .padding(vertical = 8.dp, horizontal = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(highlightSurface),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    AppIconView(
-                                        icon = app.icon,
-                                        contentDescription = app.displayName,
-                                        modifier = Modifier.fillMaxSize(),
-                                        fallbackIcon = Icons.Default.Apps
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = app.displayName,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 13.5.sp,
-                                        color = slateTitle,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = app.packageName,
-                                        fontSize = 11.sp,
-                                        color = slateSub,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                RadioButton(
-                                    selected = isSelected,
-                                    onClick = { selectedApp = app },
-                                    colors = RadioButtonDefaults.colors(
-                                        selectedColor = ArcColors.Primary,
-                                        unselectedColor = slateSub
-                                    )
-                                )
-                            }
-                        }
-                    }
+                    modifier = Modifier.weight(1f).height(44.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Add App", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    selectedApp?.let { onConfirm(it, selectedCategory) }
-                },
-                enabled = selectedApp != null,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ArcColors.Primary,
-                    disabledContainerColor = if (ArcColors.isDark) Color(0xFF1E293B) else Color(0xFFCBD5E1)
-                ),
-                shape = CircleShape
-            ) {
-                Text("Add App", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = slateSub)
-            }
-        },
-        containerColor = cardBg,
-        shape = RoundedCornerShape(16.dp)
-    )
+        }
+    }
 }
 
 /**
- * Edit User-Added App Category Dialog.
+ * Edit User-Added App Category Bottom Sheet.
  */
 @Composable
 fun EditUserAppDialog(
@@ -1329,77 +1309,79 @@ fun EditUserAppDialog(
 ) {
     var selectedCategory by remember { mutableStateOf(app.category) }
 
-    AlertDialog(
+    ArcModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
+        title = "Edit App Category",
+        maxHeight = 440.dp
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                "Edit App Category",
+                text = app.displayName,
                 fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
+                fontSize = 15.sp,
                 color = slateTitle
             )
-        },
-        text = {
-            Column {
-                Text(
-                    text = app.displayName,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = slateTitle
-                )
-                Text(
-                    text = app.packageName,
-                    fontSize = 11.sp,
-                    color = slateSub
-                )
-                Spacer(modifier = Modifier.height(14.dp))
-                Text(
-                    text = "Select Category",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
-                    color = slateSub
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = app.packageName,
+                fontSize = 11.sp,
+                color = slateSub
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = "Select Category",
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                color = slateSub
+            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-                AppCategory.values().forEach { cat ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (selectedCategory == cat) highlightSurface else Color.Transparent)
-                            .clickable { selectedCategory = cat }
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = (selectedCategory == cat),
-                            onClick = { selectedCategory = cat },
-                            colors = RadioButtonDefaults.colors(
-                                selectedColor = ArcColors.Primary,
-                                unselectedColor = slateSub
-                            )
+            AppCategory.values().forEach { cat ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (selectedCategory == cat) highlightSurface else Color.Transparent)
+                        .clickable { selectedCategory = cat }
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (selectedCategory == cat),
+                        onClick = { selectedCategory = cat },
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = ArcColors.Primary,
+                            unselectedColor = slateSub
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(cat.displayName, fontSize = 13.5.sp, color = slateTitle)
-                    }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(cat.displayName, fontSize = 13.5.sp, color = slateTitle)
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(selectedCategory) },
-                colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
-                shape = CircleShape
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("Save", color = Color.White, fontWeight = FontWeight.Bold)
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f).height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, cardBorder)
+                ) {
+                    Text("Cancel", color = slateSub, fontSize = 13.5.sp)
+                }
+
+                Button(
+                    onClick = { onConfirm(selectedCategory) },
+                    modifier = Modifier.weight(1f).height(44.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Save", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = slateSub)
-            }
-        },
-        containerColor = cardBg,
-        shape = RoundedCornerShape(16.dp)
-    )
+        }
+    }
 }

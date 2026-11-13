@@ -948,6 +948,46 @@ object StructuredTransactionExtractor {
             return TransactionDirection.CREDIT
         }
 
+        // 2b. Explicit user account credited vs debited dominance
+        val isUserAccountCredited = Regex(
+            """(?i)\b(?:your\s+)?(?:a/c|acct|acc|account|wallet)\b.*?\b(?:is\s+|was\s+|has been\s+)?credited\b|\b(?:is\s+|was\s+|has been\s+)?credited\s+(?:in|into|to|with|by|for|on)\s+(?:your\s+)?(?:a/c|acct|acc|account|wallet)\b|\bpayment\s+(?:of\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?(?:/-)?\s+)?to\s+(?:your|my)\s+(?:a/c|acct|acc|account|wallet)\b"""
+        ).containsMatchIn(text)
+        val isUserAccountDebited = Regex(
+            """(?i)\b(?:your\s+)?(?:a/c|acct|acc|account|wallet)\b.*?\b(?:is\s+|was\s+|has been\s+)?debited\b|\b(?:is\s+|was\s+|has been\s+)?debited\s+(?:from|in|by|for)\s+(?:your\s+)?(?:a/c|acct|acc|account|wallet)\b"""
+        ).containsMatchIn(text)
+
+        if (isUserAccountCredited && !isUserAccountDebited) {
+            evidenceMap["direction"] = FieldEvidence(
+                fieldName = "direction",
+                extractedValue = TransactionDirection.CREDIT.name,
+                sourceSnippet = "User account explicitly credited",
+                ruleOrPattern = "USER_ACCOUNT_EXPLICIT_CREDIT"
+            )
+            return TransactionDirection.CREDIT
+        }
+
+        if (isUserAccountDebited && !isUserAccountCredited) {
+            evidenceMap["direction"] = FieldEvidence(
+                fieldName = "direction",
+                extractedValue = TransactionDirection.DEBIT.name,
+                sourceSnippet = "User account explicitly debited",
+                ruleOrPattern = "USER_ACCOUNT_EXPLICIT_DEBIT"
+            )
+            return TransactionDirection.DEBIT
+        }
+
+        // 2c. P2P Incoming payment (e.g. "Rahul sent you ₹500")
+        val isSentYou = Regex("""(?i)\b(?:sent\s+you)\b""").containsMatchIn(text)
+        if (isSentYou) {
+            evidenceMap["direction"] = FieldEvidence(
+                fieldName = "direction",
+                extractedValue = TransactionDirection.CREDIT.name,
+                sourceSnippet = "P2P incoming payment received (sent you)",
+                ruleOrPattern = "P2P_INCOMING_SENT_YOU"
+            )
+            return TransactionDirection.CREDIT
+        }
+
         val hasDebitWord = Regex("""(?i)\b(debited|debit(?!\s*(?:card|ending|limit|offer|option))|paid|spent|withdrawn)\b""").containsMatchIn(text)
         val hasCreditWord = Regex("""(?i)\b(credited|credit(?!\s*(?:card|score|limit|bill|line|facility|offer|option))|deposited|received|refunded)\b""").containsMatchIn(text)
 
@@ -974,20 +1014,10 @@ object StructuredTransactionExtractor {
             return gateAssessment.directionHint
         }
 
-        val hasDebitExplicit = Regex("""(?i)\b(paid to|sent to|transferred to|debited from|spent at|purchase at|paid at|debited by|debited for|paid using|is debited|was debited|has been debited|debited|debit(?!\s*(?:card|limit|offer|option))|payment\s+(?:processing|pending|successful|completed)?\s*(?:for|to|towards)|payment\s+(?:processing|pending|successful))\b""").containsMatchIn(text)
-        val hasCreditExplicit = Regex("""(?i)\b(received from|credited to|credited in|credited into|credited with|deposited|refund of .* received|cashback received|cashback credited|is credited|was credited|has been credited|credited|credit(?!\s*(?:card|limit|score|bill|line|facility|offer|option)))\b""").containsMatchIn(text)
+        val hasDebitExplicit = Regex("""(?i)\b(paid to|sent to(?!\s+(?:your|my))|transferred to(?!\s+(?:your|my))|debited from|spent at|purchase at|paid at|debited by|debited for|paid using|is debited|was debited|has been debited|debited|debit(?!\s*(?:card|limit|offer|option))|payment\s+made|payment\s+to\s+(?!(?:your|my)\s+(?:a/c|acct|acc|account|wallet))[A-Za-z0-9 &._-]+)\b""").containsMatchIn(text)
+        val hasCreditExplicit = Regex("""(?i)\b(received from|credited to|credited in|credited into|credited with|credited by|credited for|deposited|refund of .* received|cashback received|cashback credited|is credited|was credited|has been credited|credited|credit(?!\s*(?:card|limit|score|bill|line|facility|offer|option))|added to wallet|added to your (?:account|a/c|wallet)|payment\s+to\s+(?:your|my)\s+(?:a/c|acct|acc|account|wallet))\b""").containsMatchIn(text)
 
-        if (hasDebitExplicit) {
-            evidenceMap["direction"] = FieldEvidence(
-                fieldName = "direction",
-                extractedValue = TransactionDirection.DEBIT.name,
-                sourceSnippet = "Explicit debit action found",
-                ruleOrPattern = "EXPLICIT_DEBIT_PATTERN"
-            )
-            return TransactionDirection.DEBIT
-        }
-
-        if (hasCreditExplicit) {
+        if (hasCreditExplicit && !hasDebitExplicit) {
             evidenceMap["direction"] = FieldEvidence(
                 fieldName = "direction",
                 extractedValue = TransactionDirection.CREDIT.name,
@@ -995,6 +1025,16 @@ object StructuredTransactionExtractor {
                 ruleOrPattern = "EXPLICIT_CREDIT_PATTERN"
             )
             return TransactionDirection.CREDIT
+        }
+
+        if (hasDebitExplicit && !hasCreditExplicit) {
+            evidenceMap["direction"] = FieldEvidence(
+                fieldName = "direction",
+                extractedValue = TransactionDirection.DEBIT.name,
+                sourceSnippet = "Explicit debit action found",
+                ruleOrPattern = "EXPLICIT_DEBIT_PATTERN"
+            )
+            return TransactionDirection.DEBIT
         }
 
         // Fall back to Step 4 DirectionHint if available

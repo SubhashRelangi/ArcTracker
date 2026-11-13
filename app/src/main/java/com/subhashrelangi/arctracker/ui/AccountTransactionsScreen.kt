@@ -1,5 +1,7 @@
 package com.subhashrelangi.arctracker.ui
 
+import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -424,40 +426,260 @@ fun AccountTransactionsScreen(
         }
     }
 
-    // --- Bulk Reassign Dialogs ---
+    // --- Bulk Reassign Bottom Sheets ---
     if (showBulkReassignPicker && !showBulkReassignConfirmDialog) {
         var tempBulkTarget by remember { mutableStateOf<KnownFinancialAccount?>(null) }
-        AlertDialog(
+        ArcModalBottomSheet(
             onDismissRequest = { showBulkReassignPicker = false },
-            shape = RoundedCornerShape(20.dp),
-            containerColor = cardBg,
-            title = {
+            title = "Reassign ${selectedExpenseIds.size} Transactions",
+            maxHeight = 460.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 Text(
-                    text = "Reassign ${selectedExpenseIds.size} Transactions",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    color = slateTitle
+                    text = "Choose target account for ${selectedExpenseIds.size} selected transactions:",
+                    fontSize = 13.sp,
+                    color = slateSub
                 )
-            },
-            text = {
+
+                if (otherAccounts.isEmpty()) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = ArcColors.SurfaceHighlight
+                    ) {
+                        Text(
+                            text = "No other registered financial accounts found.",
+                            fontSize = 12.sp,
+                            color = slateSub,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 260.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(otherAccounts, key = { it.id }) { candidate ->
+                            val isSelected = tempBulkTarget?.id == candidate.id
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { tempBulkTarget = candidate },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) emeraldLight else ArcColors.SurfaceHighlight,
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isSelected) emeraldPrimary else cardBorder
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = { tempBulkTarget = candidate },
+                                        colors = RadioButtonDefaults.colors(
+                                            selectedColor = emeraldPrimary,
+                                            unselectedColor = slateSub
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(
+                                            text = candidate.institutionName ?: "Unknown Bank",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.5.sp,
+                                            color = slateTitle
+                                        )
+                                        Text(
+                                            text = AccountReconciliationManager.formatAccountType(
+                                                candidate.instrumentType,
+                                                candidate.accountSuffix
+                                            ),
+                                            fontSize = 11.5.sp,
+                                            color = slateSub
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { showBulkReassignPicker = false },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    ) {
+                        Text("Cancel", color = slateSub, fontSize = 13.sp)
+                    }
+
+                    Button(
+                        onClick = {
+                            if (tempBulkTarget != null) {
+                                bulkNewAccountSelected = tempBulkTarget
+                                showBulkReassignConfirmDialog = true
+                            }
+                        },
+                        enabled = tempBulkTarget != null,
+                        colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    ) {
+                        Text("Continue", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+            }
+        }
+    } else if (showBulkReassignConfirmDialog) {
+        val targetNew = bulkNewAccountSelected
+        if (targetNew != null) {
+            ArcModalBottomSheet(
+                onDismissRequest = { showBulkReassignConfirmDialog = false },
+                title = "Confirm Bulk Reassignment",
+                maxHeight = 380.dp
+            ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    DetailRow(label = "Selected Transactions", value = "${selectedExpenseIds.size}")
+                    DetailRow(
+                        label = "Current Account",
+                        value = "${account?.institutionName ?: "Account"} (••••${account?.accountSuffix})"
+                    )
+                    DetailRow(
+                        label = "New Target Account",
+                        value = "${targetNew.institutionName ?: "Account"} (••••${targetNew.accountSuffix})",
+                        isHighlight = true
+                    )
+                    HorizontalDivider(color = cardBorder, thickness = 1.dp)
                     Text(
-                        text = "Choose target account for ${selectedExpenseIds.size} selected transactions:",
-                        fontSize = 13.sp,
+                        text = "This will atomically update the account link for all ${selectedExpenseIds.size} transactions. Other ledger data is preserved.",
+                        fontSize = 12.sp,
                         color = slateSub
                     )
 
-                    if (otherAccounts.isEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { showBulkReassignConfirmDialog = false },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(44.dp)
+                        ) {
+                            Text("Back", color = slateSub, fontSize = 13.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                val ids = selectedExpenseIds.toList()
+                                val destId = targetNew.id
+                                showBulkReassignConfirmDialog = false
+                                showBulkReassignPicker = false
+                                bulkNewAccountSelected = null
+                                selectedExpenseIds.clear()
+                                isSelectionMode = false
+                                scope.launch {
+                                    val result = reconciliationManager.bulkReassign(ids, destId)
+                                    if (result.isSuccess) {
+                                        snackbarHostState.showSnackbar("Reassigned ${result.getOrDefault(0)} transactions to ${targetNew.institutionName ?: "account"}")
+                                    } else {
+                                        snackbarHostState.showSnackbar("Bulk reassignment failed: ${result.exceptionOrNull()?.message}")
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1.3f).height(44.dp)
+                        ) {
+                            Text("Confirm", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Bulk Unlink Bottom Sheet ---
+    if (showBulkUnlinkConfirmDialog) {
+        ArcConfirmationBottomSheet(
+            title = "Unlink ${selectedExpenseIds.size} Transactions?",
+            message = "These ${selectedExpenseIds.size} transactions will return to the Unresolved Ledger list.\n\nTheir account suffix hints and transaction amounts will remain intact.",
+            confirmText = "Unlink Records",
+            cancelText = "Cancel",
+            icon = Icons.Outlined.LinkOff,
+            iconColor = Color(0xFFDC2626),
+            isDestructive = true,
+            onConfirm = {
+                val ids = selectedExpenseIds.toList()
+                showBulkUnlinkConfirmDialog = false
+                selectedExpenseIds.clear()
+                isSelectionMode = false
+                scope.launch {
+                    val result = reconciliationManager.bulkUnlink(ids)
+                    if (result.isSuccess) {
+                        snackbarHostState.showSnackbar("Unlinked ${result.getOrDefault(0)} transactions")
+                    } else {
+                        snackbarHostState.showSnackbar("Failed to unlink: ${result.exceptionOrNull()?.message}")
+                    }
+                }
+            },
+            onDismiss = { showBulkUnlinkConfirmDialog = false }
+        )
+    }
+
+    // --- Single Reassign Picker Bottom Sheet ---
+    expenseToReassign?.let { expense ->
+        val candidateAccounts = otherAccounts
+
+        if (!showSingleReassignConfirmDialog) {
+            ArcModalBottomSheet(
+                onDismissRequest = {
+                    expenseToReassign = null
+                    singleNewAccountSelected = null
+                },
+                title = "Change Account Link",
+                maxHeight = 440.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Currently linked: ${account?.institutionName ?: "Unknown"} (••••${account?.accountSuffix})",
+                        fontSize = 12.sp,
+                        color = slateSub
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    if (candidateAccounts.isEmpty()) {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             color = ArcColors.SurfaceHighlight
                         ) {
                             Text(
-                                text = "No other registered financial accounts found.",
+                                text = "No other registered accounts found.",
                                 fontSize = 12.sp,
                                 color = slateSub,
                                 modifier = Modifier.padding(12.dp)
@@ -467,15 +689,15 @@ fun AccountTransactionsScreen(
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 260.dp),
+                                .heightIn(max = 240.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(otherAccounts, key = { it.id }) { candidate ->
-                                val isSelected = tempBulkTarget?.id == candidate.id
+                            items(candidateAccounts, key = { it.id }) { candidate ->
+                                val isSelected = singleNewAccountSelected?.id == candidate.id
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { tempBulkTarget = candidate },
+                                        .clickable { singleNewAccountSelected = candidate },
                                     shape = RoundedCornerShape(12.dp),
                                     color = if (isSelected) emeraldLight else ArcColors.SurfaceHighlight,
                                     border = BorderStroke(
@@ -491,7 +713,7 @@ fun AccountTransactionsScreen(
                                     ) {
                                         RadioButton(
                                             selected = isSelected,
-                                            onClick = { tempBulkTarget = candidate },
+                                            onClick = { singleNewAccountSelected = candidate },
                                             colors = RadioButtonDefaults.colors(
                                                 selectedColor = emeraldPrimary,
                                                 unselectedColor = slateSub
@@ -519,395 +741,131 @@ fun AccountTransactionsScreen(
                             }
                         }
                     }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (tempBulkTarget != null) {
-                            bulkNewAccountSelected = tempBulkTarget
-                            showBulkReassignConfirmDialog = true
-                        }
-                    },
-                    enabled = tempBulkTarget != null,
-                    colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                    shape = CircleShape
-                ) {
-                    Text("Continue", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBulkReassignPicker = false }) {
-                    Text("Cancel", color = slateSub, fontSize = 13.sp)
-                }
-            }
-        )
-    } else if (showBulkReassignConfirmDialog) {
-        val targetNew = bulkNewAccountSelected
-        if (targetNew != null) {
-            AlertDialog(
-                onDismissRequest = { showBulkReassignConfirmDialog = false },
-                shape = RoundedCornerShape(20.dp),
-                containerColor = cardBg,
-                title = {
-                    Text(
-                        text = "Confirm Bulk Reassignment",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
-                        color = slateTitle
-                    )
-                },
-                text = {
-                    Column(
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        DetailRow(label = "Selected Transactions", value = "${selectedExpenseIds.size}")
-                        DetailRow(
-                            label = "Current Account",
-                            value = "${account?.institutionName ?: "Account"} (••••${account?.accountSuffix})"
-                        )
-                        DetailRow(
-                            label = "New Target Account",
-                            value = "${targetNew.institutionName ?: "Account"} (••••${targetNew.accountSuffix})",
-                            isHighlight = true
-                        )
-                        HorizontalDivider(color = cardBorder, thickness = 1.dp)
-                        Text(
-                            text = "This will atomically update the account link for all ${selectedExpenseIds.size} transactions. Other ledger data is preserved.",
-                            fontSize = 12.sp,
-                            color = slateSub
-                        )
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            val ids = selectedExpenseIds.toList()
-                            val destId = targetNew.id
-                            showBulkReassignConfirmDialog = false
-                            showBulkReassignPicker = false
-                            bulkNewAccountSelected = null
-                            selectedExpenseIds.clear()
-                            isSelectionMode = false
-                            scope.launch {
-                                val result = reconciliationManager.bulkReassign(ids, destId)
-                                if (result.isSuccess) {
-                                    snackbarHostState.showSnackbar("Reassigned ${result.getOrDefault(0)} transactions to ${targetNew.institutionName ?: "account"}")
-                                } else {
-                                    snackbarHostState.showSnackbar("Bulk reassignment failed: ${result.exceptionOrNull()?.message}")
-                                }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                        shape = CircleShape
-                    ) {
-                        Text("Confirm Reassignment", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showBulkReassignConfirmDialog = false }) {
-                        Text("Back", color = slateSub, fontSize = 13.sp)
-                    }
-                }
-            )
-        }
-    }
-
-    // --- Bulk Unlink Dialog ---
-    if (showBulkUnlinkConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showBulkUnlinkConfirmDialog = false },
-            shape = RoundedCornerShape(20.dp),
-            containerColor = cardBg,
-            title = {
-                Text(
-                    text = "Unlink ${selectedExpenseIds.size} Transactions?",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    color = slateTitle
-                )
-            },
-            text = {
-                Text(
-                    text = "These ${selectedExpenseIds.size} transactions will return to the Unresolved Ledger list.\n\nTheir account suffix hints and transaction amounts will remain intact.",
-                    fontSize = 13.5.sp,
-                    color = slateSub,
-                    lineHeight = 19.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val ids = selectedExpenseIds.toList()
-                        showBulkUnlinkConfirmDialog = false
-                        selectedExpenseIds.clear()
-                        isSelectionMode = false
-                        scope.launch {
-                            val result = reconciliationManager.bulkUnlink(ids)
-                            if (result.isSuccess) {
-                                snackbarHostState.showSnackbar("Unlinked ${result.getOrDefault(0)} transactions")
-                            } else {
-                                snackbarHostState.showSnackbar("Failed to unlink: ${result.exceptionOrNull()?.message}")
-                            }
+                        OutlinedButton(
+                            onClick = {
+                                expenseToReassign = null
+                                singleNewAccountSelected = null
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(44.dp)
+                        ) {
+                            Text("Cancel", color = slateSub, fontSize = 13.sp)
                         }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = CircleShape
-                ) {
-                    Text("Unlink Records", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBulkUnlinkConfirmDialog = false }) {
-                    Text("Cancel", color = slateSub, fontSize = 13.sp)
+
+                        Button(
+                            onClick = {
+                                if (singleNewAccountSelected != null) {
+                                    showSingleReassignConfirmDialog = true
+                                }
+                            },
+                            enabled = singleNewAccountSelected != null,
+                            colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(44.dp)
+                        ) {
+                            Text("Continue", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
                 }
             }
-        )
-    }
-
-    // --- Single Reassign Picker Dialog ---
-    expenseToReassign?.let { expense ->
-        val candidateAccounts = otherAccounts
-
-        if (!showSingleReassignConfirmDialog) {
-            AlertDialog(
-                onDismissRequest = {
-                    expenseToReassign = null
-                    singleNewAccountSelected = null
-                },
-                shape = RoundedCornerShape(20.dp),
-                containerColor = cardBg,
-                title = {
-                    Text(
-                        text = "Change Account Link",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
-                        color = slateTitle
-                    )
-                },
-                text = {
+        } else {
+            val targetNewAccount = singleNewAccountSelected
+            if (targetNewAccount != null) {
+                ArcModalBottomSheet(
+                    onDismissRequest = { showSingleReassignConfirmDialog = false },
+                    title = "Confirm Account Change",
+                    maxHeight = 360.dp
+                ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = "Currently linked: ${account?.institutionName ?: "Unknown"} (••••${account?.accountSuffix})",
-                            fontSize = 12.sp,
-                            color = slateSub
+                        DetailRow(label = "Transaction", value = "₹${expense.amount} (${expense.merchant})")
+                        DetailRow(
+                            label = "From",
+                            value = "${account?.institutionName ?: "Account"} (••••${account?.accountSuffix})"
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        DetailRow(
+                            label = "To",
+                            value = "${targetNewAccount.institutionName ?: "Account"} (••••${targetNewAccount.accountSuffix})",
+                            isHighlight = true
+                        )
 
-                        if (candidateAccounts.isEmpty()) {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { showSingleReassignConfirmDialog = false },
                                 shape = RoundedCornerShape(12.dp),
-                                color = ArcColors.SurfaceHighlight
+                                modifier = Modifier.weight(1f).height(44.dp)
                             ) {
-                                Text(
-                                    text = "No other registered accounts found.",
-                                    fontSize = 12.sp,
-                                    color = slateSub,
-                                    modifier = Modifier.padding(12.dp)
-                                )
+                                Text("Back", color = slateSub, fontSize = 13.sp)
                             }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 280.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(candidateAccounts, key = { it.id }) { candidate ->
-                                    val isSelected = singleNewAccountSelected?.id == candidate.id
-                                    Surface(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { singleNewAccountSelected = candidate },
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = if (isSelected) emeraldLight else ArcColors.SurfaceHighlight,
-                                        border = BorderStroke(
-                                            1.dp,
-                                            if (isSelected) emeraldPrimary else cardBorder
-                                        )
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            RadioButton(
-                                                selected = isSelected,
-                                                onClick = { singleNewAccountSelected = candidate },
-                                                colors = RadioButtonDefaults.colors(
-                                                    selectedColor = emeraldPrimary,
-                                                    unselectedColor = slateSub
-                                                )
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Column {
-                                                Text(
-                                                    text = candidate.institutionName ?: "Unknown Bank",
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 13.5.sp,
-                                                    color = slateTitle
-                                                )
-                                                Text(
-                                                    text = AccountReconciliationManager.formatAccountType(
-                                                        candidate.instrumentType,
-                                                        candidate.accountSuffix
-                                                    ),
-                                                    fontSize = 11.5.sp,
-                                                    color = slateSub
-                                                )
-                                            }
+
+                            Button(
+                                onClick = {
+                                    val targetExpense = expense
+                                    val destAccount = targetNewAccount
+                                    showSingleReassignConfirmDialog = false
+                                    expenseToReassign = null
+                                    singleNewAccountSelected = null
+                                    scope.launch {
+                                        val result = reconciliationManager.reassignAccount(targetExpense.id, destAccount.id)
+                                        if (result.isSuccess) {
+                                            snackbarHostState.showSnackbar("Reassigned to ${destAccount.institutionName ?: "account"}")
+                                        } else {
+                                            snackbarHostState.showSnackbar("Reassignment failed: ${result.exceptionOrNull()?.message}")
                                         }
                                     }
-                                }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1.3f).height(44.dp)
+                            ) {
+                                Text("Reassign", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            if (singleNewAccountSelected != null) {
-                                showSingleReassignConfirmDialog = true
-                            }
-                        },
-                        enabled = singleNewAccountSelected != null,
-                        colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                        shape = CircleShape
-                    ) {
-                        Text("Continue", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        expenseToReassign = null
-                        singleNewAccountSelected = null
-                    }) {
-                        Text("Cancel", color = slateSub, fontSize = 13.sp)
                     }
                 }
-            )
-        } else {
-            val targetNewAccount = singleNewAccountSelected
-            if (targetNewAccount != null) {
-                AlertDialog(
-                    onDismissRequest = { showSingleReassignConfirmDialog = false },
-                    shape = RoundedCornerShape(20.dp),
-                    containerColor = cardBg,
-                    title = {
-                        Text(
-                            text = "Confirm Account Change",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp,
-                            color = slateTitle
-                        )
-                    },
-                    text = {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            DetailRow(label = "Transaction", value = "₹${expense.amount} (${expense.merchant})")
-                            DetailRow(
-                                label = "From",
-                                value = "${account?.institutionName ?: "Account"} (••••${account?.accountSuffix})"
-                            )
-                            DetailRow(
-                                label = "To",
-                                value = "${targetNewAccount.institutionName ?: "Account"} (••••${targetNewAccount.accountSuffix})",
-                                isHighlight = true
-                            )
-                        }
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                val targetExpense = expense
-                                val destAccount = targetNewAccount
-                                showSingleReassignConfirmDialog = false
-                                expenseToReassign = null
-                                singleNewAccountSelected = null
-                                scope.launch {
-                                    val result = reconciliationManager.reassignAccount(targetExpense.id, destAccount.id)
-                                    if (result.isSuccess) {
-                                        snackbarHostState.showSnackbar("Reassigned to ${destAccount.institutionName ?: "account"}")
-                                    } else {
-                                        snackbarHostState.showSnackbar("Reassignment failed: ${result.exceptionOrNull()?.message}")
-                                    }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                            shape = CircleShape
-                        ) {
-                            Text("Reassign Account", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showSingleReassignConfirmDialog = false }) {
-                            Text("Back", color = slateSub, fontSize = 13.sp)
-                        }
-                    }
-                )
             }
         }
     }
 
-    // --- Single Unlink Confirmation Dialog ---
+    // --- Single Unlink Confirmation Bottom Sheet ---
     expenseToUnlink?.let { expense ->
-        AlertDialog(
-            onDismissRequest = { expenseToUnlink = null },
-            shape = RoundedCornerShape(20.dp),
-            containerColor = cardBg,
-            title = {
-                Text(
-                    text = "Unlink Account?",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    color = slateTitle
-                )
-            },
-            text = {
-                Text(
-                    text = "Unlink this transaction (₹${expense.amount} - ${expense.merchant}) from ${account?.institutionName ?: "this account"} ••••${account?.accountSuffix}?\n\nThe transaction will return to the Unresolved list with its original suffix preserved.",
-                    fontSize = 13.5.sp,
-                    color = slateSub,
-                    lineHeight = 19.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val targetExpense = expense
-                        expenseToUnlink = null
-                        scope.launch {
-                            val result = reconciliationManager.unlinkAccount(targetExpense.id)
-                            if (result.isSuccess) {
-                                snackbarHostState.showSnackbar("Transaction unlinked")
-                            } else {
-                                snackbarHostState.showSnackbar("Failed to unlink: ${result.exceptionOrNull()?.message}")
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = CircleShape
-                ) {
-                    Text("Unlink Account", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        ArcConfirmationBottomSheet(
+            title = "Unlink Account?",
+            message = "Unlink this transaction (₹${expense.amount} - ${expense.merchant}) from ${account?.institutionName ?: "this account"} ••••${account?.accountSuffix}?\n\nThe transaction will return to the Unresolved list with its original suffix preserved.",
+            confirmText = "Unlink Account",
+            cancelText = "Cancel",
+            icon = Icons.Outlined.LinkOff,
+            iconColor = Color(0xFFDC2626),
+            isDestructive = true,
+            onConfirm = {
+                val targetExpense = expense
+                expenseToUnlink = null
+                scope.launch {
+                    val result = reconciliationManager.unlinkAccount(targetExpense.id)
+                    if (result.isSuccess) {
+                        snackbarHostState.showSnackbar("Transaction unlinked")
+                    } else {
+                        snackbarHostState.showSnackbar("Failed to unlink: ${result.exceptionOrNull()?.message}")
+                    }
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { expenseToUnlink = null }) {
-                    Text("Cancel", color = slateSub, fontSize = 13.sp)
-                }
-            }
+            onDismiss = { expenseToUnlink = null }
         )
     }
 }

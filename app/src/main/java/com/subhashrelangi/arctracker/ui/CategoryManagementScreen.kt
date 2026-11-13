@@ -1,5 +1,7 @@
 package com.subhashrelangi.arctracker.ui
 
+import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -628,44 +630,31 @@ fun CategoryManagementScreen(
         }
     }
 
-    // Archive Confirmation Dialog
+    // Archive Confirmation Bottom Sheet
     categoryToArchive?.let { category ->
-        AlertDialog(
-            onDismissRequest = { categoryToArchive = null },
-            title = { Text("Archive \"${category.name}\"?", fontWeight = FontWeight.Bold) },
-            text = {
-                Text(
-                    "Archived categories are hidden from the transaction dropdown, but existing transactions will retain this category.",
-                    fontSize = 13.sp,
-                    color = Color(0xFF64748B)
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val target = category
-                        categoryToArchive = null
-                        scope.launch {
-                            val res = categoryManager.archiveCategory(target.id)
-                            if (res.isSuccess) {
-                                snackbarHostState.showSnackbar("Archived \"${target.name}\"")
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
-                ) {
-                    Text("Archive")
+        ArcConfirmationBottomSheet(
+            title = "Archive \"${category.name}\"?",
+            message = "Archived categories are hidden from the transaction dropdown, but existing transactions will retain this category.",
+            confirmText = "Archive",
+            cancelText = "Cancel",
+            icon = Icons.Outlined.Archive,
+            iconColor = ArcColors.Primary,
+            isDestructive = false,
+            onConfirm = {
+                val target = category
+                categoryToArchive = null
+                scope.launch {
+                    val res = categoryManager.archiveCategory(target.id)
+                    if (res.isSuccess) {
+                        snackbarHostState.showSnackbar("Archived \"${target.name}\"")
+                    }
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { categoryToArchive = null }) {
-                    Text("Cancel", color = ArcColors.TextPrimary)
-                }
-            }
+            onDismiss = { categoryToArchive = null }
         )
     }
 
-    // Delete Category Dialog (Custom categories only)
+    // Delete Category Bottom Sheet (Custom categories only)
     categoryToDelete?.let { category ->
         val count = categoryCounts[category.id] ?: 0
         var reassignTargetId by remember { mutableStateOf<String?>(null) }
@@ -674,104 +663,128 @@ fun CategoryManagementScreen(
             activeCategories.filter { it.id != category.id }
         }
 
-        AlertDialog(
+        ArcModalBottomSheet(
             onDismissRequest = { categoryToDelete = null },
-            title = { Text("Delete \"${category.name}\"?", fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (category.isSystem) {
-                        Text("System categories cannot be deleted. You can archive this category instead.", color = Color(0xFFC62828))
-                    } else {
+            title = "Delete \"${category.name}\"?",
+            icon = Icons.Outlined.DeleteOutline,
+            iconColor = ArcColors.Danger,
+            maxHeight = 480.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (category.isSystem) {
+                    Text(
+                        "System categories cannot be deleted. You can archive this category instead.",
+                        color = Color(0xFFC62828),
+                        fontSize = 13.sp
+                    )
+                } else {
+                    Text(
+                        text = if (count > 0) {
+                            "$count transaction(s) are currently assigned to this category."
+                        } else {
+                            "No transactions are currently assigned to this category."
+                        },
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = ArcColors.TextPrimary
+                    )
+
+                    if (count > 0) {
                         Text(
-                            text = if (count > 0) {
-                                "$count transaction(s) are currently assigned to this category."
-                            } else {
-                                "No transactions are currently assigned to this category."
-                            },
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
+                            "What would you like to do with these transactions?",
+                            fontSize = 12.sp,
+                            color = ArcColors.TextSecondary
                         )
 
-                        if (count > 0) {
-                            Text("What would you like to do with these transactions?", fontSize = 12.sp, color = Color(0xFF64748B))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = deleteMode == 0,
+                                onClick = { deleteMode = 0 },
+                                colors = RadioButtonDefaults.colors(selectedColor = ArcColors.Primary)
+                            )
+                            Text("Reassign to another category", fontSize = 12.5.sp, color = ArcColors.TextPrimary)
+                        }
 
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                RadioButton(
-                                    selected = deleteMode == 0,
-                                    onClick = { deleteMode = 0 },
-                                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF047857))
-                                )
-                                Text("Reassign to another category", fontSize = 12.sp)
-                            }
+                        if (deleteMode == 0 && targetOptions.isNotEmpty()) {
+                            var showTargetPicker by remember { mutableStateOf(false) }
+                            val selectedTargetName = targetOptions.find { it.id == reassignTargetId }?.name ?: "Select Target Category"
 
-                            if (deleteMode == 0 && targetOptions.isNotEmpty()) {
-                                var dropdownExpanded by remember { mutableStateOf(false) }
-                                val selectedTargetName = targetOptions.find { it.id == reassignTargetId }?.name ?: "Select Target Category"
+                            Box(modifier = Modifier.padding(start = 32.dp)) {
+                                OutlinedButton(onClick = { showTargetPicker = true }) {
+                                    Text(selectedTargetName, fontSize = 12.sp)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null, modifier = Modifier.size(16.dp))
+                                }
 
-                                Box(modifier = Modifier.padding(start = 32.dp)) {
-                                    OutlinedButton(onClick = { dropdownExpanded = true }) {
-                                        Text(selectedTargetName, fontSize = 12.sp)
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Icon(Icons.Filled.ArrowDropDown, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    }
-                                    DropdownMenu(
-                                        expanded = dropdownExpanded,
-                                        onDismissRequest = { dropdownExpanded = false }
-                                    ) {
-                                        targetOptions.forEach { opt ->
-                                            DropdownMenuItem(
-                                                text = { Text(opt.name) },
-                                                onClick = {
-                                                    reassignTargetId = opt.id
-                                                    dropdownExpanded = false
-                                                }
-                                            )
-                                        }
-                                    }
+                                if (showTargetPicker) {
+                                    com.subhashrelangi.arctracker.ui.review.CategoryPickerDialog(
+                                        categories = targetOptions,
+                                        currentCategoryId = reassignTargetId,
+                                        onCategorySelected = { opt ->
+                                            reassignTargetId = opt.id
+                                            showTargetPicker = false
+                                        },
+                                        onDismissRequest = { showTargetPicker = false },
+                                        pickerStyle = com.subhashrelangi.arctracker.ui.review.CategoryPickerStyle.HORIZONTAL_SNAP
+                                    )
                                 }
                             }
+                        }
 
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                RadioButton(
-                                    selected = deleteMode == 1,
-                                    onClick = { deleteMode = 1 },
-                                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF047857))
-                                )
-                                Text("Leave Uncategorized", fontSize = 12.sp)
-                            }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = deleteMode == 1,
+                                onClick = { deleteMode = 1 },
+                                colors = RadioButtonDefaults.colors(selectedColor = ArcColors.Primary)
+                            )
+                            Text("Leave Uncategorized", fontSize = 12.5.sp, color = ArcColors.TextPrimary)
                         }
                     }
                 }
-            },
-            confirmButton = {
-                if (!category.isSystem) {
-                    Button(
-                        onClick = {
-                            val targetReassign = if (deleteMode == 0) reassignTargetId else null
-                            val catId = category.id
-                            categoryToDelete = null
-                            scope.launch {
-                                val res = categoryManager.deleteCategory(catId, targetReassign)
-                                if (res.isSuccess) {
-                                    snackbarHostState.showSnackbar("Deleted \"${category.name}\"")
-                                } else {
-                                    snackbarHostState.showSnackbar(res.exceptionOrNull()?.message ?: "Delete failed")
-                                }
-                            }
-                        },
-                        enabled = count == 0 || deleteMode == 1 || (deleteMode == 0 && reassignTargetId != null),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { categoryToDelete = null },
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Delete")
+                        Text("Cancel", color = ArcColors.TextSecondary, fontSize = 13.5.sp)
+                    }
+
+                    if (!category.isSystem) {
+                        Button(
+                            onClick = {
+                                val targetReassign = if (deleteMode == 0) reassignTargetId else null
+                                val catId = category.id
+                                categoryToDelete = null
+                                scope.launch {
+                                    val res = categoryManager.deleteCategory(catId, targetReassign)
+                                    if (res.isSuccess) {
+                                        snackbarHostState.showSnackbar("Deleted \"${category.name}\"")
+                                    } else {
+                                        snackbarHostState.showSnackbar(res.exceptionOrNull()?.message ?: "Delete failed")
+                                    }
+                                }
+                            },
+                            enabled = count == 0 || deleteMode == 1 || (deleteMode == 0 && reassignTargetId != null),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                            modifier = Modifier.weight(1f).height(44.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Delete", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
+                        }
                     }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { categoryToDelete = null }) {
-                    Text("Cancel", color = ArcColors.TextPrimary)
-                }
             }
-        )
+        }
     }
 }
 

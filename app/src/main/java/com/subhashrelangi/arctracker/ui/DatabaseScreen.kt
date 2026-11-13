@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.AppDatabase
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
 import com.subhashrelangi.arctracker.ui.review.ArcColors
 import kotlinx.coroutines.Dispatchers
@@ -361,100 +362,73 @@ fun DatabaseScreen(
         }
     }
 
-    // Interactive Optimization Pipeline Dialog
+    // Interactive Optimization Pipeline Bottom Sheet
     if (showOptimizationDialog) {
-        AlertDialog(
+        ArcModalBottomSheet(
             onDismissRequest = {
                 if (!isRunningFullOptimization) {
                     showOptimizationDialog = false
                     optimizationStep = 0
                 }
             },
-            shape = RoundedCornerShape(20.dp),
-            containerColor = cardBg,
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
+            title = if (optimizationStep == 4) "Optimization Complete" else "Tuning Database Engine",
+            icon = Icons.Outlined.AutoFixHigh,
+            iconColor = emeraldPrimary,
+            maxHeight = 440.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = "ArcTracker is executing sequential SQLite engine maintenance to ensure peak query throughput and minimal storage footprint.",
+                    fontSize = 12.5.sp,
+                    color = slateSub,
+                    lineHeight = 17.sp
+                )
+
+                PipelineStepRow(
+                    title = "1. Sector Integrity Audit",
+                    subtitle = "Verify zero block corruptions & foreign keys",
+                    stepNumber = 1,
+                    currentStep = optimizationStep
+                )
+
+                PipelineStepRow(
+                    title = "2. Rebuild B-Tree Query Indices",
+                    subtitle = "Reconstruct search trees for rapid filtering",
+                    stepNumber = 2,
+                    currentStep = optimizationStep
+                )
+
+                PipelineStepRow(
+                    title = "3. Storage Defragmentation (VACUUM)",
+                    subtitle = "Reclaim deleted row pages and shrink file size",
+                    stepNumber = 3,
+                    currentStep = optimizationStep
+                )
+
+                if (optimizationStep == 4) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .background(emeraldLight),
+                            .background(emeraldLight)
+                            .border(BorderStroke(1.dp, emeraldBorder), RoundedCornerShape(10.dp))
+                            .padding(10.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.AutoFixHigh,
-                            contentDescription = null,
-                            tint = emeraldPrimary,
-                            modifier = Modifier.size(20.dp)
+                        Text(
+                            text = "✓ Database is 100% healthy, indexed, and compacted ($dbSizeFormatted)",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = emeraldDark
                         )
                     }
-                    Text(
-                        text = if (optimizationStep == 4) "Optimization Complete" else "Tuning Database Engine",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = slateTitle
-                    )
                 }
-            },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Text(
-                        text = "ArcTracker is executing sequential SQLite engine maintenance to ensure peak query throughput and minimal storage footprint.",
-                        fontSize = 12.5.sp,
-                        color = slateSub,
-                        lineHeight = 17.sp
-                    )
 
-                    PipelineStepRow(
-                        title = "1. Sector Integrity Audit",
-                        subtitle = "Verify zero block corruptions & foreign keys",
-                        stepNumber = 1,
-                        currentStep = optimizationStep
-                    )
-
-                    PipelineStepRow(
-                        title = "2. Rebuild B-Tree Query Indices",
-                        subtitle = "Reconstruct search trees for rapid filtering",
-                        stepNumber = 2,
-                        currentStep = optimizationStep
-                    )
-
-                    PipelineStepRow(
-                        title = "3. Storage Defragmentation (VACUUM)",
-                        subtitle = "Reclaim deleted row pages and shrink file size",
-                        stepNumber = 3,
-                        currentStep = optimizationStep
-                    )
-
-                    if (optimizationStep == 4) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(emeraldLight)
-                                .border(BorderStroke(1.dp, emeraldBorder), RoundedCornerShape(10.dp))
-                                .padding(10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "✓ Database is 100% healthy, indexed, and compacted ($dbSizeFormatted)",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = emeraldDark
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
                 Button(
                     onClick = {
                         showOptimizationDialog = false
@@ -465,12 +439,13 @@ fun DatabaseScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = emeraldPrimary,
                         disabledContainerColor = Color(0xFFCBD5E1)
-                    )
+                    ),
+                    modifier = Modifier.fillMaxWidth().height(46.dp)
                 ) {
                     Text(if (optimizationStep == 4) "Done" else "Please wait...")
                 }
             }
-        )
+        }
     }
 
     // Interactive Table Schema & Storage Distribution Bottom Sheet

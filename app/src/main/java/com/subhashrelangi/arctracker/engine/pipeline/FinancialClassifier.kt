@@ -29,16 +29,16 @@ object FinancialClassifier {
 
     // Debit / Outgoing action indicators
     private val DEBIT_ACTION_PATTERNS = listOf(
-        Regex("""\b(paid|debited|deducted|spent|sent|transferred|withdrawn|purchased|charged)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(paid|debited|deducted|spent|sent(?!\s+you)|transferred(?!\s+to\s+(?:your|my))|withdrawn|purchased|charged)\b""", RegexOption.IGNORE_CASE),
         Regex("""\bdebit\b(?!\s*(?:card|limit|offer|option))""", RegexOption.IGNORE_CASE),
-        Regex("""\b(paid to|sent to|transferred to|payment to|payment of|transfer to|debited from|debited by|debited for|spent at|purchase at|purchase on|recharge of|recharged with|recharged for)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(paid to|sent to(?!\s+(?:your|my))|transferred to(?!\s+(?:your|my))|payment to(?!\s+(?:your|my))|payment of|transfer to(?!\s+(?:your|my))|debited from|debited by|debited for|debited in|spent at|purchase at|purchase on|recharge of|recharged with|recharged for)\b""", RegexOption.IGNORE_CASE)
     )
 
     // Credit / Incoming action indicators
     private val CREDIT_ACTION_PATTERNS = listOf(
-        Regex("""\b(credited|deposited|received|refunded|refund|cashback received|money received|money added)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(credited|deposited|received|refunded|refund|cashback received|money received|money added|payment received|sent you)\b""", RegexOption.IGNORE_CASE),
         Regex("""\bcredit\b(?!\s*(?:card|score|limit|bill|line|facility|offer|option))""", RegexOption.IGNORE_CASE),
-        Regex("""\b(received from|credited to|credited with|added to wallet)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(received from|credited to|credited with|credited by|credited for|credited in|credited into|added to wallet|added to your|sent you|transferred to your|payment received from)\b""", RegexOption.IGNORE_CASE)
     )
 
     // Explicit transaction confirmation phrases

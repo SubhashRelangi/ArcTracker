@@ -18,7 +18,7 @@ object TransactionDnaVerifier {
         Regex("""\b(?:card|credit card|debit card)\s*(?:ending\s+(?:in\s+)?)?([x*]*\d{3,6})\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:using\s+card\s+([x*]*\d{3,6}))\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:from\s+([x*]*\d{3,6}))\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:PhonePe\s+Wallet|Paytm\s+Wallet|Amazon\s+Pay\s+Balance|Mobikwik\s+Wallet|wallet\s+balance)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:PhonePe\s+Wallet|Paytm\s+Wallet|Amazon\s+Pay\s+Balance|Mobikwik\s+Wallet|wallet\s+balance|(?:your\s+)?wallet)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:vpa|upi\s+id)\s*[:.\-]?\s*([a-zA-Z0-9._-]+@[a-zA-Z0-9]+)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b[a-zA-Z0-9._-]+@(okaxis|okhdfcbank|okicici|oksbi|paytm|ybl|ibl|axl|upi)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:debited\s+from\s+(?:your\s+)?(?:account|a/c)|credited\s+to\s+(?:your\s+)?(?:account|a/c))\b""", RegexOption.IGNORE_CASE),
@@ -56,7 +56,7 @@ object TransactionDnaVerifier {
     private val ACTION_PATTERNS = listOf(
         Regex("""\b(?:is\s+|was\s+|has been\s+)?debited\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:is\s+|was\s+|has been\s+)?credited\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(paid|spent|sent|transferred|withdrawn|deposited|refund|refunded|received)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(paid|spent|sent|transferred|withdrawn|deposited|refund|refunded|received|added)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(payment|transaction|recharge|transfer|txn)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(failed|declined|unsuccessful|pending|processing|in progress)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:payment|transaction|recharge|transfer)\s+(?:of\s+.*?\s+)?(?:is\s+|was\s+|has been\s+)?(?:successful|completed|processed|failed|pending)\b""", RegexOption.IGNORE_CASE),

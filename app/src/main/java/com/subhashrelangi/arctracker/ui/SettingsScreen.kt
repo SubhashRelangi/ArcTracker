@@ -1,6 +1,7 @@
 package com.subhashrelangi.arctracker.ui
 
 import com.subhashrelangi.arctracker.ui.core.ArcFloatingAddExpenseButton
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 
 import android.content.Intent
 import android.net.Uri
@@ -953,44 +954,59 @@ fun SettingsScreen(
         )
     }
 
-    // Feedback & Local Logs Dialog
+    // Feedback & Local Logs Bottom Sheet
     if (showFeedbackDialog) {
-        AlertDialog(
+        ArcModalBottomSheet(
             onDismissRequest = { showFeedbackDialog = false },
-            title = {
-                Text("Feedback & Diagnostics", fontWeight = FontWeight.Bold, fontSize = 17.sp)
-            },
-            text = {
+            title = "Feedback & Diagnostics",
+            icon = Icons.Outlined.Email,
+            maxHeight = 300.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 Text(
-                    "ArcTracker is completely private and has zero network permissions. You can copy sanitized diagnosis details or open your mail app to send manual feedback to the developers.",
+                    text = "ArcTracker is completely private and has zero network permissions. You can copy sanitized diagnosis details or open your mail app to send manual feedback to the developers.",
                     fontSize = 13.sp,
-                    color = Color(0xFF475569)
+                    color = ArcColors.TextSecondary,
+                    lineHeight = 18.sp
                 )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showFeedbackDialog = false
-                    try {
-                        val intent = Intent(Intent.ACTION_SEND).apply {
-                            type = "message/rfc822"
-                            putExtra(Intent.EXTRA_EMAIL, arrayOf("support@arctracker.local"))
-                            putExtra(Intent.EXTRA_SUBJECT, "ArcTracker Feedback & Local Report")
-                            putExtra(Intent.EXTRA_TEXT, "Device: Android\nVersion: $rawVersion\nFeedback:\n")
-                        }
-                        context.startActivity(Intent.createChooser(intent, "Send Feedback"))
-                    } catch (_: Exception) {
-                        Toast.makeText(context, "No email app found", Toast.LENGTH_SHORT).show()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { showFeedbackDialog = false },
+                        shape = CircleShape,
+                        modifier = Modifier.weight(1f).height(46.dp)
+                    ) {
+                        Text("Close", color = ArcColors.TextSecondary)
                     }
-                }) {
-                    Text("Send Feedback", color = Color(0xFF15803D), fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showFeedbackDialog = false }) {
-                    Text("Close", color = Color(0xFF64748B))
+                    Button(
+                        onClick = {
+                            showFeedbackDialog = false
+                            try {
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "message/rfc822"
+                                    putExtra(Intent.EXTRA_EMAIL, arrayOf("support@arctracker.local"))
+                                    putExtra(Intent.EXTRA_SUBJECT, "ArcTracker Feedback & Local Report")
+                                    putExtra(Intent.EXTRA_TEXT, "Device: Android\nVersion: $rawVersion\nFeedback:\n")
+                                }
+                                context.startActivity(Intent.createChooser(intent, "Send Feedback"))
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "No email app found", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                        shape = CircleShape,
+                        modifier = Modifier.weight(1.3f).height(46.dp)
+                    ) {
+                        Text("Send Feedback", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
-        )
+        }
     }
 
     // App Update Bottom Sheet (Triggered by Long-Pressing "About ArcTracker")

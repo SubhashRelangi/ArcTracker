@@ -1,5 +1,6 @@
 package com.subhashrelangi.arctracker.ui
 
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.widget.Toast
@@ -230,103 +231,6 @@ fun AddExpenseDialog(
             selectedAccountSuffix = primary.accountSuffix
             selectedAccountName = primary.institutionName ?: "Bank Account"
         }
-    }
-
-    // Category Picker Dialog
-    if (showCategoryPicker) {
-        ArcCategoryPickerDialog(
-            allCategories = backendCategories,
-            currentCategoryId = selectedCategoryId,
-            currentCategoryName = selectedCategoryName,
-            onCategorySelected = { cat ->
-                selectedCategoryId = cat.id
-                selectedCategoryName = cat.name
-                showCategoryPicker = false
-            },
-            onDismiss = { showCategoryPicker = false }
-        )
-    }
-
-    // Account Picker Dialog
-    if (showAccountPicker) {
-        ArcAccountPickerDialog(
-            knownAccounts = knownAccounts,
-            currentAccountId = selectedAccountId,
-            currentAccountSuffix = selectedAccountSuffix,
-            onAccountSelected = { id, suffix, name ->
-                selectedAccountId = id
-                selectedAccountSuffix = suffix
-                selectedAccountName = name
-                showAccountPicker = false
-            },
-            onDismiss = { showAccountPicker = false }
-        )
-    }
-
-    // Add Tag Dialog
-    if (showAddTagDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddTagDialog = false },
-            containerColor = cardBg,
-            shape = RoundedCornerShape(20.dp),
-            title = {
-                Text(
-                    text = "Add Custom Tag",
-                    color = slateTitle,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp
-                )
-            },
-            text = {
-                Column {
-                    Text(
-                        text = "Enter a tag label without the '#' symbol:",
-                        color = slateSub,
-                        fontSize = 13.sp
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    BasicTextField(
-                        value = newTagInput,
-                        onValueChange = { newTagInput = it },
-                        textStyle = TextStyle(
-                            color = slateTitle,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        cursorBrush = SolidColor(ArcColors.Primary),
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(highlightSurface, RoundedCornerShape(10.dp))
-                            .padding(horizontal = 14.dp, vertical = 12.dp)
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val trimmed = newTagInput.trim().removePrefix("#")
-                        if (trimmed.isNotBlank()) {
-                            if (trimmed !in availableTags) {
-                                availableTags = availableTags + trimmed
-                            }
-                            selectedTags = selectedTags + trimmed
-                        }
-                        newTagInput = ""
-                        showAddTagDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
-                    shape = CircleShape
-                ) {
-                    Text("Add Tag", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddTagDialog = false }) {
-                    Text("Cancel", color = slateSub, fontSize = 13.sp)
-                }
-            }
-        )
     }
 
     BackHandler(onBack = onDismiss)
@@ -1263,6 +1167,106 @@ fun AddExpenseDialog(
 
                     Spacer(modifier = Modifier.height(32.dp))
             }
+
+            // Category Picker Sheet
+            if (showCategoryPicker) {
+                ArcCategoryPickerDialog(
+                    allCategories = backendCategories,
+                    currentCategoryId = selectedCategoryId,
+                    currentCategoryName = selectedCategoryName,
+                    onCategorySelected = { cat ->
+                        selectedCategoryId = cat.id
+                        selectedCategoryName = cat.name
+                        showCategoryPicker = false
+                    },
+                    onDismiss = { showCategoryPicker = false }
+                )
+            }
+
+            // Account Picker Sheet
+            if (showAccountPicker) {
+                ArcAccountPickerDialog(
+                    knownAccounts = knownAccounts,
+                    currentAccountId = selectedAccountId,
+                    currentAccountSuffix = selectedAccountSuffix,
+                    onAccountSelected = { id, suffix, name ->
+                        selectedAccountId = id
+                        selectedAccountSuffix = suffix
+                        selectedAccountName = name
+                        showAccountPicker = false
+                    },
+                    onDismiss = { showAccountPicker = false }
+                )
+            }
+
+            // Add Tag Bottom Sheet
+            if (showAddTagDialog) {
+                ArcModalBottomSheet(
+                    onDismissRequest = { showAddTagDialog = false },
+                    title = "Add Custom Tag",
+                    maxHeight = 360.dp
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Enter a tag label without the '#' symbol:",
+                            color = slateSub,
+                            fontSize = 13.sp
+                        )
+                        BasicTextField(
+                            value = newTagInput,
+                            onValueChange = { newTagInput = it },
+                            textStyle = TextStyle(
+                                color = slateTitle,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            cursorBrush = SolidColor(ArcColors.Primary),
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(highlightSurface, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { showAddTagDialog = false },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f).height(44.dp)
+                            ) {
+                                Text("Cancel", color = slateSub, fontSize = 13.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    val trimmed = newTagInput.trim().removePrefix("#")
+                                    if (trimmed.isNotBlank()) {
+                                        if (trimmed !in availableTags) {
+                                            availableTags = availableTags + trimmed
+                                        }
+                                        selectedTags = selectedTags + trimmed
+                                    }
+                                    newTagInput = ""
+                                    showAddTagDialog = false
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f).height(44.dp)
+                            ) {
+                                Text("Add Tag", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -1278,154 +1282,12 @@ private fun ArcCategoryPickerDialog(
     onCategorySelected: (TransactionCategory) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    val filtered = remember(allCategories, searchQuery) {
-        if (searchQuery.isBlank()) allCategories
-        else allCategories.filter { it.name.contains(searchQuery, ignoreCase = true) }
-    }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = cardBg,
-            border = BorderStroke(1.dp, cardBorder),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-            ) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Select Category",
-                            color = slateTitle,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Categorize your transaction",
-                            color = slateSub,
-                            fontSize = 12.sp
-                        )
-                    }
-
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = slateSub,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Search Box
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search categories...", fontSize = 13.sp, color = slateSub) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ArcColors.Primary,
-                        unfocusedBorderColor = cardBorder,
-                        focusedContainerColor = highlightSurface,
-                        unfocusedContainerColor = highlightSurface
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Categories List
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 280.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items(filtered, key = { it.id }) { cat ->
-                        val isSelected = cat.id == currentCategoryId || cat.name.equals(currentCategoryName, ignoreCase = true)
-                        val catIcon = CategoryVisuals.getIcon(cat.iconKey)
-                        val catColor = CategoryVisuals.getColor(cat.colorKey)
-
-                        Surface(
-                            onClick = { onCategorySelected(cat) },
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) {
-                                if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
-                            } else Color.Transparent,
-                            border = BorderStroke(
-                                1.dp,
-                                if (isSelected) {
-                                    if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)
-                                } else Color.Transparent
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(34.dp)
-                                        .background(catColor.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = catIcon,
-                                        contentDescription = null,
-                                        tint = catColor,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Text(
-                                    text = cat.name,
-                                    fontSize = 14.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) {
-                                        if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
-                                    } else slateTitle,
-                                    modifier = Modifier.weight(1f)
-                                )
-
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    com.subhashrelangi.arctracker.ui.review.CategoryPickerDialog(
+        categories = allCategories,
+        currentCategoryId = currentCategoryId,
+        onCategorySelected = onCategorySelected,
+        onDismissRequest = onDismiss
+    )
 }
 
 /**
@@ -1439,223 +1301,22 @@ private fun ArcAccountPickerDialog(
     onAccountSelected: (id: String?, suffix: String?, name: String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = cardBg,
-            border = BorderStroke(1.dp, cardBorder),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-            ) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Payment Account",
-                            color = slateTitle,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Choose linked bank account or wallet",
-                            color = slateSub,
-                            fontSize = 12.sp
-                        )
-                    }
-
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = slateSub,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 300.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Option 1: Cash / Wallet
-                    item {
-                        val isCashSelected = currentAccountId == null && currentAccountSuffix == null
-                        Surface(
-                            onClick = { onAccountSelected(null, null, "Cash / Wallet") },
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isCashSelected) {
-                                if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
-                            } else highlightSurface,
-                            border = BorderStroke(
-                                1.dp,
-                                if (isCashSelected) {
-                                    if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)
-                                } else cardBorder
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .background(highlightSurface, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.AccountBalanceWallet,
-                                        contentDescription = null,
-                                        tint = slateSub,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Cash / Wallet",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = if (isCashSelected) {
-                                            if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
-                                        } else slateTitle
-                                    )
-                                    Text(
-                                        text = "Direct cash or untracked wallet",
-                                        fontSize = 11.5.sp,
-                                        color = slateSub
-                                    )
-                                }
-
-                                if (isCashSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Linked Known Accounts
-                    if (knownAccounts.isNotEmpty()) {
-                        items(knownAccounts, key = { it.id }) { acc ->
-                            val isSelected = acc.id == currentAccountId
-                            Surface(
-                                onClick = {
-                                    onAccountSelected(
-                                        acc.id,
-                                        acc.accountSuffix,
-                                        acc.institutionName ?: "Bank Account"
-                                    )
-                                },
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (isSelected) {
-                                    if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
-                                } else highlightSurface,
-                                border = BorderStroke(
-                                    1.dp,
-                                    if (isSelected) {
-                                        if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)
-                                    } else cardBorder
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .background(
-                                                if (isSelected) {
-                                                    if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFA7F3D0)
-                                                } else highlightSurface,
-                                                CircleShape
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = when (acc.instrumentType) {
-                                                InstrumentType.CARD -> Icons.Outlined.CreditCard
-                                                InstrumentType.WALLET -> Icons.Outlined.AccountBalanceWallet
-                                                InstrumentType.CASH -> Icons.Outlined.Payments
-                                                else -> Icons.Outlined.AccountBalance
-                                            },
-                                            contentDescription = null,
-                                            tint = if (isSelected) {
-                                                if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
-                                            } else slateSub,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.width(12.dp))
-
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = acc.institutionName ?: "Bank Account",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.sp,
-                                            color = if (isSelected) {
-                                                if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857)
-                                            } else slateTitle
-                                        )
-                                        val subtitleText = when (acc.instrumentType) {
-                                            InstrumentType.WALLET -> "Digital Wallet"
-                                            InstrumentType.CASH -> "Cash in Hand"
-                                            else -> if (acc.accountSuffix.isNotBlank()) "Ending in ••${acc.accountSuffix}" else "Linked Account"
-                                        }
-                                        Text(
-                                            text = subtitleText,
-                                            fontSize = 11.5.sp,
-                                            color = slateSub
-                                        )
-                                    }
-
-                                    if (isSelected) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = "Selected",
-                                            tint = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF047857),
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+    com.subhashrelangi.arctracker.ui.review.HorizontalAccountPickerDialog(
+        title = "Payment Account",
+        subtitle = "Choose linked bank account or wallet",
+        availableAccounts = knownAccounts,
+        currentAccountId = currentAccountId,
+        currentAccountSuffix = currentAccountSuffix,
+        allowCashOption = true,
+        onCashSelected = {
+            onAccountSelected(null, null, "Cash / Wallet")
+        },
+        onDismissRequest = onDismiss,
+        onAccountSelected = { acc ->
+            val name = acc.institutionName ?: acc.institutionId?.uppercase() ?: "Account"
+            onAccountSelected(acc.id, acc.accountSuffix, name)
         }
-    }
+    )
 }
 
 /**

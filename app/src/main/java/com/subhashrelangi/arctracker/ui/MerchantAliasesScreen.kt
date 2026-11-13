@@ -1,5 +1,7 @@
 package com.subhashrelangi.arctracker.ui
 
+import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -427,53 +429,29 @@ fun MerchantAliasesScreen(
         )
     }
 
-    // Delete Confirmation Dialog
+    // Delete Confirmation Bottom Sheet
     aliasToDelete?.let { alias ->
-        AlertDialog(
-            onDismissRequest = { aliasToDelete = null },
-            shape = RoundedCornerShape(20.dp),
-            containerColor = cardBg,
-            title = {
-                Text(
-                    text = "Delete Alias",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    color = slateTitle
-                )
-            },
-            text = {
-                Text(
-                    text = "Delete alias \"${alias.alias}\" → \"${alias.canonicalMerchant}\"? Existing transactions will remain unchanged.",
-                    fontSize = 13.5.sp,
-                    color = slateSub,
-                    lineHeight = 19.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val id = alias.id
-                        aliasToDelete = null
-                        scope.launch {
-                            val res = aManager.deleteAlias(id)
-                            if (res.isSuccess) {
-                                snackbarHostState.showSnackbar("Alias deleted")
-                            } else {
-                                snackbarHostState.showSnackbar(res.exceptionOrNull()?.message ?: "Failed to delete")
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = CircleShape
-                ) {
-                    Text("Delete Alias", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        ArcConfirmationBottomSheet(
+            title = "Delete Alias",
+            message = "Delete alias \"${alias.alias}\" → \"${alias.canonicalMerchant}\"? Existing transactions will remain unchanged.",
+            confirmText = "Delete Alias",
+            cancelText = "Cancel",
+            icon = Icons.Outlined.DeleteOutline,
+            iconColor = ArcColors.Danger,
+            isDestructive = true,
+            onConfirm = {
+                val id = alias.id
+                aliasToDelete = null
+                scope.launch {
+                    val res = aManager.deleteAlias(id)
+                    if (res.isSuccess) {
+                        snackbarHostState.showSnackbar("Alias deleted")
+                    } else {
+                        snackbarHostState.showSnackbar(res.exceptionOrNull()?.message ?: "Failed to delete")
+                    }
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { aliasToDelete = null }) {
-                    Text("Cancel", color = slateSub, fontSize = 13.sp)
-                }
-            }
+            onDismiss = { aliasToDelete = null }
         )
     }
 }
@@ -585,116 +563,118 @@ fun AliasEditorDialog(
     var canonicalText by remember { mutableStateOf(existing?.canonicalMerchant ?: "") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    AlertDialog(
+    ArcModalBottomSheet(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(20.dp),
-        containerColor = cardBg,
-        title = {
-            Text(
-                text = if (existing != null) "Edit Merchant Alias" else "New Merchant Alias",
-                fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
-                color = slateTitle
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                OutlinedTextField(
-                    value = aliasText,
-                    onValueChange = {
-                        aliasText = it
-                        errorMessage = null
-                    },
-                    label = { Text("Alias / Raw Variation *") },
-                    placeholder = { Text("e.g. AMZN Mktp, SWIGGY BLR") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = emeraldPrimary,
-                        unfocusedBorderColor = cardBorder,
-                        focusedLabelColor = emeraldPrimary
-                    )
-                )
-
-                OutlinedTextField(
-                    value = canonicalText,
-                    onValueChange = {
-                        canonicalText = it
-                        errorMessage = null
-                    },
-                    label = { Text("Canonical Merchant Name *") },
-                    placeholder = { Text("e.g. Amazon, Swiggy") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = emeraldPrimary,
-                        unfocusedBorderColor = cardBorder,
-                        focusedLabelColor = emeraldPrimary
-                    )
-                )
-
-                if (aliasText.isNotBlank() && canonicalText.isNotBlank()) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFFECFDF5),
-                        border = BorderStroke(1.dp, Color(0xFFA7F3D0))
-                    ) {
-                        Text(
-                            text = "Preview: \"${aliasText.trim()}\" → \"${canonicalText.trim()}\"",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = emeraldPrimary,
-                            modifier = Modifier.padding(8.dp)
-                        )
-                    }
-                }
-
-                errorMessage?.let { err ->
-                    Text(
-                        text = "⚠ $err",
-                        fontSize = 12.sp,
-                        color = Color(0xFFDC2626)
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val a = aliasText.trim()
-                    val c = canonicalText.trim()
-                    if (a.isBlank()) {
-                        errorMessage = "Alias cannot be blank"
-                        return@Button
-                    }
-                    if (c.isBlank()) {
-                        errorMessage = "Canonical merchant name cannot be blank"
-                        return@Button
-                    }
-                    val normA = MerchantNormalizer.normalize(a, stripPrefixes = true)
-                    val normC = MerchantNormalizer.normalize(c, stripPrefixes = true)
-                    if (normA == normC) {
-                        errorMessage = "An alias cannot point to itself"
-                        return@Button
-                    }
-                    onSave(a, c)
+        title = if (existing != null) "Edit Merchant Alias" else "New Merchant Alias",
+        maxHeight = 440.dp
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            OutlinedTextField(
+                value = aliasText,
+                onValueChange = {
+                    aliasText = it
+                    errorMessage = null
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                shape = CircleShape
-            ) {
-                Text("Save Alias", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                label = { Text("Alias / Raw Variation *") },
+                placeholder = { Text("e.g. AMZN Mktp, SWIGGY BLR") },
+                singleLine = true,
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = emeraldPrimary,
+                    unfocusedBorderColor = cardBorder,
+                    focusedLabelColor = emeraldPrimary
+                )
+            )
+
+            OutlinedTextField(
+                value = canonicalText,
+                onValueChange = {
+                    canonicalText = it
+                    errorMessage = null
+                },
+                label = { Text("Canonical Merchant Name *") },
+                placeholder = { Text("e.g. Amazon, Swiggy") },
+                singleLine = true,
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = emeraldPrimary,
+                    unfocusedBorderColor = cardBorder,
+                    focusedLabelColor = emeraldPrimary
+                )
+            )
+
+            if (aliasText.isNotBlank() && canonicalText.isNotBlank()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFECFDF5),
+                    border = BorderStroke(1.dp, Color(0xFFA7F3D0))
+                ) {
+                    Text(
+                        text = "Preview: \"${aliasText.trim()}\" → \"${canonicalText.trim()}\"",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = emeraldPrimary,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = slateSub, fontSize = 13.sp)
+
+            errorMessage?.let { err ->
+                Text(
+                    text = "⚠ $err",
+                    fontSize = 12.sp,
+                    color = Color(0xFFDC2626)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, cardBorder),
+                    modifier = Modifier.weight(1f).height(44.dp)
+                ) {
+                    Text("Cancel", color = slateSub, fontSize = 13.sp)
+                }
+
+                Button(
+                    onClick = {
+                        val a = aliasText.trim()
+                        val c = canonicalText.trim()
+                        if (a.isBlank()) {
+                            errorMessage = "Alias cannot be blank"
+                            return@Button
+                        }
+                        if (c.isBlank()) {
+                            errorMessage = "Canonical merchant name cannot be blank"
+                            return@Button
+                        }
+                        val normA = MerchantNormalizer.normalize(a, stripPrefixes = true)
+                        val normC = MerchantNormalizer.normalize(c, stripPrefixes = true)
+                        if (normA == normC) {
+                            errorMessage = "An alias cannot point to itself"
+                            return@Button
+                        }
+                        onSave(a, c)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f).height(44.dp)
+                ) {
+                    Text("Save Alias", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
             }
         }
-    )
+    }
 }

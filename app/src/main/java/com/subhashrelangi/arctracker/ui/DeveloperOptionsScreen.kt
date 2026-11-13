@@ -43,6 +43,8 @@ import com.subhashrelangi.arctracker.engine.pipeline.FinancialClassifier
 import com.subhashrelangi.arctracker.engine.pipeline.NotificationNormalizer
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import com.subhashrelangi.arctracker.engine.pipeline.StructuredTransactionExtractor
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
+import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
@@ -972,91 +974,59 @@ fun DeveloperOptionsScreen(
             ");"
         }
 
-        Dialog(onDismissRequest = { showDumpSqlDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = cardBg,
-                border = BorderStroke(1.dp, cardBorder),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 520.dp)
+        ArcModalBottomSheet(
+            onDismissRequest = { showDumpSqlDialog = false },
+            title = "SQLite Schema DDL",
+            subtitle = "Extracted from physical sqlite_master",
+            icon = Icons.Outlined.Storage,
+            maxHeight = 520.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(18.dp)
+                SelectionContainer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (ArcColors.isDark) Color(0xFF000000) else Color(0xFF0F172A))
+                        .padding(12.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Text(
+                        text = displaySchema,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = Color(0xFF38BDF8),
+                        lineHeight = 15.sp,
+                        modifier = Modifier.verticalScroll(rememberScrollState())
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { showDumpSqlDialog = false },
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        shape = CircleShape
                     ) {
-                        Column {
-                            Text(
-                                text = "SQLite Schema DDL",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ArcColors.TextPrimary
-                            )
-                            Text(
-                                text = "Extracted from physical sqlite_master",
-                                fontSize = 11.sp,
-                                color = ArcColors.TextSecondary
-                            )
-                        }
-                        IconButton(
-                            onClick = { showDumpSqlDialog = false },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = ArcColors.TextSecondary)
-                        }
+                        Text("Close", color = ArcColors.TextSecondary)
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    SelectionContainer(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (ArcColors.isDark) Color(0xFF000000) else Color(0xFF0F172A))
-                            .padding(12.dp)
+                    Button(
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("SQLite Schema", displaySchema))
+                            Toast.makeText(context, "Real physical schema DDL copied to clipboard", Toast.LENGTH_SHORT).show()
+                            showDumpSqlDialog = false
+                        },
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
                     ) {
-                        Text(
-                            text = displaySchema,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = Color(0xFF38BDF8),
-                            lineHeight = 15.sp,
-                            modifier = Modifier.verticalScroll(rememberScrollState())
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { showDumpSqlDialog = false },
-                            modifier = Modifier.weight(1f),
-                            shape = CircleShape
-                        ) {
-                            Text("Close", color = ArcColors.TextSecondary)
-                        }
-
-                        Button(
-                            onClick = {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                clipboard.setPrimaryClip(ClipData.newPlainText("SQLite Schema", displaySchema))
-                                Toast.makeText(context, "Real physical schema DDL copied to clipboard", Toast.LENGTH_SHORT).show()
-                                showDumpSqlDialog = false
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
-                        ) {
-                            Text("Copy SQL", color = Color.White)
-                        }
+                        Text("Copy SQL", color = Color.White)
                     }
                 }
             }
@@ -1071,513 +1041,365 @@ fun DeveloperOptionsScreen(
         var parseOutput by remember { mutableStateOf<String?>(null) }
         var isExtracting by remember { mutableStateOf(false) }
 
-        Dialog(onDismissRequest = { showTestParserDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = cardBg,
-                border = BorderStroke(1.dp, cardBorder),
+        ArcModalBottomSheet(
+            onDismissRequest = { showTestParserDialog = false },
+            title = "Interactive Parser Test",
+            subtitle = "Tests live StructuredTransactionExtractor engine",
+            icon = Icons.Outlined.Code,
+            maxHeight = 520.dp
+        ) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .wrapContentHeight()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(18.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "Interactive Parser Test",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ArcColors.TextPrimary
-                            )
-                            Text(
-                                text = "Tests live StructuredTransactionExtractor engine",
-                                fontSize = 11.sp,
-                                color = ArcColors.TextSecondary
-                            )
-                        }
-                        IconButton(
-                            onClick = { showTestParserDialog = false },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = ArcColors.TextSecondary)
-                        }
-                    }
+                Text(
+                    text = "Enter raw notification or SMS text below:",
+                    fontSize = 12.sp,
+                    color = ArcColors.TextSecondary
+                )
 
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "Enter raw notification or SMS text below:",
-                        fontSize = 12.sp,
-                        color = ArcColors.TextSecondary
+                OutlinedTextField(
+                    value = testInput,
+                    onValueChange = { testInput = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(86.dp),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontSize = 12.5.sp,
+                        color = ArcColors.TextPrimary
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ArcColors.Primary,
+                        unfocusedBorderColor = ArcColors.Border,
+                        focusedContainerColor = ArcColors.SurfaceHighlight,
+                        unfocusedContainerColor = ArcColors.SurfaceHighlight
                     )
+                )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        isExtracting = true
+                        try {
+                            val captured = CapturedNotificationInfo(
+                                packageName = "com.google.android.apps.messaging",
+                                notificationKey = "interactive_test_${System.currentTimeMillis()}",
+                                postTime = System.currentTimeMillis(),
+                                title = "Alert",
+                                text = testInput,
+                                bigText = testInput
+                            )
+                            val normalized = NotificationNormalizer.normalize(captured)
+                            val ignoreRules = IgnoreRulesManager.getRules(context)
+                            val classification = if (normalized != null) FinancialClassifier.classify(normalized, ignoreRules) else null
+                            val candidate = if (classification != null) StructuredTransactionExtractor.extract(classification) else null
 
-                    OutlinedTextField(
-                        value = testInput,
-                        onValueChange = { testInput = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(86.dp),
-                        textStyle = androidx.compose.ui.text.TextStyle(
-                            fontSize = 12.5.sp,
-                            color = ArcColors.TextPrimary
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ArcColors.Primary,
-                            unfocusedBorderColor = ArcColors.Border,
-                            focusedContainerColor = ArcColors.SurfaceHighlight,
-                            unfocusedContainerColor = ArcColors.SurfaceHighlight
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Button(
-                        onClick = {
-                            isExtracting = true
-                            try {
-                                val captured = CapturedNotificationInfo(
-                                    packageName = "com.google.android.apps.messaging",
-                                    notificationKey = "interactive_test_${System.currentTimeMillis()}",
-                                    postTime = System.currentTimeMillis(),
-                                    title = "Alert",
-                                    text = testInput,
-                                    bigText = testInput
-                                )
-                                val normalized = NotificationNormalizer.normalize(captured)
-                                val ignoreRules = IgnoreRulesManager.getRules(context)
-                                val classification = if (normalized != null) FinancialClassifier.classify(normalized, ignoreRules) else null
-                                val candidate = if (classification != null) StructuredTransactionExtractor.extract(classification) else null
-
-                                // Test against real user regex rules
-                                val activeRules = RegexPatternsManager.getRules(context).filter { it.isActive }
-                                val matchedUserRules = activeRules.filter { rule ->
-                                    try {
-                                        Regex(rule.pattern, RegexOption.IGNORE_CASE).containsMatchIn(testInput)
-                                    } catch (_: Exception) {
-                                        false
-                                    }
-                                }.map { it.name }
-
-                                parseOutput = buildString {
-                                    appendLine("Classification: ${classification?.financialRelevance?.name ?: "NON_FINANCIAL"}")
-                                    appendLine("Noise Filter: ${if (classification?.isNoise == true) "YES (Silenced)" else "NO (Clean Alert)"}")
-                                    if (candidate != null) {
-                                        appendLine("Extracted Amount: ${candidate.currency ?: "₹"}${candidate.amount ?: 0.0}")
-                                        appendLine("Direction: ${candidate.direction}")
-                                        appendLine("Counterparty / Merchant: ${candidate.counterparty ?: candidate.merchant ?: "Not detected"}")
-                                        appendLine("Account Suffix: ${candidate.accountSuffix ?: candidate.cardSuffix ?: "None"}")
-                                        appendLine("UPI / Ref ID: ${candidate.upiId ?: candidate.referenceId ?: "None"}")
-                                        appendLine("Status: ${candidate.status ?: "SUCCESS"}")
-                                    } else {
-                                        appendLine("Candidate Extraction: No financial pattern detected.")
-                                    }
-                                    if (matchedUserRules.isNotEmpty()) {
-                                        appendLine("Active Regex Matches: ${matchedUserRules.joinToString(", ")}")
-                                    }
+                            // Test against real user regex rules
+                            val activeRules = RegexPatternsManager.getRules(context).filter { it.isActive }
+                            val matchedUserRules = activeRules.filter { rule ->
+                                try {
+                                    Regex(rule.pattern, RegexOption.IGNORE_CASE).containsMatchIn(testInput)
+                                } catch (_: Exception) {
+                                    false
                                 }
-                            } catch (e: Exception) {
-                                parseOutput = "Extraction error: ${e.localizedMessage}"
-                            } finally {
-                                isExtracting = false
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(40.dp),
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
-                    ) {
-                        Text("Parse Message (Real Engine)", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    }
+                            }.map { it.name }
 
-                    parseOutput?.let { output ->
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = ArcColors.SurfaceHighlight,
-                            border = BorderStroke(1.dp, ArcColors.Border),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = output,
-                                fontSize = 11.5.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = ArcColors.TextPrimary,
-                                modifier = Modifier.padding(10.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // 3. Real Ingestion Event Logs Dialog
-    if (showLogsDialog) {
-        Dialog(onDismissRequest = { showLogsDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = cardBg,
-                border = BorderStroke(1.dp, cardBorder),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 500.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(18.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "Ingestion Event Logs",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ArcColors.TextPrimary
-                            )
-                            Text(
-                                text = "Live physical database & listener stream",
-                                fontSize = 11.sp,
-                                color = ArcColors.TextSecondary
-                            )
-                        }
-                        IconButton(
-                            onClick = { showLogsDialog = false },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = ArcColors.TextSecondary)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    if (recentExpenses.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No parsed transactions in database yet.\nPerform an SMS scan or trigger an alert.",
-                                fontSize = 12.sp,
-                                color = ArcColors.TextSecondary,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                        }
-                    } else {
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            recentExpenses.forEach { exp ->
-                                val dateStr = SimpleDateFormat("HH:mm:ss dd-MMM", Locale.US).format(Date(exp.dateMillis))
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFF0FDF4),
-                                    border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFBBF7D0)),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(modifier = Modifier.padding(8.dp)) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(
-                                                text = "[$dateStr] MATCH INGESTED",
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = FontFamily.Monospace,
-                                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)
-                                            )
-                                            Text(
-                                                text = "₹${exp.amount}",
-                                                fontSize = 11.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        val acctStr = if (!exp.accountSuffix.isNullOrBlank()) "Card •••• ${exp.accountSuffix}" else "Primary Account"
-                                        Text(
-                                            text = "${exp.merchant} • ${exp.type} ($acctStr)",
-                                            fontSize = 11.5.sp,
-                                            color = ArcColors.TextPrimary,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                        if (!exp.rawText.isNullOrBlank()) {
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Text(
-                                                text = exp.rawText ?: "",
-                                                fontSize = 10.sp,
-                                                fontFamily = FontFamily.Monospace,
-                                                color = ArcColors.TextSecondary,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    }
+                            parseOutput = buildString {
+                                appendLine("Classification: ${classification?.financialRelevance?.name ?: "NON_FINANCIAL"}")
+                                appendLine("Noise Filter: ${if (classification?.isNoise == true) "YES (Silenced)" else "NO (Clean Alert)"}")
+                                if (candidate != null) {
+                                    appendLine("Extracted Amount: ${candidate.currency ?: "₹"}${candidate.amount ?: 0.0}")
+                                    appendLine("Direction: ${candidate.direction}")
+                                    appendLine("Counterparty / Merchant: ${candidate.counterparty ?: candidate.merchant ?: "Not detected"}")
+                                    appendLine("Account Suffix: ${candidate.accountSuffix ?: candidate.cardSuffix ?: "None"}")
+                                    appendLine("UPI / Ref ID: ${candidate.upiId ?: candidate.referenceId ?: "None"}")
+                                    appendLine("Status: ${candidate.status ?: "SUCCESS"}")
+                                } else {
+                                    appendLine("Candidate Extraction: No financial pattern detected.")
+                                }
+                                if (matchedUserRules.isNotEmpty()) {
+                                    appendLine("Active Regex Matches: ${matchedUserRules.joinToString(", ")}")
                                 }
                             }
+                        } catch (e: Exception) {
+                            parseOutput = "Extraction error: ${e.localizedMessage}"
+                        } finally {
+                            isExtracting = false
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Button(
-                        onClick = { showLogsDialog = false },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(40.dp),
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
-                    ) {
-                        Text("Done", color = Color.White)
-                    }
-                }
-            }
-        }
-    }
-
-    // 4. Real Inspect Raw Queue Dialog
-    if (showRawQueueDialog) {
-        val activeNotifs = remember { NotificationReaderService.getAllActiveNotifications() }
-
-        Dialog(onDismissRequest = { showRawQueueDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = cardBg,
-                border = BorderStroke(1.dp, cardBorder),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-            ) {
-                Column(
-                    modifier = Modifier.padding(18.dp)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Raw Notification Queue",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ArcColors.TextPrimary
-                        )
-                        IconButton(
-                            onClick = { showRawQueueDialog = false },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = ArcColors.TextSecondary)
-                        }
-                    }
+                    Text("Parse Message (Real Engine)", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
+                parseOutput?.let { output ->
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(8.dp),
                         color = ArcColors.SurfaceHighlight,
                         border = BorderStroke(1.dp, ArcColors.Border),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Listener Daemon State:", fontSize = 12.sp, color = ArcColors.TextSecondary)
-                                Text(
-                                    text = if (isDaemonOnline) "CONNECTED (Active)" else "STANDBY (Idle)",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isDaemonOnline) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)) else (if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFF92400E))
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("In-Memory Buffer Size:", fontSize = 12.sp, color = ArcColors.TextSecondary)
-                                Text("${activeNotifs.size} notifications", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ArcColors.TextPrimary)
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Pending Ledger Review:", fontSize = 12.sp, color = ArcColors.TextSecondary)
-                                Text("$pendingReviewCount transactions", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ArcColors.TextPrimary)
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Pipeline Mutex:", fontSize = 12.sp, color = ArcColors.TextSecondary)
-                                Text("UNLOCKED (Ready)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534))
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = if (activeNotifs.isEmpty()) "All background notification captures are committed. Buffer clean." else "Active captures waiting in memory buffer:",
-                        fontSize = 11.5.sp,
-                        color = ArcColors.TextSecondary
-                    )
-
-                    if (activeNotifs.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Column(
-                            modifier = Modifier
-                                .heightIn(max = 140.dp)
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            activeNotifs.take(5).forEach { notif ->
-                                Text(
-                                    text = "• ${notif.packageName} (${SimpleDateFormat("HH:mm:ss", Locale.US).format(Date(notif.postTime))})",
-                                    fontSize = 11.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = ArcColors.TextPrimary
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = { showRawQueueDialog = false },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(40.dp),
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
-                    ) {
-                        Text("Dismiss", color = Color.White)
+                        Text(
+                            text = output,
+                            fontSize = 11.5.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = ArcColors.TextPrimary,
+                            modifier = Modifier.padding(10.dp)
+                        )
                     }
                 }
             }
         }
     }
 
-    // 5. Replay Onboarding Confirmation Dialog
-    if (showReplayConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showReplayConfirmDialog = false },
-            title = {
-                Text(
-                    text = "Replay Initial Onboarding?",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ArcColors.TextPrimary
-                )
-            },
-            text = {
-                Text(
-                    text = "This resets the initial_onboarding_completed flag and opens the Onboarding screen. Existing ledger transactions remain safe and untouched.",
-                    fontSize = 13.sp,
-                    color = ArcColors.TextSecondary,
-                    lineHeight = 18.sp
-                )
-            },
-            confirmButton = {
+    // 3. Real Ingestion Event Logs Bottom Sheet
+    if (showLogsDialog) {
+        ArcModalBottomSheet(
+            onDismissRequest = { showLogsDialog = false },
+            title = "Ingestion Event Logs",
+            subtitle = "Live physical database & listener stream",
+            icon = Icons.Outlined.EventNote,
+            maxHeight = 500.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (recentExpenses.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No parsed transactions in database yet.\nPerform an SMS scan or trigger an alert.",
+                            fontSize = 12.sp,
+                            color = ArcColors.TextSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 340.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        recentExpenses.forEach { exp ->
+                            val dateStr = SimpleDateFormat("HH:mm:ss dd-MMM", Locale.US).format(Date(exp.dateMillis))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFF0FDF4),
+                                border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFBBF7D0)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "[$dateStr] MATCH INGESTED",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace,
+                                            color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)
+                                        )
+                                        Text(
+                                            text = "₹${exp.amount}",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    val acctStr = if (!exp.accountSuffix.isNullOrBlank()) "Card •••• ${exp.accountSuffix}" else "Primary Account"
+                                    Text(
+                                        text = "${exp.merchant} • ${exp.type} ($acctStr)",
+                                        fontSize = 11.5.sp,
+                                        color = ArcColors.TextPrimary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    if (!exp.rawText.isNullOrBlank()) {
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = exp.rawText ?: "",
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            color = ArcColors.TextSecondary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Button(
-                    onClick = {
-                        showReplayConfirmDialog = false
-                        settingsRepo.setInitialOnboardingCompleted(false)
-                        onNavigate("InitialOnboarding")
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
-                    shape = CircleShape
+                    onClick = { showLogsDialog = false },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
                 ) {
-                    Text("Replay", color = Color.White)
+                    Text("Done", color = Color.White)
                 }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { showReplayConfirmDialog = false },
-                    shape = CircleShape
+            }
+        }
+    }
+
+    // 4. Real Inspect Raw Queue Bottom Sheet
+    if (showRawQueueDialog) {
+        val activeNotifs = remember { NotificationReaderService.getAllActiveNotifications() }
+
+        ArcModalBottomSheet(
+            onDismissRequest = { showRawQueueDialog = false },
+            title = "Raw Notification Queue",
+            icon = Icons.Outlined.Layers,
+            maxHeight = 480.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = ArcColors.SurfaceHighlight,
+                    border = BorderStroke(1.dp, ArcColors.Border),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Cancel", color = slateSub)
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Listener Daemon State:", fontSize = 12.sp, color = ArcColors.TextSecondary)
+                            Text(
+                                text = if (isDaemonOnline) "CONNECTED (Active)" else "STANDBY (Idle)",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDaemonOnline) (if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534)) else (if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFF92400E))
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("In-Memory Buffer Size:", fontSize = 12.sp, color = ArcColors.TextSecondary)
+                            Text("${activeNotifs.size} notifications", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ArcColors.TextPrimary)
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Pending Ledger Review:", fontSize = 12.sp, color = ArcColors.TextSecondary)
+                            Text("$pendingReviewCount transactions", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ArcColors.TextPrimary)
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Pipeline Mutex:", fontSize = 12.sp, color = ArcColors.TextSecondary)
+                            Text("UNLOCKED (Ready)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF166534))
+                        }
+                    }
                 }
-            },
-            shape = RoundedCornerShape(16.dp),
-            containerColor = cardBg
+
+                Text(
+                    text = if (activeNotifs.isEmpty()) "All background notification captures are committed. Buffer clean." else "Active captures waiting in memory buffer:",
+                    fontSize = 11.5.sp,
+                    color = ArcColors.TextSecondary
+                )
+
+                if (activeNotifs.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = 140.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        activeNotifs.take(5).forEach { notif ->
+                            Text(
+                                text = "• ${notif.packageName} (${SimpleDateFormat("HH:mm:ss", Locale.US).format(Date(notif.postTime))})",
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = ArcColors.TextPrimary
+                            )
+                        }
+                    }
+                }
+
+                Button(
+                    onClick = { showRawQueueDialog = false },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
+                ) {
+                    Text("Dismiss", color = Color.White)
+                }
+            }
+        }
+    }
+
+    // 5. Replay Onboarding Confirmation Bottom Sheet
+    if (showReplayConfirmDialog) {
+        ArcConfirmationBottomSheet(
+            onDismissRequest = { showReplayConfirmDialog = false },
+            title = "Replay Initial Onboarding?",
+            description = "This resets the initial_onboarding_completed flag and opens the Onboarding screen. Existing ledger transactions remain safe and untouched.",
+            icon = Icons.Outlined.RestartAlt,
+            iconColor = ArcColors.Primary,
+            confirmText = "Replay",
+            confirmColor = ArcColors.Primary,
+            onConfirm = {
+                showReplayConfirmDialog = false
+                settingsRepo.setInitialOnboardingCompleted(false)
+                onNavigate("InitialOnboarding")
+            }
         )
     }
 
-    // 6. Reset Dev Configuration Confirmation Dialog
+    // 6. Reset Dev Configuration Confirmation Bottom Sheet
     if (showResetConfirmDialog) {
-        AlertDialog(
+        ArcConfirmationBottomSheet(
             onDismissRequest = { showResetConfirmDialog = false },
-            title = {
-                Text(
-                    text = "Reset Developer Config?",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFDC2626)
-                )
-            },
-            text = {
-                Text(
-                    text = "This restores default developer diagnostic flags, reenables all default regex patterns, and resets experimental toggles. Vault encryption and transaction data remain fully intact.",
-                    fontSize = 13.sp,
-                    color = slateSub,
-                    lineHeight = 18.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showResetConfirmDialog = false
-                        multiLingualEnabled = true
-                        aggressiveNoiseSuppression = true
-                        sharedPrefs.edit()
-                            .putBoolean("dev_multilingual_heuristics", true)
-                            .putBoolean("dev_aggressive_noise_suppression", true)
-                            .apply()
+            title = "Reset Developer Config?",
+            description = "This restores default developer diagnostic flags, reenables all default regex patterns, and resets experimental toggles. Vault encryption and transaction data remain fully intact.",
+            icon = Icons.Outlined.Restore,
+            iconColor = Color(0xFFDC2626),
+            confirmText = "Reset Config",
+            confirmColor = Color(0xFFDC2626),
+            onConfirm = {
+                showResetConfirmDialog = false
+                multiLingualEnabled = true
+                aggressiveNoiseSuppression = true
+                sharedPrefs.edit()
+                    .putBoolean("dev_multilingual_heuristics", true)
+                    .putBoolean("dev_aggressive_noise_suppression", true)
+                    .apply()
 
-                        // Reenable all system rules in RegexManager
-                        val rules = RegexPatternsManager.getRules(context)
-                        RegexPatternsManager.saveRules(context, rules.map { it.copy(isActive = true) })
+                // Reenable all system rules in RegexManager
+                val rules = RegexPatternsManager.getRules(context)
+                RegexPatternsManager.saveRules(context, rules.map { it.copy(isActive = true) })
 
-                        Toast.makeText(context, "Developer configuration reset to defaults", Toast.LENGTH_SHORT).show()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                    shape = CircleShape
-                ) {
-                    Text("Reset Config", color = Color.White)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { showResetConfirmDialog = false },
-                    shape = CircleShape
-                ) {
-                    Text("Cancel", color = slateSub)
-                }
-            },
-            shape = RoundedCornerShape(16.dp),
-            containerColor = cardBg
+                Toast.makeText(context, "Developer configuration reset to defaults", Toast.LENGTH_SHORT).show()
+            }
         )
     }
 }

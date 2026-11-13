@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.service.*
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
+import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -500,152 +502,86 @@ fun HistoricalRuleApplicationScreen(
                 }
             }
 
-            // Step 4: Confirmation Dialog
+            // Step 4: Confirmation Bottom Sheet
             if (showConfirmDialog) {
                 val selectedCount = selectedTransactionIds.size
-                AlertDialog(
+                ArcConfirmationBottomSheet(
                     onDismissRequest = { showConfirmDialog = false },
-                    shape = RoundedCornerShape(20.dp),
-                    containerColor = cardBg,
-                    icon = {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(ArcColors.WarningAmberBg),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.WarningAmber,
-                                contentDescription = null,
-                                tint = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    },
-                    title = {
-                        Text(
-                            text = "Apply Category Changes?",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = slateTitle
-                        )
-                    },
-                    text = {
-                        Text(
-                            text = "You are about to re-categorize $selectedCount selected transaction(s).\n\nOnly category-related metadata will be updated. Amounts, merchants, dates, accounts, and manual categories remain completely untouched.",
-                            fontSize = 13.sp,
-                            color = slateSub,
-                            lineHeight = 18.sp
-                        )
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                showConfirmDialog = false
-                                isApplying = true
-                                scope.launch {
-                                    val itemsToApply = currentPreview?.actionableItems?.filter {
-                                        it.transactionId in selectedTransactionIds
-                                    } ?: emptyList()
+                    title = "Apply Category Changes?",
+                    description = "You are about to re-categorize $selectedCount selected transaction(s).\n\nOnly category-related metadata will be updated. Amounts, merchants, dates, accounts, and manual categories remain completely untouched.",
+                    icon = Icons.Filled.WarningAmber,
+                    iconColor = if (ArcColors.isDark) Color(0xFFFBBF24) else Color(0xFFB45309),
+                    confirmText = "Apply $selectedCount Changes",
+                    confirmColor = emeraldPrimary,
+                    onConfirm = {
+                        showConfirmDialog = false
+                        isApplying = true
+                        scope.launch {
+                            val itemsToApply = currentPreview?.actionableItems?.filter {
+                                it.transactionId in selectedTransactionIds
+                            } ?: emptyList()
 
-                                    val res = applier.applyReassignments(itemsToApply)
-                                    applyResult = res
-                                    isApplying = false
-                                    // Refresh preview after apply
-                                    runPreview()
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                            shape = CircleShape
-                        ) {
-                            Text("Apply $selectedCount Changes", fontWeight = FontWeight.Bold)
-                        }
-                    },
-                    dismissButton = {
-                        OutlinedButton(
-                            onClick = { showConfirmDialog = false },
-                            shape = CircleShape,
-                            border = BorderStroke(1.dp, cardBorder)
-                        ) {
-                            Text("Cancel", color = slateSub, fontWeight = FontWeight.SemiBold)
+                            val res = applier.applyReassignments(itemsToApply)
+                            applyResult = res
+                            isApplying = false
+                            // Refresh preview after apply
+                            runPreview()
                         }
                     }
                 )
             }
 
-            // Step 5: Result Dialog
+            // Step 5: Result Bottom Sheet
             applyResult?.let { res ->
-                AlertDialog(
+                ArcModalBottomSheet(
                     onDismissRequest = { applyResult = null },
-                    shape = RoundedCornerShape(20.dp),
-                    containerColor = cardBg,
-                    icon = {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(if (res.isSuccess) emeraldLight else Color(0xFFFEE2E2)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (res.isSuccess) Icons.Filled.CheckCircle else Icons.Filled.ErrorOutline,
-                                contentDescription = null,
-                                tint = if (res.isSuccess) emeraldPrimary else Color(0xFFDC2626),
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
-                    },
-                    title = {
+                    title = if (res.isSuccess) "Re-Categorization Complete" else "Operation Incomplete",
+                    icon = if (res.isSuccess) Icons.Filled.CheckCircle else Icons.Filled.ErrorOutline,
+                    iconColor = if (res.isSuccess) emeraldPrimary else Color(0xFFDC2626),
+                    maxHeight = 360.dp
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         Text(
-                            text = if (res.isSuccess) "Re-Categorization Complete" else "Operation Incomplete",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
+                            text = "Successfully updated: ${res.successCount}",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = slateTitle
                         )
-                    },
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (res.skippedCount > 0) {
                             Text(
-                                text = "Successfully updated: ${res.successCount}",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = slateTitle
+                                text = "Skipped (protected or inactive): ${res.skippedCount}",
+                                fontSize = 12.5.sp,
+                                color = slateSub
                             )
-                            if (res.skippedCount > 0) {
-                                Text(
-                                    text = "Skipped (protected or inactive): ${res.skippedCount}",
-                                    fontSize = 12.5.sp,
-                                    color = slateSub
-                                )
-                            }
-                            if (res.failedCount > 0) {
-                                Text(
-                                    text = "Failed: ${res.failedCount}",
-                                    fontSize = 12.5.sp,
-                                    color = Color(0xFFDC2626)
-                                )
-                            }
-                            if (res.errorMessage != null) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Error: ${res.errorMessage}",
-                                    color = Color(0xFFDC2626),
-                                    fontSize = 12.sp
-                                )
-                            }
                         }
-                    },
-                    confirmButton = {
+                        if (res.failedCount > 0) {
+                            Text(
+                                text = "Failed: ${res.failedCount}",
+                                fontSize = 12.5.sp,
+                                color = Color(0xFFDC2626)
+                            )
+                        }
+                        if (res.errorMessage != null) {
+                            Text(
+                                text = "Error: ${res.errorMessage}",
+                                color = Color(0xFFDC2626),
+                                fontSize = 12.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
                         Button(
                             onClick = { applyResult = null },
                             colors = ButtonDefaults.buttonColors(containerColor = emeraldPrimary),
-                            shape = CircleShape
+                            shape = CircleShape,
+                            modifier = Modifier.fillMaxWidth().height(46.dp)
                         ) {
                             Text("Done", fontWeight = FontWeight.Bold)
                         }
                     }
-                )
+                }
             }
         }
     }

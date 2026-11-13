@@ -8,11 +8,11 @@ package com.subhashrelangi.arctracker.data
 object TransactionCategories {
     const val FOOD_AND_DINING = "Food & Dining"
     const val SHOPPING = "Shopping"
-    const val TRANSPORT = "Transport"
+    const val TRANSPORT = "Travel & Transport"
     const val BILLS_AND_UTILITIES = "Bills & Utilities"
     const val ENTERTAINMENT = "Entertainment"
     const val HEALTHCARE = "Healthcare"
-    const val TRAVEL = "Travel"
+    const val TRAVEL = "Travel & Transport"
     const val EDUCATION = "Education"
     const val TRANSFER = "Transfer"
     const val CASH_WITHDRAWAL = "Cash Withdrawal"
@@ -44,6 +44,13 @@ object TransactionCategories {
      */
     fun canonicalize(category: String?): String? {
         if (category.isNullOrBlank()) return null
-        return ALL.find { it.equals(category.trim(), ignoreCase = true) } ?: category.trim()
+        val trimmed = category.trim()
+        if (trimmed.equals("transport", ignoreCase = true) ||
+            trimmed.equals("travel", ignoreCase = true) ||
+            trimmed.equals("travel & transport", ignoreCase = true) ||
+            trimmed.equals("travel and transport", ignoreCase = true)) {
+            return TRANSPORT
+        }
+        return ALL.find { it.equals(trimmed, ignoreCase = true) } ?: trimmed
     }
 }

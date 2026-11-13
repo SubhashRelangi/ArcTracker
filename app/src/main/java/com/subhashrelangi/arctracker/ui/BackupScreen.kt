@@ -1,5 +1,6 @@
 package com.subhashrelangi.arctracker.ui
 
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import android.app.Activity
 import android.net.Uri
 import android.view.WindowManager
@@ -1250,408 +1251,205 @@ fun BackupScreen(
         }
     }
 
-    // ArcTracker-Styled Scope Picker Modal Dialog
+    // ArcTracker Minimalist Industrial Horizontal Scope Picker
     if (showScopeDropdown) {
-        Dialog(onDismissRequest = { showScopeDropdown = false }) {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = cardBg,
-                border = BorderStroke(1.dp, cardBorder),
-                modifier = Modifier.fillMaxWidth()
+        val items = scopeOptions.map { opt ->
+            com.subhashrelangi.arctracker.ui.review.HorizontalOptionItem(
+                id = opt.title,
+                title = opt.title,
+                subtitle = opt.title,
+                icon = opt.icon
+            )
+        }
+        com.subhashrelangi.arctracker.ui.review.HorizontalOptionPickerDialog(
+            title = "Export Range Scope",
+            subtitle = "Select time boundary for spreadsheet export",
+            options = items,
+            selectedId = selectedExportScope,
+            onDismissRequest = { showScopeDropdown = false },
+            onOptionSelected = { item ->
+                selectedExportScope = item.id
+                showScopeDropdown = false
+            }
+        )
+    }
+
+    // Passphrase Decrypt Bottom Sheet for Encrypted Archive Import
+    if (showImportPassphraseDialog) {
+        val rawContent = selectedSnapshotContent
+        ArcModalBottomSheet(
+            onDismissRequest = { showImportPassphraseDialog = false },
+            title = "Decrypt Encrypted Archive",
+            icon = Icons.Outlined.Lock,
+            iconColor = ArcColors.Primary,
+            maxHeight = 360.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                Text(
+                    text = "This snapshot is encrypted with AES-256-GCM. Please enter the master passphrase to decrypt and inspect the payload.",
+                    fontSize = 12.sp,
+                    color = slateSub,
+                    lineHeight = 16.sp
+                )
+
+                OutlinedTextField(
+                    value = importPassphraseInput,
+                    onValueChange = { importPassphraseInput = it },
+                    placeholder = { Text("Master Passphrase", color = slateSub) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = slateTitle,
+                        unfocusedTextColor = slateTitle,
+                        focusedBorderColor = ArcColors.Primary,
+                        unfocusedBorderColor = cardBorder
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Header
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                    OutlinedButton(
+                        onClick = {
+                            showImportPassphraseDialog = false
+                            selectedSnapshotContent = null
+                            selectedSnapshotFileName = null
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, cardBorder)
                     ) {
-                        val calHeaderBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFECFDF5)
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .background(calHeaderBg, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.CalendarToday,
-                                contentDescription = null,
-                                tint = ArcColors.Primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Export Range Scope",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = slateTitle
-                            )
-                            Text(
-                                text = "Select time boundary for spreadsheet export",
-                                fontSize = 11.sp,
-                                color = slateSub
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(highlightSurface)
-                                .clickable { showScopeDropdown = false },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = slateSub,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
+                        Text("Cancel", color = slateSub, fontWeight = FontWeight.SemiBold)
                     }
 
-                    // Options list
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        scopeOptions.forEach { opt ->
-                            val isSelected = selectedExportScope == opt.title
-                            val optBg = if (isSelected) {
-                                if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFECFDF5)
-                            } else highlightSurface
-
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .clickable {
-                                        selectedExportScope = opt.title
-                                        showScopeDropdown = false
-                                    },
-                                shape = RoundedCornerShape(14.dp),
-                                color = optBg,
-                                border = BorderStroke(
-                                    1.5.dp,
-                                    if (isSelected) ArcColors.Primary else cardBorder
-                                )
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    val iconBoxBg = if (isSelected) {
-                                        if (ArcColors.isDark) Color(0xFF163829) else Color(0xFFDCFCE7)
-                                    } else cardBg
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .background(iconBoxBg, CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = opt.icon,
-                                            contentDescription = null,
-                                            tint = if (isSelected) ArcColors.Primary else slateSub,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.width(12.dp))
-
-                                    Text(
-                                        text = opt.title,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = slateTitle,
-                                        modifier = Modifier.weight(1f)
-                                    )
-
-                                    if (isSelected) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(22.dp)
-                                                .background(ArcColors.Primary, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(14.dp)
+                    Button(
+                        onClick = {
+                            if (rawContent != null && importPassphraseInput.isNotBlank()) {
+                                showImportPassphraseDialog = false
+                                scope.launch {
+                                    isLoading = true
+                                    loadingMessage = "Decrypting archive payload..."
+                                    val decryptResult = withContext(Dispatchers.IO) {
+                                        try {
+                                            val decryptedJson = BackupEncryptionManager.decrypt(
+                                                rawContent,
+                                                importPassphraseInput.toCharArray()
                                             )
+                                            val payload = BackupSerializer.fromJsonString(decryptedJson)
+                                            backupManager.generateImportPreview(
+                                                ByteArrayInputStream(decryptedJson.toByteArray()),
+                                                selectedImportMode
+                                            ).map { preview -> Pair(payload, preview) }
+                                        } catch (e: Exception) {
+                                            Result.failure(e)
                                         }
+                                    }
+                                    isLoading = false
+                                    if (decryptResult.isSuccess) {
+                                        val (payload, preview) = decryptResult.getOrThrow()
+                                        pendingImportPayload = payload
+                                        pendingImportPreview = preview
+                                    } else {
+                                        errorDialogMessage = SensitiveDataSanitizer.sanitizeErrorMessage(decryptResult.exceptionOrNull())
                                     }
                                 }
                             }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Passphrase Decrypt Dialog for Encrypted Archive Import
-    if (showImportPassphraseDialog) {
-        val rawContent = selectedSnapshotContent
-        Dialog(onDismissRequest = { showImportPassphraseDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = cardBg,
-                border = BorderStroke(1.dp, cardBorder),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        val lockIconBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFECFDF5)
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .background(lockIconBg, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Lock,
-                                contentDescription = null,
-                                tint = ArcColors.Primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Decrypt Encrypted Archive",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = slateTitle
-                        )
-                    }
-
-                    Text(
-                        text = "This snapshot is encrypted with AES-256-GCM. Please enter the master passphrase to decrypt and inspect the payload.",
-                        fontSize = 12.sp,
-                        color = slateSub,
-                        lineHeight = 16.sp
-                    )
-
-                    OutlinedTextField(
-                        value = importPassphraseInput,
-                        onValueChange = { importPassphraseInput = it },
-                        placeholder = { Text("Master Passphrase", color = slateSub) },
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = slateTitle,
-                            unfocusedTextColor = slateTitle,
-                            focusedBorderColor = ArcColors.Primary,
-                            unfocusedBorderColor = cardBorder
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                showImportPassphraseDialog = false
-                                selectedSnapshotContent = null
-                                selectedSnapshotFileName = null
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = highlightSurface,
-                                contentColor = slateTitle
-                            )
-                        ) {
-                            Text("Cancel", fontWeight = FontWeight.SemiBold)
-                        }
-
-                        Button(
-                            onClick = {
-                                if (rawContent != null && importPassphraseInput.isNotBlank()) {
-                                    showImportPassphraseDialog = false
-                                    scope.launch {
-                                        isLoading = true
-                                        loadingMessage = "Decrypting archive payload..."
-                                        val decryptResult = withContext(Dispatchers.IO) {
-                                            try {
-                                                val decryptedJson = BackupEncryptionManager.decrypt(
-                                                    rawContent,
-                                                    importPassphraseInput.toCharArray()
-                                                )
-                                                val payload = BackupSerializer.fromJsonString(decryptedJson)
-                                                backupManager.generateImportPreview(
-                                                    ByteArrayInputStream(decryptedJson.toByteArray()),
-                                                    selectedImportMode
-                                                ).map { preview -> Pair(payload, preview) }
-                                            } catch (e: Exception) {
-                                                Result.failure(e)
-                                            }
-                                        }
-                                        isLoading = false
-                                        if (decryptResult.isSuccess) {
-                                            val (payload, preview) = decryptResult.getOrThrow()
-                                            pendingImportPayload = payload
-                                            pendingImportPreview = preview
-                                        } else {
-                                            errorDialogMessage = SensitiveDataSanitizer.sanitizeErrorMessage(decryptResult.exceptionOrNull())
-                                        }
-                                    }
-                                }
-                            },
-                            enabled = importPassphraseInput.isNotBlank(),
-                            modifier = Modifier
-                                .weight(1.2f)
-                                .height(44.dp),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = ArcColors.Primary,
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Text("Decrypt", fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Success Dialog
-    if (successDialogMessage != null) {
-        Dialog(onDismissRequest = { successDialogMessage = null }) {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = cardBg,
-                border = BorderStroke(1.dp, cardBorder),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    val successCircleBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFDCFCE7)
-                    Box(
+                        },
+                        enabled = importPassphraseInput.isNotBlank(),
                         modifier = Modifier
-                            .size(48.dp)
-                            .background(successCircleBg, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = ArcColors.Primary,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-
-                    Text(
-                        text = "Operation Successful",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = slateTitle
-                    )
-
-                    Text(
-                        text = successDialogMessage ?: "",
-                        fontSize = 12.sp,
-                        color = slateSub,
-                        lineHeight = 16.sp
-                    )
-
-                    Button(
-                        onClick = { successDialogMessage = null },
-                        modifier = Modifier
-                            .fillMaxWidth()
+                            .weight(1.2f)
                             .height(44.dp),
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = ArcColors.Primary,
                             contentColor = Color.White
                         )
                     ) {
-                        Text("Dismiss", fontWeight = FontWeight.Bold)
+                        Text("Decrypt", fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
     }
 
-    // Error Dialog
-    if (errorDialogMessage != null) {
-        Dialog(onDismissRequest = { errorDialogMessage = null }) {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = cardBg,
-                border = BorderStroke(1.dp, cardBorder),
-                modifier = Modifier.fillMaxWidth()
+    // Success Bottom Sheet
+    if (successDialogMessage != null) {
+        ArcModalBottomSheet(
+            onDismissRequest = { successDialogMessage = null },
+            title = "Operation Successful",
+            icon = Icons.Default.CheckCircle,
+            iconColor = ArcColors.Primary,
+            maxHeight = 280.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                Text(
+                    text = successDialogMessage ?: "",
+                    fontSize = 13.sp,
+                    color = slateSub,
+                    lineHeight = 18.sp
+                )
+
+                Button(
+                    onClick = { successDialogMessage = null },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ArcColors.Primary,
+                        contentColor = Color.White
+                    )
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(ArcColors.DangerContainer, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Error,
-                            contentDescription = null,
-                            tint = ArcColors.Danger,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
+                    Text("Dismiss", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
 
-                    Text(
-                        text = "Operation Failed",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = slateTitle
+    // Error Bottom Sheet
+    if (errorDialogMessage != null) {
+        ArcModalBottomSheet(
+            onDismissRequest = { errorDialogMessage = null },
+            title = "Operation Failed",
+            icon = Icons.Default.Error,
+            iconColor = ArcColors.Danger,
+            maxHeight = 280.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = errorDialogMessage ?: "",
+                    fontSize = 13.sp,
+                    color = slateSub,
+                    lineHeight = 18.sp
+                )
+
+                Button(
+                    onClick = { errorDialogMessage = null },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ArcColors.Danger,
+                        contentColor = Color.White
                     )
-
-                    Text(
-                        text = errorDialogMessage ?: "",
-                        fontSize = 12.sp,
-                        color = slateSub,
-                        lineHeight = 16.sp
-                    )
-
-                    Button(
-                        onClick = { errorDialogMessage = null },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp),
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = ArcColors.Danger,
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Text("Close", fontWeight = FontWeight.Bold)
-                    }
+                ) {
+                    Text("Close", fontWeight = FontWeight.Bold)
                 }
             }
         }

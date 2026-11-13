@@ -41,6 +41,7 @@ import androidx.compose.ui.window.Dialog
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import com.subhashrelangi.arctracker.ui.core.ArcTrackerHeader
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
+import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
 import com.subhashrelangi.arctracker.utils.IgnoreRule
 import com.subhashrelangi.arctracker.utils.IgnoreRulesManager
 import java.util.UUID
@@ -838,159 +839,21 @@ fun IgnoreRulesScreen(
         }
     }
 
-    // ArcTracker Custom Delete Confirmation Dialog
+    // ArcTracker Custom Delete Confirmation Bottom Sheet
     deletingRule?.let { rule ->
-        Dialog(onDismissRequest = { deletingRule = null }) {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = cardBg,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(22.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .background(ArcColors.DangerContainer, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.DeleteOutline,
-                            contentDescription = null,
-                            tint = ArcColors.Danger,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Text(
-                        text = "Delete Ignore Rule?",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = slateTitle
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = "Are you sure you want to remove this suppression rule?",
-                        fontSize = 12.sp,
-                        color = slateSub
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Preview Card of the rule being deleted
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        color = highlightSurface,
-                        border = BorderStroke(1.dp, cardBorder)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(14.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = rule.value,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = slateTitle,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .background(
-                                            if (rule.isSystem) highlightSurface else (if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFDCFCE7)),
-                                            RoundedCornerShape(4.dp)
-                                        )
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = if (rule.isSystem) "SYSTEM" else "CUSTOM",
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (rule.isSystem) slateSub else ArcColors.Primary
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Text(
-                                text = "Type: ${rule.type} • Match: ${rule.matchType}",
-                                fontSize = 11.sp,
-                                color = slateSub
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    // Action Buttons: Pill stadium format
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Button(
-                            onClick = { deletingRule = null },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = highlightSurface,
-                                contentColor = slateTitle
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-                        ) {
-                            Text(
-                                text = "Cancel",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-
-                        Button(
-                            onClick = {
-                                saveRuleList(rules.filter { it.id != rule.id })
-                                deletingRule = null
-                            },
-                            modifier = Modifier
-                                .weight(1.2f)
-                                .height(44.dp),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = ArcColors.Danger,
-                                contentColor = Color.White
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.DeleteOutline,
-                                contentDescription = null,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Delete Rule",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
+        ArcConfirmationBottomSheet(
+            onDismissRequest = { deletingRule = null },
+            title = "Delete Ignore Rule?",
+            description = "Are you sure you want to remove the suppression rule for \"${rule.value}\" (${rule.type} • ${rule.matchType})?",
+            icon = Icons.Outlined.DeleteOutline,
+            iconColor = ArcColors.Danger,
+            confirmText = "Delete Rule",
+            confirmColor = ArcColors.Danger,
+            onConfirm = {
+                saveRuleList(rules.filter { it.id != rule.id })
+                deletingRule = null
             }
-        }
+        )
     }
 }
 

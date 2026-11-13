@@ -356,7 +356,8 @@ fun ReviewTransactionCard(
             onCategorySelected = { selectedCategory ->
                 onCategoryChange(expense, selectedCategory)
             },
-            onDismissRequest = { showCategoryPicker = false }
+            onDismissRequest = { showCategoryPicker = false },
+            pickerStyle = CategoryPickerStyle.CIRCULAR_WHEEL
         )
     }
 }

@@ -102,6 +102,18 @@ class FakeBudgetDao : BudgetDao {
         count
     }
 
+    override suspend fun reassignCategoryId(oldCategoryId: String, newCategoryId: String, timestamp: Long): Int = synchronized(lock) {
+        var count = 0
+        for (i in budgets.indices) {
+            if (budgets[i].categoryId == oldCategoryId) {
+                budgets[i] = budgets[i].copy(categoryId = newCategoryId, updatedAt = timestamp)
+                count++
+            }
+        }
+        if (count > 0) notifyFlow()
+        count
+    }
+
     override suspend fun setBudgetEnabled(id: String, isEnabled: Boolean, timestamp: Long): Int = synchronized(lock) {
         val idx = budgets.indexOfFirst { it.id == id }
         if (idx >= 0) {

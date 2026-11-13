@@ -2,6 +2,7 @@ package com.subhashrelangi.arctracker
 
 import com.subhashrelangi.arctracker.data.BuiltInCategories
 import com.subhashrelangi.arctracker.engine.account.*
+import com.subhashrelangi.arctracker.engine.category.CanonicalCategoryTaxonomy
 import com.subhashrelangi.arctracker.service.*
 import org.junit.Assert.*
 import org.junit.Before
@@ -229,25 +230,28 @@ class CategoryInferenceEngineTest {
     }
 
     // ==========================================
-    // 7. Travel
+    // 7. Travel & Transport (Unified Canonical Domain)
     // ==========================================
 
     @Test
     fun testTravelInferenceMakeMyTrip() {
         val result = engine.inferCategory(CategoryInferenceInput(merchant = "MakeMyTrip India", availableCategoryIds = allActiveCategoryIds))
-        assertEquals("travel", result.suggestedCategoryId)
+        assertEquals("transport", result.suggestedCategoryId)
+        assertEquals("Travel & Transport", result.suggestedCategoryName)
     }
 
     @Test
     fun testTravelInferenceHotel() {
         val result = engine.inferCategory(CategoryInferenceInput(merchant = "Marriott Hotel Stay", availableCategoryIds = allActiveCategoryIds))
-        assertEquals("travel", result.suggestedCategoryId)
+        assertEquals("transport", result.suggestedCategoryId)
+        assertEquals("Travel & Transport", result.suggestedCategoryName)
     }
 
     @Test
     fun testTravelInferenceFlight() {
         val result = engine.inferCategory(CategoryInferenceInput(merchant = "IndiGo Flight Booking", availableCategoryIds = allActiveCategoryIds))
-        assertEquals("travel", result.suggestedCategoryId)
+        assertEquals("transport", result.suggestedCategoryId)
+        assertEquals("Travel & Transport", result.suggestedCategoryName)
     }
 
     // ==========================================
@@ -567,5 +571,93 @@ class CategoryInferenceEngineTest {
         assertEquals("food_dining", res.suggestedCategoryId)
         assertTrue(res.evidence.isNotEmpty())
         assertTrue(res.reason.isNotBlank())
+    }
+
+    // ==========================================
+    // 20. Intelligent Canonical Category Harmonization
+    // ==========================================
+
+    @Test
+    fun testSmallFoodMerchantsAndLocalEateriesInference() {
+        val merchants = listOf(
+            "Sri Krishna Bhavan",
+            "Udupi Sagar Hotel",
+            "Sharma Dhaba",
+            "Shiva Mess",
+            "Ramu Tea Stall",
+            "Chai Point",
+            "Bawarchi Biryani",
+            "Karachi Bakery",
+            "Blinkit QuickCommerce",
+            "Zepto Groceries",
+            "Instamart Order",
+            "Amul Dairy Parlour"
+        )
+        for (m in merchants) {
+            val res = engine.inferCategory(CategoryInferenceInput(merchant = m, availableCategoryIds = allActiveCategoryIds))
+            assertEquals("Merchant '$m' must infer Food & Dining", "food_dining", res.suggestedCategoryId)
+            assertEquals("Food & Dining", res.suggestedCategoryName)
+        }
+    }
+
+    @Test
+    fun testTechSubscriptionsAndServicesInference() {
+        val techMerchants = listOf(
+            "OpenAI ChatGPT Plus",
+            "Claude Anthropic",
+            "Google Play Store",
+            "Google One Subscription",
+            "Apple.com/bill",
+            "iCloud Storage",
+            "Microsoft 365",
+            "GitHub Pro",
+            "AWS Cloud Services",
+            "Airtel Broadband",
+            "Jio Fiber Recharge"
+        )
+        for (m in techMerchants) {
+            val res = engine.inferCategory(CategoryInferenceInput(merchant = m, availableCategoryIds = allActiveCategoryIds))
+            assertEquals("Tech merchant '$m' must infer Bills & Utilities", "bills_utilities", res.suggestedCategoryId)
+            assertEquals("Bills & Utilities", res.suggestedCategoryName)
+        }
+    }
+
+    @Test
+    fun testTechHardwareAndElectronicsRetailInference() {
+        val hardwareStores = listOf(
+            "Croma Electronics",
+            "Reliance Digital Store",
+            "Apple Store Mall",
+            "Vijay Sales"
+        )
+        for (m in hardwareStores) {
+            val res = engine.inferCategory(CategoryInferenceInput(merchant = m, availableCategoryIds = allActiveCategoryIds))
+            assertEquals("Hardware store '$m' must infer Shopping", "shopping", res.suggestedCategoryId)
+            assertEquals("Shopping", res.suggestedCategoryName)
+        }
+    }
+
+    @Test
+    fun testTravelAndTransportUnificationWithoutConflict() {
+        // Text contains both travel booking and local transit signals: MakeMyTrip + Uber
+        val input = CategoryInferenceInput(
+            merchant = "MakeMyTrip",
+            rawText = "MakeMyTrip Uber Airport Cab Booking Rs 850",
+            availableCategoryIds = allActiveCategoryIds
+        )
+        val res = engine.inferCategory(input)
+        assertNotEquals("Must not flag false conflict", CategoryInferenceStatus.CONFLICT, res.status)
+        assertEquals("Must resolve to canonical transport", "transport", res.suggestedCategoryId)
+        assertEquals("Travel & Transport", res.suggestedCategoryName)
+    }
+
+    @Test
+    fun testCanonicalCategoryTaxonomyDomainEquivalence() {
+        assertTrue(CanonicalCategoryTaxonomy.isSameCanonicalDomain("travel", "transport"))
+        assertTrue(CanonicalCategoryTaxonomy.isSameCanonicalDomain("travel_transport", "transport"))
+        assertTrue(CanonicalCategoryTaxonomy.isSameCanonicalDomain("groceries", "food_dining"))
+        assertTrue(CanonicalCategoryTaxonomy.isSameCanonicalDomain("recharge", "bills_utilities"))
+        assertTrue(CanonicalCategoryTaxonomy.isSameCanonicalDomain("software", "bills_utilities"))
+        assertFalse(CanonicalCategoryTaxonomy.isSameCanonicalDomain("shopping", "food_dining"))
     }
 }
