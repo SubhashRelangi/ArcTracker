@@ -29,7 +29,7 @@ object BuiltInCategories {
 
     val TRANSPORT = TransactionCategory(
         id = "transport",
-        name = "Transport",
+        name = "Travel & Transport",
         iconKey = "directions_car",
         colorKey = "blue",
         isSystem = true,
@@ -161,11 +161,10 @@ object BuiltInCategories {
         return when (normalized) {
             "food & dining", "food and dining", "food", "dining" -> FOOD_AND_DINING
             "shopping" -> SHOPPING
-            "transport", "transportation" -> TRANSPORT
-            "bills & utilities", "bills and utilities", "bills", "utilities" -> BILLS_AND_UTILITIES
+            "transport", "transportation", "travel", "travel & transport", "travel and transport", "commute", "transit" -> TRANSPORT
+            "bills & utilities", "bills and utilities", "bills", "utilities", "recharge" -> BILLS_AND_UTILITIES
             "entertainment" -> ENTERTAINMENT
             "healthcare", "health", "medical" -> HEALTHCARE
-            "travel" -> TRAVEL
             "education" -> EDUCATION
             "transfer", "transfers", "self transfer", "self_transfer" -> TRANSFER
             "cash withdrawal", "atm", "cash" -> CASH_WITHDRAWAL

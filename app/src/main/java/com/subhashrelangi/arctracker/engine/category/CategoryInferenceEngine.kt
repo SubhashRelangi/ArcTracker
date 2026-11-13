@@ -38,7 +38,7 @@ class CategoryInferenceEngine(
 
         // Step 1: User Override Protection (Critical Invariant)
         if (input.existingCategorySource == CategorySource.USER_ASSIGNED) {
-            val catName = input.existingCategoryId?.let { BuiltInCategories.ALL.find { c -> c.id == it }?.name }
+            val catName = input.existingCategoryId?.let { CanonicalCategoryTaxonomy.getCanonicalCategoryName(it) }
             return CategoryInferenceResult.userOverridePreserved(input.existingCategoryId, catName)
         }
 
@@ -114,7 +114,7 @@ class CategoryInferenceEngine(
                     scoreContribution = winningProtection.priority.toDouble()
                 )
             )
-            val catName = BuiltInCategories.ALL.find { it.id == winningProtection.categoryId }?.name ?: winningProtection.categoryId
+            val catName = CanonicalCategoryTaxonomy.getCanonicalCategoryName(winningProtection.categoryId)
             return CategoryInferenceResult(
                 status = CategoryInferenceStatus.HIGH_CONFIDENCE,
                 suggestedCategoryId = winningProtection.categoryId,
@@ -136,8 +136,11 @@ class CategoryInferenceEngine(
             for (userRule in input.userRules) {
                 if (!userRule.isEnabled) continue
 
-                // Check category availability
-                if (input.availableCategoryIds != null && !input.availableCategoryIds.contains(userRule.categoryId)) {
+                // Check category availability with canonical awareness
+                val isUserRuleCatAvailable = input.availableCategoryIds == null || input.availableCategoryIds.any {
+                    CanonicalCategoryTaxonomy.isSameCanonicalDomain(it, userRule.categoryId)
+                }
+                if (!isUserRuleCatAvailable) {
                     evidenceList.add(
                         CategoryInferenceEvidence(
                             type = EvidenceType.NEGATIVE_KEYWORD_EXCLUSION,
@@ -172,7 +175,9 @@ class CategoryInferenceEngine(
             }
 
             if (matchedUserRules.isNotEmpty()) {
-                val userRulesByCategory = matchedUserRules.groupBy { it.first.categoryId }
+                val userRulesByCategory = matchedUserRules.groupBy {
+                    CanonicalCategoryTaxonomy.canonicalize(it.first.categoryId)
+                }
                 val sortedUserCategories = userRulesByCategory.entries.map { (catId, rulesList) ->
                     val maxPrio = rulesList.maxOf { it.second }
                     catId to maxPrio
@@ -196,7 +201,7 @@ class CategoryInferenceEngine(
 
                 val winningCatId = sortedUserCategories.first().first
                 val winningRule = userRulesByCategory[winningCatId]!!.maxByOrNull { it.second }!!.first
-                val catName = BuiltInCategories.ALL.find { it.id == winningCatId }?.name ?: winningCatId
+                val catName = CanonicalCategoryTaxonomy.getCanonicalCategoryName(winningCatId)
 
                 return CategoryInferenceResult(
                     status = CategoryInferenceStatus.HIGH_CONFIDENCE,
@@ -219,8 +224,11 @@ class CategoryInferenceEngine(
 
         for (rule in sortedRules) {
             if (rule.matches(merchantNorm, counterpartyNorm, rawTextNorm, input.transactionType)) {
-                // Category Availability Check (Filter Archived / Deleted categories)
-                if (input.availableCategoryIds != null && !input.availableCategoryIds.contains(rule.categoryId)) {
+                // Category Availability Check (Canonical-aware filtering of Archived / Deleted categories)
+                val isRuleCatAvailable = input.availableCategoryIds == null || input.availableCategoryIds.any {
+                    CanonicalCategoryTaxonomy.isSameCanonicalDomain(it, rule.categoryId)
+                }
+                if (!isRuleCatAvailable) {
                     evidenceList.add(
                         CategoryInferenceEvidence(
                             type = EvidenceType.NEGATIVE_KEYWORD_EXCLUSION,
@@ -277,8 +285,8 @@ class CategoryInferenceEngine(
             )
         }
 
-        // Step 8: Conflict Detection & Deterministic Grouping for Built-In Rules
-        val matchesByCategory = matchedRules.groupBy { it.categoryId }
+        // Step 8: Conflict Detection & Deterministic Grouping for Built-In Rules (Harmonized by Canonical Domain)
+        val matchesByCategory = matchedRules.groupBy { CanonicalCategoryTaxonomy.canonicalize(it.categoryId) }
         val sortedCategories = matchesByCategory.entries.map { (catId, rulesForCat) ->
             val maxPriority = rulesForCat.maxOf { it.priority }
             catId to maxPriority
@@ -321,7 +329,7 @@ class CategoryInferenceEngine(
             CategoryInferenceConfidence.NONE -> CategoryInferenceStatus.NO_MATCH
         }
 
-        val categoryName = BuiltInCategories.ALL.find { it.id == winningCategoryId }?.name ?: winningCategoryId
+        val categoryName = CanonicalCategoryTaxonomy.getCanonicalCategoryName(winningCategoryId)
 
         return CategoryInferenceResult(
             status = status,

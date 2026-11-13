@@ -34,7 +34,26 @@ class CategoryManager(
     suspend fun ensureBuiltInCategoriesSeeded() {
         if (categoryDao.count() == 0) {
             categoryDao.insertAll(BuiltInCategories.ALL)
+        } else {
+            val transport = categoryDao.getById(BuiltInCategories.TRANSPORT.id)
+            if (transport != null && transport.name != BuiltInCategories.TRANSPORT.name) {
+                categoryDao.update(transport.copy(name = BuiltInCategories.TRANSPORT.name))
+            }
         }
+    }
+
+    /**
+     * Consolidates legacy category entries (e.g., reassigning 'travel' expenses and rules
+     * into the unified canonical 'Travel & Transport' category).
+     */
+    suspend fun consolidateCanonicalCategories(): Int {
+        var count = 0
+        runTransaction {
+            count += expenseDao.reassignCategoryId("travel", BuiltInCategories.TRANSPORT.id, BuiltInCategories.TRANSPORT.name)
+            ruleDao?.reassignCategoryId("travel", BuiltInCategories.TRANSPORT.id)
+            budgetDao?.reassignCategoryId("travel", BuiltInCategories.TRANSPORT.id)
+        }
+        return count
     }
 
     fun getAllCategoriesFlow(): Flow<List<TransactionCategory>> = categoryDao.getAllFlow()

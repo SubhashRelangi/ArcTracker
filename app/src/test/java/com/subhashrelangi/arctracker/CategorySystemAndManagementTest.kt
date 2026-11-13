@@ -533,9 +533,9 @@ class CategorySystemAndManagementTest {
         val exp3 = expenseDao.getExpenseById(3)!!
 
         assertEquals("transport", exp1.categoryId)
-        assertEquals("Transport", exp1.tag)
+        assertEquals(BuiltInCategories.TRANSPORT.name, exp1.tag)
         assertEquals("transport", exp2.categoryId)
-        assertEquals("Transport", exp2.tag)
+        assertEquals(BuiltInCategories.TRANSPORT.name, exp2.tag)
         assertNull(exp3.categoryId)
     }
 

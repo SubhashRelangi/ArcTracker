@@ -648,6 +648,17 @@ class FakeUserCategoryRuleDao : UserCategoryRuleDao {
         }
     }
 
+    override suspend fun reassignCategoryId(oldCategoryId: String, newCategoryId: String, updatedAt: Long): Int {
+        var count = 0
+        for (i in rules.indices) {
+            if (rules[i].categoryId == oldCategoryId) {
+                rules[i] = rules[i].copy(categoryId = newCategoryId, updatedAt = updatedAt)
+                count++
+            }
+        }
+        return count
+    }
+
     override suspend fun count(): Int = rules.size
 
     override suspend fun insertAll(rules: List<UserCategoryRule>): List<Long> {

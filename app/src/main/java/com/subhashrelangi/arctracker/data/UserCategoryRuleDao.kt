@@ -39,6 +39,9 @@ interface UserCategoryRuleDao {
     @Query("UPDATE user_category_rules SET isEnabled = 0, updatedAt = :updatedAt WHERE categoryId = :categoryId")
     suspend fun disableRulesForCategory(categoryId: String, updatedAt: Long = System.currentTimeMillis())
 
+    @Query("UPDATE user_category_rules SET categoryId = :newCategoryId, updatedAt = :updatedAt WHERE categoryId = :oldCategoryId")
+    suspend fun reassignCategoryId(oldCategoryId: String, newCategoryId: String, updatedAt: Long = System.currentTimeMillis()): Int
+
     @Query("SELECT COUNT(*) FROM user_category_rules")
     suspend fun count(): Int
 

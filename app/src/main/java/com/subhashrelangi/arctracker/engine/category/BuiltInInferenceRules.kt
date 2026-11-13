@@ -252,6 +252,241 @@ object BuiltInInferenceRules {
             priority = RulePriority.KEYWORD
         ),
 
+        // Small Merchants, Local Eateries & Food Descriptors
+        CategoryInferenceRule(
+            id = "rule_food_bhavan",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "bhavan",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_sagar",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "sagar",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_dhaba",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "dhaba",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_canteen",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "canteen",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_mess",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "mess",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_tiffin",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "tiffin",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_kitchen",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "kitchen",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_bhojanalaya",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "bhojanalaya",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_biryani",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "biryani",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_shawarma",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "shawarma",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_chaat",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "chaat",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_sweets",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "sweets",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_mithai",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "mithai",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_chai_point",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "chai point",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_tea_stall",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "tea stall",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_chai",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "chai",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_coffee",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "coffee",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_juice",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "juice",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_bakes",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "bakes",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_cake",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "cake",
+            priority = RulePriority.MERCHANT_TOKEN
+        ),
+
+        // Quick Commerce, Groceries & Daily Needs (Rolls into Food & Sustenance)
+        CategoryInferenceRule(
+            id = "rule_food_blinkit",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "blinkit",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_zepto",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "zepto",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_instamart",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "instamart",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_bigbasket",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "bigbasket",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_bbdaily",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "bbdaily",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_country_delight",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "country delight",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_dairy",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.KEYWORD,
+            pattern = "dairy",
+            priority = RulePriority.KEYWORD
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_milk",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.KEYWORD,
+            pattern = "milk",
+            priority = RulePriority.KEYWORD
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_amul",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "amul",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_mother_dairy",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "mother dairy",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_kirana",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.KEYWORD,
+            pattern = "kirana",
+            priority = RulePriority.KEYWORD
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_grocery",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.KEYWORD,
+            pattern = "grocery",
+            priority = RulePriority.KEYWORD
+        ),
+        CategoryInferenceRule(
+            id = "rule_food_groceries",
+            categoryId = "food_dining",
+            matchingType = CategoryMatchingType.KEYWORD,
+            pattern = "groceries",
+            priority = RulePriority.KEYWORD
+        ),
+
         // ==========================================
         // 5. SHOPPING
         // ==========================================
@@ -320,32 +555,33 @@ object BuiltInInferenceRules {
             pattern = "dmart",
             priority = RulePriority.EXACT_MERCHANT
         ),
+        // Tech Hardware, Gadgets & Electronics Retail
         CategoryInferenceRule(
-            id = "rule_shop_blinkit",
+            id = "rule_shop_croma",
             categoryId = "shopping",
             matchingType = CategoryMatchingType.MERCHANT_TOKEN,
-            pattern = "blinkit",
+            pattern = "croma",
             priority = RulePriority.EXACT_MERCHANT
         ),
         CategoryInferenceRule(
-            id = "rule_shop_instamart",
+            id = "rule_shop_reliance_digital",
             categoryId = "shopping",
             matchingType = CategoryMatchingType.MERCHANT_TOKEN,
-            pattern = "instamart",
+            pattern = "reliance digital",
             priority = RulePriority.EXACT_MERCHANT
         ),
         CategoryInferenceRule(
-            id = "rule_shop_zepto",
+            id = "rule_shop_apple_store",
             categoryId = "shopping",
             matchingType = CategoryMatchingType.MERCHANT_TOKEN,
-            pattern = "zepto",
+            pattern = "apple store",
             priority = RulePriority.EXACT_MERCHANT
         ),
         CategoryInferenceRule(
-            id = "rule_shop_bigbasket",
+            id = "rule_shop_vijay_sales",
             categoryId = "shopping",
             matchingType = CategoryMatchingType.MERCHANT_TOKEN,
-            pattern = "bigbasket",
+            pattern = "vijay sales",
             priority = RulePriority.EXACT_MERCHANT
         ),
         CategoryInferenceRule(
@@ -603,67 +839,124 @@ object BuiltInInferenceRules {
         ),
 
         // ==========================================
-        // 9. TRAVEL
+        // 9. TRAVEL & TRANSPORT (Harmonized Journey Domain)
         // ==========================================
         CategoryInferenceRule(
             id = "rule_travel_makemytrip",
-            categoryId = "travel",
+            categoryId = "transport",
             matchingType = CategoryMatchingType.MERCHANT_TOKEN,
             pattern = "makemytrip",
             priority = RulePriority.EXACT_MERCHANT
         ),
         CategoryInferenceRule(
             id = "rule_travel_goibibo",
-            categoryId = "travel",
+            categoryId = "transport",
             matchingType = CategoryMatchingType.MERCHANT_TOKEN,
             pattern = "goibibo",
             priority = RulePriority.EXACT_MERCHANT
         ),
         CategoryInferenceRule(
             id = "rule_travel_booking",
-            categoryId = "travel",
+            categoryId = "transport",
             matchingType = CategoryMatchingType.MERCHANT_TOKEN,
             pattern = "booking.com",
             priority = RulePriority.EXACT_MERCHANT
         ),
         CategoryInferenceRule(
             id = "rule_travel_airbnb",
-            categoryId = "travel",
+            categoryId = "transport",
             matchingType = CategoryMatchingType.MERCHANT_TOKEN,
             pattern = "airbnb",
             priority = RulePriority.EXACT_MERCHANT
         ),
         CategoryInferenceRule(
             id = "rule_travel_cleartrip",
-            categoryId = "travel",
+            categoryId = "transport",
             matchingType = CategoryMatchingType.MERCHANT_TOKEN,
             pattern = "cleartrip",
             priority = RulePriority.EXACT_MERCHANT
         ),
         CategoryInferenceRule(
+            id = "rule_trans_redbus",
+            categoryId = "transport",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "redbus",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_trans_abhibus",
+            categoryId = "transport",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "abhibus",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_trans_chalo",
+            categoryId = "transport",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "chalo",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_trans_indigo",
+            categoryId = "transport",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "indigo",
+            priority = RulePriority.EXACT_MERCHANT,
+            negativeKeywords = listOf("paints")
+        ),
+        CategoryInferenceRule(
+            id = "rule_trans_air_india",
+            categoryId = "transport",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "air india",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_trans_spicejet",
+            categoryId = "transport",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "spicejet",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_trans_vistara",
+            categoryId = "transport",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "vistara",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_trans_akasa",
+            categoryId = "transport",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "akasa",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
             id = "rule_travel_airline",
-            categoryId = "travel",
+            categoryId = "transport",
             matchingType = CategoryMatchingType.KEYWORD,
             pattern = "airline",
             priority = RulePriority.KEYWORD
         ),
         CategoryInferenceRule(
             id = "rule_travel_flight",
-            categoryId = "travel",
+            categoryId = "transport",
             matchingType = CategoryMatchingType.KEYWORD,
             pattern = "flight",
             priority = RulePriority.KEYWORD
         ),
         CategoryInferenceRule(
             id = "rule_travel_hotel",
-            categoryId = "travel",
+            categoryId = "transport",
             matchingType = CategoryMatchingType.KEYWORD,
             pattern = "hotel",
             priority = RulePriority.KEYWORD
         ),
         CategoryInferenceRule(
             id = "rule_travel_resort",
-            categoryId = "travel",
+            categoryId = "transport",
             matchingType = CategoryMatchingType.KEYWORD,
             pattern = "resort",
             priority = RulePriority.KEYWORD
@@ -780,6 +1073,137 @@ object BuiltInInferenceRules {
             matchingType = CategoryMatchingType.KEYWORD,
             pattern = "utility",
             priority = RulePriority.KEYWORD
+        ),
+
+        // Telecom, Mobile Recharges & Connectivity
+        CategoryInferenceRule(
+            id = "rule_bill_airtel",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "airtel",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_jio",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "jio",
+            priority = RulePriority.EXACT_MERCHANT,
+            negativeKeywords = listOf("cinema", "mart")
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_vi",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "vodafone idea",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_bsnl",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "bsnl",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_act",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "act fibernet",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_wifi",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.KEYWORD,
+            pattern = "wifi",
+            priority = RulePriority.KEYWORD
+        ),
+
+        // Tech Subscriptions, Cloud Services & Developer Tools
+        CategoryInferenceRule(
+            id = "rule_bill_openai",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "openai",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_chatgpt",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "chatgpt",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_claude",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "claude",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_google_play",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "google play",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_google_one",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "google one",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_apple_bill",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "apple.com/bill",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_icloud",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "icloud",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_microsoft",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "microsoft",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_github",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "github",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_aws",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "aws",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_hostinger",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "hostinger",
+            priority = RulePriority.EXACT_MERCHANT
+        ),
+        CategoryInferenceRule(
+            id = "rule_bill_godaddy",
+            categoryId = "bills_utilities",
+            matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+            pattern = "godaddy",
+            priority = RulePriority.EXACT_MERCHANT
         )
     )
 }
