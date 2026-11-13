@@ -40,6 +40,9 @@ class CategoryManager(
                 categoryDao.update(transport.copy(name = BuiltInCategories.TRANSPORT.name))
             }
         }
+        // Consolidate legacy categories and remove duplicates (e.g., 'travel' -> 'transport')
+        consolidateCanonicalCategories()
+        categoryDao.deleteById("travel")
     }
 
     /**

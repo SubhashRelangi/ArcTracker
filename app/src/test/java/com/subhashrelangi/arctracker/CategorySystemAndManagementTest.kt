@@ -70,7 +70,7 @@ class CategorySystemAndManagementTest {
 
     @Test
     fun testBuiltInCategoriesCount() {
-        assertEquals("Should have exactly 12 built-in categories", 12, BuiltInCategories.ALL.size)
+        assertEquals("Should have exactly 11 canonical built-in categories without duplicates", 11, BuiltInCategories.ALL.size)
     }
 
     @Test
@@ -89,18 +89,18 @@ class CategorySystemAndManagementTest {
     fun testBuiltInCategoriesSeeding() = runBlocking {
         assertEquals(0, categoryDao.count())
         categoryManager.ensureBuiltInCategoriesSeeded()
-        assertEquals(12, categoryDao.count())
+        assertEquals(11, categoryDao.count())
 
         // Re-seeding must be idempotent
         categoryManager.ensureBuiltInCategoriesSeeded()
-        assertEquals(12, categoryDao.count())
+        assertEquals(11, categoryDao.count())
     }
 
     @Test
     fun testBuiltInCategoriesIdsAreStable() {
         val expectedIds = listOf(
             "food_dining", "shopping", "transport", "bills_utilities",
-            "entertainment", "healthcare", "travel", "education",
+            "entertainment", "healthcare", "education",
             "transfer", "cash_withdrawal", "income", "other"
         )
         val actualIds = BuiltInCategories.ALL.map { it.id }
@@ -795,17 +795,17 @@ class CategorySystemAndManagementTest {
     fun testGetAllFlowAndGetActiveFlowReactivity() = runBlocking {
         categoryManager.ensureBuiltInCategoriesSeeded()
         val activeFlowFirst = categoryManager.getActiveCategoriesFlow().first()
-        assertEquals(12, activeFlowFirst.size)
+        assertEquals(11, activeFlowFirst.size)
 
         // Add 1 custom category
         val custom = categoryManager.createCategory("Crypto", "savings", "green").getOrThrow()
         val activeFlowSecond = categoryManager.getActiveCategoriesFlow().first()
-        assertEquals(13, activeFlowSecond.size)
+        assertEquals(12, activeFlowSecond.size)
 
         // Archive it
         categoryManager.archiveCategory(custom.id)
         val activeFlowThird = categoryManager.getActiveCategoriesFlow().first()
-        assertEquals(12, activeFlowThird.size)
+        assertEquals(11, activeFlowThird.size)
         val archivedFlow = categoryDao.getArchivedFlow().first()
         assertEquals(1, archivedFlow.size)
     }

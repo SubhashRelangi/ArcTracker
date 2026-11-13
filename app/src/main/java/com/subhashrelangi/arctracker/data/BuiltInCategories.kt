@@ -134,7 +134,6 @@ object BuiltInCategories {
         BILLS_AND_UTILITIES,
         ENTERTAINMENT,
         HEALTHCARE,
-        TRAVEL,
         EDUCATION,
         TRANSFER,
         CASH_WITHDRAWAL,
