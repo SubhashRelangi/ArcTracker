@@ -2702,220 +2702,15 @@ private fun AccountSelectionDialog(
     onDismiss: () -> Unit,
     onConfirm: (KnownFinancialAccount) -> Unit
 ) {
-    var selectedAccount by remember {
-        val matching = if (!detectedSuffix.isNullOrBlank()) {
-            availableAccounts.firstOrNull { it.accountSuffix.equals(detectedSuffix, ignoreCase = true) }
-        } else null
-        mutableStateOf(matching ?: availableAccounts.firstOrNull())
-    }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = ArcColors.CardBackground,
-            border = BorderStroke(1.dp, ArcColors.Border),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = title,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ArcColors.TextPrimary
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = subtitle,
-                            fontSize = 12.sp,
-                            color = Color(0xFF64748B)
-                        )
-                    }
-
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Color(0xFF64748B),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                // Evidence banner if suffix detected
-                if (!detectedSuffix.isNullOrBlank()) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5),
-                        border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.CheckCircle,
-                                contentDescription = null,
-                                tint = ArcColors.Primary,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Detected SMS Account: Ending in ••••$detectedSuffix",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF065F46)
-                            )
-                        }
-                    }
-                }
-
-                // Account Selection List
-                Text(
-                    text = "SELECT BANK ACCOUNT OR CARD",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ArcColors.TextSecondary,
-                    letterSpacing = 0.8.sp
-                )
-
-                if (availableAccounts.isEmpty()) {
-                    Text(
-                        text = "No linked accounts registered. Please link or discover accounts via SMS import.",
-                        fontSize = 12.sp,
-                        color = ArcColors.TextSecondary
-                    )
-                } else {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 240.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        availableAccounts.forEach { acc ->
-                            val isSelected = selectedAccount?.id == acc.id
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (isSelected) (if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)) else ArcColors.SurfaceHighlight,
-                                border = BorderStroke(
-                                    if (isSelected) 1.5.dp else 1.dp,
-                                    if (isSelected) ArcColors.Primary else ArcColors.Border
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { selectedAccount = acc }
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(34.dp)
-                                                .clip(CircleShape)
-                                                .background(if (isSelected) (if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)) else ArcColors.BorderSubtle),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = when (acc.instrumentType) {
-                                                    InstrumentType.CARD -> Icons.Outlined.CreditCard
-                                                    InstrumentType.WALLET -> Icons.Outlined.AccountBalanceWallet
-                                                    InstrumentType.CASH -> Icons.Outlined.Payments
-                                                    else -> Icons.Outlined.AccountBalance
-                                                },
-                                                contentDescription = null,
-                                                tint = if (isSelected) ArcColors.Primary else ArcColors.TextSecondary,
-                                                modifier = Modifier.size(17.dp)
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.width(10.dp))
-
-                                        Column {
-                                            Text(
-                                                text = acc.institutionName ?: "Bank Account",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 13.5.sp,
-                                                color = ArcColors.TextPrimary
-                                            )
-                                            val subtitle = when (acc.instrumentType) {
-                                                InstrumentType.WALLET -> "Digital Wallet"
-                                                InstrumentType.CASH -> "Cash in Hand"
-                                                else -> if (acc.accountSuffix.isNotBlank()) "Ending in ••${acc.accountSuffix}" else "Linked Account"
-                                            }
-                                            Text(
-                                                text = subtitle,
-                                                fontSize = 11.5.sp,
-                                                color = ArcColors.TextSecondary
-                                            )
-                                        }
-                                    }
-
-                                    if (isSelected) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = "Selected",
-                                            tint = ArcColors.Primary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Action Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        shape = CircleShape,
-                        modifier = Modifier.weight(1f),
-                        border = BorderStroke(1.dp, ArcColors.Border)
-                    ) {
-                        Text("Cancel", color = ArcColors.TextSecondary, fontSize = 13.sp)
-                    }
-
-                    Button(
-                        onClick = {
-                            selectedAccount?.let { onConfirm(it) }
-                        },
-                        enabled = selectedAccount != null,
-                        shape = CircleShape,
-                        modifier = Modifier.weight(1.3f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = ArcColors.Primary,
-                            disabledContainerColor = ArcColors.BorderSubtle
-                        )
-                    ) {
-                        Text("Confirm Link", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-                }
-            }
-        }
-    }
+    HorizontalAccountPickerDialog(
+        title = title,
+        subtitle = subtitle,
+        detectedSuffix = detectedSuffix,
+        availableAccounts = availableAccounts,
+        currentAccountSuffix = detectedSuffix,
+        onDismissRequest = onDismiss,
+        onAccountSelected = onConfirm
+    )
 }
 
 private fun getCategoryIcon(categoryName: String): ImageVector {
@@ -2952,6 +2747,7 @@ private fun CategorySelectionModalDialog(
             onCategorySelected(cat.name)
             onDismiss()
         },
-        onDismissRequest = onDismiss
+        onDismissRequest = onDismiss,
+        pickerStyle = CategoryPickerStyle.CIRCULAR_WHEEL
     )
 }

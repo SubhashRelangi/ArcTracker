@@ -1250,155 +1250,27 @@ fun BackupScreen(
         }
     }
 
-    // ArcTracker-Styled Scope Picker Modal Dialog
+    // ArcTracker Minimalist Industrial Horizontal Scope Picker
     if (showScopeDropdown) {
-        Dialog(onDismissRequest = { showScopeDropdown = false }) {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = cardBg,
-                border = BorderStroke(1.dp, cardBorder),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    // Header
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val calHeaderBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFECFDF5)
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .background(calHeaderBg, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.CalendarToday,
-                                contentDescription = null,
-                                tint = ArcColors.Primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Export Range Scope",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = slateTitle
-                            )
-                            Text(
-                                text = "Select time boundary for spreadsheet export",
-                                fontSize = 11.sp,
-                                color = slateSub
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(highlightSurface)
-                                .clickable { showScopeDropdown = false },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = slateSub,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-
-                    // Options list
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        scopeOptions.forEach { opt ->
-                            val isSelected = selectedExportScope == opt.title
-                            val optBg = if (isSelected) {
-                                if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFECFDF5)
-                            } else highlightSurface
-
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .clickable {
-                                        selectedExportScope = opt.title
-                                        showScopeDropdown = false
-                                    },
-                                shape = RoundedCornerShape(14.dp),
-                                color = optBg,
-                                border = BorderStroke(
-                                    1.5.dp,
-                                    if (isSelected) ArcColors.Primary else cardBorder
-                                )
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    val iconBoxBg = if (isSelected) {
-                                        if (ArcColors.isDark) Color(0xFF163829) else Color(0xFFDCFCE7)
-                                    } else cardBg
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .background(iconBoxBg, CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = opt.icon,
-                                            contentDescription = null,
-                                            tint = if (isSelected) ArcColors.Primary else slateSub,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.width(12.dp))
-
-                                    Text(
-                                        text = opt.title,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = slateTitle,
-                                        modifier = Modifier.weight(1f)
-                                    )
-
-                                    if (isSelected) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(22.dp)
-                                                .background(ArcColors.Primary, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        val items = scopeOptions.map { opt ->
+            com.subhashrelangi.arctracker.ui.review.HorizontalOptionItem(
+                id = opt.title,
+                title = opt.title,
+                subtitle = opt.title,
+                icon = opt.icon
+            )
         }
+        com.subhashrelangi.arctracker.ui.review.HorizontalOptionPickerDialog(
+            title = "Export Range Scope",
+            subtitle = "Select time boundary for spreadsheet export",
+            options = items,
+            selectedId = selectedExportScope,
+            onDismissRequest = { showScopeDropdown = false },
+            onOptionSelected = { item ->
+                selectedExportScope = item.id
+                showScopeDropdown = false
+            }
+        )
     }
 
     // Passphrase Decrypt Dialog for Encrypted Archive Import

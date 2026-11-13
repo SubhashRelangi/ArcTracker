@@ -10,10 +10,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +29,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -37,13 +41,23 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subhashrelangi.arctracker.data.CategoryVisuals
+import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.TransactionCategory
+import com.subhashrelangi.arctracker.engine.account.InstrumentType
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import kotlinx.coroutines.launch
 import kotlin.math.*
 
 /**
- * Selection display modes for category picker.
+ * Visual styling choices for category pickers.
+ */
+enum class CategoryPickerStyle {
+    CIRCULAR_WHEEL, // Signature Arc Rotary Wheel (Exclusively for Review Section)
+    HORIZONTAL_SNAP // Universal Industrial Horizontal Snapping Cards (All other screens)
+}
+
+/**
+ * Selection display modes for category picker in Review section.
  */
 enum class CategoryPickerMode {
     ROTARY_DIAL, // True Circular Rotary Wheel with Pointer Arrow
@@ -51,11 +65,11 @@ enum class CategoryPickerMode {
 }
 
 /**
- * Modern Industrial Category Picker (BottomSheet Architecture).
+ * Universal Industrial Category Picker (BottomSheet Architecture).
  *
- * Eliminates centered floating modal dialogs and nested scroll traps.
- * Anchors naturally at the bottom thumb zone with tactile haptics and
- * interactive circular rotary dial / grid view modes.
+ * Supports both:
+ * 1. CIRCULAR_WHEEL: Signature tactile rotary dial with needle arrow (Review section).
+ * 2. HORIZONTAL_SNAP: Minimalist, industrial-standard horizontal snapping cards (All other screens).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,15 +77,204 @@ fun CategoryPickerDialog(
     categories: List<TransactionCategory>,
     currentCategoryId: String?,
     onCategorySelected: (TransactionCategory) -> Unit,
+    onDismissRequest: () -> Unit,
+    pickerStyle: CategoryPickerStyle = CategoryPickerStyle.HORIZONTAL_SNAP
+) {
+    val validCategories = remember(categories) {
+        if (categories.isNotEmpty()) categories.filter { !it.isArchived } else categories
+    }
+
+    if (pickerStyle == CategoryPickerStyle.CIRCULAR_WHEEL) {
+        ArcCircularWheelCategorySheet(
+            categories = validCategories,
+            currentCategoryId = currentCategoryId,
+            onCategorySelected = onCategorySelected,
+            onDismissRequest = onDismissRequest
+        )
+    } else {
+        ArcHorizontalCategorySheet(
+            categories = validCategories,
+            currentCategoryId = currentCategoryId,
+            onCategorySelected = onCategorySelected,
+            onDismissRequest = onDismissRequest
+        )
+    }
+}
+
+/**
+ * Minimalist, industrial standard horizontal snapping category picker sheet.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ArcHorizontalCategorySheet(
+    categories: List<TransactionCategory>,
+    currentCategoryId: String?,
+    onCategorySelected: (TransactionCategory) -> Unit,
+    onDismissRequest: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val haptic = LocalHapticFeedback.current
+
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
+        containerColor = ArcColors.SurfaceElevated,
+        dragHandle = {
+            BottomSheetDefaults.DragHandle(
+                color = ArcColors.Border,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            )
+        },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        tonalElevation = 4.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Select Category",
+                        color = ArcColors.TextPrimary,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Tap a category card to apply",
+                        color = ArcColors.TextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = ArcColors.SurfaceHighlight,
+                    border = BorderStroke(1.dp, ArcColors.Border.copy(alpha = 0.5f))
+                ) {
+                    Text(
+                        text = "${categories.size} categories",
+                        color = ArcColors.TextMuted,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Horizontal Snapping Cards
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(categories, key = { it.id }) { cat ->
+                    val isSelected = cat.id == currentCategoryId
+                    val catColor = CategoryVisuals.getColor(cat.colorKey)
+                    val catIcon = CategoryVisuals.getIcon(cat.iconKey)
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) catColor.copy(alpha = 0.18f) else ArcColors.SurfaceHighlight,
+                        border = BorderStroke(
+                            width = if (isSelected) 1.8.dp else 1.dp,
+                            color = if (isSelected) catColor else ArcColors.Border.copy(alpha = 0.5f)
+                        ),
+                        modifier = Modifier
+                            .width(114.dp)
+                            .height(92.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onCategorySelected(cat)
+                                onDismissRequest()
+                            }
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            if (isSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(7.dp)
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(catColor),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                }
+                            }
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(catColor.copy(alpha = if (isSelected) 0.35f else 0.16f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = catIcon,
+                                        contentDescription = cat.name,
+                                        tint = catColor,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(7.dp))
+
+                                Text(
+                                    text = cat.name,
+                                    color = if (isSelected) ArcColors.TextPrimary else ArcColors.TextSecondary,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Signature Arc Circular Wheel Category Sheet (Review Section).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ArcCircularWheelCategorySheet(
+    categories: List<TransactionCategory>,
+    currentCategoryId: String?,
+    onCategorySelected: (TransactionCategory) -> Unit,
     onDismissRequest: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var pickerMode by remember { mutableStateOf(CategoryPickerMode.ROTARY_DIAL) }
-
-    // Filter active categories or fallback to all if empty
-    val validCategories = remember(categories) {
-        if (categories.isNotEmpty()) categories.filter { !it.isArchived } else categories
-    }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -172,7 +375,7 @@ fun CategoryPickerDialog(
                 when (mode) {
                     CategoryPickerMode.ROTARY_DIAL -> {
                         ArcCircularWheelCategoryPicker(
-                            categories = validCategories,
+                            categories = categories,
                             currentCategoryId = currentCategoryId,
                             onCategoryConfirmed = { cat ->
                                 onCategorySelected(cat)
@@ -182,7 +385,7 @@ fun CategoryPickerDialog(
                     }
                     CategoryPickerMode.TACTILE_GRID -> {
                         TactileGridCategoryPicker(
-                            categories = validCategories,
+                            categories = categories,
                             currentCategoryId = currentCategoryId,
                             onCategorySelected = { cat ->
                                 onCategorySelected(cat)
@@ -443,8 +646,13 @@ private fun ArcCircularWheelCategoryPicker(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) {
-                            animateToCategory(index)
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            if (isPointed) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onCategoryConfirmed(cat)
+                            } else {
+                                animateToCategory(index)
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -594,6 +802,516 @@ private fun TactileGridCategoryPicker(
                 if (rowCategories.size < 3) {
                     repeat(3 - rowCategories.size) {
                         Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Minimalist, industrial-standard horizontal snapping account picker dialog.
+ * Replaces old intrusive centered modal popups across the app.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HorizontalAccountPickerDialog(
+    title: String = "Select Account",
+    subtitle: String = "Choose linked bank account or card",
+    detectedSuffix: String? = null,
+    availableAccounts: List<KnownFinancialAccount>,
+    currentAccountId: String? = null,
+    currentAccountSuffix: String? = null,
+    allowCashOption: Boolean = false,
+    onCashSelected: (() -> Unit)? = null,
+    onDismissRequest: () -> Unit,
+    onAccountSelected: (KnownFinancialAccount) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val haptic = LocalHapticFeedback.current
+
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
+        containerColor = ArcColors.SurfaceElevated,
+        dragHandle = {
+            BottomSheetDefaults.DragHandle(
+                color = ArcColors.Border,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            )
+        },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        tonalElevation = 4.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = title,
+                        color = ArcColors.TextPrimary,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = subtitle,
+                        color = ArcColors.TextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+
+                IconButton(
+                    onClick = onDismissRequest,
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = ArcColors.TextMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Suffix detection banner if available
+            if (!detectedSuffix.isNullOrBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = ArcColors.PrimaryLight,
+                    border = BorderStroke(1.dp, ArcColors.Primary.copy(alpha = 0.4f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = ArcColors.Primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Detected SMS Account: Ending in ••••$detectedSuffix",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ArcColors.Primary
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            if (availableAccounts.isEmpty() && !allowCashOption) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No linked accounts found. Please link or import accounts.",
+                        color = ArcColors.TextSecondary,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Optional Cash / Wallet Tile
+                    if (allowCashOption) {
+                        item(key = "cash_wallet_option") {
+                            val isCashSelected = currentAccountId == null && currentAccountSuffix == null
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = if (isCashSelected) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight,
+                                border = BorderStroke(
+                                    width = if (isCashSelected) 1.8.dp else 1.dp,
+                                    color = if (isCashSelected) ArcColors.Primary else ArcColors.Border.copy(alpha = 0.5f)
+                                ),
+                                modifier = Modifier
+                                    .width(140.dp)
+                                    .height(96.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        if (onCashSelected != null) {
+                                            onCashSelected()
+                                        } else {
+                                            onAccountSelected(
+                                                KnownFinancialAccount(
+                                                    id = "cash_liquid",
+                                                    institutionName = "Cash / Wallet",
+                                                    accountSuffix = "",
+                                                    instrumentType = InstrumentType.CASH
+                                                )
+                                            )
+                                        }
+                                        onDismissRequest()
+                                    }
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    if (isCashSelected) {
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(7.dp)
+                                                .size(16.dp)
+                                                .clip(CircleShape)
+                                                .background(ArcColors.Primary),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "Selected",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(11.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(34.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (isCashSelected) ArcColors.Primary.copy(alpha = 0.22f) else ArcColors.BorderSubtle
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.AccountBalanceWallet,
+                                                contentDescription = null,
+                                                tint = if (isCashSelected) ArcColors.Primary else ArcColors.TextSecondary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+
+                                        Text(
+                                            text = "Cash / Wallet",
+                                            color = ArcColors.TextPrimary,
+                                            fontSize = 12.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+
+                                        Text(
+                                            text = "Liquid Cash",
+                                            color = ArcColors.TextSecondary,
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    items(availableAccounts, key = { it.id }) { acc ->
+                        val isSelected = (currentAccountId != null && acc.id == currentAccountId) ||
+                                (currentAccountSuffix != null && acc.accountSuffix.equals(currentAccountSuffix, ignoreCase = true)) ||
+                                (detectedSuffix != null && acc.accountSuffix.equals(detectedSuffix, ignoreCase = true))
+
+                        val bankIcon = when (acc.instrumentType) {
+                            InstrumentType.CARD -> Icons.Outlined.CreditCard
+                            InstrumentType.WALLET -> Icons.Outlined.AccountBalanceWallet
+                            InstrumentType.CASH -> Icons.Outlined.Payments
+                            else -> Icons.Outlined.AccountBalance
+                        }
+
+                        val institutionTitle = acc.institutionName ?: acc.institutionId?.uppercase() ?: "Bank"
+                        val typeAndSuffix = "${acc.instrumentType.name.replace("_", " ").lowercase().replaceFirstChar { it.titlecase() }} •• ${acc.accountSuffix}"
+
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isSelected) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight,
+                            border = BorderStroke(
+                                width = if (isSelected) 1.8.dp else 1.dp,
+                                color = if (isSelected) ArcColors.Primary else ArcColors.Border.copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier
+                                .width(146.dp)
+                                .height(96.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onAccountSelected(acc)
+                                    onDismissRequest()
+                                }
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                if (isSelected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(7.dp)
+                                            .size(16.dp)
+                                            .clip(CircleShape)
+                                            .background(ArcColors.Primary),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(11.dp)
+                                        )
+                                    }
+                                }
+
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(34.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (isSelected) ArcColors.Primary.copy(alpha = 0.22f) else ArcColors.BorderSubtle
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = bankIcon,
+                                            contentDescription = null,
+                                            tint = if (isSelected) ArcColors.Primary else ArcColors.TextSecondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Text(
+                                        text = institutionTitle,
+                                        color = ArcColors.TextPrimary,
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
+                                    Text(
+                                        text = typeAndSuffix,
+                                        color = ArcColors.TextSecondary,
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Generic horizontal item model.
+ */
+data class HorizontalOptionItem(
+    val id: String,
+    val title: String,
+    val subtitle: String? = null,
+    val icon: ImageVector? = null
+)
+
+/**
+ * Minimalist, industrial-standard horizontal snapping arbitrary option picker dialog.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HorizontalOptionPickerDialog(
+    title: String,
+    subtitle: String? = null,
+    options: List<HorizontalOptionItem>,
+    selectedId: String?,
+    onDismissRequest: () -> Unit,
+    onOptionSelected: (HorizontalOptionItem) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val haptic = LocalHapticFeedback.current
+
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
+        containerColor = ArcColors.SurfaceElevated,
+        dragHandle = {
+            BottomSheetDefaults.DragHandle(
+                color = ArcColors.Border,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            )
+        },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        tonalElevation = 4.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = title,
+                        color = ArcColors.TextPrimary,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (subtitle != null) {
+                        Text(
+                            text = subtitle,
+                            color = ArcColors.TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onDismissRequest,
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = ArcColors.TextMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(options, key = { it.id }) { item ->
+                    val isSelected = item.id == selectedId
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) ArcColors.PrimaryLight else ArcColors.SurfaceHighlight,
+                        border = BorderStroke(
+                            width = if (isSelected) 1.8.dp else 1.dp,
+                            color = if (isSelected) ArcColors.Primary else ArcColors.Border.copy(alpha = 0.5f)
+                        ),
+                        modifier = Modifier
+                            .width(136.dp)
+                            .height(92.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onOptionSelected(item)
+                                onDismissRequest()
+                            }
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            if (isSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(7.dp)
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(ArcColors.Primary),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                }
+                            }
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                if (item.icon != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (isSelected) ArcColors.Primary.copy(alpha = 0.22f) else ArcColors.BorderSubtle
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = item.icon,
+                                            contentDescription = null,
+                                            tint = if (isSelected) ArcColors.Primary else ArcColors.TextSecondary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                }
+
+                                Text(
+                                    text = item.title,
+                                    color = ArcColors.TextPrimary,
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                if (item.subtitle != null) {
+                                    Text(
+                                        text = item.subtitle,
+                                        color = ArcColors.TextSecondary,
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

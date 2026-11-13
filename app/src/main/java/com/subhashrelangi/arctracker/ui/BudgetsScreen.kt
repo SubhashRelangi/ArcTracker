@@ -1644,36 +1644,68 @@ fun BudgetEditDialog(
                 }
 
                 if (!isOverall) {
-                    var expanded by remember { mutableStateOf(false) }
+                    var showCatPicker by remember { mutableStateOf(false) }
                     val currentCat = categories.find { it.id == selectedCategoryId }
-                    ExposedDropdownMenuBox(
-                        expanded = expanded,
-                        onExpandedChange = { expanded = it }
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { showCatPicker = true },
+                        shape = RoundedCornerShape(12.dp),
+                        color = ArcColors.SurfaceHighlight,
+                        border = BorderStroke(1.dp, ArcColors.Border)
                     ) {
-                        OutlinedTextField(
-                            value = currentCat?.name ?: "Select Category",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Category") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false }
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            categories.forEach { cat ->
-                                DropdownMenuItem(
-                                    text = { Text(cat.name) },
-                                    onClick = {
-                                        selectedCategoryId = cat.id
-                                        expanded = false
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (currentCat != null) {
+                                    val catColor = CategoryVisuals.getColor(currentCat.colorKey)
+                                    val catIcon = CategoryVisuals.getIcon(currentCat.iconKey)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .clip(CircleShape)
+                                            .background(catColor.copy(alpha = 0.2f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = catIcon,
+                                            contentDescription = null,
+                                            tint = catColor,
+                                            modifier = Modifier.size(16.dp)
+                                        )
                                     }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                }
+                                Text(
+                                    text = currentCat?.name ?: "Select Category",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (currentCat != null) ArcColors.TextPrimary else ArcColors.TextSecondary
                                 )
                             }
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                tint = ArcColors.TextSecondary
+                            )
                         }
+                    }
+
+                    if (showCatPicker) {
+                        com.subhashrelangi.arctracker.ui.review.CategoryPickerDialog(
+                            categories = categories,
+                            currentCategoryId = selectedCategoryId,
+                            onCategorySelected = { cat ->
+                                selectedCategoryId = cat.id
+                                showCatPicker = false
+                            },
+                            onDismissRequest = { showCatPicker = false },
+                            pickerStyle = com.subhashrelangi.arctracker.ui.review.CategoryPickerStyle.HORIZONTAL_SNAP
+                        )
                     }
                 }
             }

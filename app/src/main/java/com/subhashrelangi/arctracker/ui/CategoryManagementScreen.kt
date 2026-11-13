@@ -705,28 +705,27 @@ fun CategoryManagementScreen(
                             }
 
                             if (deleteMode == 0 && targetOptions.isNotEmpty()) {
-                                var dropdownExpanded by remember { mutableStateOf(false) }
+                                var showTargetPicker by remember { mutableStateOf(false) }
                                 val selectedTargetName = targetOptions.find { it.id == reassignTargetId }?.name ?: "Select Target Category"
 
                                 Box(modifier = Modifier.padding(start = 32.dp)) {
-                                    OutlinedButton(onClick = { dropdownExpanded = true }) {
+                                    OutlinedButton(onClick = { showTargetPicker = true }) {
                                         Text(selectedTargetName, fontSize = 12.sp)
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Icon(Icons.Filled.ArrowDropDown, contentDescription = null, modifier = Modifier.size(16.dp))
                                     }
-                                    DropdownMenu(
-                                        expanded = dropdownExpanded,
-                                        onDismissRequest = { dropdownExpanded = false }
-                                    ) {
-                                        targetOptions.forEach { opt ->
-                                            DropdownMenuItem(
-                                                text = { Text(opt.name) },
-                                                onClick = {
-                                                    reassignTargetId = opt.id
-                                                    dropdownExpanded = false
-                                                }
-                                            )
-                                        }
+
+                                    if (showTargetPicker) {
+                                        com.subhashrelangi.arctracker.ui.review.CategoryPickerDialog(
+                                            categories = targetOptions,
+                                            currentCategoryId = reassignTargetId,
+                                            onCategorySelected = { opt ->
+                                                reassignTargetId = opt.id
+                                                showTargetPicker = false
+                                            },
+                                            onDismissRequest = { showTargetPicker = false },
+                                            pickerStyle = com.subhashrelangi.arctracker.ui.review.CategoryPickerStyle.HORIZONTAL_SNAP
+                                        )
                                     }
                                 }
                             }

@@ -1709,93 +1709,14 @@ internal fun DarkAccountPickerDialog(
     onSelectAccount: (KnownFinancialAccount) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val isDark = ArcColors.isDark
-    AlertDialog(
+    com.subhashrelangi.arctracker.ui.review.HorizontalAccountPickerDialog(
+        title = if (isReassign) "Reassign Account" else "Assign Account",
+        subtitle = "Choose linked financial account",
+        detectedSuffix = currentSuffix,
+        availableAccounts = candidateAccounts,
+        currentAccountSuffix = currentSuffix,
         onDismissRequest = onDismiss,
-        containerColor = cardBg,
-        title = {
-            Text(
-                text = if (isReassign) "Reassign Account" else "Assign Account",
-                color = slateTitle,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-        },
-        text = {
-            if (candidateAccounts.isEmpty()) {
-                Text(
-                    text = "No financial accounts registered yet.",
-                    color = slateSub,
-                    fontSize = 13.sp
-                )
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 300.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    candidateAccounts.forEach { acc ->
-                        val isMatchingSuffix = acc.accountSuffix == currentSuffix
-                        Card(
-                            onClick = { onSelectAccount(acc) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isMatchingSuffix) (if (isDark) Color(0xFF064E3B).copy(alpha = 0.35f) else Color(0xFFECFDF5)) else highlightSurface
-                            ),
-                            border = BorderStroke(
-                                1.dp,
-                                if (isMatchingSuffix) (if (isDark) ArcColors.Primary else Color(0xFFA7F3D0)) else cardBorder
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        text = acc.institutionName ?: acc.institutionId ?: "Bank",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = slateTitle
-                                    )
-                                    Text(
-                                        text = "${AccountReconciliationManager.formatAccountType(acc.instrumentType, acc.accountSuffix)} •• ${acc.accountSuffix}",
-                                        fontSize = 12.sp,
-                                        color = slateSub
-                                    )
-                                }
-                                if (isMatchingSuffix) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(if (isDark) Color(0xFF064E3B).copy(alpha = 0.6f) else Color(0xFFDCFCE7))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = "Matching Suffix",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = ArcColors.Primary
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = slateSub)
-            }
-        }
+        onAccountSelected = onSelectAccount
     )
 }
 

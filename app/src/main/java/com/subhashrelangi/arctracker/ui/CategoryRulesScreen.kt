@@ -833,101 +833,97 @@ fun RuleEditorDialog(
                     )
                 )
 
-                // Match Type Dropdown
-                Box {
-                    OutlinedButton(
-                        onClick = { matchTypeExpanded = true },
-                        shape = CircleShape,
-                        border = BorderStroke(1.dp, cardBorder),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "Match: " + when (selectedMatchType) {
+                // Match Type Selector
+                OutlinedButton(
+                    onClick = { matchTypeExpanded = true },
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, cardBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Match: " + when (selectedMatchType) {
+                            UserRuleMatchType.MERCHANT_EXACT -> "Exact Merchant"
+                            UserRuleMatchType.MERCHANT_TOKEN -> "Merchant Token"
+                            UserRuleMatchType.MERCHANT_CONTAINS -> "Merchant Contains"
+                            UserRuleMatchType.TRANSACTION_TEXT_CONTAINS -> "Transaction Text Contains"
+                            else -> selectedMatchType
+                        },
+                        fontSize = 13.sp,
+                        color = slateTitle
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = slateSub)
+                }
+
+                if (matchTypeExpanded) {
+                    val matchOptions = UserRuleMatchType.ALL.map { mt ->
+                        com.subhashrelangi.arctracker.ui.review.HorizontalOptionItem(
+                            id = mt,
+                            title = when (mt) {
                                 UserRuleMatchType.MERCHANT_EXACT -> "Exact Merchant"
                                 UserRuleMatchType.MERCHANT_TOKEN -> "Merchant Token"
                                 UserRuleMatchType.MERCHANT_CONTAINS -> "Merchant Contains"
-                                UserRuleMatchType.TRANSACTION_TEXT_CONTAINS -> "Transaction Text Contains"
-                                else -> selectedMatchType
+                                UserRuleMatchType.TRANSACTION_TEXT_CONTAINS -> "Text Contains"
+                                else -> mt
                             },
-                            fontSize = 13.sp,
-                            color = slateTitle
+                            subtitle = when (mt) {
+                                UserRuleMatchType.MERCHANT_EXACT -> "e.g. Swiggy"
+                                UserRuleMatchType.MERCHANT_TOKEN -> "e.g. Amazon"
+                                UserRuleMatchType.MERCHANT_CONTAINS -> "e.g. Coffee"
+                                else -> "SMS Body"
+                            }
                         )
-                        Spacer(modifier = Modifier.weight(1f))
-                        Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = slateSub)
                     }
-
-                    DropdownMenu(
-                        expanded = matchTypeExpanded,
+                    com.subhashrelangi.arctracker.ui.review.HorizontalOptionPickerDialog(
+                        title = "Select Match Type",
+                        subtitle = "Rule evaluation mode",
+                        options = matchOptions,
+                        selectedId = selectedMatchType,
                         onDismissRequest = { matchTypeExpanded = false },
-                        modifier = Modifier.background(cardBg)
-                    ) {
-                        UserRuleMatchType.ALL.forEach { mt ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        when (mt) {
-                                            UserRuleMatchType.MERCHANT_EXACT -> "Exact Merchant (e.g. 'Swiggy')"
-                                            UserRuleMatchType.MERCHANT_TOKEN -> "Merchant Token (e.g. 'Amazon')"
-                                            UserRuleMatchType.MERCHANT_CONTAINS -> "Merchant Contains (e.g. 'Coffee')"
-                                            UserRuleMatchType.TRANSACTION_TEXT_CONTAINS -> "Transaction Text Contains"
-                                            else -> mt
-                                        },
-                                        color = slateTitle
-                                    )
-                                },
-                                onClick = {
-                                    selectedMatchType = mt
-                                    matchTypeExpanded = false
-                                }
-                            )
+                        onOptionSelected = { opt ->
+                            selectedMatchType = opt.id
+                            matchTypeExpanded = false
                         }
-                    }
+                    )
                 }
 
-                // Category Dropdown
-                Box {
-                    val currentCat = activeCategories.find { it.id == selectedCategoryId }
-                    OutlinedButton(
-                        onClick = { categoryExpanded = true },
-                        shape = CircleShape,
-                        border = BorderStroke(1.dp, cardBorder),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "Category: ${currentCat?.name ?: "Select Category"}",
-                            fontSize = 13.sp,
-                            color = slateTitle
+                // Category Selector
+                val currentCat = activeCategories.find { it.id == selectedCategoryId }
+                OutlinedButton(
+                    onClick = { categoryExpanded = true },
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, cardBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (currentCat != null) {
+                        Icon(
+                            imageVector = CategoryVisuals.getIcon(currentCat.iconKey),
+                            contentDescription = null,
+                            tint = CategoryVisuals.getColor(currentCat.colorKey),
+                            modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modifier = Modifier.weight(1f))
-                        Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = slateSub)
+                        Spacer(modifier = Modifier.width(8.dp))
                     }
+                    Text(
+                        text = "Category: ${currentCat?.name ?: "Select Category"}",
+                        fontSize = 13.sp,
+                        color = slateTitle
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = slateSub)
+                }
 
-                    DropdownMenu(
-                        expanded = categoryExpanded,
+                if (categoryExpanded) {
+                    com.subhashrelangi.arctracker.ui.review.CategoryPickerDialog(
+                        categories = activeCategories,
+                        currentCategoryId = selectedCategoryId,
+                        onCategorySelected = { cat ->
+                            selectedCategoryId = cat.id
+                            categoryExpanded = false
+                        },
                         onDismissRequest = { categoryExpanded = false },
-                        modifier = Modifier.background(cardBg)
-                    ) {
-                        activeCategories.forEach { cat ->
-                            DropdownMenuItem(
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = CategoryVisuals.getIcon(cat.iconKey),
-                                            contentDescription = null,
-                                            tint = CategoryVisuals.getColor(cat.colorKey),
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(cat.name, color = slateTitle)
-                                    }
-                                },
-                                onClick = {
-                                    selectedCategoryId = cat.id
-                                    categoryExpanded = false
-                                }
-                            )
-                        }
-                    }
+                        pickerStyle = com.subhashrelangi.arctracker.ui.review.CategoryPickerStyle.HORIZONTAL_SNAP
+                    )
                 }
 
                 // Normalization Preview
