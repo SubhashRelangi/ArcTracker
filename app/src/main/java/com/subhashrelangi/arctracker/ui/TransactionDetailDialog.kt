@@ -1,5 +1,7 @@
 package com.subhashrelangi.arctracker.ui
 
+import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -1725,32 +1727,16 @@ private fun DarkUnlinkConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = cardBg,
-        title = {
-            Text("Unlink Account?", color = slateTitle, fontWeight = FontWeight.Bold)
-        },
-        text = {
-            Text(
-                "This will remove the account link for this transaction. The transaction will appear under Unresolved Transactions.",
-                color = slateSub,
-                fontSize = 13.sp
-            )
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
-            ) {
-                Text("Unlink", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = slateSub)
-            }
-        }
+    ArcConfirmationBottomSheet(
+        title = "Unlink Account?",
+        message = "This will remove the account link for this transaction. The transaction will appear under Unresolved Transactions.",
+        confirmText = "Unlink",
+        cancelText = "Cancel",
+        icon = Icons.Default.LinkOff,
+        iconColor = ArcColors.Danger,
+        isDestructive = true,
+        onConfirm = onConfirm,
+        onDismiss = onDismiss
     )
 }
 
@@ -1761,110 +1747,22 @@ internal fun DarkDeleteConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val isDark = ArcColors.isDark
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(22.dp),
-            color = cardBg,
-            border = BorderStroke(1.dp, cardBorder),
-            shadowElevation = 8.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(22.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(if (isDark) Color(0xFF3B1818) else Color(0xFFFEE2E2)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = null,
-                            tint = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Delete Transaction?",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = slateTitle
-                        )
-                        Text(
-                            text = "Permanently removes from local ledger.",
-                            fontSize = 11.5.sp,
-                            color = slateSub
-                        )
-                    }
-                }
+    val formattedAmount = NumberFormat.getNumberInstance(Locale("en", "IN")).apply {
+        minimumFractionDigits = 2
+        maximumFractionDigits = 2
+    }.format(expense.amount)
 
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = highlightSurface,
-                    border = BorderStroke(1.dp, cardBorder),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        val formattedAmount = NumberFormat.getNumberInstance(Locale("en", "IN")).apply {
-                            minimumFractionDigits = 2
-                            maximumFractionDigits = 2
-                        }.format(expense.amount)
-                        Text(
-                            text = "$sign ₹$formattedAmount",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = if (isDark) Color(0xFFF87171) else Color(0xFFDC2626)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = expense.merchant.ifEmpty { "Unknown Merchant" },
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = slateTitle
-                        )
-                    }
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        shape = CircleShape,
-                        border = BorderStroke(1.dp, cardBorder),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                    ) {
-                        Text("Cancel", color = slateSub, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                    }
-
-                    Button(
-                        onClick = onConfirm,
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                    ) {
-                        Text("Delete", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-                }
-            }
-        }
-    }
+    ArcConfirmationBottomSheet(
+        title = "Delete Transaction?",
+        message = "Permanently remove \"${expense.merchant.ifEmpty { "Unknown Merchant" }}\" ($sign ₹$formattedAmount) from your local ledger?",
+        confirmText = "Delete",
+        cancelText = "Cancel",
+        icon = Icons.Default.DeleteOutline,
+        iconColor = ArcColors.Danger,
+        isDestructive = true,
+        onConfirm = onConfirm,
+        onDismiss = onDismiss
+    )
 }
 
 @Composable
@@ -1890,70 +1788,55 @@ internal fun DarkAddTagDialog(
 ) {
     var tagInput by remember { mutableStateOf("") }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(22.dp),
-            color = cardBg,
-            border = BorderStroke(1.dp, cardBorder),
-            shadowElevation = 8.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp)
+    ArcModalBottomSheet(
+        onDismissRequest = onDismiss,
+        title = "Add Custom Tag",
+        maxHeight = 360.dp
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+            OutlinedTextField(
+                value = tagInput,
+                onValueChange = { tagInput = it },
+                placeholder = { Text("e.g. Personal, Food, Travel", color = slateSub) },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = ArcColors.Primary,
+                    unfocusedBorderColor = cardBorder,
+                    focusedTextColor = slateTitle,
+                    unfocusedTextColor = slateTitle
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
-                    text = "Add Custom Tag",
-                    color = slateTitle,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-
-                OutlinedTextField(
-                    value = tagInput,
-                    onValueChange = { tagInput = it },
-                    placeholder = { Text("e.g. Personal, Food, Travel", color = slateSub) },
-                    singleLine = true,
+                OutlinedButton(
+                    onClick = onDismiss,
                     shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ArcColors.Primary,
-                        unfocusedBorderColor = cardBorder,
-                        focusedTextColor = slateTitle,
-                        unfocusedTextColor = slateTitle
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    border = BorderStroke(1.dp, cardBorder),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        shape = CircleShape,
-                        border = BorderStroke(1.dp, cardBorder),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                    ) {
-                        Text("Cancel", color = slateSub, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                    }
+                    Text("Cancel", color = slateSub, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                }
 
-                    Button(
-                        onClick = { onAddTag(tagInput) },
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
-                        enabled = tagInput.isNotBlank(),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                    ) {
-                        Text("Add", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
+                Button(
+                    onClick = { onAddTag(tagInput) },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                    enabled = tagInput.isNotBlank(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                ) {
+                    Text("Add", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             }
         }

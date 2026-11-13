@@ -1,5 +1,6 @@
 package com.subhashrelangi.arctracker.ui
 
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.widget.Toast
@@ -1398,49 +1399,60 @@ private fun DarkAmountInputDialog(
 ) {
     var amountInput by remember { mutableStateOf(String.format(Locale.US, "%.2f", initialAmount)) }
 
-    AlertDialog(
+    ArcModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = cardBg,
-        title = {
-            Text("Edit Amount", color = slateTitle, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = amountInput,
-                    onValueChange = { amountInput = it },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    prefix = { Text("₹ ", color = ArcColors.Primary, fontWeight = FontWeight.Bold) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ArcColors.Primary,
-                        unfocusedBorderColor = cardBorder,
-                        focusedTextColor = slateTitle,
-                        unfocusedTextColor = slateTitle
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val parsed = amountInput.toDoubleOrNull()
-                    if (parsed != null && parsed >= 0.0) {
-                        onConfirm(parsed)
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
+        title = "Edit Amount",
+        maxHeight = 300.dp
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            OutlinedTextField(
+                value = amountInput,
+                onValueChange = { amountInput = it },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                prefix = { Text("₹ ", color = ArcColors.Primary, fontWeight = FontWeight.Bold) },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = ArcColors.Primary,
+                    unfocusedBorderColor = cardBorder,
+                    focusedTextColor = slateTitle,
+                    unfocusedTextColor = slateTitle
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("Set", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = slateSub)
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, cardBorder),
+                    modifier = Modifier.weight(1f).height(44.dp)
+                ) {
+                    Text("Cancel", color = slateSub)
+                }
+
+                Button(
+                    onClick = {
+                        val parsed = amountInput.toDoubleOrNull()
+                        if (parsed != null && parsed >= 0.0) {
+                            onConfirm(parsed)
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                    modifier = Modifier.weight(1f).height(44.dp)
+                ) {
+                    Text("Set", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
         }
-    )
+    }
 }
 
 // ==========================================

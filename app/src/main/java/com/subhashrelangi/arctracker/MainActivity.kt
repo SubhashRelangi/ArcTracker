@@ -1,5 +1,6 @@
 package com.subhashrelangi.arctracker
 
+import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.fragment.app.FragmentActivity
@@ -1411,76 +1412,39 @@ fun ExpenseScreen() {
 
         if (showCompleteAllDialog) {
             val pendingExpenses = expenses.filter { it.isPending }
-            androidx.compose.ui.window.Dialog(onDismissRequest = { showCompleteAllDialog = false }) {
-                Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    color = com.subhashrelangi.arctracker.ui.theme.ArcColors.CardBackground,
-                    border = BorderStroke(1.dp, com.subhashrelangi.arctracker.ui.theme.ArcColors.Border),
-                    shadowElevation = 8.dp,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(22.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Text(
-                            text = "Complete all pending transactions?",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextPrimary
-                        )
-                        Text(
-                            text = "This will approve all pending transactions currently waiting for review and commit them to the ledger.",
-                            fontSize = 13.sp,
-                            color = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextSecondary,
-                            lineHeight = 18.sp
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { showCompleteAllDialog = false },
-                                shape = CircleShape,
-                                border = BorderStroke(1.dp, com.subhashrelangi.arctracker.ui.theme.ArcColors.Border),
-                                modifier = Modifier.weight(1f).height(44.dp)
-                            ) {
-                                Text("Cancel", color = com.subhashrelangi.arctracker.ui.theme.ArcColors.TextSecondary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            ArcConfirmationBottomSheet(
+                title = "Complete all pending transactions?",
+                message = "This will approve all ${pendingExpenses.size} pending transactions currently waiting for review and commit them to the ledger.",
+                confirmText = "Complete All",
+                cancelText = "Cancel",
+                icon = Icons.Outlined.CheckCircle,
+                iconColor = com.subhashrelangi.arctracker.ui.theme.ArcColors.Primary,
+                isDestructive = false,
+                onConfirm = {
+                    showCompleteAllDialog = false
+                    val toComplete = expenses.filter { it.isPending }
+                    val ids = toComplete.map { it.id }
+                    if (ids.isEmpty()) return@ArcConfirmationBottomSheet
+                    scope.launch {
+                        try {
+                            val updatedCount = withContext(Dispatchers.IO) {
+                                expenseDao.approvePendingTransactions(ids)
                             }
-                            Button(
-                                onClick = {
-                                    showCompleteAllDialog = false
-                                    val toComplete = expenses.filter { it.isPending }
-                                    val ids = toComplete.map { it.id }
-                                    if (ids.isEmpty()) return@Button
-                                    scope.launch {
-                                        try {
-                                            val updatedCount = withContext(Dispatchers.IO) {
-                                                expenseDao.approvePendingTransactions(ids)
-                                            }
-                                            refreshTrigger++
-                                            withContext(Dispatchers.Main) {
-                                                Toast.makeText(context, "Completed all $updatedCount pending transactions", Toast.LENGTH_SHORT).show()
-                                            }
-                                        } catch (e: Exception) {
-                                            if (e is CancellationException) throw e
-                                            SecureLogger.e("MainActivity", "Failed to batch approve pending transactions", e)
-                                            withContext(Dispatchers.Main) {
-                                                Toast.makeText(context, "Failed to complete pending transactions", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    }
-                                },
-                                shape = CircleShape,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857)),
-                                modifier = Modifier.weight(1.3f).height(44.dp)
-                            ) {
-                                Text("Complete All", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            refreshTrigger++
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Completed all $updatedCount pending transactions", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to batch approve pending transactions", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to complete pending transactions", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
-                }
-            }
+                },
+                onDismiss = { showCompleteAllDialog = false }
+            )
         }
 
         actionSheetExpense?.let { sheetExpense ->

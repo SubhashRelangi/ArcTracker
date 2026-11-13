@@ -1,5 +1,6 @@
 package com.subhashrelangi.arctracker.ui.ledger
 
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import com.subhashrelangi.arctracker.ui.core.ArcFloatingAddExpenseButton
 
 import android.widget.Toast
@@ -482,67 +483,57 @@ fun LedgerPage(
         )
     }
 
-    // Month Selector Dialog
+    // Month Selector Bottom Sheet
     if (showMonthDialog && availableMonths.isNotEmpty()) {
-        AlertDialog(
+        ArcModalBottomSheet(
             onDismissRequest = { showMonthDialog = false },
-            title = {
-                Text(
-                    text = "Select Month",
-                    fontWeight = FontWeight.Bold,
-                    color = LedgerColors.TextPrimary
-                )
-            },
-            text = {
-                Column {
-                    for (monthOpt in availableMonths) {
-                        val isSelected = monthOpt.key == selectedMonth
+            title = "Select Month",
+            maxHeight = 440.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                for (monthOpt in availableMonths) {
+                    val isSelected = monthOpt.key == selectedMonth
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isSelected) LedgerColors.Credit.copy(alpha = 0.12f) else LedgerColors.SurfaceElevated,
+                        border = BorderStroke(1.dp, if (isSelected) LedgerColors.Credit else LedgerColors.Border),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                onMonthChange(monthOpt.key)
+                                showMonthDialog = false
+                            }
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp),
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            TextButton(
-                                onClick = {
-                                    onMonthChange(monthOpt.key)
-                                    showMonthDialog = false
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = monthOpt.label,
-                                        color = if (isSelected) LedgerColors.Credit else LedgerColors.TextPrimary,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                    )
-                                    if (isSelected) {
-                                        Text(
-                                            text = "● Active",
-                                            color = LedgerColors.Credit,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
+                            Text(
+                                text = monthOpt.label,
+                                color = if (isSelected) LedgerColors.Credit else LedgerColors.TextPrimary,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                fontSize = 14.sp
+                            )
+                            if (isSelected) {
+                                Text(
+                                    text = "● Active",
+                                    color = LedgerColors.Credit,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showMonthDialog = false }) {
-                    Text("Close", color = LedgerColors.TextPrimary, fontWeight = FontWeight.Bold)
-                }
-            },
-            containerColor = LedgerColors.SurfaceElevated,
-            shape = RoundedCornerShape(20.dp)
-        )
+            }
+        }
     }
 
     // Detail Dialog Integration (View, Edit, Delete, Reconcile)
