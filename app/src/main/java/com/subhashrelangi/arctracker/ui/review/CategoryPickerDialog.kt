@@ -43,7 +43,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.*
 
 /**
- * Selection display modes for category picker experimentation.
+ * Selection display modes for category picker.
  */
 enum class CategoryPickerMode {
     ROTARY_DIAL, // True Circular Rotary Wheel with Pointer Arrow
@@ -51,7 +51,7 @@ enum class CategoryPickerMode {
 }
 
 /**
- * Modern Industrial Category Picker (Experimental Architecture).
+ * Modern Industrial Category Picker (BottomSheet Architecture).
  *
  * Eliminates centered floating modal dialogs and nested scroll traps.
  * Anchors naturally at the bottom thumb zone with tactile haptics and
@@ -243,6 +243,10 @@ private fun ArcCircularWheelCategoryPicker(
     val activeCategory = categories.getOrNull(pointedIndex) ?: categories.firstOrNull()
     val activeColor = activeCategory?.let { CategoryVisuals.getColor(it.colorKey) } ?: ArcColors.Primary
 
+    val dialSurfaceColor = ArcColors.Surface
+    val dialBorderColor = ArcColors.Border
+    val primaryThemeColor = ArcColors.Primary
+
     fun animateToCategory(index: Int) {
         val diff = (rotationAngle + index * sliceAngle)
         val diffNorm = ((diff % 360f) + 540f) % 360f - 180f
@@ -286,13 +290,11 @@ private fun ArcCircularWheelCategoryPicker(
         val wheelSizeDp = 280.dp
         val centerPx = with(density) { (wheelSizeDp / 2f).toPx() }
         val centerOffset = Offset(centerPx, centerPx)
-        val itemRadiusPx = with(density) { 98.dp.toPx() }
-        val itemSizeDp = 42.dp
+        val itemRadiusPx = with(density) { 96.dp.toPx() }
+        val itemSizeDp = 40.dp
         val itemSizePx = with(density) { itemSizeDp.toPx() }
-        val dialSurfaceColor = ArcColors.Surface
-        val dialBorderColor = ArcColors.Border
 
-        // Needle Arrow & Wheel Container
+        // Needle Arrow & Wheel Container (TopStart alignment so polar offsets are accurate)
         Box(
             modifier = Modifier
                 .size(wheelSizeDp)
@@ -334,14 +336,14 @@ private fun ArcCircularWheelCategoryPicker(
                         }
                     )
                 },
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.TopStart
         ) {
             // 1. Wheel Canvas: Spoke lines, Outer ring, Guide track, Needle Arrow
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val outerRadius = size.width / 2f - 4.dp.toPx()
-                val innerRadius = 48.dp.toPx()
+                val innerRadius = 46.dp.toPx()
 
-                // Subtle dial background circle
+                // Dial background circle
                 drawCircle(
                     color = dialSurfaceColor,
                     radius = outerRadius,
@@ -364,7 +366,7 @@ private fun ArcCircularWheelCategoryPicker(
                     style = Stroke(width = 1.dp.toPx())
                 )
 
-                // Radial Spoke Divider Lines
+                // Radial Spoke Divider Lines (clean, separating each category sector)
                 val sliceCount = categories.size
                 for (i in 0 until sliceCount) {
                     val spokeAngle = currentAngle + (i - 0.5f) * sliceAngle - 90f
@@ -375,30 +377,32 @@ private fun ArcCircularWheelCategoryPicker(
                     val endY = centerOffset.y + (outerRadius - 2.dp.toPx()) * sin(rad).toFloat()
 
                     drawLine(
-                        color = dialBorderColor.copy(alpha = 0.35f),
+                        color = dialBorderColor.copy(alpha = 0.22f),
                         start = Offset(startX, startY),
                         end = Offset(endX, endY),
                         strokeWidth = 1.dp.toPx()
                     )
                 }
 
-                // Active Sector Accent Arc / Glow on rim
+                // Clean accent arc on the outer rim under active category (no muddy slice bleed)
                 drawArc(
-                    color = activeColor.copy(alpha = 0.12f),
-                    startAngle = currentAngle + (pointedIndex - 0.5f) * sliceAngle - 90f,
-                    sweepAngle = sliceAngle,
-                    useCenter = true,
+                    color = activeColor.copy(alpha = 0.6f),
+                    startAngle = currentAngle + (pointedIndex - 0.45f) * sliceAngle - 90f,
+                    sweepAngle = sliceAngle * 0.9f,
+                    useCenter = false,
                     topLeft = Offset(centerOffset.x - outerRadius, centerOffset.y - outerRadius),
-                    size = Size(outerRadius * 2, outerRadius * 2)
+                    size = Size(outerRadius * 2, outerRadius * 2),
+                    style = Stroke(width = 3.dp.toPx())
                 )
 
-                // Top Arrow Pointer (Needle pointing directly down into top item)
-                val needleWidth = 14.dp.toPx()
-                val needleHeight = 16.dp.toPx()
+                // Top Arrow Pointer (Precision needle pointing directly down into top item)
+                val needleWidth = 12.dp.toPx()
+                val needleHeight = 15.dp.toPx()
+                val needleTopY = 4.dp.toPx()
                 val needlePath = Path().apply {
-                    moveTo(centerOffset.x - (needleWidth / 2f), 2.dp.toPx())
-                    lineTo(centerOffset.x + (needleWidth / 2f), 2.dp.toPx())
-                    lineTo(centerOffset.x, 2.dp.toPx() + needleHeight)
+                    moveTo(centerOffset.x - (needleWidth / 2f), needleTopY)
+                    lineTo(centerOffset.x + (needleWidth / 2f), needleTopY)
+                    lineTo(centerOffset.x, needleTopY + needleHeight)
                     close()
                 }
                 drawPath(path = needlePath, color = activeColor)
@@ -406,12 +410,12 @@ private fun ArcCircularWheelCategoryPicker(
                 // Needle pivot cap
                 drawCircle(
                     color = Color.White,
-                    radius = 3.dp.toPx(),
-                    center = Offset(centerOffset.x, 4.dp.toPx())
+                    radius = 2.5.dp.toPx(),
+                    center = Offset(centerOffset.x, needleTopY + 3.dp.toPx())
                 )
             }
 
-            // 2. Category Badges around the Wheel
+            // 2. Category Badges around the Wheel with vibrant theme colors
             categories.forEachIndexed { index, cat ->
                 val itemAngle = currentAngle + index * sliceAngle - 90f
                 val rad = Math.toRadians(itemAngle.toDouble())
@@ -426,13 +430,13 @@ private fun ArcCircularWheelCategoryPicker(
                     modifier = Modifier
                         .offset { IntOffset(xOffsetPx.roundToInt(), yOffsetPx.roundToInt()) }
                         .size(itemSizeDp)
-                        .scale(if (isPointed) 1.2f else 0.88f)
-                        .alpha(if (isPointed) 1f else 0.65f)
+                        .scale(if (isPointed) 1.22f else 0.90f)
+                        .alpha(if (isPointed) 1f else 0.85f)
                         .clip(CircleShape)
-                        .background(if (isPointed) catColor.copy(alpha = 0.25f) else ArcColors.SurfaceElevated)
+                        .background(catColor.copy(alpha = if (isPointed) 0.32f else 0.16f))
                         .border(
-                            width = if (isPointed) 2.5.dp else 1.dp,
-                            color = if (isPointed) catColor else ArcColors.Border,
+                            width = if (isPointed) 2.5.dp else 1.2.dp,
+                            color = if (isPointed) catColor else catColor.copy(alpha = 0.55f),
                             shape = CircleShape
                         )
                         .clickable(
@@ -447,58 +451,64 @@ private fun ArcCircularWheelCategoryPicker(
                     Icon(
                         imageVector = catIcon,
                         contentDescription = cat.name,
-                        tint = if (isPointed) catColor else ArcColors.TextSecondary,
-                        modifier = Modifier.size(20.dp)
+                        tint = catColor,
+                        modifier = Modifier.size(if (isPointed) 22.dp else 19.dp)
                     )
                 }
             }
 
-            // 3. Center Hub (Tap to confirm)
-            Surface(
-                shape = CircleShape,
-                color = ArcColors.SurfaceElevated,
-                border = BorderStroke(1.5.dp, activeColor.copy(alpha = 0.7f)),
-                shadowElevation = 6.dp,
-                modifier = Modifier
-                    .size(94.dp)
-                    .clip(CircleShape)
-                    .clickable {
-                        activeCategory?.let { onCategoryConfirmed(it) }
-                    }
+            // 3. Center Hub (Centered in wheel, tap to confirm)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Column(
+                Surface(
+                    shape = CircleShape,
+                    color = dialSurfaceColor,
+                    border = BorderStroke(2.dp, activeColor),
+                    shadowElevation = 4.dp,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                        .size(92.dp)
+                        .clip(CircleShape)
+                        .clickable {
+                            activeCategory?.let { onCategoryConfirmed(it) }
+                        }
                 ) {
-                    if (activeCategory != null) {
-                        Icon(
-                            imageVector = CategoryVisuals.getIcon(activeCategory.iconKey),
-                            contentDescription = activeCategory.name,
-                            tint = activeColor,
-                            modifier = Modifier.size(26.dp)
-                        )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        if (activeCategory != null) {
+                            Icon(
+                                imageVector = CategoryVisuals.getIcon(activeCategory.iconKey),
+                                contentDescription = activeCategory.name,
+                                tint = activeColor,
+                                modifier = Modifier.size(26.dp)
+                            )
 
-                        Spacer(modifier = Modifier.height(3.dp))
+                            Spacer(modifier = Modifier.height(3.dp))
 
-                        Text(
-                            text = activeCategory.name,
-                            color = ArcColors.TextPrimary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
-                        )
+                            Text(
+                                text = activeCategory.name,
+                                color = ArcColors.TextPrimary,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center
+                            )
 
-                        Text(
-                            text = "Tap to choose",
-                            color = ArcColors.TextMuted,
-                            fontSize = 9.sp,
-                            textAlign = TextAlign.Center
-                        )
+                            Text(
+                                text = "Tap to choose",
+                                color = activeColor,
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
@@ -506,16 +516,16 @@ private fun ArcCircularWheelCategoryPicker(
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        // 4. Primary Bottom Confirm Button
+        // 4. Primary Bottom Confirm Button (Sleek ArcTracker pill)
         Button(
             onClick = {
                 activeCategory?.let { onCategoryConfirmed(it) }
             },
             colors = ButtonDefaults.buttonColors(
-                containerColor = activeColor,
+                containerColor = primaryThemeColor,
                 contentColor = Color.White
             ),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(24.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
