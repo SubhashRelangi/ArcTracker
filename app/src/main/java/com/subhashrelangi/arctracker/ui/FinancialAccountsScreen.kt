@@ -1,5 +1,8 @@
 package com.subhashrelangi.arctracker.ui
 
+import androidx.compose.foundation.verticalScroll
+import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -533,233 +536,164 @@ fun FinancialAccountsScreen(
         }
     }
 
-    // ArcTracker Styled Dialog: Delete Account Confirmation
+    // ArcTracker Bottom Sheet: Delete Account Confirmation
     accountToDelete?.let { account ->
         val targetTxnCount = getTxnCount(account, accountTxnCounts[account.id], isDemoMode)
-        AlertDialog(
-            onDismissRequest = { accountToDelete = null },
-            shape = RoundedCornerShape(20.dp),
-            containerColor = cardBg,
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(ArcColors.DangerContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.DeleteOutline,
-                            contentDescription = null,
-                            tint = ArcColors.Danger,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Delete ${account.institutionName ?: "Account"}?",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
-                        color = slateTitle
-                    )
+        ArcConfirmationBottomSheet(
+            title = "Delete ${account.institutionName ?: "Account"}?",
+            message = "$targetTxnCount transaction(s) are currently mapped to ••••${account.accountSuffix}.\n\nDeleting this account removes it from the monitoring registry and safely returns its transactions to the unassigned triage list.",
+            confirmText = "Delete Account",
+            cancelText = "Cancel",
+            icon = Icons.Outlined.DeleteOutline,
+            iconColor = ArcColors.Danger,
+            isDestructive = true,
+            onConfirm = {
+                val target = account
+                accountToDelete = null
+                if (selectedAccountId == target.id) {
+                    selectedAccountId = null
                 }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "$targetTxnCount transaction(s) are currently mapped to ••••${account.accountSuffix}.",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp,
-                        color = slateTitle
-                    )
-                    Text(
-                        text = "Deleting this account removes it from the monitoring registry and safely returns its transactions to the unassigned triage list.",
-                        fontSize = 12.sp,
-                        color = slateSub
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val target = account
-                        accountToDelete = null
-                        if (selectedAccountId == target.id) {
-                            selectedAccountId = null
-                        }
-                        scope.launch(Dispatchers.IO) {
-                            try {
-                                val res = reconciliationManager.deleteAccount(target.id)
-                                withContext(Dispatchers.Main) {
-                                    if (res.isSuccess) {
-                                        snackbarHostState.showSnackbar("Removed ${target.institutionName ?: "account"} (${res.getOrDefault(0)} transactions unlinked)")
-                                    } else {
-                                        snackbarHostState.showSnackbar("Failed to remove account")
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                withContext(Dispatchers.Main) {
-                                    snackbarHostState.showSnackbar("Failed to remove account: ${e.message}")
-                                }
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        val res = reconciliationManager.deleteAccount(target.id)
+                        withContext(Dispatchers.Main) {
+                            if (res.isSuccess) {
+                                snackbarHostState.showSnackbar("Removed ${target.institutionName ?: "account"} (${res.getOrDefault(0)} transactions unlinked)")
+                            } else {
+                                snackbarHostState.showSnackbar("Failed to remove account")
                             }
                         }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Danger),
-                    shape = CircleShape
-                ) {
-                    Text("Delete Account", fontWeight = FontWeight.Bold, color = Color.White)
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            snackbarHostState.showSnackbar("Failed to remove account: ${e.message}")
+                        }
+                    }
                 }
             },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { accountToDelete = null },
-                    shape = CircleShape,
-                    border = BorderStroke(1.dp, cardBorder)
-                ) {
-                    Text("Cancel", color = slateSub)
-                }
-            }
+            onDismiss = { accountToDelete = null }
         )
     }
 
-    // ArcTracker Styled Dialog: Merge Account
+    // ArcTracker Bottom Sheet: Merge Account
     accountToMerge?.let { sourceAccount ->
         var targetSelected by remember { mutableStateOf<KnownFinancialAccount?>(null) }
         val candidates = remember(sourceAccount, accounts) {
             accounts.filter { it.id != sourceAccount.id }
         }
 
-        AlertDialog(
+        ArcModalBottomSheet(
             onDismissRequest = { accountToMerge = null },
-            shape = RoundedCornerShape(20.dp),
-            containerColor = cardBg,
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(ArcColors.SurfaceHighlight),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.CallMerge,
-                            contentDescription = null,
-                            tint = slateTitle,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Merge Account",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
-                        color = slateTitle
-                    )
-                }
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = "Consolidate transactions from ${sourceAccount.institutionName ?: "Source"} ••••${sourceAccount.accountSuffix} into a target account:",
-                        fontSize = 13.sp,
-                        color = slateSub
-                    )
+            title = "Merge Account",
+            icon = Icons.AutoMirrored.Outlined.CallMerge,
+            iconColor = ArcColors.Primary,
+            maxHeight = 480.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Consolidate transactions from ${sourceAccount.institutionName ?: "Source"} ••••${sourceAccount.accountSuffix} into a target account:",
+                    fontSize = 13.sp,
+                    color = slateSub
+                )
 
-                    if (candidates.isEmpty()) {
-                        Text(
-                            text = "No other account available to merge into.",
-                            fontSize = 12.sp,
-                            color = ArcColors.Danger
-                        )
-                    } else {
-                        candidates.forEach { candidate ->
-                            val isChosen = targetSelected?.id == candidate.id
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { targetSelected = candidate },
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (isChosen) ArcColors.SurfaceHighlight else cardBg,
-                                border = BorderStroke(1.5.dp, if (isChosen) ArcColors.Primary else cardBorder)
+                if (candidates.isEmpty()) {
+                    Text(
+                        text = "No other account available to merge into.",
+                        fontSize = 12.sp,
+                        color = ArcColors.Danger
+                    )
+                } else {
+                    candidates.forEach { candidate ->
+                        val isChosen = targetSelected?.id == candidate.id
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { targetSelected = candidate },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isChosen) ArcColors.SurfaceHighlight else cardBg,
+                            border = BorderStroke(1.5.dp, if (isChosen) ArcColors.Primary else cardBorder)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    RadioButton(
-                                        selected = isChosen,
-                                        onClick = { targetSelected = candidate },
-                                        colors = RadioButtonDefaults.colors(selectedColor = ArcColors.Primary)
+                                RadioButton(
+                                    selected = isChosen,
+                                    onClick = { targetSelected = candidate },
+                                    colors = RadioButtonDefaults.colors(selectedColor = ArcColors.Primary)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "${candidate.institutionName ?: "Account"} ••••${candidate.accountSuffix}",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.5.sp,
+                                        color = slateTitle
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Column {
-                                        Text(
-                                            text = "${candidate.institutionName ?: "Account"} ••••${candidate.accountSuffix}",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.5.sp,
-                                            color = slateTitle
-                                        )
-                                        Text(
-                                            text = if (candidate.instrumentType == InstrumentType.CARD) "Credit Card" else "Savings Account",
-                                            fontSize = 11.5.sp,
-                                            color = slateSub
-                                        )
-                                    }
+                                    Text(
+                                        text = if (candidate.instrumentType == InstrumentType.CARD) "Credit Card" else "Savings Account",
+                                        fontSize = 11.5.sp,
+                                        color = slateSub
+                                    )
                                 }
                             }
                         }
                     }
                 }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val target = targetSelected
-                        if (target != null) {
-                            accountToMerge = null
-                            if (selectedAccountId == sourceAccount.id) {
-                                selectedAccountId = target.id
-                            }
-                            scope.launch(Dispatchers.IO) {
-                                try {
-                                    val res = reconciliationManager.mergeAccounts(sourceAccount.id, target.id)
-                                    withContext(Dispatchers.Main) {
-                                        if (res.isSuccess) {
-                                            snackbarHostState.showSnackbar("Merged into ${target.institutionName ?: "account"} (${res.getOrDefault(0)} transactions updated)")
-                                        } else {
-                                            snackbarHostState.showSnackbar("Failed to merge accounts")
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { accountToMerge = null },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        border = BorderStroke(1.dp, cardBorder)
+                    ) {
+                        Text("Cancel", color = slateSub)
+                    }
+
+                    Button(
+                        onClick = {
+                            val target = targetSelected
+                            if (target != null) {
+                                accountToMerge = null
+                                if (selectedAccountId == sourceAccount.id) {
+                                    selectedAccountId = target.id
+                                }
+                                scope.launch(Dispatchers.IO) {
+                                    try {
+                                        val res = reconciliationManager.mergeAccounts(sourceAccount.id, target.id)
+                                        withContext(Dispatchers.Main) {
+                                            if (res.isSuccess) {
+                                                snackbarHostState.showSnackbar("Merged into ${target.institutionName ?: "account"} (${res.getOrDefault(0)} transactions updated)")
+                                            } else {
+                                                snackbarHostState.showSnackbar("Failed to merge accounts")
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        withContext(Dispatchers.Main) {
+                                            snackbarHostState.showSnackbar("Failed to merge accounts: ${e.message}")
                                         }
                                     }
-                                } catch (e: Exception) {
-                                    withContext(Dispatchers.Main) {
-                                        snackbarHostState.showSnackbar("Failed to merge accounts: ${e.message}")
-                                    }
                                 }
                             }
-                        }
-                    },
-                    enabled = targetSelected != null,
-                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
-                    shape = CircleShape
-                ) {
-                    Text("Confirm Merge", fontWeight = FontWeight.Bold, color = Color.White)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { accountToMerge = null },
-                    shape = CircleShape,
-                    border = BorderStroke(1.dp, cardBorder)
-                ) {
-                    Text("Cancel", color = slateSub)
+                        },
+                        enabled = targetSelected != null,
+                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    ) {
+                        Text("Confirm Merge", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
                 }
             }
-        )
+        }
     }
 
     // ArcTracker Styled Dialog: Add Manual Account
@@ -774,75 +708,22 @@ fun FinancialAccountsScreen(
         val allWallets = remember { WalletProviderRegistry.getAllSupportedWallets() }
         val displayWallets = if (installedWallets.isNotEmpty()) installedWallets else allWallets
 
-        Dialog(
-            onDismissRequest = { showAddAccountDialog = false }
+        ArcModalBottomSheet(
+            onDismissRequest = { showAddAccountDialog = false },
+            title = "Link Financial Account",
+            subtitle = "Add account for local reconciliation",
+            icon = Icons.Outlined.AddCircleOutline,
+            iconColor = ArcColors.Primary,
+            maxHeight = 560.dp
         ) {
-            Surface(
+            val scrollState = rememberScrollState()
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                shape = RoundedCornerShape(20.dp),
-                color = cardBg,
-                shadowElevation = 8.dp
+                    .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    // Header Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(ArcColors.PrimaryLight),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.AddCircleOutline,
-                                contentDescription = null,
-                                tint = ArcColors.Primary,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Link Financial Account",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = slateTitle
-                            )
-                            Spacer(modifier = Modifier.height(1.dp))
-                            Text(
-                                text = "Add account for local reconciliation",
-                                fontSize = 11.5.sp,
-                                color = slateSub
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(ArcColors.SurfaceHighlight)
-                                .clickable { showAddAccountDialog = false },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Close,
-                                contentDescription = "Close",
-                                tint = slateSub,
-                                modifier = Modifier.size(15.dp)
-                            )
-                        }
-                    }
-
-                    // Instrument Type Selector (4 Types: Bank, Card, Wallet, Cash)
+                // Instrument Type Selector (4 Types: Bank, Card, Wallet, Cash)
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             text = "Account Category",
@@ -1304,7 +1185,6 @@ fun FinancialAccountsScreen(
                         }
                     }
                 }
-            }
         }
     }
 }
