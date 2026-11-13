@@ -1,5 +1,6 @@
 package com.subhashrelangi.arctracker.ui.review
 
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
 import com.subhashrelangi.arctracker.ui.core.ArcFloatingAddExpenseButton
 
 import android.widget.Toast
@@ -51,6 +52,7 @@ import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.data.BuiltInCategories
+import com.subhashrelangi.arctracker.data.CategoryVisuals
 import com.subhashrelangi.arctracker.data.TransactionCategory
 import com.subhashrelangi.arctracker.engine.account.AccountReconciliationManager
 import com.subhashrelangi.arctracker.service.CategoryManager
@@ -386,7 +388,7 @@ fun ReviewPage(
                             ambiguityLabel = if (exp.tag.isNullOrBlank()) "To Review" else null,
                             patternTitle = if (!exp.note.isNullOrBlank()) "Local Pattern Detected" else null,
                             patternDescription = exp.note ?: "Detected new unconfirmed transaction waiting for review.",
-                            suggestedCategories = listOf("Food & Dining", "Shopping & Tech", "Transport", "Housing & Utilities"),
+                            suggestedCategories = listOf("Food & Dining", "Shopping", "Travel & Transport", "Bills & Utilities"),
                             hintText = if (isTransit) "Flag as Tax Deductible Commute?" else if (isShopping) "Sub-category: Electronics vs ..." else null,
                             hintIcon = if (isTransit) Icons.Outlined.LocalOffer else if (isShopping) Icons.Outlined.HelpOutline else null,
                             quickActions = if (isShopping) listOf("Office", "Gadgets") else emptyList(),
@@ -445,7 +447,7 @@ fun ReviewPage(
             ambiguityLabel = "To Review",
             patternTitle = "Account Linked: ${account.institutionName ?: "Bank"}",
             patternDescription = "Local bank account reconciled (••${account.accountSuffix}). Select category to complete review.",
-            suggestedCategories = listOf("Food & Dining", "Shopping & Tech", "Transport", "Housing & Utilities"),
+            suggestedCategories = listOf("Food & Dining", "Shopping", "Travel & Transport", "Bills & Utilities"),
             defaultTag = "#verified"
         )
         queueItems = queueItems + catItem
@@ -566,10 +568,9 @@ fun ReviewPage(
 
     val defaultCategoryNames = remember {
         listOf(
-            "Food & Dining", "Shopping & Tech", "Transport & Commute",
-            "Bills & Utilities", "Entertainment", "Healthcare & Medical",
-            "Groceries & Essentials", "Travel & Vacation", "Housing & Rent",
-            "Education", "Personal Care", "Investments", "Miscellaneous"
+            "Food & Dining", "Shopping", "Travel & Transport",
+            "Bills & Utilities", "Entertainment", "Healthcare",
+            "Education", "Transfer", "Cash Withdrawal", "Income", "Other"
         )
     }
     var showCategorySelectionDialog by remember { mutableStateOf(false) }
@@ -1263,6 +1264,79 @@ fun ReviewPage(
                                     )
                                 }
 
+                                // Selected Category Display Badge
+                                val selectedCatVisual = allDbCategories.find { it.name.equals(selectedCategoryName, ignoreCase = true) }
+                                    ?: BuiltInCategories.ALL.find { it.name.equals(selectedCategoryName, ignoreCase = true) }
+                                val selectedCatColor = selectedCatVisual?.let { CategoryVisuals.getColor(it.colorKey) } ?: ArcColors.Primary
+                                val selectedCatIcon = selectedCatVisual?.let { CategoryVisuals.getIcon(it.iconKey) } ?: Icons.Outlined.Category
+
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = selectedCatColor.copy(alpha = 0.12f),
+                                    border = BorderStroke(1.dp, selectedCatColor.copy(alpha = 0.5f)),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable { showCategorySelectionDialog = true }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(26.dp)
+                                                .clip(CircleShape)
+                                                .background(selectedCatColor.copy(alpha = 0.22f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = selectedCatIcon,
+                                                contentDescription = selectedCategoryName,
+                                                tint = selectedCatColor,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(10.dp))
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Selected Category",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = ArcColors.TextSecondary
+                                            )
+                                            Text(
+                                                text = selectedCategoryName,
+                                                fontSize = 13.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = ArcColors.TextPrimary
+                                            )
+                                        }
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Adjust,
+                                                contentDescription = "Wheel",
+                                                tint = selectedCatColor,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = "Wheel",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = selectedCatColor
+                                            )
+                                        }
+                                    }
+                                }
+
                                 // 2. Direct 1-Tap Category Suggestions Strip
                                 Row(
                                     modifier = Modifier
@@ -1405,12 +1479,12 @@ fun ReviewPage(
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "Confirm ${selectedCategoryName.split(" ").firstOrNull() ?: ""}",
+                                            text = "Confirm $selectedCategoryName",
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.sp,
                                             color = Color.White,
                                             maxLines = 1,
-                                            softWrap = false
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
 
@@ -2088,59 +2162,50 @@ fun ReviewPage(
         )
     }
 
-    // Rule Logs Dialog
+    // Rule Logs Bottom Sheet
     if (showRuleLogsDialog) {
-        AlertDialog(
+        ArcModalBottomSheet(
             onDismissRequest = { showRuleLogsDialog = false },
-            containerColor = ArcColors.CardBackground,
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Outlined.Tune,
-                        contentDescription = null,
-                        tint = ArcColors.Primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Rule Engine Logs",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ArcColors.TextPrimary
-                    )
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "Real-time on-device heuristics & pattern matching:",
-                        fontSize = 12.sp,
-                        color = ArcColors.TextSecondary
-                    )
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = ArcColors.SurfaceHighlight,
-                        border = BorderStroke(1.dp, ArcColors.Border),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("• Swiggy Delivery -> Food & Dining (Confidence 98%)", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = ArcColors.TextSecondary)
-                            Text("• Amazon India -> Shopping & Tech (Card Regex v2)", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = ArcColors.TextSecondary)
-                            Text("• Uber Premier -> Commute & Transport (Airport Ride)", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = ArcColors.TextSecondary)
-                            Text("• Blue Tokai -> Food & Dining (Vault Rule #12 Applied)", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = ArcColors.Primary)
-                        }
+            title = "Rule Engine Logs",
+            icon = Icons.Outlined.Tune,
+            iconColor = ArcColors.Primary,
+            maxHeight = 360.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Real-time on-device heuristics & pattern matching:",
+                    fontSize = 12.sp,
+                    color = ArcColors.TextSecondary
+                )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = ArcColors.SurfaceHighlight,
+                    border = BorderStroke(1.dp, ArcColors.Border),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("• Swiggy Delivery -> Food & Dining (Confidence 98%)", fontSize = 11.5.sp, fontFamily = FontFamily.Monospace, color = ArcColors.TextSecondary)
+                        Text("• Amazon India -> Shopping & Tech (Card Regex v2)", fontSize = 11.5.sp, fontFamily = FontFamily.Monospace, color = ArcColors.TextSecondary)
+                        Text("• Uber Premier -> Commute & Transport (Airport Ride)", fontSize = 11.5.sp, fontFamily = FontFamily.Monospace, color = ArcColors.TextSecondary)
+                        Text("• Blue Tokai -> Food & Dining (Vault Rule #12 Applied)", fontSize = 11.5.sp, fontFamily = FontFamily.Monospace, color = ArcColors.Primary)
                     }
                 }
-            },
-            confirmButton = {
+
+                Spacer(modifier = Modifier.height(6.dp))
+
                 Button(
                     onClick = { showRuleLogsDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary)
+                    colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(44.dp)
                 ) {
                     Text("Close", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
-        )
+        }
     }
 }
 
@@ -2739,9 +2804,10 @@ private fun CategorySelectionModalDialog(
     onAddNewCategory: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val currentCat = categories.find { it.name.equals(selectedCategoryName, ignoreCase = true) }
+    val effectiveCats = if (categories.isNotEmpty()) categories else BuiltInCategories.ALL
+    val currentCat = effectiveCats.find { it.name.equals(selectedCategoryName, ignoreCase = true) }
     CategoryPickerDialog(
-        categories = if (categories.isNotEmpty()) categories else BuiltInCategories.ALL,
+        categories = effectiveCats,
         currentCategoryId = currentCat?.id,
         onCategorySelected = { cat ->
             onCategorySelected(cat.name)

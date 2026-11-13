@@ -21,8 +21,10 @@ import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.engine.account.IdentityConfidence
 import com.subhashrelangi.arctracker.engine.account.InstrumentType
 
+import com.subhashrelangi.arctracker.ui.core.ArcModalBottomSheet
+
 /**
- * Modal dialog for quickly registering a new financial account or wallet.
+ * Modal bottom sheet for quickly registering a new financial account or wallet.
  */
 @Composable
 fun NewAccountDialog(
@@ -34,43 +36,10 @@ fun NewAccountDialog(
     var selectedType by remember { mutableStateOf<InstrumentType>(InstrumentType.BANK_ACCOUNT) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    Dialog(onDismissRequest = onDismissRequest) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = ArcColors.SurfaceElevated,
-            border = BorderStroke(1.dp, ArcColors.Border),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-            ) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Add Account / Wallet",
-                        color = ArcColors.TextPrimary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    IconButton(
-                        onClick = onDismissRequest,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = ArcColors.TextMuted
-                        )
-                    }
-                }
+    ArcModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        title = "Add Account / Wallet"
+    ) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -234,7 +203,5 @@ fun NewAccountDialog(
                         fontSize = 14.sp
                     )
                 }
-            }
-        }
     }
 }

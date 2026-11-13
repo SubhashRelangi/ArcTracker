@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.subhashrelangi.arctracker.data.BuiltInCategories
 import com.subhashrelangi.arctracker.data.CategoryVisuals
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.TransactionCategory
@@ -93,7 +94,6 @@ enum class CategoryPickerStyle {
  */
 enum class CategoryPickerMode {
     VERTICAL_LIST, // Clean vertical scrollable list with scrollbar
-    TACTILE_GRID,  // 3-Column vertical scrollable grid with scrollbar
     ROTARY_DIAL    // Interactive circular wheel
 }
 
@@ -111,7 +111,26 @@ fun CategoryPickerDialog(
     pickerStyle: CategoryPickerStyle = CategoryPickerStyle.HORIZONTAL_SNAP
 ) {
     val validCategories = remember(categories) {
-        if (categories.isNotEmpty()) categories.filter { !it.isArchived } else categories
+        val nonArchived = if (categories.isNotEmpty()) categories.filter { !it.isArchived } else BuiltInCategories.ALL
+        // Deduplicate and canonicalize categories so that duplicates like "Transport" and "Travel"
+        // or same-meaning categories are merged cleanly into canonical categories.
+        val seenCanonicalKeys = mutableSetOf<String>()
+        val result = mutableListOf<TransactionCategory>()
+        for (cat in nonArchived) {
+            val canonicalName = when (cat.name.trim().lowercase()) {
+                "travel", "transport", "commute", "transit", "travel & transport", "travel and transport" -> "Travel & Transport"
+                "shopping & tech" -> "Shopping"
+                "bills and utilities", "housing & utilities", "housing & rent" -> "Bills & Utilities"
+                "healthcare & medical" -> "Healthcare"
+                else -> cat.name.trim()
+            }
+            val key = canonicalName.lowercase()
+            if (key !in seenCanonicalKeys) {
+                seenCanonicalKeys.add(key)
+                result.add(if (cat.name != canonicalName) cat.copy(name = canonicalName) else cat)
+            }
+        }
+        if (result.isNotEmpty()) result else BuiltInCategories.ALL
     }
 
     if (pickerStyle == CategoryPickerStyle.CIRCULAR_WHEEL) {
@@ -145,7 +164,6 @@ private fun ArcVerticalCategorySheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val haptic = LocalHapticFeedback.current
     val listState = rememberLazyListState()
-    var pickerMode by remember { mutableStateOf(CategoryPickerMode.VERTICAL_LIST) }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -182,57 +200,11 @@ private fun ArcVerticalCategorySheet(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (pickerMode == CategoryPickerMode.VERTICAL_LIST) "Choose category from list below" else "Tap a category tile",
+                        text = "Choose category from list below",
                         color = ArcColors.TextSecondary,
                         fontSize = 12.sp
                     )
                 }
-
-                // Mode switcher (List vs Grid)
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(ArcColors.Surface)
-                        .border(1.dp, ArcColors.Border, RoundedCornerShape(20.dp))
-                        .padding(2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = { pickerMode = CategoryPickerMode.VERTICAL_LIST },
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (pickerMode == CategoryPickerMode.VERTICAL_LIST) ArcColors.PrimaryLight else Color.Transparent
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FormatListBulleted,
-                            contentDescription = "Vertical List Mode",
-                            tint = if (pickerMode == CategoryPickerMode.VERTICAL_LIST) ArcColors.Primary else ArcColors.TextMuted,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { pickerMode = CategoryPickerMode.TACTILE_GRID },
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (pickerMode == CategoryPickerMode.TACTILE_GRID) ArcColors.PrimaryLight else Color.Transparent
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.GridView,
-                            contentDescription = "Grid Mode",
-                            tint = if (pickerMode == CategoryPickerMode.TACTILE_GRID) ArcColors.Primary else ArcColors.TextMuted,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(6.dp))
 
                 IconButton(
                     onClick = onDismissRequest,
@@ -249,161 +221,76 @@ private fun ArcVerticalCategorySheet(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Body: Vertical List or Grid with Vertical Scrollbar
-            if (pickerMode == CategoryPickerMode.VERTICAL_LIST) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false)
-                        .verticalScrollbar(listState, color = ArcColors.Border.copy(alpha = 0.7f)),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items(categories, key = { it.id }) { cat ->
-                        val isSelected = cat.id == currentCategoryId
-                        val catColor = CategoryVisuals.getColor(cat.colorKey)
-                        val catIcon = CategoryVisuals.getIcon(cat.iconKey)
+            // Body: Clean Vertical List with Scrollbar
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScrollbar(listState, color = ArcColors.Border.copy(alpha = 0.7f)),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(categories, key = { it.id }) { cat ->
+                    val isSelected = cat.id == currentCategoryId
+                    val catColor = CategoryVisuals.getColor(cat.colorKey)
+                    val catIcon = CategoryVisuals.getIcon(cat.iconKey)
 
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) catColor.copy(alpha = 0.16f) else ArcColors.SurfaceHighlight,
-                            border = BorderStroke(
-                                width = if (isSelected) 1.5.dp else 1.dp,
-                                color = if (isSelected) catColor else ArcColors.Border.copy(alpha = 0.4f)
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onCategorySelected(cat)
-                                    onDismissRequest()
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(34.dp)
-                                        .clip(CircleShape)
-                                        .background(catColor.copy(alpha = 0.22f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = catIcon,
-                                        contentDescription = cat.name,
-                                        tint = catColor,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Text(
-                                    text = cat.name,
-                                    color = ArcColors.TextPrimary,
-                                    fontSize = 13.5.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    modifier = Modifier.weight(1f)
-                                )
-
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = catColor,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isSelected) catColor.copy(alpha = 0.16f) else ArcColors.SurfaceHighlight,
+                        border = BorderStroke(
+                            width = if (isSelected) 1.5.dp else 1.dp,
+                            color = if (isSelected) catColor else ArcColors.Border.copy(alpha = 0.4f)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onCategorySelected(cat)
+                                onDismissRequest()
                             }
-                        }
-                    }
-                }
-            } else {
-                val rows = remember(categories) { categories.chunked(3) }
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false)
-                        .verticalScrollbar(listState, color = ArcColors.Border.copy(alpha = 0.7f)),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(rows) { rowCats ->
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            rowCats.forEach { cat ->
-                                val isSelected = cat.id == currentCategoryId
-                                val catColor = CategoryVisuals.getColor(cat.colorKey)
-                                val catIcon = CategoryVisuals.getIcon(cat.iconKey)
-
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = if (isSelected) catColor.copy(alpha = 0.18f) else ArcColors.SurfaceHighlight,
-                                    border = BorderStroke(
-                                        width = if (isSelected) 1.5.dp else 1.dp,
-                                        color = if (isSelected) catColor else ArcColors.Border.copy(alpha = 0.4f)
-                                    ),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(78.dp)
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .clickable {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            onCategorySelected(cat)
-                                            onDismissRequest()
-                                        }
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(6.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(32.dp)
-                                                .clip(CircleShape)
-                                                .background(catColor.copy(alpha = 0.2f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = catIcon,
-                                                contentDescription = cat.name,
-                                                tint = catColor,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.height(4.dp))
-
-                                        Text(
-                                            text = cat.name,
-                                            color = if (isSelected) ArcColors.TextPrimary else ArcColors.TextSecondary,
-                                            fontSize = 11.5.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                }
+                            Box(
+                                modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(catColor.copy(alpha = 0.22f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = catIcon,
+                                    contentDescription = cat.name,
+                                    tint = catColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
 
-                            if (rowCats.size < 3) {
-                                repeat(3 - rowCats.size) {
-                                    Spacer(modifier = Modifier.weight(1f))
-                                }
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Text(
+                                text = cat.name,
+                                color = ArcColors.TextPrimary,
+                                fontSize = 13.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = catColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
                     }
@@ -428,7 +315,7 @@ private fun ArcReviewCategorySheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val haptic = LocalHapticFeedback.current
     val listState = rememberLazyListState()
-    var pickerMode by remember { mutableStateOf(CategoryPickerMode.VERTICAL_LIST) }
+    var pickerMode by remember { mutableStateOf(CategoryPickerMode.ROTARY_DIAL) }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -468,7 +355,6 @@ private fun ArcReviewCategorySheet(
                     Text(
                         text = when (pickerMode) {
                             CategoryPickerMode.VERTICAL_LIST -> "Choose category from list below"
-                            CategoryPickerMode.TACTILE_GRID -> "Tap a category tile"
                             CategoryPickerMode.ROTARY_DIAL -> "Turn wheel & tap center to select"
                         },
                         color = ArcColors.TextSecondary,
@@ -476,7 +362,7 @@ private fun ArcReviewCategorySheet(
                     )
                 }
 
-                // Mode Switcher Pill (List vs Grid vs Wheel)
+                // Mode Switcher Pill (Wheel vs List)
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
@@ -485,40 +371,6 @@ private fun ArcReviewCategorySheet(
                         .padding(2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = { pickerMode = CategoryPickerMode.VERTICAL_LIST },
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (pickerMode == CategoryPickerMode.VERTICAL_LIST) ArcColors.PrimaryLight else Color.Transparent
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FormatListBulleted,
-                            contentDescription = "Vertical List Mode",
-                            tint = if (pickerMode == CategoryPickerMode.VERTICAL_LIST) ArcColors.Primary else ArcColors.TextMuted,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { pickerMode = CategoryPickerMode.TACTILE_GRID },
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (pickerMode == CategoryPickerMode.TACTILE_GRID) ArcColors.PrimaryLight else Color.Transparent
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.GridView,
-                            contentDescription = "Tactile Grid Mode",
-                            tint = if (pickerMode == CategoryPickerMode.TACTILE_GRID) ArcColors.Primary else ArcColors.TextMuted,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-
                     IconButton(
                         onClick = { pickerMode = CategoryPickerMode.ROTARY_DIAL },
                         modifier = Modifier
@@ -532,6 +384,23 @@ private fun ArcReviewCategorySheet(
                             imageVector = Icons.Default.Adjust,
                             contentDescription = "Rotary Dial Mode",
                             tint = if (pickerMode == CategoryPickerMode.ROTARY_DIAL) ArcColors.Primary else ArcColors.TextMuted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { pickerMode = CategoryPickerMode.VERTICAL_LIST },
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (pickerMode == CategoryPickerMode.VERTICAL_LIST) ArcColors.PrimaryLight else Color.Transparent
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FormatListBulleted,
+                            contentDescription = "Vertical List Mode",
+                            tint = if (pickerMode == CategoryPickerMode.VERTICAL_LIST) ArcColors.Primary else ArcColors.TextMuted,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -554,7 +423,7 @@ private fun ArcReviewCategorySheet(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Body: Switch between Vertical List, Tactile Grid, and Rotary Dial
+            // Body: Switch between Vertical List and Rotary Dial
             when (pickerMode) {
                 CategoryPickerMode.VERTICAL_LIST -> {
                     LazyColumn(
@@ -626,90 +495,6 @@ private fun ArcReviewCategorySheet(
                                             tint = catColor,
                                             modifier = Modifier.size(18.dp)
                                         )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                CategoryPickerMode.TACTILE_GRID -> {
-                    val rows = remember(categories) { categories.chunked(3) }
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f, fill = false)
-                            .verticalScrollbar(listState, color = ArcColors.Border.copy(alpha = 0.7f)),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(rows) { rowCats ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                rowCats.forEach { cat ->
-                                    val isSelected = cat.id == currentCategoryId
-                                    val catColor = CategoryVisuals.getColor(cat.colorKey)
-                                    val catIcon = CategoryVisuals.getIcon(cat.iconKey)
-
-                                    Surface(
-                                        shape = RoundedCornerShape(14.dp),
-                                        color = if (isSelected) catColor.copy(alpha = 0.18f) else ArcColors.SurfaceHighlight,
-                                        border = BorderStroke(
-                                            width = if (isSelected) 1.5.dp else 1.dp,
-                                            color = if (isSelected) catColor else ArcColors.Border.copy(alpha = 0.4f)
-                                        ),
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(78.dp)
-                                            .clip(RoundedCornerShape(14.dp))
-                                            .clickable {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                onCategorySelected(cat)
-                                                onDismissRequest()
-                                            }
-                                    ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(6.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.Center
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(32.dp)
-                                                    .clip(CircleShape)
-                                                    .background(catColor.copy(alpha = 0.2f)),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = catIcon,
-                                                    contentDescription = cat.name,
-                                                    tint = catColor,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                            }
-
-                                            Spacer(modifier = Modifier.height(4.dp))
-
-                                            Text(
-                                                text = cat.name,
-                                                color = if (isSelected) ArcColors.TextPrimary else ArcColors.TextSecondary,
-                                                fontSize = 11.5.sp,
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                textAlign = TextAlign.Center
-                                            )
-                                        }
-                                    }
-                                }
-
-                                if (rowCats.size < 3) {
-                                    repeat(3 - rowCats.size) {
-                                        Spacer(modifier = Modifier.weight(1f))
                                     }
                                 }
                             }
