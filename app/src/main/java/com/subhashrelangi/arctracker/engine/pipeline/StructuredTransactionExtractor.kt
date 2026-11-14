@@ -149,12 +149,12 @@ object StructuredTransactionExtractor {
 
     // Account / Card suffix patterns
     private val EXPLICIT_ACCOUNT_PATTERN = Regex(
-        """(?i)\b(?:a/c|account|acct)\b\s*(?:no\.?|num(?:ber)?\.?)?\s*[:\-#]?\s*(?:ending\s*(?:with|in)?\s*[:\-#]?)?\s*[xX*\u2022\u25CF]*\s*(\d{3,6})\b"""
+        """(?i)\b(?:a/c\.?|account|acct)\b\s*(?:no\.?|num(?:ber)?\.?)?\s*[:\-#]?\s*(?:ending\s*(?:with|in)?\s*[:\-#]?)?\s*[xX*\u2022\u25CF.]*\s*(\d{3,6})\b"""
     )
 
-    // Masked standalone account pattern e.g. "XXXXX9020", "****9020", "••••9020", "XX1065", "XXXXX 9020"
+    // Masked standalone account pattern e.g. "XXXXX9020", "****9020", "••••9020", "XX1065", "XXXXX 9020", "...7890"
     private val MASKED_ACCOUNT_PATTERN = Regex(
-        """(?i)(?<![a-zA-Z0-9])([xX*\u2022\u25CF]{2,})\s*(\d{3,6})\b"""
+        """(?i)(?<![a-zA-Z0-9])([xX*\u2022\u25CF]{2,}|\.{3,})\s*(\d{3,6})\b"""
     )
 
     // Context prefix immediately preceding a masked candidate that indicates it is a card rather than an account
@@ -168,7 +168,7 @@ object StructuredTransactionExtractor {
     )
 
     private val CARD_SUFFIX_PATTERN = Regex(
-        """(?i)\b(?:card)\b\s*(?:no\.?|num(?:ber)?\.?)?\s*[:\-#]?\s*(?:ending\s*(?:with|in)?\s*[:\-#]?)?\s*[xX*\u2022\u25CF]*\s*(\d{3,6})\b"""
+        """(?i)\b(?:card)\b\s*(?:no\.?|num(?:ber)?\.?)?\s*[:\-#]?\s*(?:ending\s*(?:with|in)?\s*[:\-#]?)?\s*[xX*\u2022\u25CF.]*\s*(\d{3,6})\b"""
     )
 
     private val MONTH_MAP = mapOf(
@@ -921,7 +921,7 @@ object StructuredTransactionExtractor {
         // 1. Check for beneficiary credit in an account debit message:
         // E.g. "Your a/c ... is debited for Rs.100 ... and credited to VPA 9704147837-3@axl"
         val isAccountDebitedBeneficiaryCredited = Regex(
-            """(?i)\b(?:debited|debit)\b.*?\b(?:(?:and\s+)?credited\s+to\s+(?:vpa\b|beneficiary\b|[a-zA-Z0-9.\-_]+@)|beneficiary\s+(?:a/c|account)?\s*[\d*xX]*\s*credited|beneficiary\s+credited)"""
+            """(?i)\b(?:debited|debit)\b.*?\b(?:(?:and\s+)?credited\s+to\s+(?:vpa\b|beneficiary\b|[a-zA-Z0-9.\-_]+@)|beneficiary\b.*?\bcredited\b)"""
         ).containsMatchIn(text)
 
         if (isAccountDebitedBeneficiaryCredited) {
@@ -936,7 +936,7 @@ object StructuredTransactionExtractor {
 
         // 2. Check for account credited with sender debited:
         val isAccountCreditedSenderDebited = Regex(
-            """(?i)\b(?:credited|credit)\b.*?\b(?:and\s+)?debited\s+from\b"""
+            """(?i)\b(?:credited|credit)\b.*?\b(?:(?:and\s+)?debited\s+from\b|from\s+(?:a/c|account)?\s*.*?\bdebited\b)"""
         ).containsMatchIn(text)
 
         if (isAccountCreditedSenderDebited) {
@@ -989,7 +989,7 @@ object StructuredTransactionExtractor {
             return TransactionDirection.CREDIT
         }
 
-        val hasDebitWord = Regex("""(?i)\b(debited|debit(?!\s*(?:card|ending|limit|offer|option))|paid|spent|withdrawn)\b""").containsMatchIn(text)
+        val hasDebitWord = Regex("""(?i)\b(debited|debit(?!\s*(?:card|ending|limit|offer|option))|paid|spent|withdrawn|made on)\b""").containsMatchIn(text)
         val hasCreditWord = Regex("""(?i)\b(credited|credit(?!\s*(?:card|score|limit|bill|line|facility|offer|option))|deposited|received|refunded)\b""").containsMatchIn(text)
 
         // Ambiguous when both debit and credit words are present
@@ -1015,7 +1015,7 @@ object StructuredTransactionExtractor {
             return gateAssessment.directionHint
         }
 
-        val hasDebitExplicit = Regex("""(?i)\b(paid to|sent to(?!\s+(?:your|my))|transferred to(?!\s+(?:your|my))|debited from|spent at|purchase at|paid at|debited by|debited for|paid using|is debited|was debited|has been debited|debited|debit(?!\s*(?:card|limit|offer|option))|payment\s+made|payment\s+to\s+(?!(?:your|my)\s+(?:a/c|acct|acc|account|wallet))[A-Za-z0-9 &._-]+)\b""").containsMatchIn(text)
+        val hasDebitExplicit = Regex("""(?i)\b(paid to|sent to(?!\s+(?:your|my))|transferred to(?!\s+(?:your|my))|debited from|spent at|spent on|purchase at|paid at|debited by|debited for|paid using|is debited|was debited|has been debited|debited|debit(?!\s*(?:card|limit|offer|option))|payment\s+made|made on(?:\s+[A-Za-z0-9 &._-]+)?\s+card|payment\s+to\s+(?!(?:your|my)\s+(?:a/c|acct|acc|account|wallet))[A-Za-z0-9 &._-]+)\b""").containsMatchIn(text)
         val hasCreditExplicit = Regex("""(?i)\b(received from|credited to|credited in|credited into|credited with|credited by|credited for|deposited|refund of .* received|cashback received|cashback credited|is credited|was credited|has been credited|credited|credit(?!\s*(?:card|limit|score|bill|line|facility|offer|option))|added to wallet|added to your (?:account|a/c|wallet)|payment\s+to\s+(?:your|my)\s+(?:a/c|acct|acc|account|wallet))\b""").containsMatchIn(text)
 
         if (hasCreditExplicit && !hasDebitExplicit) {

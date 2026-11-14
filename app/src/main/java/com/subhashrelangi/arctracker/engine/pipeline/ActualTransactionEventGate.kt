@@ -77,6 +77,7 @@ object ActualTransactionEventGate {
         Regex("""\b(?:when\s+paid\s+(?:using|with|via)|if\s+paid\s+(?:using|with|via)|on\s+orders?\s+paid\s+(?:using|with|via)|paid\s+orders?\s+above|orders?\s+paid\s+with)\b""", RegexOption.IGNORE_CASE),
         Regex("""\blearn\s+how\s+to\s+make\s+a(?:\s+.*?)?\s+payment\b""", RegexOption.IGNORE_CASE),
         Regex("""\bis\s+one\s+bill\s+away\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:is\s+scheduled\s+for|scheduled\s+for|will\s+be\s+debited|will\s+be\s+deducted|autopay\s+reminder|mandate\s+reminder)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:recharge\s+now|recharge\s+today|recharge\s+online|tap\s+to\s+recharge|click\s+to\s+recharge)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:subscribe\s+now|subscribe\s+today|buy\s+now|order\s+now)\b""", RegexOption.IGNORE_CASE)
     )

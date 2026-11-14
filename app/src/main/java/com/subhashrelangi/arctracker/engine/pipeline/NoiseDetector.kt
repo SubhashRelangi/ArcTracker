@@ -120,7 +120,8 @@ object NoiseDetector {
 
     // 9. Bill Reminders & Mandate / Autopay upcoming alerts (Unpaid bills, future scheduled auto-debits)
     private val BILL_REMINDER_AND_MANDATE_PATTERNS = listOf(
-        Regex("""\b(?:mandate|autopay|standing instruction|e-mandate)\s+(?:of\s+(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?\s+)?(?:is scheduled|will be debited|due on|created successfully)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:mandate|autopay|standing instruction|e-mandate)\b.*?\b(?:is scheduled|will be debited|due on|created successfully|reminder)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:will be debited|scheduled for auto-debit|scheduled to be debited)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:bill of|bill for)\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?\s+(?:is generated|is due|due on)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:upcoming (?:bill|payment|mandate|emi|autopay|debit))\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:is due on|due date is|pay before|pay by\s+\d{1,2}[/-]\d{1,2})\b""", RegexOption.IGNORE_CASE),
