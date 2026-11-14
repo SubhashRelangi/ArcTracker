@@ -28,7 +28,7 @@ object MerchantNormalizer {
     private val LEADING_NOISE = Regex("""^[\s*#\-:.]+""")
     private val MULTI_SPACE = Regex("""\s+""")
 
-    private val DOMAIN_SUFFIX = Regex("""\.(com|co\.in|org|net|in|co|io)$""", RegexOption.IGNORE_CASE)
+    private val DOMAIN_SUFFIX = Regex("""(?<!booking)\.(com|co\.in|org|net|in|co|io)$""", RegexOption.IGNORE_CASE)
 
     private val CAMEL_CASE_SPLIT = Regex("""(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])""")
     private val LEGAL_SUFFIXES = setOf("pvt", "ltd", "private", "limited", "llp", "inc", "corp")

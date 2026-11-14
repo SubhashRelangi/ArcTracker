@@ -860,7 +860,8 @@ object BuiltInInferenceRules {
             categoryId = "transport",
             matchingType = CategoryMatchingType.MERCHANT_TOKEN,
             pattern = "booking.com",
-            priority = RulePriority.EXACT_MERCHANT
+            priority = RulePriority.EXACT_MERCHANT,
+            negativeKeywords = listOf("gas", "cylinder", "movie", "cinema", "doctor", "appointment")
         ),
         CategoryInferenceRule(
             id = "rule_travel_airbnb",

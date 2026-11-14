@@ -87,4 +87,12 @@ class MerchantNormalizerTest {
         assertFalse("gas must not match gasket", MerchantNormalizer.containsToken("gasket repair", "gas"))
         assertFalse("bus must not match business", MerchantNormalizer.containsToken("business suite", "bus"))
     }
+
+    @Test
+    fun testDomainSuffix_bookingComPreservedAsDistinctBrand() {
+        assertEquals("netflix", MerchantNormalizer.normalize("WWW.NETFLIX.COM"))
+        assertEquals("booking com", MerchantNormalizer.normalize("Booking.com"))
+        assertTrue(MerchantNormalizer.containsToken("Booking.com B.V.", "booking com"))
+        assertFalse(MerchantNormalizer.containsToken("HP Gas Booking", "booking com"))
+    }
 }
