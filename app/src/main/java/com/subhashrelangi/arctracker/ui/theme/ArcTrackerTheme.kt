@@ -1,6 +1,7 @@
 package com.subhashrelangi.arctracker.ui.theme
 
 import android.app.Activity
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -11,7 +12,9 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
 import com.subhashrelangi.arctracker.settings.AppThemeMode
 
@@ -92,6 +95,13 @@ fun ArcTrackerTheme(
             if (window != null) {
                 window.statusBarColor = arcColorScheme.background.toArgb()
                 window.navigationBarColor = arcColorScheme.bottomNavBackground.toArgb()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    window.isNavigationBarContrastEnforced = false
+                    window.isStatusBarContrastEnforced = false
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    window.navigationBarDividerColor = android.graphics.Color.TRANSPARENT
+                }
                 val insetsController = WindowCompat.getInsetsController(window, view)
                 insetsController.isAppearanceLightStatusBars = !darkTheme
                 insetsController.isAppearanceLightNavigationBars = !darkTheme
@@ -99,8 +109,17 @@ fun ArcTrackerTheme(
         }
     }
 
+    // Normalize font scale to 1.0f so the app layout and typography stay 100% consistent
+    // regardless of whether the user chose small, normal, or extra large font in phone settings.
+    val currentDensity = LocalDensity.current
+    val normalizedDensity = Density(
+        density = currentDensity.density,
+        fontScale = 1.0f
+    )
+
     CompositionLocalProvider(
-        LocalArcColors provides arcColorScheme
+        LocalArcColors provides arcColorScheme,
+        LocalDensity provides normalizedDensity
     ) {
         MaterialTheme(
             colorScheme = materialScheme,

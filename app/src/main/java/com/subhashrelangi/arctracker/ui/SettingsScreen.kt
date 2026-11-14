@@ -1028,6 +1028,7 @@ fun SettingsScreen(
             onDismissRequest = { showUpdateDialog = false },
             sheetState = sheetState,
             containerColor = ArcColors.CardBackground,
+            windowInsets = WindowInsets(0, 0, 0, 0),
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             dragHandle = {
                 Box(
@@ -1043,6 +1044,7 @@ fun SettingsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .navigationBarsPadding()
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 36.dp)
             ) {
@@ -1281,11 +1283,13 @@ fun SettingsScreen(
             onDismissRequest = { showEditProfileSheet = false },
             sheetState = sheetState,
             containerColor = ArcColors.CardBackground,
+            windowInsets = WindowInsets(0, 0, 0, 0),
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .navigationBarsPadding()
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 36.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)

@@ -49,6 +49,7 @@ fun ArcModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         containerColor = ArcColors.SurfaceElevated,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         dragHandle = {
             BottomSheetDefaults.DragHandle(
                 color = ArcColors.Border,
@@ -61,6 +62,7 @@ fun ArcModalBottomSheet(
         Column(
             modifier = modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .heightIn(min = minHeight, max = maxHeight)
                 .padding(contentPadding)
                 .padding(bottom = 16.dp)
@@ -163,6 +165,7 @@ fun ArcConfirmationBottomSheet(
         onDismissRequest = effectiveDismiss,
         sheetState = sheetState,
         containerColor = ArcColors.SurfaceElevated,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         dragHandle = {
             BottomSheetDefaults.DragHandle(
                 color = ArcColors.Border,
@@ -175,6 +178,7 @@ fun ArcConfirmationBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp)
         ) {

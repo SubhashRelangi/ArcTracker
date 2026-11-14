@@ -247,6 +247,13 @@ fun TransactionDetailDialog(
                 window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
                 window.statusBarColor = android.graphics.Color.TRANSPARENT
                 window.navigationBarColor = android.graphics.Color.TRANSPARENT
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    window.isNavigationBarContrastEnforced = false
+                    window.isStatusBarContrastEnforced = false
+                }
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    window.navigationBarDividerColor = android.graphics.Color.TRANSPARENT
+                }
                 window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
                 WindowCompat.getInsetsController(window, window.decorView)?.let { insetsController ->
                     insetsController.isAppearanceLightStatusBars = !isDark
@@ -296,6 +303,7 @@ fun TransactionDetailDialog(
         } else {
             Scaffold(
                 containerColor = lightBg,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 topBar = {
                     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -391,6 +399,7 @@ fun TransactionDetailDialog(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
+                        .navigationBarsPadding()
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp)

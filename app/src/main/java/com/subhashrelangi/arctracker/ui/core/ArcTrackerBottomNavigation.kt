@@ -74,7 +74,6 @@ fun ArcTrackerBottomNavigationBar(
     if (isStatic) {
         // Static docked bottom navigation bar matching active theme
         val navBackground = LocalArcColors.current.bottomNavBackground
-        val topBorder = BorderStroke(1.dp, LocalArcColors.current.bottomNavBorder)
 
         Surface(
             modifier = modifier
@@ -85,13 +84,21 @@ fun ArcTrackerBottomNavigationBar(
                     ambientColor = if (isLightMode) Color(0x0A000000) else Color(0x40000000)
                 ),
             color = navBackground,
-            border = topBorder
+            border = null
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
             ) {
+                // Crisp 1dp top border only; eliminates 4-sided Surface border that drew an unaligned line below the nav bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(LocalArcColors.current.bottomNavBorder)
+                )
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
