@@ -469,4 +469,64 @@ class StructuredTransactionExtractorTest {
         val note = com.subhashrelangi.arctracker.engine.persistence.TransactionPersistenceManager.buildNote(candidate!!)
         assertTrue("Note must retain RRN", note.contains("RRN: 987654321012"))
     }
+
+    @Test
+    fun test44_refWordSplittingBug_futureReferenceDoesNotExtractRefErence() {
+        val notif = createNotification(
+            title = "HDFC Bank Alert",
+            text = "Paid Rs. 500 to Merchant. Transaction reference ID 751782392886 for your reference."
+        )
+        val candidate = StructuredTransactionExtractor.extract(notif)
+        assertNotNull(candidate)
+        assertNotEquals("erence", candidate?.referenceId)
+        assertEquals("751782392886", candidate?.referenceId)
+    }
+
+    @Test
+    fun test45_currencyLessSbiAmount_debitedBy199_extractsAmountAndDebit() {
+        val notif = createNotification(
+            title = "SBI Alert",
+            text = "Your A/c 1234 debited by 199.0 on 19Oct26 transfer to AIRTEL. Ref 123456789012"
+        )
+        val candidate = StructuredTransactionExtractor.extract(notif)
+        assertNotNull(candidate)
+        assertEquals(199.0, candidate?.amount)
+        assertEquals(TransactionDirection.DEBIT, candidate?.direction)
+        assertEquals("1234", candidate?.accountSuffix)
+        assertEquals("123456789012", candidate?.referenceId)
+    }
+
+    @Test
+    fun test46_creditCardSpend_extractsAmountDebitAndCardSuffix() {
+        val notif = createNotification(
+            title = "HDFC Bank Alert",
+            text = "Spent Rs. 1500.00 on credit card ending 4321 at Amazon on 19-Oct-26. Avl Lmt Rs. 50000"
+        )
+        val candidate = StructuredTransactionExtractor.extract(notif)
+        assertNotNull(candidate)
+        assertEquals(1500.0, candidate?.amount)
+        assertEquals(TransactionDirection.DEBIT, candidate?.direction)
+        assertEquals("4321", candidate?.cardSuffix)
+        assertEquals("Amazon", candidate?.merchant)
+    }
+
+    @Test
+    fun test47_dualVerbImps_yourAccountDebitedBeneficiaryCredited_resolvesToDebit() {
+        val notif = createNotification(
+            title = "IMPS Alert",
+            text = "Your A/c 1234 debited by 500.00, beneficiary A/c 5678 credited. Ref 987654321012"
+        )
+        val candidate = StructuredTransactionExtractor.extract(notif)
+        assertNotNull(candidate)
+        assertEquals(500.0, candidate?.amount)
+        assertEquals(TransactionDirection.DEBIT, candidate?.direction)
+    }
+
+    @Test
+    fun test48_urlPath_rechargeBills_doesNotExtractBillsAsBank() {
+        val text = "Track your payment status via https://i.airtel.in/Recharge-Bills"
+        val bank = StructuredTransactionExtractor.extractBank(text)
+        assertNotEquals("BILLS", bank)
+        assertNull(bank)
+    }
 }
