@@ -106,6 +106,16 @@ object NoiseDetector {
         Regex("""\b(?:get|win|earn)\s+(?:a\s+chance\s+to\s+win\s+)?(?:rs\.?|inr|₹)?\s*[\d,]+.*?\b(?:cashback|reward|bonus|discount|off)\b""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
     )
 
+    // 8. Carrier / Service / Order Fulfillment Status patterns (Fulfillment notifications, not primary bank debit events)
+    private val SERVICE_STATUS_PATTERNS = listOf(
+        Regex("""\b(?:we have processed\s+(?:rs\.?|inr|₹)?\s*[\d,]+|payment will be updated within|track your (?:payment|order) status)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:for your (?:airtel|jio|vi|vodafone|bsnl|tatasky|dish tv|sun direct) (?:mobile|dth|broadband|fiber|number|account))\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:keep your order (?:id|no\.?)\s+\d+ for future reference)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:order (?:id|no\.?)\s*[:\-#]?\s*\d+.*?for future reference)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:order\s+(?:confirmed|placed|shipped|out for delivery|delivered|picked up))\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:your (?:order|recharge|payment) request (?:has been|is) received)\b""", RegexOption.IGNORE_CASE)
+    )
+
     /**
      * Evaluates a normalized notification for noise signals.
      *
@@ -256,7 +266,19 @@ object NoiseDetector {
             }
         }
 
-        // 8. Check Balance-Only notifications (if no debit/credit action is mentioned)
+        // 8. Check Carrier / Service Fulfillment Status notices
+        for (pattern in SERVICE_STATUS_PATTERNS) {
+            if (pattern.containsMatchIn(text) && !hasExplicitBankDebit(text)) {
+                matchedSignals.add("SERVICE_STATUS_NOTICE")
+                reasons.add("Contains carrier service or order fulfillment status notice")
+                if (primaryCategory == NoiseCategory.NONE) {
+                    primaryCategory = NoiseCategory.SERVICE_STATUS_NOTICE
+                }
+                break
+            }
+        }
+
+        // 9. Check Balance-Only notifications (if no debit/credit action is mentioned)
         val hasBalanceMention = BALANCE_INQUIRY_PATTERNS.any { it.containsMatchIn(text) }
         if (hasBalanceMention && !hasCompletedAction) {
             matchedSignals.add("BALANCE_INQUIRY")
@@ -273,5 +295,9 @@ object NoiseDetector {
             matchedSignals = matchedSignals,
             reasons = reasons
         )
+    }
+
+    private fun hasExplicitBankDebit(text: String): Boolean {
+        return Regex("""\b(?:debited\s+from\s+(?:your\s+)?(?:a/c|account)|credited\s+to\s+(?:your\s+)?(?:a/c|account)|a/c\s+[x*]*\d{3,6}\s+debited|card\s+[x*]*\d{3,6}\s+debited)\b""", RegexOption.IGNORE_CASE).containsMatchIn(text)
     }
 }

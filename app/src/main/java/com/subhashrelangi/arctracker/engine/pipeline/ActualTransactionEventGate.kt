@@ -106,7 +106,11 @@ object ActualTransactionEventGate {
         Regex("""\b(?:start\s+(?:a\s+)?sip|sip\s+(?:for|starting\s+at|of)?\s*(?:rs\.?|inr|₹)?\s*[\d,]+|daily\s+sip|monthly\s+sip)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:invest\s+in\s+(?:digital\s+)?gold|invest\s+in\s+mutual\s+funds?|24k\s+gold\s+at\s+just|buy\s+gold\s+for)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:refer\s+and\s+earn|refer\s+your\s+friends?|invite\s+friends?\s+and\s+get|invite\s+and\s+earn)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:pre-approved\s+(?:personal\s+)?loan|instant\s+loan\s+of\s+up\s+to|zero\s+processing\s+fees?|check\s+loan\s+eligibility|loan\s+offer)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(?:pre-approved\s+(?:personal\s+)?loan|instant\s+loan\s+of\s+up\s+to|zero\s+processing\s+fees?|check\s+loan\s+eligibility|loan\s+offer)\b""", RegexOption.IGNORE_CASE),
+        // Carrier / Order Fulfillment Status updates (not an actual bank debit transaction event)
+        Regex("""\b(?:we have processed\s+(?:rs\.?|inr|₹)?\s*[\d,]+|payment will be updated within|track your (?:payment|order) status)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:for your (?:airtel|jio|vi|vodafone|bsnl|tatasky|dish tv|sun direct) (?:mobile|dth|broadband|fiber|number|account))\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:keep your order (?:id|no\.?)\s+\d+ for future reference)\b""", RegexOption.IGNORE_CASE)
     )
 
     // 6. Negative Evidence: Informational / Balance / Limit Statements

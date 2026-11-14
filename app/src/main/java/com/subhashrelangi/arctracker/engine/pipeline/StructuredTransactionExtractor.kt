@@ -143,7 +143,7 @@ object StructuredTransactionExtractor {
     )
 
     private val GENERAL_REF_PATTERN = Regex(
-        """(?i)\b(?:ref\s*(?:no\.?|num(?:ber)?\.?)?|refno\.?|reference\s*(?:no\.?|num(?:ber)?\.?)?|txn\s*(?:id)?|transaction\s*(?:id)?|recharge\s*(?:id|no\.?|num(?:ber)?\.?|ref(?:erence)?\.?))\s*[:\-#]?\s*([a-zA-Z0-9]{4,30})\b"""
+        """(?i)\b(?:ref\b|ref\s*no\.?|ref\s*num(?:ber)?\.?|refno\b|reference\b|order\s*(?:id|no\.?)|txn\s*(?:id)?|transaction\s*(?:id)?|recharge\s*(?:id|no\.?|num(?:ber)?\.?|ref(?:erence)?\.?))\s*[:\-#]?\s*([a-zA-Z0-9]{4,30})\b"""
     )
 
     // Account / Card suffix patterns
@@ -1326,6 +1326,8 @@ object StructuredTransactionExtractor {
             // Avoid capturing word "No", trivial noise, status words, or helpline numbers
             if (candidate != null &&
                 !candidate.equals("no", ignoreCase = true) &&
+                !candidate.equals("erence", ignoreCase = true) &&
+                !candidate.equals("reference", ignoreCase = true) &&
                 !candidate.equals("successful", ignoreCase = true) &&
                 !candidate.equals("completed", ignoreCase = true) &&
                 !candidate.equals("failed", ignoreCase = true) &&
@@ -1750,22 +1752,23 @@ object StructuredTransactionExtractor {
             }
         }
 
-        // 2. Trailing hyphen/dash suffix: e.g. "-IPPB", "-SBI", "-APGBank", ".-IPPB"
-        val suffixMatch = Regex("""(?i)[-–—]\s*([A-Za-z0-9]{2,15}(?:Bank|BK)?)\s*[.]?\s*$""").find(text)
+        // 2. Trailing hyphen/dash suffix: e.g. "-IPPB", "-SBI", "-APGBank", ".-IPPB" (strip URLs first to prevent matching URL path slugs)
+        val textWithoutUrls = text.replace(Regex("""https?://\S+"""), "").trim()
+        val suffixMatch = Regex("""(?i)[-–—]\s*([A-Za-z0-9]{2,15}(?:Bank|BK)?)\s*[.]?\s*$""").find(textWithoutUrls)
         if (suffixMatch != null) {
             val raw = suffixMatch.groupValues[1].trim()
             if (isValidBankToken(raw)) return normalizeBankName(raw)
         }
 
         // 3. "thru <Bank>" e.g. "thru IPPB"
-        val thruMatch = Regex("""(?i)\bthru\s+([A-Za-z0-9]{2,15})\b""").find(text)
+        val thruMatch = Regex("""(?i)\bthru\s+([A-Za-z0-9]{2,15})\b""").find(textWithoutUrls)
         if (thruMatch != null) {
             val raw = thruMatch.groupValues[1].trim()
             if (isValidBankToken(raw)) return normalizeBankName(raw)
         }
 
         // 4. Any hyphenated bank code in text: e.g. "-IPPB", "-SBI", "-APGBank"
-        val anyHyphenMatch = Regex("""(?i)[-–—](IPPB|SBI|APGBank|APGB|HDFC|ICICI|AXIS|PNB|BOB|KOTAK|CANARA)\b""").find(text)
+        val anyHyphenMatch = Regex("""(?i)[-–—](IPPB|SBI|APGBank|APGB|HDFC|ICICI|AXIS|PNB|BOB|KOTAK|CANARA)\b""").find(textWithoutUrls)
         if (anyHyphenMatch != null) {
             return normalizeBankName(anyHyphenMatch.groupValues[1])
         }
@@ -1793,7 +1796,11 @@ object StructuredTransactionExtractor {
 
     private fun isValidBankToken(token: String): Boolean {
         val lower = token.lowercase()
-        val noise = setOf("sms", "otp", "call", "info", "team", "app", "alert", "care", "help")
+        val noise = setOf(
+            "sms", "otp", "call", "info", "team", "app", "alert", "care", "help",
+            "bills", "bill", "recharge", "plan", "pack", "status", "order", "mobile",
+            "payment", "update", "track", "link", "click", "web", "online"
+        )
         return token.length in 2..15 && token !in noise
     }
 }
