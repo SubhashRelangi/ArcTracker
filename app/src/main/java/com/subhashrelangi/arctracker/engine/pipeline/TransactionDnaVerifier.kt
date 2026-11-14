@@ -173,7 +173,18 @@ object TransactionDnaVerifier {
             notes.add("Applied promotional penalty (-50 pts): promotional language without explicit bank instrument")
         }
 
-        val finalScore = max(0, min(100, score))
+        // 8. Industrial Double-Anchor Cap:
+        // A message without physical banking anchors (no account instrument, no audit trail, no ledger balance)
+        // cannot achieve CONFIRMED_FINANCIAL status (score >= 50) based solely on generic nouns and currency.
+        val hasAuditTrail = matchedAnchors.contains(AnchorType.AUDIT_TRAIL)
+        val hasBalance = matchedAnchors.contains(AnchorType.LEDGER_BALANCE)
+        var clampedScore = max(0, min(100, score))
+        if (!hasExplicitInstrument && !hasAuditTrail && !hasBalance) {
+            clampedScore = min(clampedScore, 40)
+            notes.add("Score capped at 40: lacks physical instrument, audit trail, or ledger balance anchor")
+        }
+
+        val finalScore = clampedScore
         val verdict = when {
             finalScore >= 50 -> VerificationVerdict.CONFIRMED_FINANCIAL
             finalScore >= TransactionConfidenceProfile.MIN_CONFIDENCE_THRESHOLD -> VerificationVerdict.PROBABLE_FINANCIAL
