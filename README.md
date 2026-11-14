@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/Jetpack_Compose-Material_3-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
   <img src="https://img.shields.io/badge/Privacy-100%25_Offline-059669?style=flat-square" alt="100% Offline" />
   <img src="https://img.shields.io/badge/Internet_Access-None_(Air--Gapped)-red?style=flat-square" alt="Zero Internet" />
-  <img src="https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square" alt="License" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT" /></a>
 </p>
 
 ---
@@ -161,6 +161,6 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## 📄 License
 
-This project is open-source and licensed under the **Apache License 2.0**.
+This project is open-source and licensed under the [MIT License](LICENSE).
 
-Developed with ❤️ by **Subhash Relangi**.
+Developed by **Subhash Relangi**.
