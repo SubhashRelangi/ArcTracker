@@ -30,6 +30,17 @@ class CategoryInferenceEngine(
         "refund", "refunded", "reversal", "reversed", "cashback", "cash back", "reward", "rewards"
     )
 
+    private val LODGING_TERMS = listOf(
+        "lodge", "lodging", "resort", "resorts", "inn", "rooms", "stay", "oyo", "treebo", "fabhotel",
+        "taj", "marriott", "hilton", "hyatt", "radisson", "novotel", "itc", "oberoi", "leela", "homestay"
+    )
+
+    private val FOOD_AFFINITY_TERMS = listOf(
+        "restaurant", "restro", "bakes", "bakery", "tiffins", "tiffin", "biryani", "sweets",
+        "meals", "dhaba", "kitchen", "canteen", "mess", "shadab", "saravana", "udupi", "cafe",
+        "food", "foods", "bhavan", "sagar", "sai", "veg", "non-veg", "pure veg", "tiffin center"
+    )
+
     /**
      * Infers category for a transaction candidate.
      */
@@ -222,7 +233,39 @@ class CategoryInferenceEngine(
         // Step 7: Evaluate Built-In Rules (Fallback when no user rule matched)
         val matchedRules = mutableListOf<CategoryInferenceRule>()
 
+        // Hotel / Accommodation Contextual Disambiguation
+        val containsHotel = MerchantNormalizer.containsToken(allText, "hotel")
+        if (containsHotel) {
+            val isLodging = LODGING_TERMS.any { MerchantNormalizer.containsToken(allText, it) }
+            val isFoodAffinity = FOOD_AFFINITY_TERMS.any { MerchantNormalizer.containsToken(allText, it) }
+            val disambiguatedCat = when {
+                isLodging -> "transport"
+                isFoodAffinity -> "food_dining"
+                input.amount != null && input.amount > 1800.0 -> "transport"
+                else -> "food_dining"
+            }
+            val disambiguatedRule = CategoryInferenceRule(
+                id = "rule_disambiguated_hotel_${disambiguatedCat}",
+                categoryId = disambiguatedCat,
+                matchingType = CategoryMatchingType.MERCHANT_TOKEN,
+                pattern = "hotel",
+                priority = RulePriority.EXACT_MERCHANT
+            )
+            matchedRules.add(disambiguatedRule)
+            evidenceList.add(
+                CategoryInferenceEvidence(
+                    type = EvidenceType.MERCHANT_TOKEN,
+                    description = "Contextual disambiguation for 'hotel' -> $disambiguatedCat (lodging=$isLodging, food=$isFoodAffinity, amount=${input.amount})",
+                    ruleId = disambiguatedRule.id,
+                    scoreContribution = disambiguatedRule.priority.toDouble()
+                )
+            )
+        }
+
         for (rule in sortedRules) {
+            if (containsHotel && rule.id == "rule_travel_hotel") {
+                continue
+            }
             if (rule.matches(merchantNorm, counterpartyNorm, rawTextNorm, input.transactionType)) {
                 // Category Availability Check (Canonical-aware filtering of Archived / Deleted categories)
                 val isRuleCatAvailable = input.availableCategoryIds == null || input.availableCategoryIds.any {
@@ -296,8 +339,8 @@ class CategoryInferenceEngine(
             val topCategory = sortedCategories[0]
             val secondCategory = sortedCategories[1]
 
-            // If top category priority is not strictly higher by at least 100 points, treat as CONFLICT
-            if (topCategory.second - secondCategory.second < 100) {
+            // If top category priority is not strictly higher by at least 50 points, treat as CONFLICT
+            if (topCategory.second - secondCategory.second < 50) {
                 return CategoryInferenceResult.conflict(
                     evidence = evidenceList,
                     matchedRules = matchedRules.map { it.id },

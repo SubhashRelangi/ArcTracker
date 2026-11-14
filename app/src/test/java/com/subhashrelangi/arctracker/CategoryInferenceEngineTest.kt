@@ -737,4 +737,77 @@ class CategoryInferenceEngineTest {
             assertTrue("Merchant '$m' must be high confidence", res.confidence == CategoryInferenceConfidence.HIGH)
         }
     }
+
+    // ==========================================
+    // Phase 13: High-Confidence Auto-Assignment & Context Disambiguation
+    // ==========================================
+
+    @Test
+    fun testPhase13_rnrkFoods_isAutoAssignable() {
+        val res = engine.inferCategory(
+            CategoryInferenceInput(
+                merchant = "Paid to RNRK Foods",
+                amount = 100.0,
+                availableCategoryIds = allActiveCategoryIds
+            )
+        )
+        assertEquals(CategoryInferenceStatus.HIGH_CONFIDENCE, res.status)
+        assertEquals("food_dining", res.suggestedCategoryId)
+        assertTrue(res.isAutoAssignable)
+    }
+
+    @Test
+    fun testPhase13_apsrtcOnline_isAutoAssignable() {
+        val res = engine.inferCategory(
+            CategoryInferenceInput(
+                merchant = "APSRTC Online",
+                amount = 450.0,
+                availableCategoryIds = allActiveCategoryIds
+            )
+        )
+        assertEquals(CategoryInferenceStatus.HIGH_CONFIDENCE, res.status)
+        assertEquals("transport", res.suggestedCategoryId)
+        assertTrue(res.isAutoAssignable)
+    }
+
+    @Test
+    fun testPhase13_indianRailwaysIrctc_isAutoAssignable() {
+        val res = engine.inferCategory(
+            CategoryInferenceInput(
+                merchant = "Indian Railways IRCTC",
+                amount = 850.0,
+                availableCategoryIds = allActiveCategoryIds
+            )
+        )
+        assertEquals(CategoryInferenceStatus.HIGH_CONFIDENCE, res.status)
+        assertEquals("transport", res.suggestedCategoryId)
+        assertTrue(res.isAutoAssignable)
+    }
+
+    @Test
+    fun testPhase13_hotelDisambiguation_localEateryVsLuxuryStay() {
+        // Sri Sai Hotel (₹120) -> Local Indian restaurant / eatery -> Food & Dining (HIGH_CONFIDENCE)
+        val eateryRes = engine.inferCategory(
+            CategoryInferenceInput(
+                merchant = "Sri Sai Hotel",
+                amount = 120.0,
+                availableCategoryIds = allActiveCategoryIds
+            )
+        )
+        assertEquals(CategoryInferenceStatus.HIGH_CONFIDENCE, eateryRes.status)
+        assertEquals("food_dining", eateryRes.suggestedCategoryId)
+        assertTrue(eateryRes.isAutoAssignable)
+
+        // Taj Hotel & Resorts (₹6,500) -> Luxury hotel accommodation stay -> Travel & Transport (HIGH_CONFIDENCE)
+        val stayRes = engine.inferCategory(
+            CategoryInferenceInput(
+                merchant = "Taj Hotel & Resorts",
+                amount = 6500.0,
+                availableCategoryIds = allActiveCategoryIds
+            )
+        )
+        assertEquals(CategoryInferenceStatus.HIGH_CONFIDENCE, stayRes.status)
+        assertEquals("transport", stayRes.suggestedCategoryId)
+        assertTrue(stayRes.isAutoAssignable)
+    }
 }
