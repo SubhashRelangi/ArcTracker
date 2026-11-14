@@ -132,6 +132,13 @@ class MainActivity : FragmentActivity() {
         insetsController.isAppearanceLightNavigationBars = true
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            window.navigationBarDividerColor = android.graphics.Color.TRANSPARENT
+        }
 
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
 

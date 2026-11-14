@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -715,147 +716,154 @@ fun SmsSetupScreen(
                     }
                 )
             } else {
-                // ----------------------------------------------------
-                // 2. Stepper & Headline
-                // ----------------------------------------------------
-            Box(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(StepPillBg)
-                    .border(BorderStroke(1.dp, StepPillBorder), CircleShape)
-                    .padding(horizontal = 10.dp, vertical = 3.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState),
+                    verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(CircleShape)
-                            .background(StepPillText)
-                    )
-                    Text(
-                        text = "STEP 2 OF 2",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = StepPillText
-                    )
-                }
-            }
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        // ----------------------------------------------------
+                        // 2. Stepper & Headline
+                        // ----------------------------------------------------
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(StepPillBg)
+                                .border(BorderStroke(1.dp, StepPillBorder), CircleShape)
+                                .padding(horizontal = 10.dp, vertical = 3.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(StepPillText)
+                                )
+                                Text(
+                                    text = "STEP 2 OF 2",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = StepPillText
+                                )
+                            }
+                        }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = "Choose lookback history",
-                fontSize = 23.sp,
-                fontWeight = FontWeight.Bold,
-                lineHeight = 28.sp,
-                letterSpacing = (-0.4).sp,
-                color = BrandTextPrimary
-            )
+                        Text(
+                            text = "Choose lookback history",
+                            fontSize = 23.sp,
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 28.sp,
+                            letterSpacing = (-0.4).sp,
+                            color = BrandTextPrimary
+                        )
 
-            Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
-            Text(
-                text = "Scan supported bank SMS messages to build your initial transaction history.",
-                fontSize = 13.5.sp,
-                fontWeight = FontWeight.Normal,
-                lineHeight = 19.sp,
-                color = BrandTextSecondary
-            )
+                        Text(
+                            text = "Scan supported bank SMS messages to build your initial transaction history.",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Normal,
+                            lineHeight = 19.sp,
+                            color = BrandTextSecondary
+                        )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-        // ----------------------------------------------------
-        // 3. Scrollable Essential Options & Cards
-        // ----------------------------------------------------
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Option 0: Last 30 days
-            SmsLookbackOptionCard(
-                title = "Last 30 days",
-                subtitle = "Recent monthly transactions",
-                isSelected = selectedOptionIndex == 0,
-                badge = null,
-                trailingType = OptionTrailingType.RADIO,
-                onClick = { selectOption(0) }
-            )
+                        // ----------------------------------------------------
+                        // 3. Essential Options & Cards
+                        // ----------------------------------------------------
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Option 0: Last 30 days
+                            SmsLookbackOptionCard(
+                                title = "Last 30 days",
+                                subtitle = "Recent monthly transactions",
+                                isSelected = selectedOptionIndex == 0,
+                                badge = null,
+                                trailingType = OptionTrailingType.RADIO,
+                                onClick = { selectOption(0) }
+                            )
 
-            // Option 1: Last 3 months (RECOMMENDED)
-            SmsLookbackOptionCard(
-                title = "Last 3 months",
-                subtitle = "Quarterly ledger setup",
-                isSelected = selectedOptionIndex == 1,
-                badge = "RECOMMENDED",
-                trailingType = OptionTrailingType.RADIO,
-                onClick = { selectOption(1) }
-            )
+                            // Option 1: Last 3 months (RECOMMENDED)
+                            SmsLookbackOptionCard(
+                                title = "Last 3 months",
+                                subtitle = "Quarterly ledger setup",
+                                isSelected = selectedOptionIndex == 1,
+                                badge = "RECOMMENDED",
+                                trailingType = OptionTrailingType.RADIO,
+                                onClick = { selectOption(1) }
+                            )
 
-            // Option 2: Last 6 months
-            SmsLookbackOptionCard(
-                title = "Last 6 months",
-                subtitle = "Half-year spending history",
-                isSelected = selectedOptionIndex == 2,
-                badge = null,
-                trailingType = OptionTrailingType.RADIO,
-                onClick = { selectOption(2) }
-            )
+                            // Option 2: Last 6 months
+                            SmsLookbackOptionCard(
+                                title = "Last 6 months",
+                                subtitle = "Half-year spending history",
+                                isSelected = selectedOptionIndex == 2,
+                                badge = null,
+                                trailingType = OptionTrailingType.RADIO,
+                                onClick = { selectOption(2) }
+                            )
 
-            // Option 3: Custom range
-            val customRangeSubtitle = if (selectedOptionIndex == 3) {
-                "${dateFormat.format(Date(startDateMillis))} – ${dateFormat.format(Date(endDateMillis))}"
-            } else {
-                "Select custom range"
-            }
-            SmsLookbackOptionCard(
-                title = "Custom range",
-                subtitle = customRangeSubtitle,
-                isSelected = selectedOptionIndex == 3,
-                badge = null,
-                trailingType = OptionTrailingType.CALENDAR,
-                onClick = {
-                    showCustomDateRangePicker()
-                }
-            )
+                            // Option 3: Custom range
+                            val customRangeSubtitle = if (selectedOptionIndex == 3) {
+                                "${dateFormat.format(Date(startDateMillis))} – ${dateFormat.format(Date(endDateMillis))}"
+                            } else {
+                                "Select custom range"
+                            }
+                            SmsLookbackOptionCard(
+                                title = "Custom range",
+                                subtitle = customRangeSubtitle,
+                                isSelected = selectedOptionIndex == 3,
+                                badge = null,
+                                trailingType = OptionTrailingType.CALENDAR,
+                                onClick = {
+                                    showCustomDateRangePicker()
+                                }
+                            )
 
-            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
-            // ----------------------------------------------------
-            // 4. Privacy Assurance Note
-            // ----------------------------------------------------
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Shield,
-                    contentDescription = null,
-                    tint = BrandTextSecondary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Historical scanning is optional. Only financial alerts are parsed; personal chats are never read.",
-                    fontSize = 12.sp,
-                    color = BrandTextSecondary,
-                    lineHeight = 16.sp
-                )
-            }
-        }
+                            // ----------------------------------------------------
+                            // 4. Privacy Assurance Note
+                            // ----------------------------------------------------
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Shield,
+                                    contentDescription = null,
+                                    tint = BrandTextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Historical scanning is optional. Only financial alerts are parsed; personal chats are never read.",
+                                    fontSize = 12.sp,
+                                    color = BrandTextSecondary,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+                    }
 
-        Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-        // ----------------------------------------------------
-        // 5. Bottom Navigation Actions (Matching LocalFirstSetupScreen exactly)
-        // ----------------------------------------------------
+                    // ----------------------------------------------------
+                    // 5. Bottom Navigation Actions (Matching LocalFirstSetupScreen exactly)
+                    // ----------------------------------------------------
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -991,6 +999,7 @@ fun SmsSetupScreen(
             Spacer(modifier = Modifier.height(4.dp))
         }
     }
+}
 }
     if (viewingAccountGroup != null) {
         val group = viewingAccountGroup!!
@@ -2681,11 +2690,13 @@ private fun AccountTransactionsBottomSheet(
         sheetState = sheetState,
         containerColor = CardBg,
         tonalElevation = 6.dp,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 28.dp)
         ) {

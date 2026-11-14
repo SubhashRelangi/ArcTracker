@@ -260,6 +260,13 @@ fun AddExpenseDialog(
                 window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
                 window.statusBarColor = android.graphics.Color.TRANSPARENT
                 window.navigationBarColor = android.graphics.Color.TRANSPARENT
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    window.isNavigationBarContrastEnforced = false
+                    window.isStatusBarContrastEnforced = false
+                }
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    window.navigationBarDividerColor = android.graphics.Color.TRANSPARENT
+                }
                 window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
                 WindowCompat.getInsetsController(window, window.decorView)?.let { insetsController ->
                     insetsController.isAppearanceLightStatusBars = !isDark
@@ -272,6 +279,7 @@ fun AddExpenseDialog(
 
         Scaffold(
             containerColor = lightBg,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 Surface(
                     color = cardBg,
@@ -307,15 +315,25 @@ fun AddExpenseDialog(
                         modifier = Modifier.fillMaxWidth(),
                         color = cardBg,
                         shadowElevation = 10.dp,
-                        border = BorderStroke(1.dp, cardBorder)
+                        border = null
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .navigationBarsPadding()
-                                .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 40.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(cardBorder)
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -427,6 +445,7 @@ fun AddExpenseDialog(
                     }
                 }
             }
+        }
         ) { innerPadding ->
             // SCROLLABLE CONTENT BODY
             Column(

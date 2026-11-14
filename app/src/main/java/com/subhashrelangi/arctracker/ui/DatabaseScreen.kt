@@ -454,11 +454,13 @@ fun DatabaseScreen(
             onDismissRequest = { showSchemaBottomSheet = false },
             sheetState = sheetState,
             containerColor = cardBg,
+            windowInsets = WindowInsets(0, 0, 0, 0),
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .navigationBarsPadding()
                     .padding(horizontal = 20.dp)
                     .padding(bottom = 32.dp)
             ) {

@@ -593,7 +593,12 @@ fun ReviewPage(
             modifier = Modifier
                 .fillMaxSize()
                 .then(if (showHeader) Modifier.statusBarsPadding() else Modifier),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = if (showHeader) 8.dp else 12.dp, bottom = 100.dp),
+            contentPadding = PaddingValues(
+                start = 20.dp,
+                end = 20.dp,
+                top = if (showHeader) 8.dp else 12.dp,
+                bottom = 116.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // 1. Progress / Rule Engine Card (shown when there are reviews or in demo mode)
@@ -2004,7 +2009,7 @@ fun ReviewPage(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(bottom = 72.dp, start = 16.dp, end = 16.dp),
+                    .padding(bottom = 76.dp, start = 16.dp, end = 16.dp),
                 shape = CircleShape,
                 color = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF0F172A),
                 shadowElevation = 10.dp,

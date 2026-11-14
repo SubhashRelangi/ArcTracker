@@ -169,6 +169,7 @@ private fun ArcVerticalCategorySheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         containerColor = ArcColors.SurfaceElevated,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         dragHandle = {
             BottomSheetDefaults.DragHandle(
                 color = ArcColors.Border,
@@ -181,6 +182,7 @@ private fun ArcVerticalCategorySheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .heightIn(min = 340.dp, max = 460.dp)
                 .padding(bottom = 20.dp)
         ) {
@@ -321,6 +323,7 @@ private fun ArcReviewCategorySheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         containerColor = ArcColors.SurfaceElevated,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         dragHandle = {
             BottomSheetDefaults.DragHandle(
                 color = ArcColors.Border,
@@ -333,6 +336,7 @@ private fun ArcReviewCategorySheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .heightIn(min = 340.dp, max = 480.dp)
                 .padding(bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -879,6 +883,7 @@ fun HorizontalAccountPickerDialog(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         containerColor = ArcColors.SurfaceElevated,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         dragHandle = {
             BottomSheetDefaults.DragHandle(
                 color = ArcColors.Border,
@@ -891,6 +896,7 @@ fun HorizontalAccountPickerDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .heightIn(min = 320.dp, max = 460.dp)
                 .padding(bottom = 20.dp)
         ) {
@@ -1195,6 +1201,7 @@ fun HorizontalOptionPickerDialog(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         containerColor = ArcColors.SurfaceElevated,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         dragHandle = {
             BottomSheetDefaults.DragHandle(
                 color = ArcColors.Border,
@@ -1207,6 +1214,7 @@ fun HorizontalOptionPickerDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .heightIn(min = 280.dp, max = 440.dp)
                 .padding(bottom = 20.dp)
         ) {

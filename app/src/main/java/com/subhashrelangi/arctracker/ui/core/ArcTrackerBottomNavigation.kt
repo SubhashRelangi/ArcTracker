@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Home
@@ -73,7 +74,6 @@ fun ArcTrackerBottomNavigationBar(
     if (isStatic) {
         // Static docked bottom navigation bar matching active theme
         val navBackground = LocalArcColors.current.bottomNavBackground
-        val topBorder = BorderStroke(1.dp, LocalArcColors.current.bottomNavBorder)
 
         Surface(
             modifier = modifier
@@ -84,17 +84,25 @@ fun ArcTrackerBottomNavigationBar(
                     ambientColor = if (isLightMode) Color(0x0A000000) else Color(0x40000000)
                 ),
             color = navBackground,
-            border = topBorder
+            border = null
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
             ) {
+                // Crisp 1dp top border only; eliminates 4-sided Surface border that drew an unaligned line below the nav bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(LocalArcColors.current.bottomNavBorder)
+                )
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(58.dp)
+                        .height(62.dp)
                         .padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -224,7 +232,7 @@ private fun ArcBottomNavItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val contentColor = if (isLightMode) {
-        if (isSelected) Color(0xFF0F172A) else Color(0xFF94A3B8)
+        if (isSelected) Color(0xFF0F172A) else Color(0xFF64748B)
     } else {
         if (isSelected) Color.White else Color(0xFF94A3B8)
     }
@@ -244,59 +252,73 @@ private fun ArcBottomNavItem(
             verticalArrangement = Arrangement.Center
         ) {
             Box(
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        if (isSelected) {
+                            if (isLightMode) Color(0x120F172A) else Color(0x2238BDF8)
+                        } else Color.Transparent
+                    )
+                    .padding(horizontal = 12.dp, vertical = 2.dp),
                 contentAlignment = Alignment.Center
             ) {
-                val iconVector = when (destination) {
-                    ArcDestination.HOME -> Icons.Rounded.Home
-                    ArcDestination.LEDGER -> Icons.Rounded.ReceiptLong
-                    ArcDestination.REVIEW -> Icons.Rounded.RateReview
-                    ArcDestination.INSIGHTS -> Icons.Rounded.BarChart
-                    ArcDestination.SETTINGS -> Icons.Rounded.Settings
-                }
+                Box(
+                    modifier = Modifier.size(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val iconVector = when (destination) {
+                        ArcDestination.HOME -> Icons.Rounded.Home
+                        ArcDestination.LEDGER -> Icons.Rounded.ReceiptLong
+                        ArcDestination.REVIEW -> Icons.Rounded.RateReview
+                        ArcDestination.INSIGHTS -> Icons.Rounded.BarChart
+                        ArcDestination.SETTINGS -> Icons.Rounded.Settings
+                    }
 
-                Icon(
-                    imageVector = iconVector,
-                    contentDescription = destination.title,
-                    modifier = Modifier.size(23.dp),
-                    tint = contentColor
-                )
+                    Icon(
+                        imageVector = iconVector,
+                        contentDescription = destination.title,
+                        modifier = Modifier.size(22.dp),
+                        tint = contentColor
+                    )
 
-                // Amber notification badge on Review icon (upper-right overlay)
-                if (badgeCount != null && badgeCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .offset(x = 6.dp, y = (-4).dp)
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFD97706)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (badgeCount > 99) "99+" else badgeCount.toString(),
-                            color = Color.White,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Clip
-                        )
+                    // Amber notification badge on Review icon (upper-right overlay)
+                    if (badgeCount != null && badgeCount > 0) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 6.dp, y = (-3).dp)
+                                .size(15.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFD97706)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                                color = Color.White,
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Clip
+                            )
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             Text(
                 text = destination.title,
                 color = contentColor,
-                fontSize = 11.5.sp,
+                fontSize = 10.5.sp,
+                lineHeight = 13.sp,
+                letterSpacing = (-0.2).sp,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                 maxLines = 1,
                 softWrap = false,
-                overflow = TextOverflow.Clip,
+                overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
             )
         }

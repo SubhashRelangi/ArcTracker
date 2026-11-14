@@ -235,6 +235,7 @@ fun EditTransactionPage(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = lightBg,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             // Header matching settings subsection pages: circular back button + title directly beside it + right circular vault icon
             Surface(
@@ -303,16 +304,26 @@ fun EditTransactionPage(
                     modifier = Modifier.fillMaxWidth(),
                     color = cardBg,
                     shadowElevation = 10.dp,
-                    border = BorderStroke(1.dp, cardBorder)
+                    border = null
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .navigationBarsPadding()
-                            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 40.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(cardBorder)
+                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                         // Primary Save Changes Button
                         Button(
                             onClick = {
@@ -393,6 +404,7 @@ fun EditTransactionPage(
                 }
             }
         }
+    }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier

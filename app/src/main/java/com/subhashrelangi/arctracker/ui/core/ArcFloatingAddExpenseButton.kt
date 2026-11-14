@@ -33,7 +33,7 @@ fun ArcFloatingAddExpenseButton(
         onClick = onClick,
         modifier = modifier
             .navigationBarsPadding()
-            .padding(end = 16.dp, bottom = 72.dp)
+            .padding(end = 16.dp, bottom = 76.dp)
             .shadow(elevation = 6.dp, shape = CircleShape),
         shape = CircleShape,
         color = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF0F172A),
