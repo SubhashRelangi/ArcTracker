@@ -48,20 +48,31 @@ object TransactionDnaVerifier {
         Regex("""\b(?:payment|recharge)\s+(?:of\s+.*?\s+)?(?:to|at|for)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,35})\s+(?:was\s+|is\s+|has been\s+)?(?:successful|completed)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:spent\s+at|purchase\s+(?:at|on))\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,35})\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:received|refund\s+of)\s+from\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,35})\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,35})\s+sent\s+you\b""", RegexOption.IGNORE_CASE),
         Regex("""\btransferred\s+to\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,35})\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:paid\s+to|sent\s+to|transferred\s+to|payment\s+to|transfer\s+to)\b""", RegexOption.IGNORE_CASE)
     )
 
-    // 5. Genuine Completed / Terminal Action Verb & Status Patterns
+    // 5. Genuine Completed / Terminal Action Verb & Status Patterns (Strict movement verbs, no generic nouns)
     private val ACTION_PATTERNS = listOf(
         Regex("""\b(?:is\s+|was\s+|has been\s+)?debited\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:is\s+|was\s+|has been\s+)?credited\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(paid|spent|sent|transferred|withdrawn|deposited|refund|refunded|received|added)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(payment|transaction|recharge|transfer|txn)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(failed|declined|unsuccessful|pending|processing|in progress)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:payment|transaction|recharge|transfer)\s+(?:of\s+.*?\s+)?(?:is\s+|was\s+|has been\s+)?(?:successful|completed|processed|failed|pending)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:payment\s+successful|transaction\s+successful|order\s+payment\s+successful|payment\s+completed)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:spent|withdrawn|deducted|sent|sent\s+you)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\btransferred(?!\s+to\s+(?:your|my))\b""", RegexOption.IGNORE_CASE),
+        Regex("""\bpaid(?!\s+(?:bill|bills|later|now|tomorrow))\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:deposited|refunded|refund\s+of|cashback\s+credited|money\s+received|received|added\s+to)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:payment|transaction|transfer|recharge)\s+(?:of\s+.*?\s+)?(?:is\s+|was\s+|has been\s+)?(?:successful|completed|processed)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:payment\s+successful|transaction\s+successful|order\s+payment\s+successful|payment\s+completed|recharge\s+successful)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:failed|declined|unsuccessful)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:reversal\s+of\s+payment|payment\s+reversed|reversed)\b""", RegexOption.IGNORE_CASE)
+    )
+
+    private val VERIFIED_FINTECH_PACKAGES = setOf(
+        "com.google.android.apps.nbu.paisa.user", // Google Pay
+        "com.phonepe.app",                       // PhonePe
+        "net.one97.paytm",                       // Paytm
+        "com.dreamplug.androidapp",              // CRED
+        "in.org.npci.upiapp"                     // BHIM
     )
 
     // 6. Currency / Monetary presence pattern
@@ -79,17 +90,20 @@ object TransactionDnaVerifier {
     )
 
     /**
-     * Verifies the presence of physical banking anchors in the text.
+     * Verifies the presence of physical banking anchors in the text using dual profiles
+     * (Profile A for SMS/Unverified Sources, Profile B for OS Verified Fintech Apps).
      *
      * @param text The normalized combined notification text.
+     * @param packageName Optional package name of origin (e.g. Google Pay package).
      * @return [TransactionConfidenceProfile] detailing the score, matched anchors, and extraction verdict.
      */
-    fun verify(text: String): TransactionConfidenceProfile {
+    fun verify(text: String, packageName: String? = null): TransactionConfidenceProfile {
         if (text.isBlank()) {
             return TransactionConfidenceProfile(
                 score = 0,
                 verdict = VerificationVerdict.UNVERIFIED_PROMOTIONAL,
-                diagnosticNotes = listOf("Empty content")
+                diagnosticNotes = listOf("Empty content"),
+                isAnchored = false
             )
         }
 
@@ -98,15 +112,26 @@ object TransactionDnaVerifier {
         val notes = mutableListOf<String>()
         var score = 0
 
+        // Profile B: Trusted OS Package as Anchor (for live push notifications from verified fintechs)
+        val isVerifiedFintechApp = packageName != null && VERIFIED_FINTECH_PACKAGES.contains(packageName)
+        if (isVerifiedFintechApp) {
+            matchedAnchors.add(AnchorType.ACCOUNT_INSTRUMENT)
+            anchorDetails[AnchorType.ACCOUNT_INSTRUMENT] = "Package: $packageName"
+            score += 35
+            notes.add("Found Verified Fintech App Anchor: '$packageName' (Profile B)")
+        }
+
         // 1. Check Instrument Anchor (Weight: 35 pts)
-        for (pattern in ACCOUNT_PATTERNS) {
-            val match = pattern.find(text)
-            if (match != null) {
-                matchedAnchors.add(AnchorType.ACCOUNT_INSTRUMENT)
-                anchorDetails[AnchorType.ACCOUNT_INSTRUMENT] = match.value
-                score += 35
-                notes.add("Found Instrument Anchor: '${match.value}'")
-                break
+        if (!isVerifiedFintechApp) {
+            for (pattern in ACCOUNT_PATTERNS) {
+                val match = pattern.find(text)
+                if (match != null) {
+                    matchedAnchors.add(AnchorType.ACCOUNT_INSTRUMENT)
+                    anchorDetails[AnchorType.ACCOUNT_INSTRUMENT] = match.value
+                    score += 35
+                    notes.add("Found Instrument Anchor: '${match.value}'")
+                    break
+                }
             }
         }
 
@@ -178,10 +203,12 @@ object TransactionDnaVerifier {
         // cannot achieve CONFIRMED_FINANCIAL status (score >= 50) based solely on generic nouns and currency.
         val hasAuditTrail = matchedAnchors.contains(AnchorType.AUDIT_TRAIL)
         val hasBalance = matchedAnchors.contains(AnchorType.LEDGER_BALANCE)
+        val isAnchored = hasExplicitInstrument || hasAuditTrail || hasBalance
+
         var clampedScore = max(0, min(100, score))
-        if (!hasExplicitInstrument && !hasAuditTrail && !hasBalance) {
-            clampedScore = min(clampedScore, 40)
-            notes.add("Score capped at 40: lacks physical instrument, audit trail, or ledger balance anchor")
+        if (!isAnchored) {
+            clampedScore = min(clampedScore, 35)
+            notes.add("Score capped at 35: lacks physical instrument, audit trail, or ledger balance anchor (isAnchored=false)")
         }
 
         val finalScore = clampedScore
@@ -196,7 +223,8 @@ object TransactionDnaVerifier {
             verdict = verdict,
             matchedAnchors = matchedAnchors,
             anchorDetails = anchorDetails,
-            diagnosticNotes = notes
+            diagnosticNotes = notes,
+            isAnchored = isAnchored
         )
     }
 }

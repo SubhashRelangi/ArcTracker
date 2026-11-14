@@ -235,7 +235,7 @@ object StructuredTransactionExtractor {
         }
 
         // Layer 3.5: Transaction DNA Verification Bridge
-        val notifDnaProfile = TransactionDnaVerifier.verify(notification.normalizedCombinedText)
+        val notifDnaProfile = TransactionDnaVerifier.verify(notification.normalizedCombinedText, packageName = notification.packageName)
         if (!notifDnaProfile.meetsExtractionThreshold) {
             return emptyList()
         }
@@ -249,7 +249,7 @@ object StructuredTransactionExtractor {
                 if (segAssessment.actualEvent == ActualEventStatus.FALSE) {
                     continue
                 }
-                val segDnaProfile = TransactionDnaVerifier.verify(segment)
+                val segDnaProfile = TransactionDnaVerifier.verify(segment, packageName = notification.packageName)
                 if (!segDnaProfile.meetsExtractionThreshold && !notifDnaProfile.meetsExtractionThreshold) {
                     continue
                 }
@@ -538,7 +538,7 @@ object StructuredTransactionExtractor {
             transactionTimeString = temporal.timeString,
             temporalEvidence = temporal.temporalEvidence,
             eventAssessment = ActualTransactionEventGate.assessClause(segmentText, extractedAmount),
-            confidenceProfile = TransactionDnaVerifier.verify(segmentText)
+            confidenceProfile = TransactionDnaVerifier.verify(segmentText, packageName = wholeNotification.packageName)
         )
     }
 
@@ -640,7 +640,7 @@ object StructuredTransactionExtractor {
             transactionTimeString = temporal.timeString,
             temporalEvidence = temporal.temporalEvidence,
             eventAssessment = ActualTransactionEventGate.assess(text, notification.packageName, extractedAmount),
-            confidenceProfile = TransactionDnaVerifier.verify(text)
+            confidenceProfile = TransactionDnaVerifier.verify(text, packageName = notification.packageName)
         )
     }
 

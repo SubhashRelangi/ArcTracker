@@ -207,9 +207,9 @@ object TransactionValidator {
         // 2.6 Transaction DNA Verification Bridge (Layer 3.5)
         // ----------------------------------------------------
         val confidenceProfile = candidate.confidenceProfile
-            ?: (candidate.rawContent?.let { TransactionDnaVerifier.verify(it) }
-                ?: classification?.normalized?.normalizedCombinedText?.let { TransactionDnaVerifier.verify(it) }
-                ?: TransactionDnaVerifier.verify(candidate.sourceNotificationKey))
+            ?: (candidate.rawContent?.let { TransactionDnaVerifier.verify(it, candidate.packageName) }
+                ?: classification?.normalized?.normalizedCombinedText?.let { TransactionDnaVerifier.verify(it, candidate.packageName) }
+                ?: TransactionDnaVerifier.verify(candidate.sourceNotificationKey, candidate.packageName))
 
         when (confidenceProfile.verdict) {
             VerificationVerdict.CONFIRMED_FINANCIAL -> {

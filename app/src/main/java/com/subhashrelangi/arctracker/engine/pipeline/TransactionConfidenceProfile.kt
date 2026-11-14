@@ -42,7 +42,8 @@ data class TransactionConfidenceProfile(
     val verdict: VerificationVerdict,
     val matchedAnchors: Set<AnchorType> = emptySet(),
     val anchorDetails: Map<AnchorType, String> = emptyMap(),
-    val diagnosticNotes: List<String> = emptyList()
+    val diagnosticNotes: List<String> = emptyList(),
+    val isAnchored: Boolean = false
 ) {
     /**
      * Whether this notification meets the confidence limit to proceed to the next layer in the pipeline.
