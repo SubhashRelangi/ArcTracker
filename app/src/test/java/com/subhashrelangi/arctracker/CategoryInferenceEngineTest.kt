@@ -660,4 +660,81 @@ class CategoryInferenceEngineTest {
         assertTrue(CanonicalCategoryTaxonomy.isSameCanonicalDomain("software", "bills_utilities"))
         assertFalse(CanonicalCategoryTaxonomy.isSameCanonicalDomain("shopping", "food_dining"))
     }
+
+    // ==========================================
+    // Phase 12: Universal Indian Domain Vocabulary Verification
+    // ==========================================
+
+    @Test
+    fun testPhase12_indianRegionalMerchants() {
+        // Food & Dining
+        val foodMerchants = listOf(
+            "Paid to RNRK Foods",
+            "RNRKFOODS",
+            "Sri Balaji Sweets",
+            "Sri Vinayaka Tiffins",
+            "Bawarchi Biryani",
+            "Annapurna Mess",
+            "Chai Point"
+        )
+        for (m in foodMerchants) {
+            val res = engine.inferCategory(CategoryInferenceInput(merchant = m, availableCategoryIds = allActiveCategoryIds))
+            assertEquals("Merchant '$m' must infer Food & Dining", "food_dining", res.suggestedCategoryId)
+            assertTrue("Merchant '$m' must be high confidence", res.confidence == CategoryInferenceConfidence.HIGH)
+        }
+
+        // Travel & Transport (State RTCs, private bus, railway, fuel)
+        val transitMerchants = listOf(
+            "APSRTC",
+            "TGSRTC",
+            "KSRTC",
+            "Orange Travels",
+            "Indian Railways",
+            "VRL Travels",
+            "HPCL Petrol Pump"
+        )
+        for (m in transitMerchants) {
+            val res = engine.inferCategory(CategoryInferenceInput(merchant = m, availableCategoryIds = allActiveCategoryIds))
+            assertEquals("Merchant '$m' must infer Travel & Transport", "transport", res.suggestedCategoryId)
+            assertTrue("Merchant '$m' must be high confidence", res.confidence == CategoryInferenceConfidence.HIGH)
+        }
+
+        // Healthcare
+        val healthMerchants = listOf(
+            "Apollo Pharmacy",
+            "MedPlus Mart",
+            "City Hospital",
+            "Vijaya Diagnostics"
+        )
+        for (m in healthMerchants) {
+            val res = engine.inferCategory(CategoryInferenceInput(merchant = m, availableCategoryIds = allActiveCategoryIds))
+            assertEquals("Merchant '$m' must infer Healthcare", "healthcare", res.suggestedCategoryId)
+            assertTrue("Merchant '$m' must be high confidence", res.confidence == CategoryInferenceConfidence.HIGH)
+        }
+
+        // Bills & Utilities
+        val billMerchants = listOf(
+            "APEPDCL",
+            "TSSPDCL",
+            "ACT Fibernet",
+            "HP Gas Agency"
+        )
+        for (m in billMerchants) {
+            val res = engine.inferCategory(CategoryInferenceInput(merchant = m, availableCategoryIds = allActiveCategoryIds))
+            assertEquals("Merchant '$m' must infer Bills & Utilities", "bills_utilities", res.suggestedCategoryId)
+            assertTrue("Merchant '$m' must be high confidence", res.confidence == CategoryInferenceConfidence.HIGH)
+        }
+
+        // Shopping
+        val shoppingMerchants = listOf(
+            "Bajaj Electronics",
+            "Chennai Silks",
+            "RS Brothers Garments"
+        )
+        for (m in shoppingMerchants) {
+            val res = engine.inferCategory(CategoryInferenceInput(merchant = m, availableCategoryIds = allActiveCategoryIds))
+            assertEquals("Merchant '$m' must infer Shopping", "shopping", res.suggestedCategoryId)
+            assertTrue("Merchant '$m' must be high confidence", res.confidence == CategoryInferenceConfidence.HIGH)
+        }
+    }
 }
