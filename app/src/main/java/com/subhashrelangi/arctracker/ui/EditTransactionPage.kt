@@ -309,7 +309,7 @@ fun EditTransactionPage(
                         modifier = Modifier
                             .fillMaxWidth()
                             .navigationBarsPadding()
-                            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 40.dp),
+                            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {

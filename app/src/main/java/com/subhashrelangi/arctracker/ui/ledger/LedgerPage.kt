@@ -471,7 +471,8 @@ fun LedgerPage(
                 item(key = "privacy_footer") {
                     val recordCount = if (isDemoMode) 32 else sourceExpenses.size
                     LedgerDatabaseFooter(recordCount = recordCount)
-                    Spacer(modifier = Modifier.height(16.dp))
+                    // Dynamic bottom clearance so content is never covered by bottom nav bar and floating action button
+                    Spacer(modifier = Modifier.navigationBarsPadding().height(104.dp))
                 }
             }
         }

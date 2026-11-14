@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,13 +20,16 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -175,21 +179,28 @@ fun LocalFirstSetupScreen(
         onBackClick?.invoke()
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(SetupLightBackground)
+            .statusBarsPadding()
+            .navigationBarsPadding()
     ) {
+        val screenHeight = maxHeight
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .fillMaxWidth()
+                .heightIn(min = screenHeight)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // ----------------------------------------------------
-            // 1. Top Bar Header (Matches InitialPageScreen exactly)
-            // ----------------------------------------------------
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // ----------------------------------------------------
+                // 1. Top Bar Header (Matches InitialPageScreen exactly)
+                // ----------------------------------------------------
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -414,13 +425,13 @@ fun LocalFirstSetupScreen(
                     )
                 }
             }
+        }
 
-            // Flexible dynamic spacer absorbing viewport height
-            Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(20.dp))
 
-            // ----------------------------------------------------
-            // 5. Bottom Navigation Actions
-            // ----------------------------------------------------
+        // ----------------------------------------------------
+        // 5. Bottom Navigation Actions
+        // ----------------------------------------------------
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally

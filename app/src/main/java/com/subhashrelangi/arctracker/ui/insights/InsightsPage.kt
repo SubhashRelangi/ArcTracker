@@ -470,7 +470,8 @@ fun InsightsPage(
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        // Dynamic bottom clearance so content is never covered by bottom nav bar
+                        Spacer(modifier = Modifier.navigationBarsPadding().height(104.dp))
                     }
                 }
             }

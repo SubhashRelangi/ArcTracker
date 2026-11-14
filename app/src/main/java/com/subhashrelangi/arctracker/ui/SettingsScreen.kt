@@ -945,6 +945,9 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            // Dynamic bottom clearance so content is never covered by bottom nav bar and floating action button
+            Spacer(modifier = Modifier.navigationBarsPadding().height(104.dp))
         }
 
         // 11. Floating "+ Add Expense" Pill Button on bottom-right

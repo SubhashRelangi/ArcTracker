@@ -313,7 +313,7 @@ fun AddExpenseDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .navigationBarsPadding()
-                                .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 40.dp),
+                                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Row(

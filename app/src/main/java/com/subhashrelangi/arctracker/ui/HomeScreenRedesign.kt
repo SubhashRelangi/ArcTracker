@@ -566,7 +566,8 @@ fun HomeScreenRedesign(
                 }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // Dynamic bottom clearance so content is never covered by bottom nav bar and floating action button
+            Spacer(modifier = Modifier.navigationBarsPadding().height(104.dp))
         }
 
         // ----------------------------------------------------

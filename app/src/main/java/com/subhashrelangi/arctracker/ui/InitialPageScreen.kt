@@ -10,12 +10,14 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,8 +25,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.outlined.Lock
@@ -114,17 +118,21 @@ fun InitialPageScreen(
     val pagerState = rememberPagerState(pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(InitialLightBackground)
+            .statusBarsPadding()
+            .navigationBarsPadding()
     ) {
+        val screenHeight = maxHeight
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .fillMaxWidth()
+                .heightIn(min = screenHeight)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
             // ----------------------------------------------------
             // 1. Header (Title starts first on left, GitHub version, green dot on right)
@@ -175,11 +183,10 @@ fun InitialPageScreen(
                 )
             }
 
-            // Pushes hero content & buttons down to the bottom area, removing gap before buttons
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // ----------------------------------------------------
-            // 2. Hero Section (Left-aligned, positioned directly above buttons)
+            // 2. Hero Section & Bottom Action Area
             // ----------------------------------------------------
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -194,12 +201,12 @@ fun InitialPageScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Static-sized Horizontal Pager: Fixed height and line limits to prevent any shrinking/jitter
+                // Responsive Horizontal Pager: Expands cleanly on large font scales without text clipping
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(140.dp)
+                        .heightIn(min = 145.dp)
                 ) { page ->
                     Column(
                         modifier = Modifier
@@ -217,7 +224,7 @@ fun InitialPageScreen(
                                     letterSpacing = (-0.4).sp,
                                     color = BrandTextPrimary,
                                     minLines = 2,
-                                    maxLines = 2
+                                    maxLines = 3
                                 )
 
                                 Spacer(modifier = Modifier.height(10.dp))
@@ -229,7 +236,7 @@ fun InitialPageScreen(
                                     lineHeight = 19.sp,
                                     color = BrandTextSecondary,
                                     minLines = 3,
-                                    maxLines = 3
+                                    maxLines = 4
                                 )
                             }
                             1 -> {
@@ -241,7 +248,7 @@ fun InitialPageScreen(
                                     letterSpacing = (-0.4).sp,
                                     color = BrandTextPrimary,
                                     minLines = 2,
-                                    maxLines = 2
+                                    maxLines = 3
                                 )
 
                                 Spacer(modifier = Modifier.height(10.dp))
@@ -253,7 +260,7 @@ fun InitialPageScreen(
                                     lineHeight = 19.sp,
                                     color = BrandTextSecondary,
                                     minLines = 3,
-                                    maxLines = 3
+                                    maxLines = 4
                                 )
                             }
                             2 -> {
@@ -265,7 +272,7 @@ fun InitialPageScreen(
                                     letterSpacing = (-0.4).sp,
                                     color = BrandTextPrimary,
                                     minLines = 2,
-                                    maxLines = 2
+                                    maxLines = 3
                                 )
 
                                 Spacer(modifier = Modifier.height(10.dp))
@@ -277,7 +284,7 @@ fun InitialPageScreen(
                                     lineHeight = 19.sp,
                                     color = BrandTextSecondary,
                                     minLines = 3,
-                                    maxLines = 3
+                                    maxLines = 4
                                 )
                             }
                         }
