@@ -468,4 +468,51 @@ class TransactionDeduplicatorTest {
         assertNotEquals(DedupDecision.DUPLICATE, result.decision)
         assertNotEquals(DedupDecision.CORRELATED, result.decision)
     }
+
+    @Test
+    fun test31_distinctUtrsNeverDeduplicate_evenWithSameAmountAndMerchant() {
+        val existingRecord = TransactionRecord(
+            id = "rec_utr_1",
+            amount = 500.0,
+            direction = TransactionDirection.DEBIT,
+            merchant = "Starbucks",
+            referenceId = "412345678901",
+            timestamp = 10000L
+        )
+
+        // Second payment of same amount at same merchant with different UTR
+        val candidate = createValidatedCandidate(
+            text = "₹500 paid to Starbucks. Ref 412345678902",
+            notificationKey = "key_utr_2",
+            postTime = 10000L
+        )
+
+        val result = TransactionDeduplicator.evaluate(candidate, listOf(existingRecord))
+        assertEquals(DedupDecision.NEW_TRANSACTION, result.decision)
+        assertNotEquals(DedupDecision.DUPLICATE, result.decision)
+    }
+
+    @Test
+    fun test32_crossChannelCorrelation_pushThenBankSms_correlates() {
+        // First: GPay push recorded
+        val existingPush = TransactionRecord(
+            id = "rec_gpay_1",
+            amount = 250.0,
+            direction = TransactionDirection.DEBIT,
+            merchant = "Chai Point",
+            sourceType = TransactionSourceType.NOTIFICATION,
+            timestamp = 10000L
+        )
+
+        // Second: Incoming bank SMS within 1 minute with same amount, merchant, and bank account
+        val bankSmsCandidate = createValidatedCandidate(
+            text = "A/c **1234 debited by Rs. 250 at Chai Point. Ref 998811223344",
+            notificationKey = "sms_hdfc_1",
+            postTime = 10060L
+        )
+
+        val result = TransactionDeduplicator.evaluate(bankSmsCandidate, listOf(existingPush))
+        assertEquals(DedupDecision.CORRELATED, result.decision)
+        assertEquals("rec_gpay_1", result.matchedRecordId)
+    }
 }

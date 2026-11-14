@@ -102,8 +102,9 @@ object StructuredTransactionExtractor {
     // Merchant / Payee patterns (allows optional intervening amount like "Paid ₹500 to Amazon")
     private val OUTGOING_MERCHANT_PATTERNS = listOf(
         Regex("""(?i)\b(?:paid|sent|transferred|transfer|trf|payment)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:to|at|towards)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
-        Regex("""(?i)\b(?:debited|debit)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:for\s+(?:upi\s+)?to|for payment to|towards|to|at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:debited|debit)(?:\s+(?:by|for|with))?(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:for\s+(?:upi\s+)?to|for payment to|towards|to|at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
         Regex("""(?i)\b(?:purchase at|purchase on|spent at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:spent|purchase)\b.*?\b(?:at|towards|to)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
         Regex("""(?i)\bpayment(?:\s+of)?(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:to|at|towards)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
         Regex("""(?i)\b(?:paid to|sent to|transferred to|trf to)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50}?)(?:\s+(?:for|of|is)?\s*(?:rs\.?|inr|₹)\s*\d)"""),
         Regex("""(?i)\btrf\s+(?:to\s+)?([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})""")
@@ -143,17 +144,17 @@ object StructuredTransactionExtractor {
     )
 
     private val GENERAL_REF_PATTERN = Regex(
-        """(?i)\b(?:ref\s*(?:no\.?|num(?:ber)?\.?)?|refno\.?|reference\s*(?:no\.?|num(?:ber)?\.?)?|txn\s*(?:id)?|transaction\s*(?:id)?|recharge\s*(?:id|no\.?|num(?:ber)?\.?|ref(?:erence)?\.?))\s*[:\-#]?\s*([a-zA-Z0-9]{4,30})\b"""
+        """(?i)\b(?:ref\b|ref\s*no\.?|ref\s*num(?:ber)?\.?|refno\b|reference(?:\s*(?:id|no\.?))?\b|order\s*(?:id|no\.?)|txn\s*(?:id)?|transaction\s*(?:id)?|recharge\s*(?:id|no\.?|num(?:ber)?\.?|ref(?:erence)?\.?))\s*[:\-#]?\s*(?=[A-Za-z0-9]*\d)([a-zA-Z0-9]{4,30})\b"""
     )
 
     // Account / Card suffix patterns
     private val EXPLICIT_ACCOUNT_PATTERN = Regex(
-        """(?i)\b(?:a/c|account|acct)\b\s*(?:no\.?|num(?:ber)?\.?)?\s*[:\-#]?\s*(?:ending\s*(?:with|in)?\s*[:\-#]?)?\s*[xX*\u2022\u25CF]*\s*(\d{3,6})\b"""
+        """(?i)\b(?:a/c\.?|account|acct)\b\s*(?:no\.?|num(?:ber)?\.?)?\s*[:\-#]?\s*(?:ending\s*(?:with|in)?\s*[:\-#]?)?\s*[xX*\u2022\u25CF.]*\s*(\d{3,6})\b"""
     )
 
-    // Masked standalone account pattern e.g. "XXXXX9020", "****9020", "••••9020", "XX1065", "XXXXX 9020"
+    // Masked standalone account pattern e.g. "XXXXX9020", "****9020", "••••9020", "XX1065", "XXXXX 9020", "...7890"
     private val MASKED_ACCOUNT_PATTERN = Regex(
-        """(?i)(?<![a-zA-Z0-9])([xX*\u2022\u25CF]{2,})\s*(\d{3,6})\b"""
+        """(?i)(?<![a-zA-Z0-9])([xX*\u2022\u25CF]{2,}|\.{3,})\s*(\d{3,6})\b"""
     )
 
     // Context prefix immediately preceding a masked candidate that indicates it is a card rather than an account
@@ -167,7 +168,7 @@ object StructuredTransactionExtractor {
     )
 
     private val CARD_SUFFIX_PATTERN = Regex(
-        """(?i)\b(?:card)\b\s*(?:no\.?|num(?:ber)?\.?)?\s*[:\-#]?\s*(?:ending\s*(?:with|in)?\s*[:\-#]?)?\s*[xX*\u2022\u25CF]*\s*(\d{3,6})\b"""
+        """(?i)\b(?:card)\b\s*(?:no\.?|num(?:ber)?\.?)?\s*[:\-#]?\s*(?:ending\s*(?:with|in)?\s*[:\-#]?)?\s*[xX*\u2022\u25CF.]*\s*(\d{3,6})\b"""
     )
 
     private val MONTH_MAP = mapOf(
@@ -235,7 +236,7 @@ object StructuredTransactionExtractor {
         }
 
         // Layer 3.5: Transaction DNA Verification Bridge
-        val notifDnaProfile = TransactionDnaVerifier.verify(notification.normalizedCombinedText)
+        val notifDnaProfile = TransactionDnaVerifier.verify(notification.normalizedCombinedText, packageName = notification.packageName)
         if (!notifDnaProfile.meetsExtractionThreshold) {
             return emptyList()
         }
@@ -249,7 +250,7 @@ object StructuredTransactionExtractor {
                 if (segAssessment.actualEvent == ActualEventStatus.FALSE) {
                     continue
                 }
-                val segDnaProfile = TransactionDnaVerifier.verify(segment)
+                val segDnaProfile = TransactionDnaVerifier.verify(segment, packageName = notification.packageName)
                 if (!segDnaProfile.meetsExtractionThreshold && !notifDnaProfile.meetsExtractionThreshold) {
                     continue
                 }
@@ -538,7 +539,7 @@ object StructuredTransactionExtractor {
             transactionTimeString = temporal.timeString,
             temporalEvidence = temporal.temporalEvidence,
             eventAssessment = ActualTransactionEventGate.assessClause(segmentText, extractedAmount),
-            confidenceProfile = TransactionDnaVerifier.verify(segmentText)
+            confidenceProfile = TransactionDnaVerifier.verify(segmentText, packageName = wholeNotification.packageName)
         )
     }
 
@@ -640,7 +641,7 @@ object StructuredTransactionExtractor {
             transactionTimeString = temporal.timeString,
             temporalEvidence = temporal.temporalEvidence,
             eventAssessment = ActualTransactionEventGate.assess(text, notification.packageName, extractedAmount),
-            confidenceProfile = TransactionDnaVerifier.verify(text)
+            confidenceProfile = TransactionDnaVerifier.verify(text, packageName = notification.packageName)
         )
     }
 
@@ -920,7 +921,7 @@ object StructuredTransactionExtractor {
         // 1. Check for beneficiary credit in an account debit message:
         // E.g. "Your a/c ... is debited for Rs.100 ... and credited to VPA 9704147837-3@axl"
         val isAccountDebitedBeneficiaryCredited = Regex(
-            """(?i)\b(?:debited|debit)\b.*?\b(?:and\s+)?credited\s+to\s+(?:vpa\b|beneficiary\b|[a-zA-Z0-9.\-_]+@)"""
+            """(?i)\b(?:debited|debit)\b.*?\b(?:(?:and\s+)?credited\s+to\s+(?:vpa\b|beneficiary\b|[a-zA-Z0-9.\-_]+@)|beneficiary\b.*?\bcredited\b)"""
         ).containsMatchIn(text)
 
         if (isAccountDebitedBeneficiaryCredited) {
@@ -935,7 +936,7 @@ object StructuredTransactionExtractor {
 
         // 2. Check for account credited with sender debited:
         val isAccountCreditedSenderDebited = Regex(
-            """(?i)\b(?:credited|credit)\b.*?\b(?:and\s+)?debited\s+from\b"""
+            """(?i)\b(?:credited|credit)\b.*?\b(?:(?:and\s+)?debited\s+from\b|from\s+(?:a/c|account)?\s*.*?\bdebited\b)"""
         ).containsMatchIn(text)
 
         if (isAccountCreditedSenderDebited) {
@@ -988,7 +989,7 @@ object StructuredTransactionExtractor {
             return TransactionDirection.CREDIT
         }
 
-        val hasDebitWord = Regex("""(?i)\b(debited|debit(?!\s*(?:card|ending|limit|offer|option))|paid|spent|withdrawn)\b""").containsMatchIn(text)
+        val hasDebitWord = Regex("""(?i)\b(debited|debit(?!\s*(?:card|ending|limit|offer|option))|paid|spent|withdrawn|made on)\b""").containsMatchIn(text)
         val hasCreditWord = Regex("""(?i)\b(credited|credit(?!\s*(?:card|score|limit|bill|line|facility|offer|option))|deposited|received|refunded)\b""").containsMatchIn(text)
 
         // Ambiguous when both debit and credit words are present
@@ -1014,7 +1015,7 @@ object StructuredTransactionExtractor {
             return gateAssessment.directionHint
         }
 
-        val hasDebitExplicit = Regex("""(?i)\b(paid to|sent to(?!\s+(?:your|my))|transferred to(?!\s+(?:your|my))|debited from|spent at|purchase at|paid at|debited by|debited for|paid using|is debited|was debited|has been debited|debited|debit(?!\s*(?:card|limit|offer|option))|payment\s+made|payment\s+to\s+(?!(?:your|my)\s+(?:a/c|acct|acc|account|wallet))[A-Za-z0-9 &._-]+)\b""").containsMatchIn(text)
+        val hasDebitExplicit = Regex("""(?i)\b(paid to|sent to(?!\s+(?:your|my))|transferred to(?!\s+(?:your|my))|debited from|spent at|spent on|purchase at|paid at|debited by|debited for|paid using|is debited|was debited|has been debited|debited|debit(?!\s*(?:card|limit|offer|option))|payment\s+made|made on(?:\s+[A-Za-z0-9 &._-]+)?\s+card|payment\s+to\s+(?!(?:your|my)\s+(?:a/c|acct|acc|account|wallet))[A-Za-z0-9 &._-]+)\b""").containsMatchIn(text)
         val hasCreditExplicit = Regex("""(?i)\b(received from|credited to|credited in|credited into|credited with|credited by|credited for|deposited|refund of .* received|cashback received|cashback credited|is credited|was credited|has been credited|credited|credit(?!\s*(?:card|limit|score|bill|line|facility|offer|option))|added to wallet|added to your (?:account|a/c|wallet)|payment\s+to\s+(?:your|my)\s+(?:a/c|acct|acc|account|wallet))\b""").containsMatchIn(text)
 
         if (hasCreditExplicit && !hasDebitExplicit) {
@@ -1326,6 +1327,8 @@ object StructuredTransactionExtractor {
             // Avoid capturing word "No", trivial noise, status words, or helpline numbers
             if (candidate != null &&
                 !candidate.equals("no", ignoreCase = true) &&
+                !candidate.equals("erence", ignoreCase = true) &&
+                !candidate.equals("reference", ignoreCase = true) &&
                 !candidate.equals("successful", ignoreCase = true) &&
                 !candidate.equals("completed", ignoreCase = true) &&
                 !candidate.equals("failed", ignoreCase = true) &&
@@ -1750,22 +1753,23 @@ object StructuredTransactionExtractor {
             }
         }
 
-        // 2. Trailing hyphen/dash suffix: e.g. "-IPPB", "-SBI", "-APGBank", ".-IPPB"
-        val suffixMatch = Regex("""(?i)[-–—]\s*([A-Za-z0-9]{2,15}(?:Bank|BK)?)\s*[.]?\s*$""").find(text)
+        // 2. Trailing hyphen/dash suffix: e.g. "-IPPB", "-SBI", "-APGBank", ".-IPPB" (strip URLs first to prevent matching URL path slugs)
+        val textWithoutUrls = NotificationNormalizer.stripUrls(text)
+        val suffixMatch = Regex("""(?i)[-–—]\s*([A-Za-z0-9]{2,15}(?:Bank|BK)?)\s*[.]?\s*$""").find(textWithoutUrls)
         if (suffixMatch != null) {
             val raw = suffixMatch.groupValues[1].trim()
             if (isValidBankToken(raw)) return normalizeBankName(raw)
         }
 
         // 3. "thru <Bank>" e.g. "thru IPPB"
-        val thruMatch = Regex("""(?i)\bthru\s+([A-Za-z0-9]{2,15})\b""").find(text)
+        val thruMatch = Regex("""(?i)\bthru\s+([A-Za-z0-9]{2,15})\b""").find(textWithoutUrls)
         if (thruMatch != null) {
             val raw = thruMatch.groupValues[1].trim()
             if (isValidBankToken(raw)) return normalizeBankName(raw)
         }
 
         // 4. Any hyphenated bank code in text: e.g. "-IPPB", "-SBI", "-APGBank"
-        val anyHyphenMatch = Regex("""(?i)[-–—](IPPB|SBI|APGBank|APGB|HDFC|ICICI|AXIS|PNB|BOB|KOTAK|CANARA)\b""").find(text)
+        val anyHyphenMatch = Regex("""(?i)[-–—](IPPB|SBI|APGBank|APGB|HDFC|ICICI|AXIS|PNB|BOB|KOTAK|CANARA)\b""").find(textWithoutUrls)
         if (anyHyphenMatch != null) {
             return normalizeBankName(anyHyphenMatch.groupValues[1])
         }
@@ -1793,7 +1797,11 @@ object StructuredTransactionExtractor {
 
     private fun isValidBankToken(token: String): Boolean {
         val lower = token.lowercase()
-        val noise = setOf("sms", "otp", "call", "info", "team", "app", "alert", "care", "help")
+        val noise = setOf(
+            "sms", "otp", "call", "info", "team", "app", "alert", "care", "help",
+            "bills", "bill", "recharge", "plan", "pack", "status", "order", "mobile",
+            "payment", "update", "track", "link", "click", "web", "online"
+        )
         return token.length in 2..15 && token !in noise
     }
 }

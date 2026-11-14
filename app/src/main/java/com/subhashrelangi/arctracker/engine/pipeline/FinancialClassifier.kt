@@ -61,6 +61,17 @@ object FinancialClassifier {
     )
 
     /**
+     * Checks if text contains physical banking instrument anchors:
+     * Masked Account, Card, UTR/RRN, or Available Balance.
+     */
+    fun hasPhysicalBankingAnchor(text: String): Boolean {
+        return Regex(
+            """\b(?:(?:a/c|acct|acc|account)\s*(?:no\.?|num\.?|number)?\s*(?:ending\s+(?:in\s+)?)?[x*]*\d{3,6}|card\s*(?:ending\s+(?:in\s+)?)?[x*]*\d{3,6}|(?:utr|rrn|upi\s+ref)\s*[:\-#]?\s*\d{6,16}|(?:avl|available)\s+(?:bal|balance))\b""",
+            RegexOption.IGNORE_CASE
+        ).containsMatchIn(text)
+    }
+
+    /**
      * Classifies a normalized notification for financial relevance and noise.
      *
      * @param notification The normalized notification to evaluate.
@@ -73,8 +84,24 @@ object FinancialClassifier {
     ): NotificationClassificationResult {
         val text = notification.normalizedCombinedText
         val packageName = notification.packageName
+        val traiInfo = TraiSenderRegistry.classify(packageName)
 
-        // 0. Check Unsupported Language Policy (Milestone 5.2)
+        // 0.1 TRAI Promotional (-P) Channel SMS hard drop
+        if (traiInfo.isPromotional) {
+            return NotificationClassificationResult(
+                normalized = notification,
+                financialRelevance = FinancialRelevance.NON_FINANCIAL,
+                isNoise = true,
+                noiseCategory = NoiseCategory.PROMOTIONAL_OR_OFFER,
+                directionHint = DirectionHint.UNKNOWN,
+                matchedFinancialSignals = emptyList(),
+                matchedNoiseSignals = listOf("TRAI_PROMOTIONAL_CHANNEL"),
+                classificationReasons = listOf("Classified as NON_FINANCIAL: TRAI Promotional (-P) channel sender '$packageName'"),
+                noiseReasons = listOf("TRAI Promotional (-P) channel SMS")
+            )
+        }
+
+        // 0.2 Check Unsupported Language Policy (Milestone 5.2)
         if (LanguagePolicyHelper.shouldRejectAsUnsupportedLanguage(text)) {
             return NotificationClassificationResult(
                 normalized = notification,
@@ -102,6 +129,28 @@ object FinancialClassifier {
         val hasCurrencyContext = CURRENCY_PATTERNS.any { it.containsMatchIn(text) }
         val hasWeakFinancialKeyword = WEAK_FINANCIAL_KEYWORD_PATTERNS.any { it.containsMatchIn(text) }
         val isKnownFinancialApp = KNOWN_FINANCIAL_PACKAGES.contains(packageName)
+
+        // 0.3 Tier 3 Merchant / Telecom Carrier without banking anchor or matching service status
+        val matchesServiceNotice = noiseResult.primaryCategory == NoiseCategory.SERVICE_STATUS_NOTICE
+        val hasCompletedMovement = hasDebitAction || hasCreditAction || hasTransactionSuccess
+        if (traiInfo.isTier3MerchantOrCarrier && (matchesServiceNotice || !hasPhysicalBankingAnchor(text) || !hasCompletedMovement)) {
+            val noiseCat = if (noiseResult.isNoise && noiseResult.primaryCategory != NoiseCategory.NONE) {
+                noiseResult.primaryCategory
+            } else {
+                NoiseCategory.SERVICE_STATUS_NOTICE
+            }
+            return NotificationClassificationResult(
+                normalized = notification,
+                financialRelevance = FinancialRelevance.NON_FINANCIAL,
+                isNoise = true,
+                noiseCategory = noiseCat,
+                directionHint = DirectionHint.UNKNOWN,
+                matchedFinancialSignals = emptyList(),
+                matchedNoiseSignals = noiseResult.matchedSignals + listOf("TIER_3_MERCHANT_CARRIER_UNANCHORED"),
+                classificationReasons = listOf("Classified as NON_FINANCIAL: Telecom carrier fulfillment or merchant update from '$packageName'"),
+                noiseReasons = noiseResult.reasons + listOf("Merchant/Carrier notification without physical banking instrument anchor")
+            )
+        }
 
         if (hasDebitAction) {
             matchedFinancialSignals.add("DEBIT_ACTION_INDICATOR")

@@ -311,4 +311,82 @@ class FinancialClassifierTest {
         assertFalse(result.isNoise)
         assertEquals(DirectionHint.UNKNOWN, result.directionHint)
     }
+
+    // 24. Carrier fulfillment message (AD-AIRINF-S) is classified as SERVICE_STATUS_NOTICE and dropped
+    @Test
+    fun testCarrierFulfillment_AirtelRecharge_isServiceStatusNoticeNoise() {
+        val raw = CapturedNotificationInfo(
+            packageName = "AD-AIRINF-S",
+            notificationKey = "airtel_fail_1",
+            postTime = 1000L,
+            text = "Hi, we have processed Rs. 199.0 for your Airtel Mobile 9502568713. The payment will be updated within 15 minutes. Please keep your order ID 7517823928865849344 for future reference. Track your payment status via https://i.airtel.in/Recharge-Bills"
+        )
+        val norm = NotificationNormalizer.normalize(raw)!!
+        val result = FinancialClassifier.classify(norm)
+
+        assertEquals(FinancialRelevance.NON_FINANCIAL, result.financialRelevance)
+        assertTrue(result.isNoise)
+        assertEquals(NoiseCategory.SERVICE_STATUS_NOTICE, result.noiseCategory)
+    }
+
+    // 25. TRAI Promotional suffix (-P) is hard dropped immediately
+    @Test
+    fun testTraiPromotionalSuffix_isHardDropped() {
+        val raw = CapturedNotificationInfo(
+            packageName = "CP-SWIGGY-P",
+            notificationKey = "swiggy_promo_1",
+            postTime = 1000L,
+            text = "Flat Rs. 100 off on your next order! Use code SWIGGY100"
+        )
+        val norm = NotificationNormalizer.normalize(raw)!!
+        val result = FinancialClassifier.classify(norm)
+
+        assertEquals(FinancialRelevance.NON_FINANCIAL, result.financialRelevance)
+        assertTrue(result.isNoise)
+        assertEquals(NoiseCategory.PROMOTIONAL_OR_OFFER, result.noiseCategory)
+    }
+
+    // 26. Personal non-financial SMS is classified as NON_FINANCIAL with 0 noise
+    @Test
+    fun testPersonalNonFinancialSms_isNonFinancialWithoutNoise() {
+        val raw = CapturedNotificationInfo(
+            packageName = "+919876543210",
+            notificationKey = "personal_sms_1",
+            postTime = 1000L,
+            text = "Hey, are we still meeting for lunch today at 1pm?"
+        )
+        val norm = NotificationNormalizer.normalize(raw)!!
+        val result = FinancialClassifier.classify(norm)
+
+        assertEquals(FinancialRelevance.NON_FINANCIAL, result.financialRelevance)
+        assertFalse(result.isNoise)
+    }
+
+    // 27. Mandate/Autopay upcoming alert is classified as BILL_REMINDER_OR_MANDATE noise
+    @Test
+    fun testMandateUpcomingAlert_isBillReminderNoise() {
+        val norm = normalize("Upcoming mandate of Rs. 499 is scheduled for auto-debit on 20-Oct-26")
+        val result = FinancialClassifier.classify(norm)
+
+        assertEquals(FinancialRelevance.NON_FINANCIAL, result.financialRelevance)
+        assertTrue(result.isNoise)
+        assertEquals(NoiseCategory.BILL_REMINDER_OR_MANDATE, result.noiseCategory)
+    }
+
+    // 28. Real bank SMS with bank anchor and Tier 1 sender is classified as FINANCIAL
+    @Test
+    fun testTier1BankSms_withAnchor_isFinancial() {
+        val raw = CapturedNotificationInfo(
+            packageName = "VK-HDFCBK-T",
+            notificationKey = "hdfc_real_1",
+            postTime = 1000L,
+            text = "Dear Customer, INR 199.00 debited from A/c **1234 towards Airtel Mobile on 19-Oct-26. Avl Bal: INR 8,500.00"
+        )
+        val norm = NotificationNormalizer.normalize(raw)!!
+        val result = FinancialClassifier.classify(norm)
+
+        assertEquals(FinancialRelevance.FINANCIAL, result.financialRelevance)
+        assertFalse(result.isNoise)
+        assertEquals(DirectionHint.DEBIT_HINT, result.directionHint)
+    }
 }

@@ -374,10 +374,11 @@ class NotificationReaderService : NotificationListenerService() {
             textLines
         }
 
-        val resolvedText = if (text.isNullOrBlank() && messagingLines.isNotEmpty()) {
-            messagingLines.lastOrNull()
-        } else {
-            text
+        val resolvedText = when {
+            !text.isNullOrBlank() -> text
+            !bigText.isNullOrBlank() -> bigText
+            messagingLines.isNotEmpty() -> messagingLines.lastOrNull()
+            else -> text
         }
 
         return NotificationContent(

@@ -441,4 +441,43 @@ class NotificationNormalizerTest {
         assertNotNull(cleaned)
         assertEquals("A".repeat(5000) + " " + "B".repeat(5000), cleaned)
     }
+
+    // URL stripping tests: prevents /Recharge-Bills from polluting financial extractors
+    @Test
+    fun testStripUrls_standardHttpAndHttps() {
+        val text = "Track your payment status via https://i.airtel.in/Recharge-Bills. Keep order ID safe."
+        val stripped = NotificationNormalizer.stripUrls(text)
+        assertFalse(stripped.contains("https://i.airtel.in/Recharge-Bills"))
+        assertFalse(stripped.contains("Recharge-Bills"))
+        assertTrue(stripped.contains("Track your payment status via"))
+        assertTrue(stripped.contains("Keep order ID safe."))
+    }
+
+    @Test
+    fun testStripUrls_shortlinks() {
+        val text = "Click bit.ly/3AbCdEf or goo.gl/maps/123 or t.co/xyz to view statement."
+        val stripped = NotificationNormalizer.stripUrls(text)
+        assertFalse(stripped.contains("bit.ly"))
+        assertFalse(stripped.contains("goo.gl"))
+        assertFalse(stripped.contains("t.co"))
+        assertTrue(stripped.contains("Click"))
+        assertTrue(stripped.contains("to view statement."))
+    }
+
+    @Test
+    fun testNormalizedNotification_providesSanitizedTextWithoutUrls() {
+        val raw = CapturedNotificationInfo(
+            packageName = "AD-AIRINF-S",
+            notificationKey = "airtel_norm_1",
+            postTime = 1000L,
+            title = "Airtel",
+            text = "Recharge of Rs. 199.0 processed. Track via https://i.airtel.in/Recharge-Bills"
+        )
+        val normalized = NotificationNormalizer.normalize(raw)
+        assertNotNull(normalized)
+        assertTrue(normalized!!.normalizedCombinedText.contains("https://i.airtel.in/Recharge-Bills"))
+        assertFalse(normalized.sanitizedTextWithoutUrls.contains("https://i.airtel.in/Recharge-Bills"))
+        assertFalse(normalized.sanitizedTextWithoutUrls.contains("Recharge-Bills"))
+        assertTrue(normalized.sanitizedTextWithoutUrls.contains("Recharge of Rs. 199.0 processed"))
+    }
 }

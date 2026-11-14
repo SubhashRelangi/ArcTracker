@@ -38,6 +38,21 @@ object NotificationNormalizer {
 
     private val HORIZONTAL_WHITESPACE_REGEX = Regex("[ \\t\\x0B\\f]+")
 
+    val URL_REGEX = Regex(
+        """(?i)\b(?:https?://[^\s<>"'{}|\\^`]+|www\.[^\s<>"'{}|\\^`]+|(?:bit\.ly|goo\.gl|tinyurl\.com|t\.co|paytm\.me)/[^\s<>"'{}|\\^`]+)"""
+    )
+
+    /**
+     * Strips URLs, web links, and URL-shortener paths from text, collapsing spaces.
+     * Prevents URL path tokens (e.g. /Recharge-Bills) from polluting financial and bank regexes.
+     */
+    fun stripUrls(text: String?): String {
+        if (text.isNullOrBlank()) return ""
+        return URL_REGEX.replace(text, " ")
+            .replace(HORIZONTAL_WHITESPACE_REGEX, " ")
+            .trim()
+    }
+
     /**
      * Cleans an individual single or multi-line text string according to whitespace and unicode rules.
      * Returns null if the resulting string is blank or the input was null.
@@ -108,6 +123,8 @@ object NotificationNormalizer {
                 infoText = normInfoText
             )
 
+            val sanitizedWithoutUrls = stripUrls(combined)
+
             NormalizedNotification(
                 raw = raw,
                 packageName = raw.packageName,
@@ -128,18 +145,21 @@ object NotificationNormalizer {
                 normalizedInfoText = normInfoText,
                 normalizedTextLines = normTextLines,
                 normalizedCombinedText = combined,
-                normalizedCombinedTextLower = combined.lowercase()
+                normalizedCombinedTextLower = combined.lowercase(),
+                sanitizedTextWithoutUrls = sanitizedWithoutUrls
             )
         } catch (e: Exception) {
             // Safety fallback: never throw or crash the capture pipeline
             val fallbackCombined = listOfNotNull(raw.title, raw.text, raw.bigText).joinToString("\n")
+            val fallbackWithoutUrls = stripUrls(fallbackCombined)
             NormalizedNotification(
                 raw = raw,
                 normalizedTitle = raw.title,
                 normalizedText = raw.text,
                 normalizedBigText = raw.bigText,
                 normalizedCombinedText = fallbackCombined,
-                normalizedCombinedTextLower = fallbackCombined.lowercase()
+                normalizedCombinedTextLower = fallbackCombined.lowercase(),
+                sanitizedTextWithoutUrls = fallbackWithoutUrls
             )
         }
     }

@@ -456,4 +456,15 @@ class TransactionValidatorTest {
         assertEquals(350.0, result.candidate.amount)
         assertTrue(result.isAcceptable)
     }
+
+    @Test
+    fun test31_tier3CarrierWithoutBankingInstrument_isRejected() {
+        val notif = createNotification(
+            text = "Hi, we have processed Rs. 199.0 for your Airtel Mobile 9502568713. Track via https://i.airtel.in/Recharge-Bills",
+            packageName = "AD-AIRINF-S"
+        )
+        val result = TransactionValidator.validate(notif)
+        assertTrue(result.isRejected)
+        assertEquals(ValidationState.REJECTED, result.validationState)
+    }
 }

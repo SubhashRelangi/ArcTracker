@@ -105,4 +105,39 @@ class TransactionDnaVerifierTest {
         assertTrue(profile.meetsExtractionThreshold)
         assertTrue(profile.matchedAnchors.contains(AnchorType.COMPLETED_ACTION_VERB))
     }
+
+    @Test
+    fun test09_gpayLivePush_profileB_trustedPackageAnchor_confirmedFinancial() {
+        val text = "Paid ₹150 to Chai Point"
+        val gpayPkg = "com.google.android.apps.nbu.paisa.user"
+        val profile = TransactionDnaVerifier.verify(text, packageName = gpayPkg)
+
+        assertTrue("Profile B verified fintech should score >= 50", profile.score >= 50)
+        assertEquals(VerificationVerdict.CONFIRMED_FINANCIAL, profile.verdict)
+        assertTrue(profile.isAnchored)
+        assertTrue(profile.matchedAnchors.contains(AnchorType.ACCOUNT_INSTRUMENT))
+        assertTrue(profile.matchedAnchors.contains(AnchorType.COMPLETED_ACTION_VERB))
+        assertTrue(profile.matchedAnchors.contains(AnchorType.DIRECTIONAL_PARTY))
+    }
+
+    @Test
+    fun test10_smsUnanchored_profileA_scoreCappedAt35_notConfirmed() {
+        val text = "Hi, we have processed Rs. 199.0 for your mobile. The payment will be updated within 15 minutes."
+        val smsSender = "AD-AIRINF-S"
+        val profile = TransactionDnaVerifier.verify(text, packageName = smsSender)
+
+        assertTrue("Unanchored SMS must be capped at <= 35 pts", profile.score <= 35)
+        assertFalse(profile.isAnchored)
+        assertNotEquals(VerificationVerdict.CONFIRMED_FINANCIAL, profile.verdict)
+        assertFalse(profile.matchedAnchors.contains(AnchorType.ACCOUNT_INSTRUMENT))
+        assertFalse(profile.matchedAnchors.contains(AnchorType.COMPLETED_ACTION_VERB))
+    }
+
+    @Test
+    fun test11_genericNounAlone_doesNotScoreActionVerb() {
+        val text = "Track your payment status and recharge online for order reference"
+        val profile = TransactionDnaVerifier.verify(text)
+
+        assertFalse("Standalone nouns must not score action verb", profile.matchedAnchors.contains(AnchorType.COMPLETED_ACTION_VERB))
+    }
 }

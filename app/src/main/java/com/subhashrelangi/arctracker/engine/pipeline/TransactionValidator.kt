@@ -207,9 +207,9 @@ object TransactionValidator {
         // 2.6 Transaction DNA Verification Bridge (Layer 3.5)
         // ----------------------------------------------------
         val confidenceProfile = candidate.confidenceProfile
-            ?: (candidate.rawContent?.let { TransactionDnaVerifier.verify(it) }
-                ?: classification?.normalized?.normalizedCombinedText?.let { TransactionDnaVerifier.verify(it) }
-                ?: TransactionDnaVerifier.verify(candidate.sourceNotificationKey))
+            ?: (candidate.rawContent?.let { TransactionDnaVerifier.verify(it, candidate.packageName) }
+                ?: classification?.normalized?.normalizedCombinedText?.let { TransactionDnaVerifier.verify(it, candidate.packageName) }
+                ?: TransactionDnaVerifier.verify(candidate.sourceNotificationKey, candidate.packageName))
 
         when (confidenceProfile.verdict) {
             VerificationVerdict.CONFIRMED_FINANCIAL -> {
@@ -286,6 +286,16 @@ object TransactionValidator {
                     warnings.add("Extracted amount matches recorded secondary balance")
                 }
             }
+        }
+
+        // Zero Unanchored Writes Invariant:
+        // Tier 3 telecom carriers and merchants without a physical banking instrument (account or card suffix)
+        // must be rejected cleanly to guarantee zero writes and zero leaks into #ToReview.
+        val traiInfo = TraiSenderRegistry.classify(candidate.packageName)
+        if (traiInfo.isTier3MerchantOrCarrier && candidate.accountSuffix == null && candidate.cardSuffix == null) {
+            isStructurallyValid = false
+            rejectionReasons.add("Tier 3 carrier or merchant update without physical banking instrument")
+            contradictingSignals.add("TIER_3_UNANCHORED")
         }
 
         // ----------------------------------------------------
