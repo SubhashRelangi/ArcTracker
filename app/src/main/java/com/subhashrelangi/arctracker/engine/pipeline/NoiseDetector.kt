@@ -112,8 +112,20 @@ object NoiseDetector {
         Regex("""\b(?:for your (?:airtel|jio|vi|vodafone|bsnl|tatasky|dish tv|sun direct) (?:mobile|dth|broadband|fiber|number|account))\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:keep your order (?:id|no\.?)\s+\d+ for future reference)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:order (?:id|no\.?)\s*[:\-#]?\s*\d+.*?for future reference)\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:order\s+(?:confirmed|placed|shipped|out for delivery|delivered|picked up))\b""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:your (?:order|recharge|payment) request (?:has been|is) received)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(?:order|shipment|package)\s+(?:has been\s+)?(?:dispatched|shipped|out for delivery|delivered|confirmed|placed|picked up)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:your (?:order|recharge|payment) request (?:has been|is) received)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:processed|recharge(?: of)?|plan|pack)\s+(?:rs\.?|inr|₹)?\s*\d+(?:\.\d+)?\s+(?:for your (?:airtel|jio|vi|bsnl|vodafone)\s+mobile|will be updated within|is credited to your mobile)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:cab ride ended|ride completed|trip completed|driver has arrived|web-checkin|boarding pass)\b""", RegexOption.IGNORE_CASE)
+    )
+
+    // 9. Bill Reminders & Mandate / Autopay upcoming alerts (Unpaid bills, future scheduled auto-debits)
+    private val BILL_REMINDER_AND_MANDATE_PATTERNS = listOf(
+        Regex("""\b(?:mandate|autopay|standing instruction|e-mandate)\s+(?:of\s+(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?\s+)?(?:is scheduled|will be debited|due on|created successfully)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:bill of|bill for)\s+(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?\s+(?:is generated|is due|due on)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:upcoming (?:bill|payment|mandate|emi|autopay|debit))\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:is due on|due date is|pay before|pay by\s+\d{1,2}[/-]\d{1,2})\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:auto-debit scheduled for tomorrow|scheduled for auto-debit)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:standing instruction scheduled|mandate is scheduled)\b""", RegexOption.IGNORE_CASE)
     )
 
     /**
@@ -278,7 +290,19 @@ object NoiseDetector {
             }
         }
 
-        // 9. Check Balance-Only notifications (if no debit/credit action is mentioned)
+        // 9. Check Bill Reminders & Mandates
+        for (pattern in BILL_REMINDER_AND_MANDATE_PATTERNS) {
+            if (pattern.containsMatchIn(text) && !hasExplicitBankDebit(text)) {
+                matchedSignals.add("BILL_REMINDER_OR_MANDATE")
+                reasons.add("Contains unpaid bill reminder or future mandate schedule notice")
+                if (primaryCategory == NoiseCategory.NONE) {
+                    primaryCategory = NoiseCategory.BILL_REMINDER_OR_MANDATE
+                }
+                break
+            }
+        }
+
+        // 10. Check Balance-Only notifications (if no debit/credit action is mentioned)
         val hasBalanceMention = BALANCE_INQUIRY_PATTERNS.any { it.containsMatchIn(text) }
         if (hasBalanceMention && !hasCompletedAction) {
             matchedSignals.add("BALANCE_INQUIRY")

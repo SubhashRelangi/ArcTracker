@@ -120,7 +120,9 @@ object ActualTransactionEventGate {
         Regex("""\b(?:limit\s+is|limit\s+of)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:minimum\s+amount\s+due|bill\s+amount|amount\s+due|statement\s+total|bill\s+due|payment\s+due|due\s+date|total\s+due|due\s+on)\b""", RegexOption.IGNORE_CASE),
         Regex("""\b(?:statement\s+generated|statement\s+available|monthly\s+statement|e-statement|account\s+summary|bill\s+reminder|payment\s+reminder|reminder\b|reminder\s*[:\-])""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:credit\s+card\s+payment\s+options|payment\s+options?\s+available|options?\s+available)\b""", RegexOption.IGNORE_CASE)
+        Regex("""\b(?:credit\s+card\s+payment\s+options|payment\s+options?\s+available|options?\s+available)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:mandate|autopay|standing instruction|e-mandate)\s+(?:of\s+(?:rs\.?|inr|₹)\s*[\d,]+(?:\.\d{1,2})?\s+)?(?:is scheduled|will be debited|due on|created successfully)\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:auto-debit scheduled for tomorrow|scheduled for auto-debit|standing instruction scheduled)\b""", RegexOption.IGNORE_CASE)
     )
 
     // 7. Negative Evidence: Authentication / OTP Patterns
