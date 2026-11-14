@@ -102,7 +102,7 @@ object StructuredTransactionExtractor {
     // Merchant / Payee patterns (allows optional intervening amount like "Paid ₹500 to Amazon")
     private val OUTGOING_MERCHANT_PATTERNS = listOf(
         Regex("""(?i)\b(?:paid|sent|transferred|transfer|trf|payment)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:to|at|towards)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
-        Regex("""(?i)\b(?:debited|debit)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:for\s+(?:upi\s+)?to|for payment to|towards|to|at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:debited|debit)(?:\s+(?:by|for|with))?(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:for\s+(?:upi\s+)?to|for payment to|towards|to|at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
         Regex("""(?i)\b(?:purchase at|purchase on|spent at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
         Regex("""(?i)\b(?:spent|purchase)\b.*?\b(?:at|towards|to)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
         Regex("""(?i)\bpayment(?:\s+of)?(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:to|at|towards)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),

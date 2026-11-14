@@ -288,6 +288,16 @@ object TransactionValidator {
             }
         }
 
+        // Zero Unanchored Writes Invariant:
+        // Tier 3 telecom carriers and merchants without a physical banking instrument (account or card suffix)
+        // must be rejected cleanly to guarantee zero writes and zero leaks into #ToReview.
+        val traiInfo = TraiSenderRegistry.classify(candidate.packageName)
+        if (traiInfo.isTier3MerchantOrCarrier && candidate.accountSuffix == null && candidate.cardSuffix == null) {
+            isStructurallyValid = false
+            rejectionReasons.add("Tier 3 carrier or merchant update without physical banking instrument")
+            contradictingSignals.add("TIER_3_UNANCHORED")
+        }
+
         // ----------------------------------------------------
         // 4. Direction & Status Consistency
         // ----------------------------------------------------
