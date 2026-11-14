@@ -26,8 +26,11 @@ data class NormalizedNotification(
     val normalizedInfoText: String? = null,
     val normalizedTextLines: List<String> = emptyList(),
     val normalizedCombinedText: String = "",
-    val normalizedCombinedTextLower: String = ""
+    val normalizedCombinedTextLower: String = "",
+    val sanitizedTextWithoutUrls: String = NotificationNormalizer.stripUrls(normalizedCombinedText)
 ) {
+    val sanitizedTextWithoutUrlsLower: String
+        get() = sanitizedTextWithoutUrls.lowercase()
     val normalizedTitleLower: String?
         get() = normalizedTitle?.lowercase()
 
