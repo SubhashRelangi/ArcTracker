@@ -117,12 +117,6 @@ fun LedgerPage(
     // Month filter dialog state
     var showMonthDialog by remember { mutableStateOf(false) }
 
-    // Detail dialog & Action sheet state
-    var selectedExpenseForDetailId by remember { mutableStateOf<Int?>(null) }
-    var openDetailInEditMode by remember { mutableStateOf(false) }
-    var deleteConfirmExpense by remember { mutableStateOf<Expense?>(null) }
-    var sheetExpense by remember { mutableStateOf<Expense?>(null) }
-
     // Real CSV Export via Android Storage Access Framework (SAF)
     val csvExportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
@@ -176,10 +170,6 @@ fun LedgerPage(
         } else {
             expenses
         }
-    }
-
-    val activeDetailExpense = remember(selectedExpenseForDetailId, sourceExpenses) {
-        selectedExpenseForDetailId?.let { id -> sourceExpenses.find { it.id == id } }
     }
 
     // Dynamic Filter Calculations
@@ -452,11 +442,8 @@ fun LedgerPage(
                                         account = expense.accountId?.let { accountsMap[it] },
                                         onClick = {
                                             onExpenseClick(expense)
-                                            openDetailInEditMode = false
-                                            selectedExpenseForDetailId = expense.id
                                         },
                                         onLongClick = {
-                                            sheetExpense = expense
                                             onExpenseLongClick(expense)
                                         }
                                     )
@@ -535,118 +522,6 @@ fun LedgerPage(
                 }
             }
         }
-    }
-
-    // Detail Dialog Integration (View, Edit, Delete, Reconcile)
-    activeDetailExpense?.let { detailExpense ->
-        val recentMerchants = remember(sourceExpenses) {
-            sourceExpenses.map { it.merchant }
-                .filter { it.isNotBlank() && it != "-" }
-                .distinct()
-                .take(8)
-        }
-        TransactionDetailDialog(
-            expense = detailExpense,
-            initialEditMode = openDetailInEditMode,
-            knownAccounts = knownAccounts,
-            allCategories = allCategories,
-            recentMerchants = recentMerchants,
-            onDismiss = {
-                selectedExpenseForDetailId = null
-                openDetailInEditMode = false
-            },
-            onSaveEdit = { expenseId, merchant, category, note ->
-                scope.launch(Dispatchers.IO) {
-                    transactionManager.updateTransaction(expenseId, merchant, category, note)
-                }
-                openDetailInEditMode = false
-            },
-            onAssignAccount = { expenseId, targetAccountId ->
-                scope.launch(Dispatchers.IO) {
-                    reconciliationManager.assignAccount(expenseId, targetAccountId)
-                }
-            },
-            onReassignAccount = { expenseId, newAccountId ->
-                scope.launch(Dispatchers.IO) {
-                    reconciliationManager.reassignAccount(expenseId, newAccountId)
-                }
-            },
-            onUnlinkAccount = { expenseId ->
-                scope.launch(Dispatchers.IO) {
-                    reconciliationManager.unlinkAccount(expenseId)
-                }
-            },
-            onDelete = { expenseToDelete ->
-                scope.launch(Dispatchers.IO) {
-                    try {
-                        val res = transactionManager.deleteTransaction(expenseToDelete.id)
-                        if (res.isFailure) {
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        SecureLogger.e("LedgerPage", "Failed to delete transaction id=${expenseToDelete.id}", e)
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-                selectedExpenseForDetailId = null
-                openDetailInEditMode = false
-            }
-        )
-    }
-
-    // Action Sheet on long-click
-    sheetExpense?.let { currentSheetExpense ->
-        TransactionActionSheet(
-            expense = currentSheetExpense,
-            onDismiss = { sheetExpense = null },
-            onEdit = {
-                sheetExpense = null
-                openDetailInEditMode = true
-                selectedExpenseForDetailId = currentSheetExpense.id
-            },
-            onDelete = {
-                sheetExpense = null
-                deleteConfirmExpense = currentSheetExpense
-            }
-        )
-    }
-
-    // Quick Delete Confirm Dialog from Action Sheet
-    deleteConfirmExpense?.let { expenseToDelete ->
-        val isCredit = expenseToDelete.type.equals("Credit", ignoreCase = true)
-        val sign = if (isCredit) "+" else "-"
-        DarkDeleteConfirmDialog(
-            expense = expenseToDelete,
-            sign = sign,
-            onConfirm = {
-                val idToDelete = expenseToDelete.id
-                deleteConfirmExpense = null
-                scope.launch(Dispatchers.IO) {
-                    try {
-                        val res = transactionManager.deleteTransaction(idToDelete)
-                        withContext(Dispatchers.Main) {
-                            if (res.isSuccess) {
-                                Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        SecureLogger.e("LedgerPage", "Failed to delete transaction id=$idToDelete", e)
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-            },
-            onDismiss = { deleteConfirmExpense = null }
-        )
     }
 }
 

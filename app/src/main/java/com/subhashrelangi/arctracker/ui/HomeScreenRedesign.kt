@@ -10,9 +10,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -168,7 +170,8 @@ fun HomeScreenRedesign(
     onBudgetsClick: () -> Unit = {},
     onExportClick: () -> Unit = {},
     onViewAllClick: () -> Unit = {},
-    onExpenseClick: (Expense) -> Unit = {}
+    onExpenseClick: (Expense) -> Unit = {},
+    onExpenseLongClick: (Expense) -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
 
@@ -562,6 +565,12 @@ fun HomeScreenRedesign(
                         onExpenseClick(exp)
                     } else {
                         onViewAllClick()
+                    }
+                },
+                onItemLongClick = { item ->
+                    val exp = expenses.firstOrNull { it.id == item.id }
+                    if (exp != null) {
+                        onExpenseLongClick(exp)
                     }
                 }
             )
@@ -2164,7 +2173,8 @@ private fun HomeRecentActivitySection(
     isDemoMode: Boolean,
     onViewAllClick: () -> Unit,
     onScanSmsClick: () -> Unit,
-    onItemClick: (HomeTransactionDisplay) -> Unit
+    onItemClick: (HomeTransactionDisplay) -> Unit,
+    onItemLongClick: (HomeTransactionDisplay) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         // Section Header Row
@@ -2331,7 +2341,8 @@ private fun HomeRecentActivitySection(
                     items.forEachIndexed { index, item ->
                         RecentTransactionItem(
                             item = item,
-                            onClick = { onItemClick(item) }
+                            onClick = { onItemClick(item) },
+                            onLongClick = { onItemLongClick(item) }
                         )
                         if (index < items.size - 1) {
                             HorizontalDivider(
@@ -2347,15 +2358,20 @@ private fun HomeRecentActivitySection(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RecentTransactionItem(
     item: HomeTransactionDisplay,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
