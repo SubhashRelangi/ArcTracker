@@ -90,7 +90,27 @@ import java.util.UUID
 
 class MainActivity : FragmentActivity() {
 
+    companion object {
+        val pendingNavigateToState = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+        val pendingOpenCashExpenseState = kotlinx.coroutines.flow.MutableStateFlow(false)
+    }
+
     private val isAppUnlockedState = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    override fun onNewIntent(intent: android.content.Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
+    private fun handleNotificationIntent(intent: android.content.Intent?) {
+        intent?.getStringExtra(com.subhashrelangi.arctracker.engine.notification.DailyNotificationReceiver.EXTRA_NAVIGATE_TO)?.let { target ->
+            pendingNavigateToState.value = target
+        }
+        if (intent?.getBooleanExtra(com.subhashrelangi.arctracker.engine.notification.DailyNotificationReceiver.EXTRA_OPEN_ADD_EXPENSE_CASH, false) == true) {
+            pendingOpenCashExpenseState.value = true
+        }
+    }
 
     private val screenOffReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
@@ -139,6 +159,11 @@ class MainActivity : FragmentActivity() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
             window.navigationBarDividerColor = android.graphics.Color.TRANSPARENT
         }
+
+        // Initialize Notification Channels and ensure daily alarms are registered
+        com.subhashrelangi.arctracker.engine.notification.NotificationChannelManager.createAllChannels(this)
+        com.subhashrelangi.arctracker.engine.notification.DailyNotificationScheduler.scheduleAll(this)
+        handleNotificationIntent(intent)
 
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
 
@@ -544,6 +569,19 @@ fun ExpenseScreen() {
             // Remove previous occurrence of route to prevent loops, and push to top of stack
             val filtered = backStack.filter { it != route }
             backStack = filtered + route
+        }
+    }
+
+    val pendingNav by MainActivity.pendingNavigateToState.collectAsState()
+    val pendingCash by MainActivity.pendingOpenCashExpenseState.collectAsState()
+    LaunchedEffect(pendingNav, pendingCash) {
+        pendingNav?.let { target ->
+            navigateTo(target)
+            MainActivity.pendingNavigateToState.value = null
+        }
+        if (pendingCash) {
+            showAddDialog = true
+            MainActivity.pendingOpenCashExpenseState.value = false
         }
     }
 
