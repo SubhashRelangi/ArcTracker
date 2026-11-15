@@ -1,17 +1,8 @@
 package com.subhashrelangi.arctracker.engine.notification
 
-import android.Manifest
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
-import com.subhashrelangi.arctracker.MainActivity
-import com.subhashrelangi.arctracker.R
 import com.subhashrelangi.arctracker.data.AppDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +39,7 @@ class DailyNotificationReceiver : BroadcastReceiver() {
             DailyNotificationScheduler.scheduleDailyDigest(context, prefs.dailyDigestHour, prefs.dailyDigestMinute)
         }
 
-        if (!prefs.isDailyDigestEnabled || !hasNotificationPermission(context)) {
+        if (!prefs.isDailyDigestEnabled || !NotificationDeliveryHelper.hasNotificationPermission(context)) {
             return
         }
 
@@ -66,7 +57,7 @@ class DailyNotificationReceiver : BroadcastReceiver() {
                 )
 
                 val payload = DailyDigestEvaluator.buildDailyDigestPayload(summary)
-                deliverNotification(context, payload)
+                NotificationDeliveryHelper.deliverNotification(context, payload)
             } catch (_: Exception) {
             } finally {
                 pendingResult.finish()
@@ -83,65 +74,11 @@ class DailyNotificationReceiver : BroadcastReceiver() {
             DailyNotificationScheduler.scheduleCashReminder(context, prefs.cashReminderHour, prefs.cashReminderMinute)
         }
 
-        if (!prefs.isCashReminderEnabled || !hasNotificationPermission(context)) {
+        if (!prefs.isCashReminderEnabled || !NotificationDeliveryHelper.hasNotificationPermission(context)) {
             return
         }
 
         val payload = DailyDigestEvaluator.buildCashReminderPayload()
-        deliverNotification(context, payload)
-    }
-
-    private fun deliverNotification(context: Context, payload: DailyDigestEvaluator.NotificationPayload) {
-        if (!hasNotificationPermission(context)) return
-
-        try {
-            val tapIntent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(EXTRA_NAVIGATE_TO, payload.targetDestination)
-                if (payload.openAddExpenseCash) {
-                    putExtra(EXTRA_OPEN_ADD_EXPENSE_CASH, true)
-                }
-            }
-
-            val pendingIntent = PendingIntent.getActivity(
-                context,
-                payload.notificationId,
-                tapIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-
-            val notification = NotificationCompat.Builder(context, payload.channelId)
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle(payload.title)
-                .setContentText(payload.message)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(payload.bigText))
-                .setPriority(
-                    if (payload.channelId == NotificationChannelManager.CHANNEL_BUDGET_ALERTS)
-                        NotificationCompat.PRIORITY_HIGH
-                    else
-                        NotificationCompat.PRIORITY_DEFAULT
-                )
-                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-                .setAutoCancel(true)
-                .setContentIntent(pendingIntent)
-                .build()
-
-            NotificationManagerCompat.from(context).notify(payload.notificationId, notification)
-        } catch (_: Exception) {
-        }
-    }
-
-    private fun hasNotificationPermission(context: Context): Boolean {
-        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
-            return false
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val permission = ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
-            )
-            return permission == PackageManager.PERMISSION_GRANTED
-        }
-        return true
+        NotificationDeliveryHelper.deliverNotification(context, payload)
     }
 }

@@ -70,6 +70,7 @@ import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
 import com.subhashrelangi.arctracker.engine.account.AccountReconciliationManager
 import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.engine.ingestion.SmsPermissionHelper
+import com.subhashrelangi.arctracker.engine.notification.BudgetAlertTrigger
 import com.subhashrelangi.arctracker.engine.persistence.TransactionManager
 import com.subhashrelangi.arctracker.security.SecureLogger
 import com.subhashrelangi.arctracker.ui.AddExpenseDialog
@@ -91,6 +92,8 @@ import java.util.UUID
 class MainActivity : FragmentActivity() {
 
     companion object {
+        const val EXTRA_NAVIGATE_TO = "extra_navigate_to"
+        const val EXTRA_OPEN_ADD_EXPENSE_CASH = "extra_open_add_expense_cash"
         val pendingNavigateToState = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
         val pendingOpenCashExpenseState = kotlinx.coroutines.flow.MutableStateFlow(false)
     }
@@ -104,10 +107,10 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun handleNotificationIntent(intent: android.content.Intent?) {
-        intent?.getStringExtra(com.subhashrelangi.arctracker.engine.notification.DailyNotificationReceiver.EXTRA_NAVIGATE_TO)?.let { target ->
+        intent?.getStringExtra(EXTRA_NAVIGATE_TO)?.let { target ->
             pendingNavigateToState.value = target
         }
-        if (intent?.getBooleanExtra(com.subhashrelangi.arctracker.engine.notification.DailyNotificationReceiver.EXTRA_OPEN_ADD_EXPENSE_CASH, false) == true) {
+        if (intent?.getBooleanExtra(EXTRA_OPEN_ADD_EXPENSE_CASH, false) == true) {
             pendingOpenCashExpenseState.value = true
         }
     }
@@ -1313,6 +1316,8 @@ fun ExpenseScreen() {
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(context, "Failed to save transaction", Toast.LENGTH_SHORT).show()
                                 }
+                            } else {
+                                BudgetAlertTrigger.onTransactionCommitted(context, newExpense.copy(id = id.toInt()))
                             }
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
@@ -1345,6 +1350,8 @@ fun ExpenseScreen() {
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(context, "Failed to save transaction", Toast.LENGTH_SHORT).show()
                                 }
+                            } else {
+                                BudgetAlertTrigger.onTransactionCommitted(context, newExpense.copy(id = id.toInt()))
                             }
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
@@ -1413,6 +1420,8 @@ fun ExpenseScreen() {
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(context, "Failed to approve transaction", Toast.LENGTH_SHORT).show()
                                 }
+                            } else {
+                                BudgetAlertTrigger.onTransactionCommitted(context, updated)
                             }
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
@@ -1441,6 +1450,8 @@ fun ExpenseScreen() {
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(context, "Failed to approve transaction", Toast.LENGTH_SHORT).show()
                                 }
+                            } else {
+                                BudgetAlertTrigger.onTransactionCommitted(context, updated)
                             }
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
@@ -1474,6 +1485,9 @@ fun ExpenseScreen() {
                         try {
                             val updatedCount = withContext(Dispatchers.IO) {
                                 expenseDao.approvePendingTransactions(ids)
+                            }
+                            toComplete.firstOrNull()?.let {
+                                BudgetAlertTrigger.onTransactionCommitted(context, it.copy(isPending = false))
                             }
                             refreshTrigger++
                             withContext(Dispatchers.Main) {
