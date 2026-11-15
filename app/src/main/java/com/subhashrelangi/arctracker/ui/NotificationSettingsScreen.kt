@@ -118,15 +118,15 @@ fun NotificationSettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // System Notification Permission Warning Banner
+            // System Notification Permission Banner
             if (!hasSystemPermission) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (ArcColors.isDark) Color(0xFF3F1515) else Color(0xFFFEE2E2)
+                        containerColor = ArcColors.CardBackground
                     ),
-                    border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF7F1D1D) else Color(0xFFFCA5A5))
+                    border = BorderStroke(1.dp, ArcColors.Border)
                 ) {
                     Row(
                         modifier = Modifier
@@ -138,13 +138,13 @@ fun NotificationSettingsScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(if (ArcColors.isDark) Color(0xFF7F1D1D) else Color(0xFFFECACA)),
+                                .background(ArcColors.SurfaceHighlight),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.NotificationsOff,
                                 contentDescription = null,
-                                tint = if (ArcColors.isDark) Color(0xFFFCA5A5) else Color(0xFFDC2626),
+                                tint = ArcColors.TextSecondary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -153,16 +153,16 @@ fun NotificationSettingsScreen(
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Notifications Disabled in Android",
+                                text = "System Notifications Disabled",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
-                                color = if (ArcColors.isDark) Color(0xFFFCA5A5) else Color(0xFF991B1B)
+                                color = ArcColors.TextPrimary
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "System permissions are currently off. Tap Fix to allow reminders.",
+                                text = "System permissions are currently off. Tap Enable to allow alerts.",
                                 fontSize = 11.5.sp,
-                                color = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFB91C1C)
+                                color = ArcColors.TextSecondary
                             )
                         }
 
@@ -183,13 +183,13 @@ fun NotificationSettingsScreen(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (ArcColors.isDark) Color(0xFFDC2626) else Color(0xFFEF4444)
+                                containerColor = ArcColors.Primary
                             ),
                             shape = CircleShape,
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                             modifier = Modifier.height(34.dp)
                         ) {
-                            Text("Fix", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Enable", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
