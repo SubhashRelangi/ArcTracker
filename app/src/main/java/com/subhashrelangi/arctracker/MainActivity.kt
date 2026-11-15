@@ -660,7 +660,8 @@ fun ExpenseScreen() {
         containerColor = com.subhashrelangi.arctracker.ui.theme.ArcColors.Background,
 
         topBar = {
-            if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
+            val isOverlayActive = showAddDialog || showApproveDialog != null || actionSheetExpense != null || editExpense != null || deleteConfirmExpense != null
+            if (!isOverlayActive && currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
                 val showSearch = currentRoute in listOf("Home", "Insights", "Analytics", "Settings", "Pending", "Review")
                 val showProfile = currentRoute == "Home"
                 val profileInitials = remember(profileName) {
@@ -724,6 +725,7 @@ fun ExpenseScreen() {
                     }
                 }
             } else if (
+                !isOverlayActive &&
                 currentRoute != "SmsImport" &&
                 currentRoute != "SmsScan" &&
                 currentRoute != "SmsResult" &&
@@ -844,6 +846,8 @@ fun ExpenseScreen() {
                     onExpenseClick = { expense ->
                         if (expense.isPending) {
                             showApproveDialog = expense
+                        } else {
+                            actionSheetExpense = expense
                         }
                     },
                     onExpenseLongClick = { /* Handled internally by LedgerPage */ },
@@ -1244,7 +1248,7 @@ fun ExpenseScreen() {
             }
         }
 
-        val showBottomNav = currentRoute !in listOf(
+        val showBottomNav = !showAddDialog && showApproveDialog == null && actionSheetExpense == null && editExpense == null && deleteConfirmExpense == null && currentRoute !in listOf(
             "InitialOnboarding",
             "LocalFirstSetup",
             "ClearAllData",

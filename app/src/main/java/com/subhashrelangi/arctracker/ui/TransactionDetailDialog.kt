@@ -216,51 +216,22 @@ fun TransactionDetailDialog(
         }
     }
 
-    Dialog(
-        onDismissRequest = {
-            if (closeOnBackOrSave || !isEditMode) {
-                onDismiss()
-            } else {
-                isEditMode = false
-            }
-        },
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        val dialogView = LocalView.current
-        val isDark = ArcColors.isDark
-        SideEffect {
-            var parent = dialogView.parent
-            while (parent != null && parent !is DialogWindowProvider) {
-                parent = parent.parent
-            }
-            (parent as? DialogWindowProvider)?.window?.let { window ->
-                window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-                window.setDimAmount(0f)
-                window.setLayout(
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                )
-                WindowCompat.setDecorFitsSystemWindows(window, false)
-                window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-                window.statusBarColor = android.graphics.Color.TRANSPARENT
-                window.navigationBarColor = android.graphics.Color.TRANSPARENT
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                    window.isNavigationBarContrastEnforced = false
-                    window.isStatusBarContrastEnforced = false
-                }
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                    window.navigationBarDividerColor = android.graphics.Color.TRANSPARENT
-                }
-                window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-                WindowCompat.getInsetsController(window, window.decorView)?.let { insetsController ->
-                    insetsController.isAppearanceLightStatusBars = !isDark
-                    insetsController.isAppearanceLightNavigationBars = !isDark
-                }
-            }
+    val handleDismiss = {
+        if (closeOnBackOrSave || !isEditMode) {
+            onDismiss()
+        } else {
+            isEditMode = false
         }
+    }
+    BackHandler(onBack = handleDismiss)
+
+    val isDark = ArcColors.isDark
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(lightBg)
+    ) {
 
         if (isEditMode) {
             Surface(
