@@ -235,7 +235,7 @@ fun SettingsScreen(
 
         val showDb = matchesSearch("Database", "SQLite", "SQLCipher", "Storage")
         val showImport = matchesSearch("Import Previous Transactions", "Scan", "Historical SMS")
-        val showBackup = matchesSearch("Full Backup & Export Engine", "Backup & Export Vault", "Export & Backup", "Backup", "Export", "AES-256", "CSV", "JSON", "Air-Gapped")
+        val showBackup = matchesSearch("Full Backup & Export Engine", "Backup & Export Vault", "Export & Backup", "Backup", "Export", "AES-256", "Encrypted Vault", "JSON", "Air-Gapped")
         val showClear = matchesSearch("Clear All Data", "Reset", "Delete", "Fresh")
         val hasDataMatches = showDb || showImport || showBackup || showClear
 
@@ -710,21 +710,21 @@ fun SettingsScreen(
                         title = "Notifications",
                         subtitle = "Weekly summary, daily digest, cash check-in, budget alerts & limits",
                         badgeText = if (!hasSystemNotifPermission) {
-                            "Disabled"
+                            "Not Enabled"
                         } else if (notifPrefs.isNotificationsMasterEnabled) {
                             "Active"
                         } else {
                             "Muted"
                         },
                         badgeBgColor = if (!hasSystemNotifPermission) {
-                            if (ArcColors.isDark) Color(0xFF7F1D1D) else Color(0xFFFECACA)
+                            ArcColors.SurfaceHighlight
                         } else if (notifPrefs.isNotificationsMasterEnabled) {
                             ArcColors.PrimaryLight
                         } else {
                             ArcColors.SurfaceHighlight
                         },
                         badgeTextColor = if (!hasSystemNotifPermission) {
-                            if (ArcColors.isDark) Color(0xFFFCA5A5) else Color(0xFFDC2626)
+                            ArcColors.TextMuted
                         } else if (notifPrefs.isNotificationsMasterEnabled) {
                             ArcColors.PrimaryDark
                         } else {
@@ -762,7 +762,7 @@ fun SettingsScreen(
                         SettingsItemRow(
                             icon = Icons.Outlined.FileUpload,
                             title = "Full Backup & Export Engine",
-                            subtitle = "Encrypted JSON (AES-256-GCM) & CSV ledger export",
+                            subtitle = "Encrypted JSON (AES-256-GCM) local vault export",
                             onClick = { onNavigate("Backup") }
                         )
                     }

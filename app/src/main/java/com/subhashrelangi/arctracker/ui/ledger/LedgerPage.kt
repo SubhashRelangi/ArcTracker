@@ -117,26 +117,7 @@ fun LedgerPage(
     // Month filter dialog state
     var showMonthDialog by remember { mutableStateOf(false) }
 
-    // Real CSV Export via Android Storage Access Framework (SAF)
-    val csvExportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("text/csv")
-    ) { uri ->
-        if (uri != null) {
-            scope.launch {
-                try {
-                    var count = 0
-                    withContext(Dispatchers.IO) {
-                        context.contentResolver.openOutputStream(uri)?.use { stream ->
-                            count = backupManager.exportTransactionsCsv(stream).getOrThrow()
-                        }
-                    }
-                    Toast.makeText(context, "Successfully exported $count transactions to CSV", Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
+
 
     // Determine actual transactions source: Demo Mode vs Real DB
     val sourceExpenses = remember(expenses, isDemoMode) {
@@ -324,27 +305,6 @@ fun LedgerPage(
                         Icon(
                             imageVector = Icons.Outlined.Tune,
                             contentDescription = "Filter / Month",
-                            tint = LedgerColors.TextPrimary,
-                            modifier = Modifier.size(19.dp)
-                        )
-                    }
-
-                    // Export CSV Button
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(LedgerColors.Surface)
-                            .border(BorderStroke(1.dp, LedgerColors.Border), CircleShape)
-                            .clickable {
-                                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-                                csvExportLauncher.launch("ArcTracker_Transactions_$timestamp.csv")
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.FileUpload,
-                            contentDescription = "Export CSV",
                             tint = LedgerColors.TextPrimary,
                             modifier = Modifier.size(19.dp)
                         )

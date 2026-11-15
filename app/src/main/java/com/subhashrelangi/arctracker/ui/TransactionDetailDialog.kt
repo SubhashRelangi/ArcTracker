@@ -637,7 +637,7 @@ fun TransactionDetailDialog(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Export Receipt / CSV Row Button
+                            // Share Transaction Details Button
                             Button(
                                 onClick = {
                                     exportTransactionReceipt(context, expense, linkedAccount, txnCode, upiRef)
@@ -665,7 +665,7 @@ fun TransactionDetailDialog(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Export Receipt / CSV Row",
+                                        text = "Share Transaction Details",
                                         fontSize = 13.5.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )

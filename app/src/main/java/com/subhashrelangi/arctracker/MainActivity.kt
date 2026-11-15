@@ -172,8 +172,8 @@ class MainActivity : FragmentActivity() {
 
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
 
-        // Apply screen security immediately on launch
-        if (privacyManager.isScreenSecurityEnabled()) {
+        // Apply screen security immediately on launch (disabled in DEBUG builds to allow inspection & screenshots)
+        if (!BuildConfig.DEBUG && privacyManager.isScreenSecurityEnabled()) {
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         } else {
             window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
@@ -182,13 +182,15 @@ class MainActivity : FragmentActivity() {
         // On launch: require biometric/PIN unlock if App Lock is enabled
         isAppUnlockedState.value = !privacyManager.isAppLockEnabled()
 
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                privacyManager.screenSecurityFlow.collect { enabled ->
-                    if (enabled) {
-                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
-                    } else {
-                        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        if (!BuildConfig.DEBUG) {
+            lifecycleScope.launch {
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    privacyManager.screenSecurityFlow.collect { enabled ->
+                        if (enabled) {
+                            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                        } else {
+                            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                        }
                     }
                 }
             }
@@ -243,7 +245,7 @@ class MainActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
-        if (privacyManager.isScreenSecurityEnabled()) {
+        if (!BuildConfig.DEBUG && privacyManager.isScreenSecurityEnabled()) {
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         } else {
             window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
@@ -848,16 +850,51 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
+            val showBottomNav = !showAddDialog && showApproveDialog == null && detailExpense == null && editExpense == null && currentRoute !in listOf(
+                "InitialOnboarding",
+                "LocalFirstSetup",
+                "ClearAllData",
+                "SmsImport",
+                "SmsScan",
+                "SmsResult",
+                "SettingsSmsImport",
+                "SupportedApps",
+                "CategoryManagement",
+                "FinancialAccounts",
+                "UnresolvedTransactions",
+                "AccountTransactions",
+                "CategoryRules",
+                "MerchantAliases",
+                "ApplyCategoryRules",
+                "Analytics",
+                "Budgets",
+                "Backup",
+                "DeveloperOptions",
+                "IgnoreRules",
+                "RegexPatterns",
+                "EditRegexPattern",
+                "Database",
+                "NotificationSettings"
+            )
+
             val contentTopPadding = if (currentRoute in listOf(
                 "InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "SettingsSmsImport",
                 "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules", "Backup",
                 "FinancialAccounts", "UnresolvedTransactions", "AccountTransactions", "DeveloperOptions", "RegexPatterns", "EditRegexPattern",
                 "Analytics", "CategoryRules", "MerchantAliases", "Database", "ApplyCategoryRules", "NotificationSettings"
             )) 0.dp else padding.calculateTopPadding()
-            Column(
-                modifier = Modifier
+            val contentModifier = if (showBottomNav) {
+                Modifier
                     .padding(top = contentTopPadding)
                     .fillMaxSize()
+            } else {
+                Modifier
+                    .padding(top = contentTopPadding)
+                    .fillMaxSize()
+                    .navigationBarsPadding()
+            }
+            Column(
+                modifier = contentModifier
             ) {
 
             if (currentRoute == "Transactions") {
@@ -1282,33 +1319,6 @@ fun ExpenseScreen() {
                 )
             }
         }
-
-        val showBottomNav = !showAddDialog && showApproveDialog == null && detailExpense == null && editExpense == null && currentRoute !in listOf(
-            "InitialOnboarding",
-            "LocalFirstSetup",
-            "ClearAllData",
-            "SmsImport",
-            "SmsScan",
-            "SmsResult",
-            "SettingsSmsImport",
-            "SupportedApps",
-            "CategoryManagement",
-            "FinancialAccounts",
-            "UnresolvedTransactions",
-            "AccountTransactions",
-            "CategoryRules",
-            "MerchantAliases",
-            "ApplyCategoryRules",
-            "Analytics",
-            "Budgets",
-            "Backup",
-            "DeveloperOptions",
-            "IgnoreRules",
-            "RegexPatterns",
-            "EditRegexPattern",
-            "Database",
-            "NotificationSettings"
-        )
 
         if (showBottomNav) {
             val pendingCount = expenses.count { it.isPending }

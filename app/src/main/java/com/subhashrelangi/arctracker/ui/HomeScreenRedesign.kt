@@ -2066,7 +2066,7 @@ private fun HomeQuickActionsHubCard(
                 iconColor = if (ArcColors.current.isDark) Color(0xFFA78BFA) else Color(0xFF7C3AED),
                 iconBgColor = if (ArcColors.current.isDark) Color(0xFF2E1A47) else Color(0xFFF5F3FF),
                 title = "Export",
-                subtitle = "CSV / PDF",
+                subtitle = "Vault Backup",
                 onClick = onExportClick
             )
         }
