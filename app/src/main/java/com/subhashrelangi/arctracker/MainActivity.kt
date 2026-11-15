@@ -746,7 +746,8 @@ fun ExpenseScreen() {
                 currentRoute != "DeveloperOptions" &&
                 currentRoute != "RegexPatterns" &&
                 currentRoute != "EditRegexPattern" &&
-                currentRoute != "Database"
+                currentRoute != "Database" &&
+                currentRoute != "NotificationSettings"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
@@ -822,7 +823,7 @@ fun ExpenseScreen() {
                 "InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "SettingsSmsImport",
                 "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules", "Backup",
                 "FinancialAccounts", "UnresolvedTransactions", "AccountTransactions", "DeveloperOptions", "RegexPatterns", "EditRegexPattern",
-                "Analytics", "CategoryRules", "MerchantAliases", "Database", "ApplyCategoryRules"
+                "Analytics", "CategoryRules", "MerchantAliases", "Database", "ApplyCategoryRules", "NotificationSettings"
             )) 0.dp else padding.calculateTopPadding()
             Column(
                 modifier = Modifier
@@ -1266,7 +1267,8 @@ fun ExpenseScreen() {
             "IgnoreRules",
             "RegexPatterns",
             "EditRegexPattern",
-            "Database"
+            "Database",
+            "NotificationSettings"
         )
 
         if (showBottomNav) {

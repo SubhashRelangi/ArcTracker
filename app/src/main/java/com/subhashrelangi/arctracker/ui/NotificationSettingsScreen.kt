@@ -80,8 +80,8 @@ fun NotificationSettingsScreen(
                     .background(ArcColors.Background)
             ) {
                 ArcTrackerHeader(
-                    title = "Notification Controls",
-                    subtitle = "Customize & Toggle Prompts",
+                    title = "Notifications",
+                    subtitle = "Preferences & Reminders",
                     onBackClick = onNavigateBack,
                     modifier = Modifier
                         .fillMaxWidth()

@@ -109,17 +109,28 @@ fun ArcTrackerTheme(
         }
     }
 
-    // Normalize font scale to 1.0f so the app layout and typography stay 100% consistent
-    // regardless of whether the user chose small, normal, or extra large font in phone settings.
+    // Adapt density smoothly on compact and medium phone screens (width < 392dp)
+    // so that content designed for standard modern screens fits naturally without
+    // appearing oversized or zoomed in, while normalizing font scale to keep layouts robust.
     val currentDensity = LocalDensity.current
-    val normalizedDensity = Density(
-        density = currentDensity.density,
-        fontScale = 1.0f
+    val config = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenWidth = config.screenWidthDp
+
+    val widthScale = if (screenWidth in 240..391) {
+        (screenWidth.toFloat() / 392f).coerceIn(0.85f, 1.0f)
+    } else {
+        1.0f
+    }
+
+    val adaptedFontScale = (1.0f * widthScale).coerceIn(0.85f, 1.0f)
+    val adaptedDensity = Density(
+        density = currentDensity.density * widthScale,
+        fontScale = adaptedFontScale
     )
 
     CompositionLocalProvider(
         LocalArcColors provides arcColorScheme,
-        LocalDensity provides normalizedDensity
+        LocalDensity provides adaptedDensity
     ) {
         MaterialTheme(
             colorScheme = materialScheme,
