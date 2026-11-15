@@ -48,6 +48,7 @@ import androidx.compose.ui.window.Dialog
 import com.subhashrelangi.arctracker.data.AccountSource
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.data.Expense
+import com.subhashrelangi.arctracker.engine.notification.BudgetAlertTrigger
 import com.subhashrelangi.arctracker.data.KnownFinancialAccount
 import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
@@ -286,12 +287,16 @@ fun ReviewPage(
         val remaining = unlinkedAccountItems.filter { it.id !in localHandledUnlinkedIds }
         if (searchQuery.isBlank()) remaining
         else {
-            val q = searchQuery.trim().lowercase(Locale.ROOT)
             remaining.filter {
-                it.merchant.lowercase(Locale.ROOT).contains(q) ||
-                it.amount.toString().contains(q) ||
-                (it.accountSuffix?.contains(q) == true) ||
-                (it.rawText?.lowercase(Locale.ROOT)?.contains(q) == true)
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.matches(
+                    searchQuery,
+                    it.merchant,
+                    it.accountSuffix,
+                    it.rawText,
+                    it.amount.toString()
+                )
+            }.sortedByDescending {
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.score(searchQuery, it.merchant)
             }
         }
     }
@@ -488,7 +493,9 @@ fun ReviewPage(
                 try {
                     val exp = item.expense ?: expenseDao.getExpenseById(item.id)
                     if (exp != null) {
-                        expenseDao.update(exp.copy(isPending = false, note = (exp.note ?: "") + " [Ignored unlinked account]"))
+                        val updatedExp = exp.copy(isPending = false, note = (exp.note ?: "") + " [Ignored unlinked account]")
+                        expenseDao.update(updatedExp)
+                        BudgetAlertTrigger.onTransactionCommitted(context, updatedExp)
                     }
                 } catch (_: Exception) {}
             }
@@ -550,12 +557,16 @@ fun ReviewPage(
     val filteredQueue = remember(queueItems, searchQuery) {
         if (searchQuery.isBlank()) queueItems
         else {
-            val q = searchQuery.trim().lowercase(Locale.ROOT)
             queueItems.filter {
-                it.merchant.lowercase(Locale.ROOT).contains(q) ||
-                it.amount.toString().contains(q) ||
-                it.accountInfo.lowercase(Locale.ROOT).contains(q) ||
-                it.dateInfo.lowercase(Locale.ROOT).contains(q)
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.matches(
+                    searchQuery,
+                    it.merchant,
+                    it.accountInfo,
+                    it.dateInfo,
+                    it.amount.toString()
+                )
+            }.sortedByDescending {
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.score(searchQuery, it.merchant, it.accountInfo)
             }
         }
     }
@@ -1455,13 +1466,13 @@ fun ReviewPage(
                                                     try {
                                                         val dbExp = dbPendingExpenses.find { it.id == activeItem.id }
                                                         if (dbExp != null) {
-                                                            expenseDao.update(
-                                                                dbExp.copy(
-                                                                    categoryId = resolvedCat,
-                                                                    tag = if (attachTagEnabled) activeItem.defaultTag else dbExp.tag,
-                                                                    isPending = false
-                                                                )
+                                                            val updatedExp = dbExp.copy(
+                                                                categoryId = resolvedCat,
+                                                                tag = if (attachTagEnabled) activeItem.defaultTag else dbExp.tag,
+                                                                isPending = false
                                                             )
+                                                            expenseDao.update(updatedExp)
+                                                            BudgetAlertTrigger.onTransactionCommitted(context, updatedExp)
                                                         }
                                                     } catch (_: Exception) {}
                                                 }
@@ -1511,7 +1522,9 @@ fun ReviewPage(
                                                     try {
                                                         val dbExp = dbPendingExpenses.find { it.id == activeItem.id }
                                                         if (dbExp != null) {
-                                                            expenseDao.update(dbExp.copy(isPending = false))
+                                                            val updatedExp = dbExp.copy(isPending = false)
+                                                            expenseDao.update(updatedExp)
+                                                            BudgetAlertTrigger.onTransactionCommitted(context, updatedExp)
                                                         }
                                                     } catch (_: Exception) {}
                                                 }
@@ -1753,7 +1766,9 @@ fun ReviewPage(
                                                                                 try {
                                                                                     val dbExp = dbPendingExpenses.find { it.id == nextItem.id }
                                                                                     if (dbExp != null) {
-                                                                                        expenseDao.update(dbExp.copy(categoryId = action, tag = action, isPending = false))
+                                                                                        val updatedExp = dbExp.copy(categoryId = action, tag = action, isPending = false)
+                                                                                        expenseDao.update(updatedExp)
+                                                                                        BudgetAlertTrigger.onTransactionCommitted(context, updatedExp)
                                                                                     }
                                                                                 } catch (_: Exception) {}
                                                                             }
@@ -1794,7 +1809,9 @@ fun ReviewPage(
                                                                         try {
                                                                             val dbExp = dbPendingExpenses.find { it.id == nextItem.id }
                                                                             if (dbExp != null) {
-                                                                                expenseDao.update(dbExp.copy(isPending = false))
+                                                                                val updatedExp = dbExp.copy(isPending = false)
+                                                                                expenseDao.update(updatedExp)
+                                                                                BudgetAlertTrigger.onTransactionCommitted(context, updatedExp)
                                                                             }
                                                                         } catch (_: Exception) {}
                                                                     }

@@ -11,6 +11,7 @@ import com.subhashrelangi.arctracker.data.ExpenseDao
 import com.subhashrelangi.arctracker.engine.account.*
 import com.subhashrelangi.arctracker.engine.account.KnownFinancialAccountMatchResult
 import com.subhashrelangi.arctracker.engine.category.*
+import com.subhashrelangi.arctracker.engine.notification.BudgetAlertTrigger
 import com.subhashrelangi.arctracker.security.SecureLogger
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -271,7 +272,11 @@ object TransactionPersistenceManager {
         database: AppDatabase = AppDatabase.getDatabase(context)
     ): ExpensePersistenceResult {
         ensureInitialized(database)
-        return processCapturedNotification(captured, database.expenseDao(), matcher)
+        val result = processCapturedNotification(captured, database.expenseDao(), matcher)
+        if (result is ExpensePersistenceResult.Inserted && !result.isPending) {
+            BudgetAlertTrigger.onTransactionCommitted(context, result.expense)
+        }
+        return result
     }
 
     suspend fun processCapturedNotificationAll(
@@ -280,7 +285,13 @@ object TransactionPersistenceManager {
         database: AppDatabase = AppDatabase.getDatabase(context)
     ): List<ExpensePersistenceResult> {
         ensureInitialized(database)
-        return processCapturedNotificationAll(captured, database.expenseDao(), matcher)
+        val results = processCapturedNotificationAll(captured, database.expenseDao(), matcher)
+        for (result in results) {
+            if (result is ExpensePersistenceResult.Inserted && !result.isPending) {
+                BudgetAlertTrigger.onTransactionCommitted(context, result.expense)
+            }
+        }
+        return results
     }
 
     /**
@@ -301,7 +312,13 @@ object TransactionPersistenceManager {
         database: AppDatabase = AppDatabase.getDatabase(context)
     ): List<ExpensePersistenceResult> {
         ensureInitialized(database)
-        return processSourceEvent(event, database.expenseDao())
+        val results = processSourceEvent(event, database.expenseDao())
+        for (result in results) {
+            if (result is ExpensePersistenceResult.Inserted && !result.isPending) {
+                BudgetAlertTrigger.onTransactionCommitted(context, result.expense)
+            }
+        }
+        return results
     }
 
     /**
@@ -341,7 +358,11 @@ object TransactionPersistenceManager {
         database: AppDatabase = AppDatabase.getDatabase(context)
     ): ExpensePersistenceResult {
         ensureInitialized(database)
-        return processSms(smsId, sender, body, timestamp, database.expenseDao())
+        val result = processSms(smsId, sender, body, timestamp, database.expenseDao())
+        if (result is ExpensePersistenceResult.Inserted && !result.isPending) {
+            BudgetAlertTrigger.onTransactionCommitted(context, result.expense)
+        }
+        return result
     }
 
     /**

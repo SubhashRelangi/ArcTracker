@@ -12,9 +12,8 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.unit.Density
+
 import androidx.core.view.WindowCompat
 import com.subhashrelangi.arctracker.settings.AppThemeMode
 
@@ -109,17 +108,8 @@ fun ArcTrackerTheme(
         }
     }
 
-    // Normalize font scale to 1.0f so the app layout and typography stay 100% consistent
-    // regardless of whether the user chose small, normal, or extra large font in phone settings.
-    val currentDensity = LocalDensity.current
-    val normalizedDensity = Density(
-        density = currentDensity.density,
-        fontScale = 1.0f
-    )
-
     CompositionLocalProvider(
-        LocalArcColors provides arcColorScheme,
-        LocalDensity provides normalizedDensity
+        LocalArcColors provides arcColorScheme
     ) {
         MaterialTheme(
             colorScheme = materialScheme,

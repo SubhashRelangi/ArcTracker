@@ -117,32 +117,7 @@ fun LedgerPage(
     // Month filter dialog state
     var showMonthDialog by remember { mutableStateOf(false) }
 
-    // Detail dialog & Action sheet state
-    var selectedExpenseForDetailId by remember { mutableStateOf<Int?>(null) }
-    var openDetailInEditMode by remember { mutableStateOf(false) }
-    var deleteConfirmExpense by remember { mutableStateOf<Expense?>(null) }
-    var sheetExpense by remember { mutableStateOf<Expense?>(null) }
 
-    // Real CSV Export via Android Storage Access Framework (SAF)
-    val csvExportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("text/csv")
-    ) { uri ->
-        if (uri != null) {
-            scope.launch {
-                try {
-                    var count = 0
-                    withContext(Dispatchers.IO) {
-                        context.contentResolver.openOutputStream(uri)?.use { stream ->
-                            count = backupManager.exportTransactionsCsv(stream).getOrThrow()
-                        }
-                    }
-                    Toast.makeText(context, "Successfully exported $count transactions to CSV", Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
 
     // Determine actual transactions source: Demo Mode vs Real DB
     val sourceExpenses = remember(expenses, isDemoMode) {
@@ -178,32 +153,27 @@ fun LedgerPage(
         }
     }
 
-    val activeDetailExpense = remember(selectedExpenseForDetailId, sourceExpenses) {
-        selectedExpenseForDetailId?.let { id -> sourceExpenses.find { it.id == id } }
-    }
-
     // Dynamic Filter Calculations
     val filteredExpenses = remember(sourceExpenses, searchQuery, selectedFilter, accountsMap) {
-        sourceExpenses.filter { expense ->
-            // Search Query filter
-            val matchesSearch = if (searchQuery.isBlank()) {
-                true
-            } else {
-                val q = searchQuery.trim().lowercase(Locale.ROOT)
-                val account = expense.accountId?.let { accountsMap[it] }
-                val bankName = account?.institutionName ?: ""
-                val suffix = expense.accountSuffix ?: account?.accountSuffix ?: ""
-                val amountStr = String.format(Locale.US, "%.2f", expense.amount)
+        val filtered = sourceExpenses.filter { expense ->
+            val account = expense.accountId?.let { accountsMap[it] }
+            val bankName = account?.institutionName ?: ""
+            val suffix = expense.accountSuffix ?: account?.accountSuffix ?: ""
+            val amountStr = String.format(Locale.US, "%.2f", expense.amount)
 
-                expense.merchant.lowercase(Locale.ROOT).contains(q) ||
-                        (expense.note?.lowercase(Locale.ROOT)?.contains(q) == true) ||
-                        (expense.tag?.lowercase(Locale.ROOT)?.contains(q) == true) ||
-                        (expense.category?.lowercase(Locale.ROOT)?.contains(q) == true) ||
-                        (expense.rawText?.lowercase(Locale.ROOT)?.contains(q) == true) ||
-                        bankName.lowercase(Locale.ROOT).contains(q) ||
-                        suffix.contains(q) ||
-                        amountStr.contains(q)
-            }
+            val matchesSearch = com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.matches(
+                searchQuery,
+                expense.merchant,
+                expense.category,
+                expense.tag,
+                expense.note,
+                expense.rawText,
+                bankName,
+                suffix,
+                amountStr,
+                expense.amount.toString(),
+                expense.type
+            )
 
             if (!matchesSearch) return@filter false
 
@@ -214,6 +184,13 @@ fun LedgerPage(
                 LedgerFilterMode.CREDITS -> expense.type.equals("Credit", ignoreCase = true)
                 LedgerFilterMode.NEEDS_REVIEW -> expense.isPending || (expense.accountId.isNullOrBlank() && expense.accountSuffix.isNullOrBlank() && !expense.type.equals("Credit", true) && expense.source != "MANUAL")
             }
+        }
+        if (searchQuery.isNotBlank()) {
+            filtered.sortedByDescending { exp ->
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.score(searchQuery, exp.merchant, exp.category, exp.note)
+            }
+        } else {
+            filtered
         }
     }
 
@@ -332,27 +309,6 @@ fun LedgerPage(
                             modifier = Modifier.size(19.dp)
                         )
                     }
-
-                    // Export CSV Button
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(LedgerColors.Surface)
-                            .border(BorderStroke(1.dp, LedgerColors.Border), CircleShape)
-                            .clickable {
-                                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-                                csvExportLauncher.launch("ArcTracker_Transactions_$timestamp.csv")
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.FileUpload,
-                            contentDescription = "Export CSV",
-                            tint = LedgerColors.TextPrimary,
-                            modifier = Modifier.size(19.dp)
-                        )
-                    }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
@@ -452,11 +408,8 @@ fun LedgerPage(
                                         account = expense.accountId?.let { accountsMap[it] },
                                         onClick = {
                                             onExpenseClick(expense)
-                                            openDetailInEditMode = false
-                                            selectedExpenseForDetailId = expense.id
                                         },
                                         onLongClick = {
-                                            sheetExpense = expense
                                             onExpenseLongClick(expense)
                                         }
                                     )
@@ -535,118 +488,6 @@ fun LedgerPage(
                 }
             }
         }
-    }
-
-    // Detail Dialog Integration (View, Edit, Delete, Reconcile)
-    activeDetailExpense?.let { detailExpense ->
-        val recentMerchants = remember(sourceExpenses) {
-            sourceExpenses.map { it.merchant }
-                .filter { it.isNotBlank() && it != "-" }
-                .distinct()
-                .take(8)
-        }
-        TransactionDetailDialog(
-            expense = detailExpense,
-            initialEditMode = openDetailInEditMode,
-            knownAccounts = knownAccounts,
-            allCategories = allCategories,
-            recentMerchants = recentMerchants,
-            onDismiss = {
-                selectedExpenseForDetailId = null
-                openDetailInEditMode = false
-            },
-            onSaveEdit = { expenseId, merchant, category, note ->
-                scope.launch(Dispatchers.IO) {
-                    transactionManager.updateTransaction(expenseId, merchant, category, note)
-                }
-                openDetailInEditMode = false
-            },
-            onAssignAccount = { expenseId, targetAccountId ->
-                scope.launch(Dispatchers.IO) {
-                    reconciliationManager.assignAccount(expenseId, targetAccountId)
-                }
-            },
-            onReassignAccount = { expenseId, newAccountId ->
-                scope.launch(Dispatchers.IO) {
-                    reconciliationManager.reassignAccount(expenseId, newAccountId)
-                }
-            },
-            onUnlinkAccount = { expenseId ->
-                scope.launch(Dispatchers.IO) {
-                    reconciliationManager.unlinkAccount(expenseId)
-                }
-            },
-            onDelete = { expenseToDelete ->
-                scope.launch(Dispatchers.IO) {
-                    try {
-                        val res = transactionManager.deleteTransaction(expenseToDelete.id)
-                        if (res.isFailure) {
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        SecureLogger.e("LedgerPage", "Failed to delete transaction id=${expenseToDelete.id}", e)
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-                selectedExpenseForDetailId = null
-                openDetailInEditMode = false
-            }
-        )
-    }
-
-    // Action Sheet on long-click
-    sheetExpense?.let { currentSheetExpense ->
-        TransactionActionSheet(
-            expense = currentSheetExpense,
-            onDismiss = { sheetExpense = null },
-            onEdit = {
-                sheetExpense = null
-                openDetailInEditMode = true
-                selectedExpenseForDetailId = currentSheetExpense.id
-            },
-            onDelete = {
-                sheetExpense = null
-                deleteConfirmExpense = currentSheetExpense
-            }
-        )
-    }
-
-    // Quick Delete Confirm Dialog from Action Sheet
-    deleteConfirmExpense?.let { expenseToDelete ->
-        val isCredit = expenseToDelete.type.equals("Credit", ignoreCase = true)
-        val sign = if (isCredit) "+" else "-"
-        DarkDeleteConfirmDialog(
-            expense = expenseToDelete,
-            sign = sign,
-            onConfirm = {
-                val idToDelete = expenseToDelete.id
-                deleteConfirmExpense = null
-                scope.launch(Dispatchers.IO) {
-                    try {
-                        val res = transactionManager.deleteTransaction(idToDelete)
-                        withContext(Dispatchers.Main) {
-                            if (res.isSuccess) {
-                                Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        SecureLogger.e("LedgerPage", "Failed to delete transaction id=$idToDelete", e)
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-            },
-            onDismiss = { deleteConfirmExpense = null }
-        )
     }
 }
 

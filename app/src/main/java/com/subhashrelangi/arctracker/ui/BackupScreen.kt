@@ -146,8 +146,7 @@ fun BackupScreen(
     var isLoading by remember { mutableStateOf(false) }
     var loadingMessage by remember { mutableStateOf("") }
 
-    // Export Scope & Hardware Encryption
-    var selectedExportScope by remember { mutableStateOf("All Time") }
+    // Hardware Encryption & Master Passphrase
     var isHardwareEncryptionEnabled by remember { mutableStateOf(true) }
     var vaultPassphrase by remember { mutableStateOf("ArcVaultMasterKey2026!") }
     var isPassphraseVisible by remember { mutableStateOf(false) }
@@ -177,45 +176,7 @@ fun BackupScreen(
     var showImportPassphraseDialog by remember { mutableStateOf(false) }
     var importPassphraseInput by remember { mutableStateOf("") }
 
-    // Dropdown state for Export Scope
-    var showScopeDropdown by remember { mutableStateOf(false) }
-    val scopeOptions = remember {
-        listOf(
-            ScopeOptionItem("All Time", Icons.Outlined.CalendarToday),
-            ScopeOptionItem("Last 30 Days", Icons.Outlined.Today),
-            ScopeOptionItem("Last 90 Days", Icons.Outlined.Schedule),
-            ScopeOptionItem("Year to Date", Icons.Outlined.History)
-        )
-    }
-
     // SAF File Pickers / Creators
-    val csvExportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("text/csv")
-    ) { uri: Uri? ->
-        if (uri != null) {
-            scope.launch {
-                isLoading = true
-                loadingMessage = "Exporting transactions to CSV..."
-                val result = withContext(Dispatchers.IO) {
-                    try {
-                        context.contentResolver.openOutputStream(uri)?.use { stream ->
-                            backupManager.exportTransactionsCsv(stream)
-                        } ?: Result.failure(IllegalStateException("Could not open destination file"))
-                    } catch (e: Exception) {
-                        Result.failure(e)
-                    }
-                }
-                isLoading = false
-                if (result.isSuccess) {
-                    val count = result.getOrNull() ?: 0
-                    successDialogMessage = "Successfully exported $count transactions to CSV."
-                } else {
-                    errorDialogMessage = SensitiveDataSanitizer.sanitizeErrorMessage(result.exceptionOrNull())
-                }
-            }
-        }
-    }
-
     val backupExportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri: Uri? ->
@@ -354,7 +315,9 @@ fun BackupScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                    .navigationBarsPadding()
+                    .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // 1. AIR-GAPPED VAULT SECURITY SUMMARY CARD (ArcTracker styled)
@@ -500,165 +463,7 @@ fun BackupScreen(
                     }
                 }
 
-                // 2. PLAIN LEDGER EXPORT (CSV)
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Outlined.TableChart,
-                                contentDescription = null,
-                                tint = ArcColors.Primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Plain Ledger Export",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = slateTitle
-                            )
-                        }
-                        Text(
-                            text = "RFC 4180",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = slateSub
-                        )
-                    }
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = cardBg),
-                        border = BorderStroke(1.dp, cardBorder),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                text = "Export unencrypted ledger entries for Excel, Google Sheets, or auditing tools.",
-                                fontSize = 12.sp,
-                                color = slateSub,
-                                lineHeight = 16.sp
-                            )
-
-                            // Scope Selector Box (ArcTracker tactile trigger)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(highlightSurface)
-                                    .border(BorderStroke(1.dp, cardBorder), RoundedCornerShape(14.dp))
-                                    .clickable { showScopeDropdown = true }
-                                    .padding(horizontal = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                val calBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFECFDF5)
-                                Box(
-                                    modifier = Modifier
-                                        .size(30.dp)
-                                        .background(calBg, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.CalendarToday,
-                                        contentDescription = null,
-                                        tint = ArcColors.Primary,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "$selectedExportScope (${DecimalFormat("#,###").format(totalTxns)} txns)",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = slateTitle
-                                    )
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(26.dp)
-                                        .background(cardBg, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.KeyboardArrowDown,
-                                        contentDescription = null,
-                                        tint = slateSub,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-
-                            // Sanitized Note Pill
-                            val noteBg = if (ArcColors.isDark) Color(0xFF142E24) else Color(0xFFF0FDF4)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(noteBg, RoundedCornerShape(10.dp))
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.GppGood,
-                                    contentDescription = null,
-                                    tint = ArcColors.Primary,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Includes ISO timestamps, category slugs, and masked accounts.",
-                                    fontSize = 11.sp,
-                                    color = ArcColors.Primary
-                                )
-                            }
-
-                            // Stadium Pill Export Button
-                            Button(
-                                onClick = {
-                                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-                                    csvExportLauncher.launch("ArcTracker_Transactions_$timestamp.csv")
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(46.dp),
-                                shape = CircleShape,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = highlightSurface,
-                                    contentColor = slateTitle
-                                ),
-                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.FileDownload,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(17.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Export Transactions (.csv)",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // 3. ENCRYPTED FULL SNAPSHOT
+                // 2. ENCRYPTED FULL SNAPSHOT
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1249,29 +1054,6 @@ fun BackupScreen(
                 }
             }
         }
-    }
-
-    // ArcTracker Minimalist Industrial Horizontal Scope Picker
-    if (showScopeDropdown) {
-        val items = scopeOptions.map { opt ->
-            com.subhashrelangi.arctracker.ui.review.HorizontalOptionItem(
-                id = opt.title,
-                title = opt.title,
-                subtitle = opt.title,
-                icon = opt.icon
-            )
-        }
-        com.subhashrelangi.arctracker.ui.review.HorizontalOptionPickerDialog(
-            title = "Export Range Scope",
-            subtitle = "Select time boundary for spreadsheet export",
-            options = items,
-            selectedId = selectedExportScope,
-            onDismissRequest = { showScopeDropdown = false },
-            onOptionSelected = { item ->
-                selectedExportScope = item.id
-                showScopeDropdown = false
-            }
-        )
     }
 
     // Passphrase Decrypt Bottom Sheet for Encrypted Archive Import

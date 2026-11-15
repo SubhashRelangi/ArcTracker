@@ -3,6 +3,7 @@ package com.subhashrelangi.arctracker
 import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
 import com.subhashrelangi.arctracker.ui.AppLockScreen
 import androidx.activity.compose.BackHandler
@@ -70,6 +71,7 @@ import com.subhashrelangi.arctracker.data.KnownFinancialAccountRepository
 import com.subhashrelangi.arctracker.engine.account.AccountReconciliationManager
 import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
 import com.subhashrelangi.arctracker.engine.ingestion.SmsPermissionHelper
+import com.subhashrelangi.arctracker.engine.notification.BudgetAlertTrigger
 import com.subhashrelangi.arctracker.engine.persistence.TransactionManager
 import com.subhashrelangi.arctracker.security.SecureLogger
 import com.subhashrelangi.arctracker.ui.AddExpenseDialog
@@ -90,7 +92,29 @@ import java.util.UUID
 
 class MainActivity : FragmentActivity() {
 
+    companion object {
+        const val EXTRA_NAVIGATE_TO = "extra_navigate_to"
+        const val EXTRA_OPEN_ADD_EXPENSE_CASH = "extra_open_add_expense_cash"
+        val pendingNavigateToState = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+        val pendingOpenCashExpenseState = kotlinx.coroutines.flow.MutableStateFlow(false)
+    }
+
     private val isAppUnlockedState = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    override fun onNewIntent(intent: android.content.Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
+    private fun handleNotificationIntent(intent: android.content.Intent?) {
+        intent?.getStringExtra(EXTRA_NAVIGATE_TO)?.let { target ->
+            pendingNavigateToState.value = target
+        }
+        if (intent?.getBooleanExtra(EXTRA_OPEN_ADD_EXPENSE_CASH, false) == true) {
+            pendingOpenCashExpenseState.value = true
+        }
+    }
 
     private val screenOffReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
@@ -104,6 +128,7 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         // Reset demo mode and clear any lingering demo data on launch if in demo mode
@@ -140,10 +165,15 @@ class MainActivity : FragmentActivity() {
             window.navigationBarDividerColor = android.graphics.Color.TRANSPARENT
         }
 
+        // Initialize Notification Channels and ensure daily alarms are registered
+        com.subhashrelangi.arctracker.engine.notification.NotificationChannelManager.createAllChannels(this)
+        com.subhashrelangi.arctracker.engine.notification.DailyNotificationScheduler.scheduleAll(this)
+        handleNotificationIntent(intent)
+
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
 
-        // Apply screen security immediately on launch
-        if (privacyManager.isScreenSecurityEnabled()) {
+        // Apply screen security immediately on launch (disabled in DEBUG builds to allow inspection & screenshots)
+        if (!BuildConfig.DEBUG && privacyManager.isScreenSecurityEnabled()) {
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         } else {
             window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
@@ -152,13 +182,15 @@ class MainActivity : FragmentActivity() {
         // On launch: require biometric/PIN unlock if App Lock is enabled
         isAppUnlockedState.value = !privacyManager.isAppLockEnabled()
 
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                privacyManager.screenSecurityFlow.collect { enabled ->
-                    if (enabled) {
-                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
-                    } else {
-                        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        if (!BuildConfig.DEBUG) {
+            lifecycleScope.launch {
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    privacyManager.screenSecurityFlow.collect { enabled ->
+                        if (enabled) {
+                            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                        } else {
+                            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                        }
                     }
                 }
             }
@@ -213,7 +245,7 @@ class MainActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         val privacyManager = com.subhashrelangi.arctracker.security.PrivacySettingsManager.getInstance(this)
-        if (privacyManager.isScreenSecurityEnabled()) {
+        if (!BuildConfig.DEBUG && privacyManager.isScreenSecurityEnabled()) {
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         } else {
             window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
@@ -321,6 +353,10 @@ fun ExpenseScreen() {
 
     var showCompleteAllDialog by remember {
         mutableStateOf(false)
+    }
+
+    var detailExpense by remember {
+        mutableStateOf<Expense?>(null)
     }
 
     var actionSheetExpense by remember {
@@ -547,6 +583,19 @@ fun ExpenseScreen() {
         }
     }
 
+    val pendingNav by MainActivity.pendingNavigateToState.collectAsState()
+    val pendingCash by MainActivity.pendingOpenCashExpenseState.collectAsState()
+    LaunchedEffect(pendingNav, pendingCash) {
+        pendingNav?.let { target ->
+            navigateTo(target)
+            MainActivity.pendingNavigateToState.value = null
+        }
+        if (pendingCash) {
+            showAddDialog = true
+            MainActivity.pendingOpenCashExpenseState.value = false
+        }
+    }
+
     fun navigateBack() {
         if (backStack.lastOrNull() == "LocalFirstSetup") {
             settingsRepo.setSetupInProgress(false)
@@ -557,8 +606,16 @@ fun ExpenseScreen() {
     }
 
     val isDemoModeActive = !settingsRepo.isInitialOnboardingCompleted() && settingsRepo.isDemoMode()
-    BackHandler(enabled = backStack.size > 1 || isDemoModeActive) {
-        if (isDemoModeActive && (backStack.size <= 1 || currentRoute == "Home")) {
+    BackHandler(enabled = detailExpense != null || editExpense != null || actionSheetExpense != null || showAddDialog || backStack.size > 1 || isDemoModeActive) {
+        if (detailExpense != null) {
+            detailExpense = null
+        } else if (editExpense != null) {
+            editExpense = null
+        } else if (actionSheetExpense != null) {
+            actionSheetExpense = null
+        } else if (showAddDialog) {
+            showAddDialog = false
+        } else if (isDemoModeActive && (backStack.size <= 1 || currentRoute == "Home")) {
             settingsRepo.setDemoMode(false)
             settingsRepo.setSetupInProgress(false)
             scope.launch(Dispatchers.IO) {
@@ -603,13 +660,25 @@ fun ExpenseScreen() {
 
     val displayedExpenses =
         if (searchQuery.isNotBlank()) {
-            val q = searchQuery.trim().lowercase(java.util.Locale.ROOT)
-            expenses.filter {
-                it.merchant.lowercase(java.util.Locale.ROOT).contains(q) ||
-                it.note?.lowercase(java.util.Locale.ROOT)?.contains(q) == true ||
-                it.rawText?.lowercase(java.util.Locale.ROOT)?.contains(q) == true ||
-                it.category?.lowercase(java.util.Locale.ROOT)?.contains(q) == true ||
-                it.amount.toString().contains(q)
+            expenses.filter { exp ->
+                val acc = exp.accountId?.let { id -> knownAccounts.find { it.id == id } }
+                val bankName = acc?.institutionName ?: ""
+                val amountStr = String.format(java.util.Locale.US, "%.2f", exp.amount)
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.matches(
+                    searchQuery,
+                    exp.merchant,
+                    exp.category,
+                    exp.tag,
+                    exp.note,
+                    exp.rawText,
+                    exp.accountSuffix,
+                    bankName,
+                    amountStr,
+                    exp.amount.toString(),
+                    exp.type
+                )
+            }.sortedByDescending { exp ->
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.score(searchQuery, exp.merchant, exp.category, exp.note)
             }
         } else {
             expenses
@@ -617,9 +686,11 @@ fun ExpenseScreen() {
 
     Scaffold(
         containerColor = com.subhashrelangi.arctracker.ui.theme.ArcColors.Background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
 
         topBar = {
-            if (currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
+            val isOverlayActive = showAddDialog || showApproveDialog != null || detailExpense != null || editExpense != null
+            if (!isOverlayActive && currentRoute in listOf("Home", "Transactions", "Pending", "Review", "Insights", "Settings")) {
                 val showSearch = currentRoute in listOf("Home", "Insights", "Analytics", "Settings", "Pending", "Review")
                 val showProfile = currentRoute == "Home"
                 val profileInitials = remember(profileName) {
@@ -683,6 +754,7 @@ fun ExpenseScreen() {
                     }
                 }
             } else if (
+                !isOverlayActive &&
                 currentRoute != "SmsImport" &&
                 currentRoute != "SmsScan" &&
                 currentRoute != "SmsResult" &&
@@ -705,7 +777,8 @@ fun ExpenseScreen() {
                 currentRoute != "DeveloperOptions" &&
                 currentRoute != "RegexPatterns" &&
                 currentRoute != "EditRegexPattern" &&
-                currentRoute != "Database"
+                currentRoute != "Database" &&
+                currentRoute != "NotificationSettings"
             ) {
                 val title = when (currentRoute) {
                     "Database" -> "Database"
@@ -777,16 +850,51 @@ fun ExpenseScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
+            val showBottomNav = !showAddDialog && showApproveDialog == null && detailExpense == null && editExpense == null && currentRoute !in listOf(
+                "InitialOnboarding",
+                "LocalFirstSetup",
+                "ClearAllData",
+                "SmsImport",
+                "SmsScan",
+                "SmsResult",
+                "SettingsSmsImport",
+                "SupportedApps",
+                "CategoryManagement",
+                "FinancialAccounts",
+                "UnresolvedTransactions",
+                "AccountTransactions",
+                "CategoryRules",
+                "MerchantAliases",
+                "ApplyCategoryRules",
+                "Analytics",
+                "Budgets",
+                "Backup",
+                "DeveloperOptions",
+                "IgnoreRules",
+                "RegexPatterns",
+                "EditRegexPattern",
+                "Database",
+                "NotificationSettings"
+            )
+
             val contentTopPadding = if (currentRoute in listOf(
                 "InitialOnboarding", "LocalFirstSetup", "SmsImport", "SmsScan", "SmsResult", "SettingsSmsImport",
                 "CategoryManagement", "SupportedApps", "ClearAllData", "Budgets", "IgnoreRules", "Backup",
                 "FinancialAccounts", "UnresolvedTransactions", "AccountTransactions", "DeveloperOptions", "RegexPatterns", "EditRegexPattern",
-                "Analytics", "CategoryRules", "MerchantAliases", "Database", "ApplyCategoryRules"
+                "Analytics", "CategoryRules", "MerchantAliases", "Database", "ApplyCategoryRules", "NotificationSettings"
             )) 0.dp else padding.calculateTopPadding()
-            Column(
-                modifier = Modifier
+            val contentModifier = if (showBottomNav) {
+                Modifier
                     .padding(top = contentTopPadding)
                     .fillMaxSize()
+            } else {
+                Modifier
+                    .padding(top = contentTopPadding)
+                    .fillMaxSize()
+                    .navigationBarsPadding()
+            }
+            Column(
+                modifier = contentModifier
             ) {
 
             if (currentRoute == "Transactions") {
@@ -802,9 +910,13 @@ fun ExpenseScreen() {
                     onExpenseClick = { expense ->
                         if (expense.isPending) {
                             showApproveDialog = expense
+                        } else {
+                            detailExpense = expense
                         }
                     },
-                    onExpenseLongClick = { /* Handled internally by LedgerPage */ },
+                    onExpenseLongClick = { expense ->
+                        actionSheetExpense = expense
+                    },
                     onAddTransactionClick = {
                         showAddDialog = true
                     },
@@ -915,6 +1027,9 @@ fun ExpenseScreen() {
                         backStack = listOf("Home", "Review")
                     },
                     onSkipClick = {
+                        scope.launch(Dispatchers.IO) {
+                            com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
+                        }
                         settingsRepo.setSetupInProgress(false)
                         settingsRepo.setDemoMode(false)
                         settingsRepo.setInitialOnboardingCompleted(true)
@@ -954,6 +1069,12 @@ fun ExpenseScreen() {
             } else if (currentRoute == "IgnoreRules") {
 
                 com.subhashrelangi.arctracker.ui.IgnoreRulesScreen(
+                    onNavigateBack = { navigateBack() }
+                )
+
+            } else if (currentRoute == "NotificationSettings") {
+
+                com.subhashrelangi.arctracker.ui.NotificationSettingsScreen(
                     onNavigateBack = { navigateBack() }
                 )
 
@@ -1189,38 +1310,15 @@ fun ExpenseScreen() {
                         if (expense.isPending) {
                             showApproveDialog = expense
                         } else {
-                            actionSheetExpense = expense
+                            detailExpense = expense
                         }
+                    },
+                    onExpenseLongClick = { expense ->
+                        actionSheetExpense = expense
                     }
                 )
             }
         }
-
-        val showBottomNav = currentRoute !in listOf(
-            "InitialOnboarding",
-            "LocalFirstSetup",
-            "ClearAllData",
-            "SmsImport",
-            "SmsScan",
-            "SmsResult",
-            "SettingsSmsImport",
-            "SupportedApps",
-            "CategoryManagement",
-            "FinancialAccounts",
-            "UnresolvedTransactions",
-            "AccountTransactions",
-            "CategoryRules",
-            "MerchantAliases",
-            "ApplyCategoryRules",
-            "Analytics",
-            "Budgets",
-            "Backup",
-            "DeveloperOptions",
-            "IgnoreRules",
-            "RegexPatterns",
-            "EditRegexPattern",
-            "Database"
-        )
 
         if (showBottomNav) {
             val pendingCount = expenses.count { it.isPending }
@@ -1275,6 +1373,8 @@ fun ExpenseScreen() {
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(context, "Failed to save transaction", Toast.LENGTH_SHORT).show()
                                 }
+                            } else {
+                                BudgetAlertTrigger.onTransactionCommitted(context, newExpense.copy(id = id.toInt()))
                             }
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
@@ -1307,6 +1407,8 @@ fun ExpenseScreen() {
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(context, "Failed to save transaction", Toast.LENGTH_SHORT).show()
                                 }
+                            } else {
+                                BudgetAlertTrigger.onTransactionCommitted(context, newExpense.copy(id = id.toInt()))
                             }
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
@@ -1375,6 +1477,8 @@ fun ExpenseScreen() {
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(context, "Failed to approve transaction", Toast.LENGTH_SHORT).show()
                                 }
+                            } else {
+                                BudgetAlertTrigger.onTransactionCommitted(context, updated)
                             }
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
@@ -1403,6 +1507,8 @@ fun ExpenseScreen() {
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(context, "Failed to approve transaction", Toast.LENGTH_SHORT).show()
                                 }
+                            } else {
+                                BudgetAlertTrigger.onTransactionCommitted(context, updated)
                             }
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
@@ -1436,6 +1542,9 @@ fun ExpenseScreen() {
                         try {
                             val updatedCount = withContext(Dispatchers.IO) {
                                 expenseDao.approvePendingTransactions(ids)
+                            }
+                            toComplete.firstOrNull()?.let {
+                                BudgetAlertTrigger.onTransactionCommitted(context, it.copy(isPending = false))
                             }
                             refreshTrigger++
                             withContext(Dispatchers.Main) {
@@ -1472,6 +1581,112 @@ fun ExpenseScreen() {
                 onDelete = {
                     deleteConfirmExpense = sheetExpense
                     actionSheetExpense = null
+                }
+            )
+        }
+
+        detailExpense?.let { expenseToShow ->
+            TransactionDetailDialog(
+                expense = expenseToShow,
+                initialEditMode = false,
+                closeOnBackOrSave = false,
+                knownAccounts = knownAccounts,
+                allCategories = allCategories,
+                recentMerchants = recentMerchants,
+                onDismiss = {
+                    detailExpense = null
+                },
+                onSaveEdit = { expenseId, merchant, category, note ->
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            val res = transactionManager.updateTransaction(expenseId, merchant, category, note)
+                            if (res.isFailure) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to update transaction", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to update transaction", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to update transaction", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                    detailExpense = null
+                },
+                onAssignAccount = { expenseId, targetAccountId ->
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            val res = reconciliationManager.assignAccount(expenseId, targetAccountId)
+                            if (res.isFailure) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to assign account", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to assign account", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to assign account", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                },
+                onReassignAccount = { expenseId, newAccountId ->
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            val res = reconciliationManager.reassignAccount(expenseId, newAccountId)
+                            if (res.isFailure) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to reassign account", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to reassign account", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to reassign account", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                },
+                onUnlinkAccount = { expenseId ->
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            val res = reconciliationManager.unlinkAccount(expenseId)
+                            if (res.isFailure) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to unlink account", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to unlink account", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to unlink account", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                },
+                onDelete = { expenseToDelete ->
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            val res = transactionManager.deleteTransaction(expenseToDelete.id)
+                            if (res.isFailure) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            SecureLogger.e("MainActivity", "Failed to delete transaction", e)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Failed to delete transaction", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                    detailExpense = null
                 }
             )
         }

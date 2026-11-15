@@ -48,12 +48,16 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
+import com.subhashrelangi.arctracker.engine.notification.DailyNotificationScheduler
+import com.subhashrelangi.arctracker.engine.notification.NotificationDeliveryHelper
+import com.subhashrelangi.arctracker.engine.notification.NotificationSettingsRepository
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import com.subhashrelangi.arctracker.settings.AppThemeMode
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.utils.AppVersion
 import kotlinx.coroutines.delay
+import java.util.Locale
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -155,12 +159,19 @@ fun SettingsScreen(
     val effectiveAutoTracking = userPrefGlobalEnabled && hasNotifAccess && effectiveListenerBound
     val effectiveNotifTracking = notifTracking && hasNotifAccess && effectiveListenerBound
 
+    val notifRepo = remember { NotificationSettingsRepository.getInstance(context) }
+    val notifPrefs by notifRepo.preferencesFlow.collectAsState()
+    var hasSystemNotifPermission by remember {
+        mutableStateOf(NotificationDeliveryHelper.hasNotificationPermission(context))
+    }
+
     var pendingPermissionAction by rememberSaveable { mutableStateOf<String?>(null) }
     var showFeedbackDialog by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                hasSystemNotifPermission = NotificationDeliveryHelper.hasNotificationPermission(context)
                 val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
                 hasNotifAccess = granted
                 isListenerConnected = NotificationReaderService.isConnected
@@ -201,8 +212,8 @@ fun SettingsScreen(
     ) {
         val q = searchQuery.trim()
         fun matchesSearch(vararg terms: String): Boolean {
-            if (q.isEmpty()) return true
-            return terms.any { it.contains(q, ignoreCase = true) }
+            if (searchQuery.isBlank()) return true
+            return terms.any { com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.matches(searchQuery, it) }
         }
 
         val showProfile = matchesSearch("Profile", profileName, profileLabel, "Primary Vault", "Accounts")
@@ -224,7 +235,7 @@ fun SettingsScreen(
 
         val showDb = matchesSearch("Database", "SQLite", "SQLCipher", "Storage")
         val showImport = matchesSearch("Import Previous Transactions", "Scan", "Historical SMS")
-        val showBackup = matchesSearch("Full Backup & Export Engine", "Backup & Export Vault", "Export & Backup", "Backup", "Export", "AES-256", "CSV", "JSON", "Air-Gapped")
+        val showBackup = matchesSearch("Full Backup & Export Engine", "Backup & Export Vault", "Export & Backup", "Backup", "Export", "AES-256", "Encrypted Vault", "JSON", "Air-Gapped")
         val showClear = matchesSearch("Clear All Data", "Reset", "Delete", "Fresh")
         val hasDataMatches = showDb || showImport || showBackup || showClear
 
@@ -236,13 +247,18 @@ fun SettingsScreen(
         val showTheme = matchesSearch("App Theme", "Appearance", "Theme", "Dark mode", "Light mode", "System default")
         val hasAppearanceMatches = showTheme
 
+        val showNotificationsSection = matchesSearch(
+            "Notifications & Reminders", "Notifications", "Reminders", "Daily Digest", "Daily Summary",
+            "Cash Reminder", "Cash check-in", "Daily spend limit", "Daily limit", "ATM prompt", "High value", "Review reminder"
+        )
+
         val showDev = isDeveloperModeUnlocked && matchesSearch("Developer Options", "Developer", "Regex", "Onboarding", "Demo mode")
 
         val showAbout = matchesSearch("About ArcTracker", "About", "Version", "Build", "Architecture")
         val showFeedback = matchesSearch("Feedback & Local Logs", "Feedback", "Diagnostics", "Report", "Review")
         val hasAboutMatches = showAbout || showFeedback
 
-        val hasAnyMatch = showProfile || hasCoreMatches || showTracker || hasTrackingMatches || hasDataMatches || hasSecurityMatches || hasAppearanceMatches || showDev || hasAboutMatches
+        val hasAnyMatch = showProfile || hasCoreMatches || showTracker || hasTrackingMatches || showNotificationsSection || hasDataMatches || hasSecurityMatches || hasAppearanceMatches || showDev || hasAboutMatches
 
         Column(
             modifier = Modifier
@@ -684,6 +700,42 @@ fun SettingsScreen(
                 }
             }
 
+            // Section: NOTIFICATIONS
+            if (showNotificationsSection) {
+                SectionHeader(title = "NOTIFICATIONS")
+
+                SettingsGroupCard {
+                    SettingsItemRow(
+                        icon = Icons.Outlined.Notifications,
+                        title = "Notifications",
+                        subtitle = "Weekly summary, daily digest, cash check-in, budget alerts & limits",
+                        badgeText = if (!hasSystemNotifPermission) {
+                            "Not Enabled"
+                        } else if (notifPrefs.isNotificationsMasterEnabled) {
+                            "Active"
+                        } else {
+                            "Muted"
+                        },
+                        badgeBgColor = if (!hasSystemNotifPermission) {
+                            ArcColors.SurfaceHighlight
+                        } else if (notifPrefs.isNotificationsMasterEnabled) {
+                            ArcColors.PrimaryLight
+                        } else {
+                            ArcColors.SurfaceHighlight
+                        },
+                        badgeTextColor = if (!hasSystemNotifPermission) {
+                            ArcColors.TextMuted
+                        } else if (notifPrefs.isNotificationsMasterEnabled) {
+                            ArcColors.PrimaryDark
+                        } else {
+                            ArcColors.TextSecondary
+                        },
+                        isLast = true,
+                        onClick = { onNavigate("NotificationSettings") }
+                    )
+                }
+            }
+
             // 6. Section: DATA & STORAGE
             if (hasDataMatches) {
                 SectionHeader(title = "DATA & STORAGE")
@@ -710,7 +762,7 @@ fun SettingsScreen(
                         SettingsItemRow(
                             icon = Icons.Outlined.FileUpload,
                             title = "Full Backup & Export Engine",
-                            subtitle = "Encrypted JSON (AES-256-GCM) & CSV ledger export",
+                            subtitle = "Encrypted JSON (AES-256-GCM) local vault export",
                             onClick = { onNavigate("Backup") }
                         )
                     }
@@ -1898,4 +1950,15 @@ private fun GreenCheckSwitch(
             uncheckedBorderColor = Color.Transparent
         )
     )
+}
+
+private fun formatTime12Hour(hour: Int, minute: Int): String {
+    val h = hour.coerceIn(0, 23)
+    val m = minute.coerceIn(0, 59)
+    val amPm = if (h < 12) "AM" else "PM"
+    val displayHour = when (h % 12) {
+        0 -> 12
+        else -> h % 12
+    }
+    return String.format(Locale.US, "%d:%02d %s", displayHour, m, amPm)
 }

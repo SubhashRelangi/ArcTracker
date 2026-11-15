@@ -93,7 +93,7 @@ fun TransactionDetailDialog(
     // Edit Mode State
     var isEditMode by remember(initialEditMode) { mutableStateOf(initialEditMode) }
     var editedMerchant by remember(expense) { mutableStateOf(expense.merchant) }
-    var editedCategory by remember(expense) { mutableStateOf(expense.tag ?: expense.category ?: "") }
+    var editedCategory by remember(expense) { mutableStateOf(expense.category ?: "") }
     var editedCategoryId by remember(expense) { mutableStateOf(expense.categoryId) }
     var editedNote by remember(expense) { mutableStateOf(expense.note ?: "") }
     var merchantError by remember { mutableStateOf<String?>(null) }
@@ -104,6 +104,10 @@ fun TransactionDetailDialog(
     var isReassignPicker by remember { mutableStateOf(false) }
     var showUnlinkConfirmDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var showEditConfirmDialog by remember { mutableStateOf(false) }
+    var pendingInteractiveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var confirmPromptTitle by remember { mutableStateOf("Change Transaction Details?") }
+    var confirmPromptMessage by remember { mutableStateOf("Do you want to edit the details of this transaction?") }
     var showAddTagDialog by remember { mutableStateOf(false) }
 
     // Tags State (Only real extracted tags)
@@ -196,7 +200,7 @@ fun TransactionDetailDialog(
     }
     val categoryIconKey = resolvedCategory?.iconKey ?: "restaurant"
     val categoryDisplayName = resolvedCategory?.name
-        ?: editedCategory.ifBlank { expense.category ?: expense.tag ?: "Uncategorized" }
+        ?: editedCategory.ifBlank { expense.category ?: "Uncategorized" }
 
     // Secondary Description / Location: Only show real location or category if distinct from merchant title
     val secondaryDescription = remember(expense.merchant, categoryDisplayName, expense.category, expense.tag) {
@@ -216,51 +220,22 @@ fun TransactionDetailDialog(
         }
     }
 
-    Dialog(
-        onDismissRequest = {
-            if (closeOnBackOrSave || !isEditMode) {
-                onDismiss()
-            } else {
-                isEditMode = false
-            }
-        },
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        val dialogView = LocalView.current
-        val isDark = ArcColors.isDark
-        SideEffect {
-            var parent = dialogView.parent
-            while (parent != null && parent !is DialogWindowProvider) {
-                parent = parent.parent
-            }
-            (parent as? DialogWindowProvider)?.window?.let { window ->
-                window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-                window.setDimAmount(0f)
-                window.setLayout(
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                )
-                WindowCompat.setDecorFitsSystemWindows(window, false)
-                window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-                window.statusBarColor = android.graphics.Color.TRANSPARENT
-                window.navigationBarColor = android.graphics.Color.TRANSPARENT
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                    window.isNavigationBarContrastEnforced = false
-                    window.isStatusBarContrastEnforced = false
-                }
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                    window.navigationBarDividerColor = android.graphics.Color.TRANSPARENT
-                }
-                window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-                WindowCompat.getInsetsController(window, window.decorView)?.let { insetsController ->
-                    insetsController.isAppearanceLightStatusBars = !isDark
-                    insetsController.isAppearanceLightNavigationBars = !isDark
-                }
-            }
+    val handleDismiss = {
+        if (closeOnBackOrSave || !isEditMode) {
+            onDismiss()
+        } else {
+            isEditMode = false
         }
+    }
+    BackHandler(onBack = handleDismiss)
+
+    val isDark = ArcColors.isDark
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(lightBg)
+    ) {
 
         if (isEditMode) {
             Surface(
@@ -512,7 +487,12 @@ fun TransactionDetailDialog(
                             ) {
                                 // 1. Category Pill
                                 OutlinedButton(
-                                    onClick = { showCategoryPickerDialog = true },
+                                    onClick = {
+                                        confirmPromptTitle = "Change Category?"
+                                        confirmPromptMessage = "Do you want to change the category for this transaction?"
+                                        pendingInteractiveAction = { showCategoryPickerDialog = true }
+                                        showEditConfirmDialog = true
+                                    },
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(42.dp),
@@ -589,8 +569,13 @@ fun TransactionDetailDialog(
                             paymentChannel = paymentChannel,
                             upiRef = if (upiRef != "-") upiRef else null,
                             onAccountClick = {
-                                isReassignPicker = linkedAccount != null
-                                showAccountPickerDialog = true
+                                confirmPromptTitle = if (linkedAccount != null) "Change Payment Account?" else "Link Payment Account?"
+                                confirmPromptMessage = "Do you want to change or assign the payment account for this transaction?"
+                                pendingInteractiveAction = {
+                                    isReassignPicker = linkedAccount != null
+                                    showAccountPickerDialog = true
+                                }
+                                showEditConfirmDialog = true
                             },
                             onCopyUpiRef = {
                                 if (upiRef != "-") {
@@ -609,12 +594,26 @@ fun TransactionDetailDialog(
                             categoryDisplayName = categoryDisplayName,
                             categoryIconKey = categoryIconKey,
                             categorySubtitle = if (resolvedCategory?.isSystem == true) "System Category" else null,
-                            isAutoCategorized = expense.categorySource != "USER_ASSIGNED" && !expense.category.isNullOrBlank(),
                             tags = currentTags,
                             memoNote = editedNote.ifBlank { expense.note ?: "" },
-                            onReassignClick = { showCategoryPickerDialog = true },
-                            onAddTagClick = { showAddTagDialog = true },
-                            onEditMemoClick = { isEditMode = true }
+                            onReassignClick = {
+                                confirmPromptTitle = "Change Category?"
+                                confirmPromptMessage = "Do you want to change the category for this transaction?"
+                                pendingInteractiveAction = { showCategoryPickerDialog = true }
+                                showEditConfirmDialog = true
+                            },
+                            onAddTagClick = {
+                                confirmPromptTitle = "Add Semantic Tag?"
+                                confirmPromptMessage = "Do you want to add a tag to this transaction?"
+                                pendingInteractiveAction = { showAddTagDialog = true }
+                                showEditConfirmDialog = true
+                            },
+                            onEditMemoClick = {
+                                confirmPromptTitle = "Edit Note / Memo?"
+                                confirmPromptMessage = "Do you want to edit the notes or memo for this transaction?"
+                                pendingInteractiveAction = { isEditMode = true }
+                                showEditConfirmDialog = true
+                            }
                         )
                     }
 
@@ -638,7 +637,7 @@ fun TransactionDetailDialog(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Export Receipt / CSV Row Button
+                            // Share Transaction Details Button
                             Button(
                                 onClick = {
                                     exportTransactionReceipt(context, expense, linkedAccount, txnCode, upiRef)
@@ -666,7 +665,7 @@ fun TransactionDetailDialog(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Export Receipt / CSV Row",
+                                        text = "Share Transaction Details",
                                         fontSize = 13.5.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
@@ -758,6 +757,28 @@ fun TransactionDetailDialog(
                 onDismiss()
             },
             onDismiss = { showDeleteConfirmDialog = false }
+        )
+    }
+
+    // Edit Confirmation Dialog
+    if (showEditConfirmDialog) {
+        com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet(
+            title = confirmPromptTitle,
+            message = confirmPromptMessage,
+            confirmText = "Continue",
+            cancelText = "Cancel",
+            icon = Icons.Default.Edit,
+            iconColor = ArcColors.Primary,
+            isDestructive = false,
+            onConfirm = {
+                showEditConfirmDialog = false
+                pendingInteractiveAction?.invoke()
+                pendingInteractiveAction = null
+            },
+            onDismiss = {
+                showEditConfirmDialog = false
+                pendingInteractiveAction = null
+            }
         )
     }
 
@@ -1253,7 +1274,6 @@ private fun TransactionCategorySection(
     categoryDisplayName: String,
     categoryIconKey: String,
     categorySubtitle: String?,
-    isAutoCategorized: Boolean,
     tags: List<String>,
     memoNote: String,
     onReassignClick: () -> Unit,
@@ -1358,28 +1378,6 @@ private fun TransactionCategorySection(
                         tint = slateSub,
                         modifier = Modifier.size(18.dp)
                     )
-                }
-
-                // Auto-categorized Rule row (Only shown if auto-categorized)
-                if (isAutoCategorized) {
-                    Row(
-                        modifier = Modifier.padding(start = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SmartToy,
-                            contentDescription = null,
-                            tint = ArcColors.Primary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Auto-categorized by Category Rules ↗",
-                            fontSize = 12.sp,
-                            color = ArcColors.Primary,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(2.dp))

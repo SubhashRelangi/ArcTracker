@@ -10,9 +10,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -168,7 +170,8 @@ fun HomeScreenRedesign(
     onBudgetsClick: () -> Unit = {},
     onExportClick: () -> Unit = {},
     onViewAllClick: () -> Unit = {},
-    onExpenseClick: (Expense) -> Unit = {}
+    onExpenseClick: (Expense) -> Unit = {},
+    onExpenseLongClick: (Expense) -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
 
@@ -300,35 +303,6 @@ fun HomeScreenRedesign(
                     statusText = if (acctExpenses.isNotEmpty()) "Active" else null,
                     theme = themes[index % themes.size],
                     isWalletUpi = false
-                )
-            }
-        } else if (hasTransactions) {
-            val grouped = expenses.groupBy { it.accountSuffix?.takeIf { s -> s.isNotBlank() } ?: "General" }
-            val themes = listOf(
-                WalletCardTheme.GRAPHITE_DARK,
-                WalletCardTheme.ROYAL_PURPLE,
-                WalletCardTheme.PORCELAIN_WHITE,
-                WalletCardTheme.EMERALD_SLATE
-            )
-            grouped.entries.mapIndexed { index, (suffix, list) ->
-                val inc = list.filter { it.type.equals("Credit", true) && !it.isPending }.sumOf { it.amount }
-                val exp = list.filter { !it.type.equals("Credit", true) && !it.isPending }.sumOf { it.amount }
-                val net = inc - exp
-                val title = if (suffix == "General") "Primary Account" else "Account ••$suffix"
-                WalletCardModel(
-                    id = suffix,
-                    bankName = if (suffix == "General") "Primary" else "Bank",
-                    cardName = title,
-                    suffix = if (suffix == "General") "" else suffix,
-                    balanceAmount = net,
-                    balanceFormatted = formatInrAmount(net),
-                    incomeAmount = inc,
-                    incomeFormatted = "+₹" + formatInrShort(inc),
-                    expenseAmount = exp,
-                    expenseFormatted = "-₹" + formatInrShort(exp),
-                    cardTypeLabel = "ACCOUNT",
-                    statusText = "Active",
-                    theme = themes[index % themes.size]
                 )
             }
         } else {
@@ -562,6 +536,12 @@ fun HomeScreenRedesign(
                         onExpenseClick(exp)
                     } else {
                         onViewAllClick()
+                    }
+                },
+                onItemLongClick = { item ->
+                    val exp = expenses.firstOrNull { it.id == item.id }
+                    if (exp != null) {
+                        onExpenseLongClick(exp)
                     }
                 }
             )
@@ -2086,7 +2066,7 @@ private fun HomeQuickActionsHubCard(
                 iconColor = if (ArcColors.current.isDark) Color(0xFFA78BFA) else Color(0xFF7C3AED),
                 iconBgColor = if (ArcColors.current.isDark) Color(0xFF2E1A47) else Color(0xFFF5F3FF),
                 title = "Export",
-                subtitle = "CSV / PDF",
+                subtitle = "Vault Backup",
                 onClick = onExportClick
             )
         }
@@ -2164,7 +2144,8 @@ private fun HomeRecentActivitySection(
     isDemoMode: Boolean,
     onViewAllClick: () -> Unit,
     onScanSmsClick: () -> Unit,
-    onItemClick: (HomeTransactionDisplay) -> Unit
+    onItemClick: (HomeTransactionDisplay) -> Unit,
+    onItemLongClick: (HomeTransactionDisplay) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         // Section Header Row
@@ -2174,7 +2155,7 @@ private fun HomeRecentActivitySection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = if (activeCardName != null) "Recent • $activeCardName" else "Recent Activity",
+                text = "Recent Activity",
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextDarkPrimary,
@@ -2331,7 +2312,8 @@ private fun HomeRecentActivitySection(
                     items.forEachIndexed { index, item ->
                         RecentTransactionItem(
                             item = item,
-                            onClick = { onItemClick(item) }
+                            onClick = { onItemClick(item) },
+                            onLongClick = { onItemLongClick(item) }
                         )
                         if (index < items.size - 1) {
                             HorizontalDivider(
@@ -2347,15 +2329,20 @@ private fun HomeRecentActivitySection(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RecentTransactionItem(
     item: HomeTransactionDisplay,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

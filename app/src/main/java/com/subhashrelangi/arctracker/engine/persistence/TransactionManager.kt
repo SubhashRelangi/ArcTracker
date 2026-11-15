@@ -160,23 +160,27 @@ class TransactionManager(
     ): List<Expense> {
         var result = expenses
 
-        // 1. Search Query (Merchant, Note, Account Suffix/Name, Category Name, Reference)
+        // 1. Search Query (Merchant, Note, Account Suffix/Name, Category Name, Reference, Amount)
         if (filter.searchQuery.isNotBlank()) {
-            val q = filter.searchQuery.trim().lowercase()
             result = result.filter { expense ->
-                val merchantMatch = expense.merchant.lowercase().contains(q)
-                val noteMatch = expense.note?.lowercase()?.contains(q) == true
-                val suffixMatch = expense.accountSuffix?.lowercase()?.contains(q) == true
-                val refMatch = expense.notificationKey.lowercase().contains(q)
-                val catMatch = expense.tag?.lowercase()?.contains(q) == true ||
-                        (expense.categoryId?.let { categories[it]?.name?.lowercase()?.contains(q) } == true)
-                val accountMatch = expense.accountId?.let { accId ->
-                    val acc = accounts[accId]
-                    acc?.institutionName?.lowercase()?.contains(q) == true ||
-                            acc?.accountSuffix?.contains(q) == true
-                } ?: false
-
-                merchantMatch || noteMatch || suffixMatch || refMatch || catMatch || accountMatch
+                val categoryName = expense.categoryId?.let { categories[it]?.name }
+                val acc = expense.accountId?.let { accounts[it] }
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.matches(
+                    filter.searchQuery,
+                    expense.merchant,
+                    expense.category,
+                    categoryName,
+                    expense.tag,
+                    expense.note,
+                    expense.rawText,
+                    expense.accountSuffix,
+                    acc?.institutionName,
+                    acc?.accountSuffix,
+                    expense.amount.toString(),
+                    expense.type
+                )
+            }.sortedByDescending {
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.score(filter.searchQuery, it.merchant, it.category, it.note)
             }
         }
 

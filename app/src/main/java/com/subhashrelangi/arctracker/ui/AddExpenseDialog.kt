@@ -235,46 +235,11 @@ fun AddExpenseDialog(
 
     BackHandler(onBack = onDismiss)
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(lightBg)
     ) {
-        val dialogView = LocalView.current
-        val isDark = ArcColors.isDark
-        SideEffect {
-            var parent = dialogView.parent
-            while (parent != null && parent !is DialogWindowProvider) {
-                parent = parent.parent
-            }
-            (parent as? DialogWindowProvider)?.window?.let { window ->
-                window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-                window.setDimAmount(0f)
-                window.setLayout(
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                )
-                WindowCompat.setDecorFitsSystemWindows(window, false)
-                window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-                window.statusBarColor = android.graphics.Color.TRANSPARENT
-                window.navigationBarColor = android.graphics.Color.TRANSPARENT
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                    window.isNavigationBarContrastEnforced = false
-                    window.isStatusBarContrastEnforced = false
-                }
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                    window.navigationBarDividerColor = android.graphics.Color.TRANSPARENT
-                }
-                window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-                WindowCompat.getInsetsController(window, window.decorView)?.let { insetsController ->
-                    insetsController.isAppearanceLightStatusBars = !isDark
-                    insetsController.isAppearanceLightNavigationBars = !isDark
-                }
-            }
-        }
-
         val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
 
         Scaffold(
@@ -328,14 +293,10 @@ fun AddExpenseDialog(
                                     .height(1.dp)
                                     .background(cardBorder)
                             )
-                            Column(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -345,7 +306,7 @@ fun AddExpenseDialog(
                                         onClick = onDelete,
                                         modifier = Modifier
                                             .weight(0.7f)
-                                            .height(52.dp),
+                                            .height(50.dp),
                                         shape = CircleShape,
                                         color = ArcColors.DangerContainer,
                                         border = BorderStroke(1.dp, ArcColors.DangerBorder)
@@ -411,7 +372,7 @@ fun AddExpenseDialog(
                                     },
                                     modifier = Modifier
                                         .weight(if (onDelete != null) 1.3f else 1f)
-                                        .height(52.dp),
+                                        .height(50.dp),
                                     shape = CircleShape,
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = Color(0xFF047857)
@@ -445,7 +406,6 @@ fun AddExpenseDialog(
                     }
                 }
             }
-        }
         ) { innerPadding ->
             // SCROLLABLE CONTENT BODY
             Column(

@@ -231,10 +231,10 @@ private fun ArcBottomNavItem(
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val contentColor = if (isLightMode) {
-        if (isSelected) Color(0xFF0F172A) else Color(0xFF64748B)
+    val contentColor = if (isSelected) {
+        ArcColors.Primary
     } else {
-        if (isSelected) Color.White else Color(0xFF94A3B8)
+        if (isLightMode) Color(0xFF64748B) else Color(0xFF94A3B8)
     }
 
     Box(
@@ -252,57 +252,45 @@ private fun ArcBottomNavItem(
             verticalArrangement = Arrangement.Center
         ) {
             Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        if (isSelected) {
-                            if (isLightMode) Color(0x120F172A) else Color(0x2238BDF8)
-                        } else Color.Transparent
-                    )
-                    .padding(horizontal = 12.dp, vertical = 2.dp),
+                modifier = Modifier.size(24.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier.size(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val iconVector = when (destination) {
-                        ArcDestination.HOME -> Icons.Rounded.Home
-                        ArcDestination.LEDGER -> Icons.Rounded.ReceiptLong
-                        ArcDestination.REVIEW -> Icons.Rounded.RateReview
-                        ArcDestination.INSIGHTS -> Icons.Rounded.BarChart
-                        ArcDestination.SETTINGS -> Icons.Rounded.Settings
-                    }
+                val iconVector = when (destination) {
+                    ArcDestination.HOME -> Icons.Rounded.Home
+                    ArcDestination.LEDGER -> Icons.Rounded.ReceiptLong
+                    ArcDestination.REVIEW -> Icons.Rounded.RateReview
+                    ArcDestination.INSIGHTS -> Icons.Rounded.BarChart
+                    ArcDestination.SETTINGS -> Icons.Rounded.Settings
+                }
 
-                    Icon(
-                        imageVector = iconVector,
-                        contentDescription = destination.title,
-                        modifier = Modifier.size(22.dp),
-                        tint = contentColor
-                    )
+                Icon(
+                    imageVector = iconVector,
+                    contentDescription = destination.title,
+                    modifier = Modifier.size(22.dp),
+                    tint = contentColor
+                )
 
-                    // Amber notification badge on Review icon (upper-right overlay)
-                    if (badgeCount != null && badgeCount > 0) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 6.dp, y = (-3).dp)
-                                .size(15.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFD97706)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (badgeCount > 99) "99+" else badgeCount.toString(),
-                                color = Color.White,
-                                fontSize = 8.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center,
-                                maxLines = 1,
-                                softWrap = false,
-                                overflow = TextOverflow.Clip
-                            )
-                        }
+                // Amber notification badge on Review icon (upper-right overlay)
+                if (badgeCount != null && badgeCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 6.dp, y = (-3).dp)
+                            .size(15.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFD97706)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                            color = Color.White,
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Clip
+                        )
                     }
                 }
             }
@@ -315,7 +303,7 @@ private fun ArcBottomNavItem(
                 fontSize = 10.5.sp,
                 lineHeight = 13.sp,
                 letterSpacing = (-0.2).sp,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis,

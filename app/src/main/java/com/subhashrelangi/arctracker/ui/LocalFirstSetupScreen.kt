@@ -1,6 +1,12 @@
 package com.subhashrelangi.arctracker.ui
 
+import android.Manifest
 import android.app.Activity
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,6 +41,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Icon
@@ -62,12 +69,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.subhashrelangi.arctracker.BuildConfig
 import com.subhashrelangi.arctracker.R
 import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
+import com.subhashrelangi.arctracker.engine.notification.NotificationDeliveryHelper
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.utils.AppVersion
@@ -92,14 +101,14 @@ private val CardSurface: Color @Composable @ReadOnlyComposable get() = ArcColors
 private val CardBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
 private val IconBoxBg: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
 
-// Status pills
+// Status pills - Clean ArcTracker styling (no alarming red)
 private val StatusEnabledBg: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5)
 private val StatusEnabledBorder: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF059669) else Color(0xFFA7F3D0)
 private val StatusEnabledText: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF34D399) else Color(0xFF059669)
 
-private val StatusDisabledBg: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2)
-private val StatusDisabledBorder: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFF991B1B) else Color(0xFFFECACA)
-private val StatusDisabledText: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626)
+private val StatusDisabledBg: Color @Composable @ReadOnlyComposable get() = ArcColors.SurfaceHighlight
+private val StatusDisabledBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
+private val StatusDisabledText: Color @Composable @ReadOnlyComposable get() = ArcColors.TextMuted
 
 // Buttons
 private val PrimaryBtnBg: Color @Composable @ReadOnlyComposable get() = if (ArcColors.isDark) ArcColors.Primary else Color(0xFF0F172A)
@@ -108,18 +117,19 @@ private val BackBtnBg: Color @Composable @ReadOnlyComposable get() = ArcColors.C
 private val BackBtnBorder: Color @Composable @ReadOnlyComposable get() = ArcColors.Border
 
 /**
- * Clean & essential Notification Permission Setup screen matching Light Theme:
- * 1. Top Bar: "ArcTracker" prominent title + "/ Onboarding" normal text on the left, Light theme brand logo on the right
+ * Clean & essential Notification Setup screen matching ArcTracker Design System:
+ * 1. Top Bar: "ArcTracker" prominent title + GitHub version pill on left, status dot on right
  * 2. Status Row: "• STEP 1 OF 2" emerald pill badge
  * 3. Headline: "Capture transactions automatically"
  * 4. Subtitle: Clear on-device privacy explanation
- * 5. Essential Cards:
- *    - Notification Listener service status (Disabled / Enabled dynamic badge)
+ * 5. Permission Cards:
+ *    - Push Notifications (POST_NOTIFICATIONS) for summaries, budget alerts & review recaps
+ *    - Notification Listener Service for local bank & UPI alert detection
  *    - Android permission instructions info card
  * 6. Bottom Navigation Actions:
  *    - Left: Circular back button with left arrow
  *    - Right: Rounded pill continue/enable button with text & right arrow
- *    - Context-based secondary action: "Continue without access" if disabled, privacy assurance note if enabled
+ *    - Secondary action: Clean "Continue without access" without feeling trapped or alarming
  */
 @Composable
 fun LocalFirstSetupScreen(
@@ -149,17 +159,41 @@ fun LocalFirstSetupScreen(
         MonitoringSettingsRepository.getInstance(context)
     }
 
-    var isNotificationGranted by remember {
+    var isListenerGranted by remember {
         mutableStateOf(NotificationPermissionHelper.isNotificationAccessGranted(context))
     }
 
-    // Refresh permission status on resume (when returning from Android settings)
+    var isPostNotificationGranted by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            } else {
+                NotificationDeliveryHelper.hasNotificationPermission(context)
+            }
+        )
+    }
+
+    // Refresh permission statuses on resume (when returning from Android settings or permission dialogs)
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
-                if (isNotificationGranted != granted) {
-                    isNotificationGranted = granted
+                val listenerGranted = NotificationPermissionHelper.isNotificationAccessGranted(context)
+                if (isListenerGranted != listenerGranted) {
+                    isListenerGranted = listenerGranted
+                }
+                val postGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.POST_NOTIFICATIONS
+                    ) == PackageManager.PERMISSION_GRANTED
+                } else {
+                    NotificationDeliveryHelper.hasNotificationPermission(context)
+                }
+                if (isPostNotificationGranted != postGranted) {
+                    isPostNotificationGranted = postGranted
                 }
             }
         }
@@ -169,15 +203,31 @@ fun LocalFirstSetupScreen(
         }
     }
 
+    val postNotificationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        isPostNotificationGranted = isGranted
+    }
+
     val settingsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
-        isNotificationGranted = NotificationPermissionHelper.isNotificationAccessGranted(context)
+        isListenerGranted = NotificationPermissionHelper.isNotificationAccessGranted(context)
+        isPostNotificationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            NotificationDeliveryHelper.hasNotificationPermission(context)
+        }
     }
 
     BackHandler(enabled = onBackClick != null) {
         onBackClick?.invoke()
     }
+
+    val allGranted = isListenerGranted && isPostNotificationGranted
 
     BoxWithConstraints(
         modifier = modifier
@@ -201,237 +251,367 @@ fun LocalFirstSetupScreen(
                 // ----------------------------------------------------
                 // 1. Top Bar Header (Matches InitialPageScreen exactly)
                 // ----------------------------------------------------
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Left: Title starts first, followed by GitHub version pill
                 Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "ArcTracker",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = BrandTextPrimary,
-                        letterSpacing = (-0.4).sp
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Version Badge Pill (GitHub downloaded version)
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(VersionBadgeBg)
-                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                    // Left: Title starts first, followed by GitHub version pill
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = appVersion,
+                            text = "ArcTracker",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = BrandTextPrimary,
+                            letterSpacing = (-0.4).sp
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Version Badge Pill (GitHub downloaded version)
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(VersionBadgeBg)
+                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = appVersion,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = VersionBadgeText
+                            )
+                        }
+                    }
+
+                    // Right: Status Indicator Green Dot
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(StatusIndicatorGreen)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // ----------------------------------------------------
+                // 2. Stepper Status Row
+                // ----------------------------------------------------
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(StepPillBg)
+                        .border(BorderStroke(1.dp, StepPillBorder), CircleShape)
+                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(StepPillText)
+                        )
+                        Text(
+                            text = "STEP 1 OF 2",
                             fontSize = 11.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = VersionBadgeText
+                            fontWeight = FontWeight.Bold,
+                            color = StepPillText
                         )
                     }
                 }
 
-                // Right: Status Indicator Green Dot
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(StatusIndicatorGreen)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // ----------------------------------------------------
+                // 3. Headline & Description
+                // ----------------------------------------------------
+                Text(
+                    text = "Capture transactions automatically",
+                    fontSize = 23.sp,
+                    fontWeight = FontWeight.Bold,
+                    lineHeight = 28.sp,
+                    letterSpacing = (-0.4).sp,
+                    color = BrandTextPrimary
                 )
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-            // ----------------------------------------------------
-            // 2. Stepper Status Row
-            // ----------------------------------------------------
-            Box(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(StepPillBg)
-                    .border(BorderStroke(1.dp, StepPillBorder), CircleShape)
-                    .padding(horizontal = 10.dp, vertical = 3.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(CircleShape)
-                            .background(StepPillText)
-                    )
-                    Text(
-                        text = "STEP 1 OF 2",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = StepPillText
-                    )
-                }
-            }
+                Text(
+                    text = "ArcTracker listens for supported banking and payment notifications locally, recording logs instantly without cloud routing.",
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Normal,
+                    lineHeight = 19.sp,
+                    color = BrandTextSecondary
+                )
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // ----------------------------------------------------
-            // 3. Headline & Description
-            // ----------------------------------------------------
-            Text(
-                text = "Capture transactions automatically",
-                fontSize = 23.sp,
-                fontWeight = FontWeight.Bold,
-                lineHeight = 28.sp,
-                letterSpacing = (-0.4).sp,
-                color = BrandTextPrimary
-            )
+                // ----------------------------------------------------
+                // 4. Essential Permission Cards
+                // ----------------------------------------------------
 
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = "ArcTracker listens for supported banking and payment notifications locally, recording logs instantly without cloud routing.",
-                fontSize = 13.5.sp,
-                fontWeight = FontWeight.Normal,
-                lineHeight = 19.sp,
-                color = BrandTextSecondary
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ----------------------------------------------------
-            // 4. Essential Permission Cards
-            // ----------------------------------------------------
-
-            // Card 1: Notification Listener Service Status Card
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                color = CardSurface,
-                border = BorderStroke(1.dp, CardBorder)
-            ) {
-                Row(
+                // Card 1: Push Notifications (POST_NOTIFICATIONS)
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = rememberRipple(),
+                            onClick = {
+                                if (!isPostNotificationGranted) {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        postNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    } else {
+                                        try {
+                                            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                            }
+                                            settingsLauncher.launch(intent)
+                                        } catch (_: Exception) {
+                                            val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                                data = Uri.fromParts("package", context.packageName, null)
+                                            }
+                                            settingsLauncher.launch(fallback)
+                                        }
+                                    }
+                                }
+                            }
+                        ),
+                    shape = RoundedCornerShape(14.dp),
+                    color = CardSurface,
+                    border = BorderStroke(1.dp, CardBorder)
                 ) {
                     Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Bell Icon in rounded box
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(IconBoxBg),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.NotificationsNone,
-                                contentDescription = null,
-                                tint = if (isNotificationGranted) StepPillText else BrandTextPrimary,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column {
-                            Text(
-                                text = "Notification Listener",
-                                fontSize = 14.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = BrandTextPrimary
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Android System Service",
-                                fontSize = 11.5.sp,
-                                color = BrandTextSecondary
-                            )
-                        }
-                    }
-
-                    // Status Pill (Disabled / Enabled)
-                    val statusBg = if (isNotificationGranted) StatusEnabledBg else StatusDisabledBg
-                    val statusBorder = if (isNotificationGranted) StatusEnabledBorder else StatusDisabledBorder
-                    val statusText = if (isNotificationGranted) StatusEnabledText else StatusDisabledText
-                    val statusLabel = if (isNotificationGranted) "Enabled" else "Disabled"
-
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(statusBg)
-                            .border(BorderStroke(1.dp, statusBorder), CircleShape)
-                            .padding(horizontal = 9.dp, vertical = 3.dp)
-                    ) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(statusText)
-                            )
-                            Text(
-                                text = statusLabel,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = statusText
-                            )
+                                    .size(38.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(IconBoxBg),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.NotificationsActive,
+                                    contentDescription = null,
+                                    tint = if (isPostNotificationGranted) StepPillText else BrandTextPrimary,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column {
+                                Text(
+                                    text = "Push Notifications",
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = BrandTextPrimary
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Daily digests & budget notifications",
+                                    fontSize = 11.5.sp,
+                                    color = BrandTextSecondary
+                                )
+                            }
                         }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Status Pill (Enabled / Not Enabled) - Clean ArcTracker styling
+                        val postStatusBg = if (isPostNotificationGranted) StatusEnabledBg else StatusDisabledBg
+                        val postStatusBorder = if (isPostNotificationGranted) StatusEnabledBorder else StatusDisabledBorder
+                        val postStatusText = if (isPostNotificationGranted) StatusEnabledText else StatusDisabledText
+                        val postStatusLabel = if (isPostNotificationGranted) "Enabled" else "Not Enabled"
+
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(postStatusBg)
+                                .border(BorderStroke(1.dp, postStatusBorder), CircleShape)
+                                .padding(horizontal = 9.dp, vertical = 3.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(postStatusText)
+                                )
+                                Text(
+                                    text = postStatusLabel,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = postStatusText
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Card 2: Notification Listener Service Status Card
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = rememberRipple(),
+                            onClick = {
+                                if (!isListenerGranted) {
+                                    val intent = NotificationPermissionHelper.createNotificationAccessSettingsIntent()
+                                    try {
+                                        settingsLauncher.launch(intent)
+                                    } catch (_: Exception) {
+                                        context.startActivity(intent)
+                                    }
+                                }
+                            }
+                        ),
+                    shape = RoundedCornerShape(14.dp),
+                    color = CardSurface,
+                    border = BorderStroke(1.dp, CardBorder)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(IconBoxBg),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.NotificationsNone,
+                                    contentDescription = null,
+                                    tint = if (isListenerGranted) StepPillText else BrandTextPrimary,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column {
+                                Text(
+                                    text = "Notification Listener",
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = BrandTextPrimary
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Real-time bank & UPI alert detector",
+                                    fontSize = 11.5.sp,
+                                    color = BrandTextSecondary
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Status Pill (Enabled / Not Enabled) - Clean ArcTracker styling
+                        val listenerStatusBg = if (isListenerGranted) StatusEnabledBg else StatusDisabledBg
+                        val listenerStatusBorder = if (isListenerGranted) StatusEnabledBorder else StatusDisabledBorder
+                        val listenerStatusText = if (isListenerGranted) StatusEnabledText else StatusDisabledText
+                        val listenerStatusLabel = if (isListenerGranted) "Enabled" else "Not Enabled"
+
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(listenerStatusBg)
+                                .border(BorderStroke(1.dp, listenerStatusBorder), CircleShape)
+                                .padding(horizontal = 9.dp, vertical = 3.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(listenerStatusText)
+                                )
+                                Text(
+                                    text = listenerStatusLabel,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = listenerStatusText
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Card 3: Essential Explanation / Info Card
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = CardSurface,
+                    border = BorderStroke(1.dp, CardBorder)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = null,
+                            tint = BrandTextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Text(
+                            text = "ArcTracker isolates financial alert listeners. Push permissions enable reminders, while the notification listener detects transactions locally in private storage.",
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp,
+                            color = BrandTextSecondary
+                        )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Card 2: Essential Explanation / Info Card
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                color = CardSurface,
-                border = BorderStroke(1.dp, CardBorder)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Info,
-                        contentDescription = null,
-                        tint = BrandTextSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Text(
-                        text = "Android isolates financial alert listeners. Tapping enable will direct you directly to Android's Device & App Notifications manager where ArcTracker can be authorized.",
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp,
-                        color = BrandTextSecondary
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // ----------------------------------------------------
-        // 5. Bottom Navigation Actions
-        // ----------------------------------------------------
+            // ----------------------------------------------------
+            // 5. Bottom Navigation Actions
+            // ----------------------------------------------------
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -492,16 +672,30 @@ fun LocalFirstSetupScreen(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = rememberRipple(color = Color.White.copy(alpha = 0.2f)),
                                 onClick = {
-                                    if (isNotificationGranted) {
+                                    if (allGranted) {
                                         settingsRepo.setNotificationTrackingEnabled(true)
                                         settingsRepo.setGlobalEnabled(true)
                                         onSetupCompleted(true)
-                                    } else {
+                                    } else if (!isPostNotificationGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        postNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    } else if (!isListenerGranted) {
                                         val intent = NotificationPermissionHelper.createNotificationAccessSettingsIntent()
                                         try {
                                             settingsLauncher.launch(intent)
                                         } catch (_: Exception) {
                                             context.startActivity(intent)
+                                        }
+                                    } else {
+                                        try {
+                                            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                            }
+                                            settingsLauncher.launch(intent)
+                                        } catch (_: Exception) {
+                                            val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                                data = Uri.fromParts("package", context.packageName, null)
+                                            }
+                                            settingsLauncher.launch(fallback)
                                         }
                                     }
                                 }
@@ -517,7 +711,7 @@ fun LocalFirstSetupScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (isNotificationGranted) "Continue" else "Enable Access",
+                                text = if (allGranted) "Continue" else "Enable Access",
                                 color = PrimaryBtnText,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -536,8 +730,8 @@ fun LocalFirstSetupScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // Context-based Secondary Action / Reassurance
-                if (!isNotificationGranted) {
-                    // When disabled: offer skip without feeling trapped
+                if (!allGranted) {
+                    // When not all granted: offer skip without feeling trapped or alarming
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
@@ -573,7 +767,7 @@ fun LocalFirstSetupScreen(
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = "Access active • 100% private on-device",
+                            text = "All permissions active • 100% private on-device",
                             color = BrandTextSecondary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium

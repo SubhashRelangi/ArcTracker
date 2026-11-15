@@ -1,17 +1,17 @@
 package com.subhashrelangi.arctracker.engine.budget
 
-import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
-import android.content.pm.PackageManager
+import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
+import com.subhashrelangi.arctracker.MainActivity
 import com.subhashrelangi.arctracker.R
 import com.subhashrelangi.arctracker.data.Budget
 import com.subhashrelangi.arctracker.data.BudgetProgress
+import com.subhashrelangi.arctracker.engine.notification.NotificationChannelManager
+import com.subhashrelangi.arctracker.engine.notification.NotificationDeliveryHelper
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -31,6 +31,7 @@ interface BudgetAlertNotifier {
  * - Creates and manages dedicated "budget_alerts" notification channel.
  * - Safely handles missing POST_NOTIFICATIONS permission without crashing.
  * - Respects system notifications disabled state.
+ * - Deep links directly to the Budgets dashboard upon tap.
  * - Completely decoupled from live transaction listener.
  */
 class AndroidBudgetAlertNotifier(
@@ -38,7 +39,7 @@ class AndroidBudgetAlertNotifier(
 ) : BudgetAlertNotifier {
 
     companion object {
-        const val CHANNEL_ID = "budget_alerts"
+        const val CHANNEL_ID = NotificationChannelManager.CHANNEL_BUDGET_ALERTS
         const val CHANNEL_NAME = "Budget Alerts"
         const val CHANNEL_DESC = "Notifications when your spending approaches or exceeds your configured budget limits."
     }
@@ -51,35 +52,11 @@ class AndroidBudgetAlertNotifier(
     }
 
     init {
-        createNotificationChannel()
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, importance).apply {
-                description = CHANNEL_DESC
-                enableVibration(true)
-            }
-            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            manager?.createNotificationChannel(channel)
-        }
+        NotificationChannelManager.createAllChannels(context)
     }
 
     private fun hasNotificationPermission(): Boolean {
-        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
-            return false
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val permission = ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
-            )
-            if (permission != PackageManager.PERMISSION_GRANTED) {
-                return false
-            }
-        }
-        return true
+        return NotificationDeliveryHelper.hasNotificationPermission(context)
     }
 
     override fun sendWarningAlert(budget: Budget, progress: BudgetProgress): Boolean {
@@ -89,6 +66,17 @@ class AndroidBudgetAlertNotifier(
             val title = "Budget Warning: ${budget.name}"
             val text = "You've spent ${currencyFormatter.format(progress.spent)} of ${currencyFormatter.format(progress.limit)} (${String.format(Locale.US, "%.0f", progress.percentageUsed)}%)."
 
+            val tapIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(MainActivity.EXTRA_NAVIGATE_TO, "Budgets")
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                budget.id.hashCode(),
+                tapIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            )
+
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(title)
@@ -97,6 +85,7 @@ class AndroidBudgetAlertNotifier(
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
                 .build()
 
             NotificationManagerCompat.from(context).notify(
@@ -116,6 +105,17 @@ class AndroidBudgetAlertNotifier(
             val title = "Budget Exceeded: ${budget.name}"
             val text = "Alert! You've exceeded your budget of ${currencyFormatter.format(progress.limit)} (Spent: ${currencyFormatter.format(progress.spent)})."
 
+            val tapIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(MainActivity.EXTRA_NAVIGATE_TO, "Budgets")
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                budget.id.hashCode() + 1,
+                tapIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            )
+
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(title)
@@ -124,6 +124,7 @@ class AndroidBudgetAlertNotifier(
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
                 .build()
 
             NotificationManagerCompat.from(context).notify(
