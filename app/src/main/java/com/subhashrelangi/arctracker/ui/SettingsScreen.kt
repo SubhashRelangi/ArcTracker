@@ -48,12 +48,16 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.subhashrelangi.arctracker.data.AppDatabase
 import com.subhashrelangi.arctracker.engine.ingestion.NotificationPermissionHelper
+import com.subhashrelangi.arctracker.engine.notification.DailyNotificationScheduler
+import com.subhashrelangi.arctracker.engine.notification.NotificationDeliveryHelper
+import com.subhashrelangi.arctracker.engine.notification.NotificationSettingsRepository
 import com.subhashrelangi.arctracker.service.NotificationReaderService
 import com.subhashrelangi.arctracker.settings.AppThemeMode
 import com.subhashrelangi.arctracker.settings.MonitoringSettingsRepository
 import com.subhashrelangi.arctracker.ui.theme.ArcColors
 import com.subhashrelangi.arctracker.utils.AppVersion
 import kotlinx.coroutines.delay
+import java.util.Locale
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -155,12 +159,22 @@ fun SettingsScreen(
     val effectiveAutoTracking = userPrefGlobalEnabled && hasNotifAccess && effectiveListenerBound
     val effectiveNotifTracking = notifTracking && hasNotifAccess && effectiveListenerBound
 
+    val notifRepo = remember { NotificationSettingsRepository.getInstance(context) }
+    val notifPrefs by notifRepo.preferencesFlow.collectAsState()
+    var hasSystemNotifPermission by remember {
+        mutableStateOf(NotificationDeliveryHelper.hasNotificationPermission(context))
+    }
+    var timePickerTarget by remember { mutableStateOf<String?>(null) }
+    var showDailyLimitSheet by remember { mutableStateOf(false) }
+    var limitInputText by remember { mutableStateOf("") }
+
     var pendingPermissionAction by rememberSaveable { mutableStateOf<String?>(null) }
     var showFeedbackDialog by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                hasSystemNotifPermission = NotificationDeliveryHelper.hasNotificationPermission(context)
                 val granted = NotificationPermissionHelper.isNotificationAccessGranted(context)
                 hasNotifAccess = granted
                 isListenerConnected = NotificationReaderService.isConnected
@@ -236,13 +250,18 @@ fun SettingsScreen(
         val showTheme = matchesSearch("App Theme", "Appearance", "Theme", "Dark mode", "Light mode", "System default")
         val hasAppearanceMatches = showTheme
 
+        val showNotificationsSection = matchesSearch(
+            "Notifications & Reminders", "Notifications", "Reminders", "Daily Digest", "Daily Summary",
+            "Cash Reminder", "Cash check-in", "Daily spend limit", "Daily limit", "ATM prompt", "High value", "Review reminder"
+        )
+
         val showDev = isDeveloperModeUnlocked && matchesSearch("Developer Options", "Developer", "Regex", "Onboarding", "Demo mode")
 
         val showAbout = matchesSearch("About ArcTracker", "About", "Version", "Build", "Architecture")
         val showFeedback = matchesSearch("Feedback & Local Logs", "Feedback", "Diagnostics", "Report", "Review")
         val hasAboutMatches = showAbout || showFeedback
 
-        val hasAnyMatch = showProfile || hasCoreMatches || showTracker || hasTrackingMatches || hasDataMatches || hasSecurityMatches || hasAppearanceMatches || showDev || hasAboutMatches
+        val hasAnyMatch = showProfile || hasCoreMatches || showTracker || hasTrackingMatches || showNotificationsSection || hasDataMatches || hasSecurityMatches || hasAppearanceMatches || showDev || hasAboutMatches
 
         Column(
             modifier = Modifier
@@ -684,6 +703,145 @@ fun SettingsScreen(
                 }
             }
 
+            // Section: NOTIFICATIONS & REMINDERS
+            if (showNotificationsSection) {
+                SectionHeader(title = "NOTIFICATIONS & REMINDERS")
+
+                SettingsGroupCard {
+                    if (!hasSystemNotifPermission) {
+                        SettingsItemRow(
+                            icon = Icons.Outlined.NotificationsOff,
+                            iconBgColor = if (ArcColors.isDark) Color(0xFF3F1515) else Color(0xFFFEE2E2),
+                            iconTint = if (ArcColors.isDark) Color(0xFFFCA5A5) else Color(0xFFDC2626),
+                            title = "Notifications Blocked",
+                            subtitle = "Tap to enable notifications in Android Settings",
+                            titleColor = if (ArcColors.isDark) Color(0xFFFCA5A5) else Color(0xFFDC2626),
+                            badgeText = "Fix",
+                            badgeBgColor = if (ArcColors.isDark) Color(0xFF7F1D1D) else Color(0xFFFECACA),
+                            badgeTextColor = Color.White,
+                            onClick = {
+                                try {
+                                    val intent = Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                        putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                    }
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                    val fallback = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.fromParts("package", context.packageName, null)
+                                    }
+                                    context.startActivity(fallback)
+                                }
+                            }
+                        )
+                    }
+
+                    // Nightly Expense Digest
+                    val digestTimeStr = formatTime12Hour(notifPrefs.dailyDigestHour, notifPrefs.dailyDigestMinute)
+                    SettingsSwitchRowItem(
+                        icon = Icons.Outlined.NightsStay,
+                        title = "Nightly Expense Digest",
+                        subtitle = "Summarizes today's spending, top categories & zero-spend days",
+                        checked = notifPrefs.isDailyDigestEnabled,
+                        onCheckedChange = { enabled ->
+                            notifRepo.setDailyDigestEnabled(enabled)
+                            DailyNotificationScheduler.scheduleAll(context)
+                        }
+                    )
+
+                    if (notifPrefs.isDailyDigestEnabled) {
+                        SettingsItemRow(
+                            icon = Icons.Outlined.Schedule,
+                            title = "Digest Delivery Time",
+                            subtitle = "Daily alarm fires even in Doze mode via AlarmManager",
+                            badgeText = digestTimeStr,
+                            onClick = { timePickerTarget = "DIGEST" }
+                        )
+                    }
+
+                    // Evening Liquid Cash Check-in
+                    val cashTimeStr = formatTime12Hour(notifPrefs.cashReminderHour, notifPrefs.cashReminderMinute)
+                    SettingsSwitchRowItem(
+                        icon = Icons.Outlined.Payments,
+                        title = "Evening Cash Check-in",
+                        subtitle = "Reminder prompt to log manual cash purchases",
+                        checked = notifPrefs.isCashReminderEnabled,
+                        onCheckedChange = { enabled ->
+                            notifRepo.setCashReminderEnabled(enabled)
+                            DailyNotificationScheduler.scheduleAll(context)
+                        }
+                    )
+
+                    if (notifPrefs.isCashReminderEnabled) {
+                        SettingsItemRow(
+                            icon = Icons.Outlined.Schedule,
+                            title = "Cash Reminder Time",
+                            subtitle = "Tap to choose notification schedule",
+                            badgeText = cashTimeStr,
+                            onClick = { timePickerTarget = "CASH" }
+                        )
+                    }
+
+                    // Real-Time Budget Alerts
+                    SettingsSwitchRowItem(
+                        icon = Icons.Outlined.WarningAmber,
+                        title = "Budget Threshold Alerts",
+                        subtitle = "Instant alert when crossing 80% warning or 100% budget limits",
+                        checked = notifPrefs.isBudgetAlertsEnabled,
+                        onCheckedChange = { enabled ->
+                            notifRepo.setBudgetAlertsEnabled(enabled)
+                        }
+                    )
+
+                    // Daily Spend Limit
+                    val dailyLimitText = notifPrefs.dailySpendLimit?.let { "₹${String.format(Locale.US, "%,.0f", it)}" } ?: "Not Set"
+                    SettingsItemRow(
+                        icon = Icons.Outlined.Speed,
+                        title = "Daily Spend Limit",
+                        subtitle = "Instant alert when single-day spending crosses target",
+                        badgeText = dailyLimitText,
+                        onClick = {
+                            limitInputText = notifPrefs.dailySpendLimit?.toInt()?.toString() ?: ""
+                            showDailyLimitSheet = true
+                        }
+                    )
+
+                    // Review Queue Digest
+                    SettingsSwitchRowItem(
+                        icon = Icons.Outlined.RateReview,
+                        title = "Pending Review Reminders",
+                        subtitle = "Summary prompt when uncategorized transactions need review",
+                        checked = notifPrefs.isReviewReminderEnabled,
+                        onCheckedChange = { enabled ->
+                            notifRepo.setReviewReminderEnabled(enabled)
+                        }
+                    )
+
+                    // ATM Cash Withdrawal Follow-up
+                    SettingsSwitchRowItem(
+                        icon = Icons.Outlined.LocalAtm,
+                        title = "ATM Cash Follow-up",
+                        subtitle = "Prompt to log cash spending when ATM withdrawal is detected",
+                        checked = notifPrefs.isAtmFollowUpEnabled,
+                        onCheckedChange = { enabled ->
+                            notifRepo.setAtmFollowUpEnabled(enabled)
+                        }
+                    )
+
+                    // Large Transaction Alert
+                    val highValueText = "₹${String.format(Locale.US, "%,.0f", notifPrefs.highValueThreshold)}"
+                    SettingsSwitchRowItem(
+                        icon = Icons.Outlined.ReceiptLong,
+                        title = "Large Transaction Alert",
+                        subtitle = "Alert on individual debit purchases exceeding $highValueText",
+                        checked = notifPrefs.isHighValueAlertEnabled,
+                        onCheckedChange = { enabled ->
+                            notifRepo.setHighValueAlertEnabled(enabled)
+                        },
+                        isLast = true
+                    )
+                }
+            }
+
             // 6. Section: DATA & STORAGE
             if (hasDataMatches) {
                 SectionHeader(title = "DATA & STORAGE")
@@ -1006,6 +1164,176 @@ fun SettingsScreen(
                         modifier = Modifier.weight(1.3f).height(46.dp)
                     ) {
                         Text("Send Feedback", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+
+    // Time Picker Bottom Sheet for Notification Reminders
+    timePickerTarget?.let { target ->
+        val isDigest = target == "DIGEST"
+        val currentTimeHour = if (isDigest) notifPrefs.dailyDigestHour else notifPrefs.cashReminderHour
+        val currentTimeMin = if (isDigest) notifPrefs.dailyDigestMinute else notifPrefs.cashReminderMinute
+        val options = listOf(
+            Triple(20, 0, "8:00 PM"),
+            Triple(20, 30, "8:30 PM"),
+            Triple(21, 0, "9:00 PM"),
+            Triple(21, 30, "9:30 PM"),
+            Triple(22, 0, "10:00 PM"),
+            Triple(22, 30, "10:30 PM")
+        )
+
+        ArcModalBottomSheet(
+            onDismissRequest = { timePickerTarget = null },
+            title = if (isDigest) "Digest Delivery Time" else "Cash Check-in Time",
+            icon = Icons.Outlined.Schedule,
+            maxHeight = 360.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = "Select when ArcTracker should send your ${if (isDigest) "nightly expense digest" else "liquid cash reminder"}:",
+                    fontSize = 13.sp,
+                    color = ArcColors.TextSecondary,
+                    lineHeight = 18.sp
+                )
+
+                options.chunked(3).forEach { rowOptions ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowOptions.forEach { (hour, minute, label) ->
+                            val isSelected = currentTimeHour == hour && currentTimeMin == minute
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        if (isDigest) {
+                                            notifRepo.setDailyDigestTime(hour, minute)
+                                        } else {
+                                            notifRepo.setCashReminderTime(hour, minute)
+                                        }
+                                        DailyNotificationScheduler.scheduleAll(context)
+                                        timePickerTarget = null
+                                    },
+                                color = if (isSelected) ArcColors.Primary else ArcColors.SurfaceHighlight,
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, if (isSelected) ArcColors.Primary else ArcColors.Border)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = label,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 13.sp,
+                                        color = if (isSelected) Color.White else ArcColors.TextPrimary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = { timePickerTarget = null },
+                    shape = CircleShape,
+                    modifier = Modifier.fillMaxWidth().height(44.dp)
+                ) {
+                    Text("Done", color = ArcColors.TextSecondary)
+                }
+            }
+        }
+    }
+
+    // Daily Spend Limit Sheet
+    if (showDailyLimitSheet) {
+        ArcModalBottomSheet(
+            onDismissRequest = { showDailyLimitSheet = false },
+            title = "Daily Spending Limit",
+            icon = Icons.Outlined.Speed,
+            maxHeight = 380.dp
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = "Set a daily spend ceiling. ArcTracker will immediately notify you if your settled expenses cross this amount today.",
+                    fontSize = 13.sp,
+                    color = ArcColors.TextSecondary,
+                    lineHeight = 18.sp
+                )
+
+                OutlinedTextField(
+                    value = limitInputText,
+                    onValueChange = { str -> limitInputText = str.filter { it.isDigit() || it == '.' } },
+                    label = { Text("Daily Target Amount (₹)") },
+                    prefix = { Text("₹ ", fontWeight = FontWeight.Bold) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ArcColors.Primary,
+                        unfocusedBorderColor = ArcColors.Border
+                    )
+                )
+
+                // Quick preset chips
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(1000.0, 2000.0, 5000.0).forEach { preset ->
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    limitInputText = preset.toInt().toString()
+                                },
+                            color = ArcColors.SurfaceHighlight,
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, ArcColors.Border)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("₹${preset.toInt()}", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = ArcColors.TextPrimary)
+                            }
+                        }
+                    }
+                }
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            notifRepo.setDailySpendLimit(null)
+                            showDailyLimitSheet = false
+                            limitInputText = ""
+                            Toast.makeText(context, "Daily spend limit cleared", Toast.LENGTH_SHORT).show()
+                        },
+                        shape = CircleShape,
+                        modifier = Modifier.weight(1f).height(46.dp)
+                    ) {
+                        Text("Clear Limit", color = ArcColors.TextSecondary)
+                    }
+                    Button(
+                        onClick = {
+                            val parsed = limitInputText.toDoubleOrNull()
+                            if (parsed != null && parsed > 0.0) {
+                                notifRepo.setDailySpendLimit(parsed)
+                                Toast.makeText(context, "Daily limit set to ₹${parsed.toInt()}", Toast.LENGTH_SHORT).show()
+                            } else {
+                                notifRepo.setDailySpendLimit(null)
+                            }
+                            showDailyLimitSheet = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                        shape = CircleShape,
+                        modifier = Modifier.weight(1.2f).height(46.dp)
+                    ) {
+                        Text("Save Target", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1898,4 +2226,15 @@ private fun GreenCheckSwitch(
             uncheckedBorderColor = Color.Transparent
         )
     )
+}
+
+private fun formatTime12Hour(hour: Int, minute: Int): String {
+    val h = hour.coerceIn(0, 23)
+    val m = minute.coerceIn(0, 59)
+    val amPm = if (h < 12) "AM" else "PM"
+    val displayHour = when (h % 12) {
+        0 -> 12
+        else -> h % 12
+    }
+    return String.format(Locale.US, "%d:%02d %s", displayHour, m, amPm)
 }

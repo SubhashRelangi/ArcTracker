@@ -58,6 +58,17 @@ class DailyNotificationReceiver : BroadcastReceiver() {
 
                 val payload = DailyDigestEvaluator.buildDailyDigestPayload(summary)
                 NotificationDeliveryHelper.deliverNotification(context, payload)
+
+                // Dispatch Pending Review Digest if unreviewed transactions exist
+                if (prefs.isReviewReminderEnabled) {
+                    val pendingCount = db.expenseDao().getPendingExpensesList().size
+                    if (pendingCount > 0) {
+                        val reviewPayload = SmartPromptEvaluator.buildPendingReviewDigest(pendingCount)
+                        if (reviewPayload != null) {
+                            NotificationDeliveryHelper.deliverNotification(context, reviewPayload)
+                        }
+                    }
+                }
             } catch (_: Exception) {
             } finally {
                 pendingResult.finish()

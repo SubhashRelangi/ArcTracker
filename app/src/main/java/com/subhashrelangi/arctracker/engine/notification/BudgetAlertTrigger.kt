@@ -64,6 +64,18 @@ object BudgetAlertTrigger {
             if (dailyLimit != null && dailyLimit > 0.0) {
                 checkInstantDailyLimit(context, db, expense, dailyLimit)
             }
+
+            // 3. Evaluate ATM Cash Withdrawal Prompt
+            if (prefs.isAtmFollowUpEnabled && SmartPromptEvaluator.isAtmWithdrawal(expense)) {
+                val atmPayload = SmartPromptEvaluator.buildAtmCashPrompt(expense)
+                NotificationDeliveryHelper.deliverNotification(context, atmPayload)
+            }
+
+            // 4. Evaluate High-Value Transaction Alert
+            if (prefs.isHighValueAlertEnabled && SmartPromptEvaluator.isHighValueSpend(expense, prefs.highValueThreshold)) {
+                val highValuePayload = SmartPromptEvaluator.buildHighValueSpendPrompt(expense)
+                NotificationDeliveryHelper.deliverNotification(context, highValuePayload)
+            }
         } catch (_: Exception) {
             // Defensive: notification failures must never crash or roll back transactions
         }
