@@ -117,12 +117,12 @@ fun ArcTrackerTheme(
     val screenWidth = config.screenWidthDp
 
     val widthScale = if (screenWidth in 240..391) {
-        (screenWidth.toFloat() / 392f).coerceIn(0.85f, 1.0f)
+        (screenWidth.toFloat() / 392f).coerceIn(0.80f, 1.0f)
     } else {
         1.0f
     }
 
-    val adaptedFontScale = (1.0f * widthScale).coerceIn(0.85f, 1.0f)
+    val adaptedFontScale = (1.0f * widthScale).coerceIn(0.80f, 1.0f)
     val adaptedDensity = Density(
         density = currentDensity.density * widthScale,
         fontScale = adaptedFontScale
