@@ -305,35 +305,6 @@ fun HomeScreenRedesign(
                     isWalletUpi = false
                 )
             }
-        } else if (hasTransactions) {
-            val grouped = expenses.groupBy { it.accountSuffix?.takeIf { s -> s.isNotBlank() } ?: "General" }
-            val themes = listOf(
-                WalletCardTheme.GRAPHITE_DARK,
-                WalletCardTheme.ROYAL_PURPLE,
-                WalletCardTheme.PORCELAIN_WHITE,
-                WalletCardTheme.EMERALD_SLATE
-            )
-            grouped.entries.mapIndexed { index, (suffix, list) ->
-                val inc = list.filter { it.type.equals("Credit", true) && !it.isPending }.sumOf { it.amount }
-                val exp = list.filter { !it.type.equals("Credit", true) && !it.isPending }.sumOf { it.amount }
-                val net = inc - exp
-                val title = if (suffix == "General") "Primary Account" else "Account ••$suffix"
-                WalletCardModel(
-                    id = suffix,
-                    bankName = if (suffix == "General") "Primary" else "Bank",
-                    cardName = title,
-                    suffix = if (suffix == "General") "" else suffix,
-                    balanceAmount = net,
-                    balanceFormatted = formatInrAmount(net),
-                    incomeAmount = inc,
-                    incomeFormatted = "+₹" + formatInrShort(inc),
-                    expenseAmount = exp,
-                    expenseFormatted = "-₹" + formatInrShort(exp),
-                    cardTypeLabel = "ACCOUNT",
-                    statusText = "Active",
-                    theme = themes[index % themes.size]
-                )
-            }
         } else {
             emptyList()
         }
@@ -2184,7 +2155,7 @@ private fun HomeRecentActivitySection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = if (activeCardName != null) "Recent • $activeCardName" else "Recent Activity",
+                text = "Recent Activity",
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextDarkPrimary,

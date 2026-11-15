@@ -146,18 +146,29 @@ fun EditTransactionPage(
         )
     }
 
-    val activeCategoryOptions = remember(isCredit, allCategories) {
-        if (isCredit) {
-            val customCredit = allCategories.filter { !it.isSystem && (it.name.contains("Income", true) || it.name.contains("Salary", true) || it.name.contains("Refund", true)) }
-            defaultCreditCategories + customCredit
+    val activeCategoryOptions = remember(isCredit, allCategories, defaultCreditCategories, defaultDebitCategories) {
+        if (allCategories.isNotEmpty()) {
+            val nonArchived = allCategories.filter { !it.isArchived }
+            val filtered = if (isCredit) {
+                nonArchived.filter {
+                    it.name.contains("Income", true) || it.name.contains("Salary", true) ||
+                    it.name.contains("Refund", true) || it.name.contains("Cashback", true) ||
+                    it.name.contains("Investment", true) || it.name.contains("Gift", true) ||
+                    it.id in listOf("salary", "refund", "cashback", "investment", "gift", "income", "other_credit")
+                }
+            } else {
+                nonArchived.filter {
+                    it.id !in listOf("salary", "refund", "cashback", "investment", "gift", "income", "other_credit")
+                }
+            }
+            if (filtered.isNotEmpty()) filtered else nonArchived
         } else {
-            val customDebit = allCategories.filter { !it.isSystem }
-            defaultDebitCategories + customDebit
+            if (isCredit) defaultCreditCategories else defaultDebitCategories
         }
     }
 
-    var editedCategory by remember(expense.tag, expense.category, isCredit) {
-        val initialName = expense.tag ?: expense.category ?: (if (isCredit) "Income" else "Other")
+    var editedCategory by remember(expense.category, isCredit) {
+        val initialName = expense.category ?: (if (isCredit) "Income" else "Other")
         mutableStateOf(initialName)
     }
     var editedCategoryId by remember(expense.categoryId) {
@@ -907,58 +918,76 @@ fun EditTransactionPage(
                                 )
                             }
 
-                            // Quick Category Suggestions Row
-                            val quickChips = if (isCredit) {
-                                listOf(
-                                    Triple("Salary", "payments", "Salary"),
-                                    Triple("Refund", "receipt", "Refund"),
-                                    Triple("Cashback", "savings", "Cashback")
-                                )
-                            } else {
-                                listOf(
-                                    Triple("Food & Dining", "restaurant", "Food & Dining"),
-                                    Triple("Household", "home", "Household"),
-                                    Triple("Utilities", "bolt", "Bills & Utilities")
-                                )
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                quickChips.forEach { (label, iconKey, targetCategory) ->
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(highlightSurface)
-                                            .clickable {
-                                                editedCategory = targetCategory
-                                                editedCategoryId = null
-                                            }
-                                            .padding(vertical = 8.dp, horizontal = 6.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
+                            // All Backend Categories Grid with Checkmark on Selected
+                            activeCategoryOptions.chunked(2).forEach { pair ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    pair.forEach { cat ->
+                                        val isSelected = (editedCategoryId != null && editedCategoryId == cat.id) ||
+                                                editedCategory.equals(cat.name, ignoreCase = true)
+                                        Surface(
+                                            onClick = {
+                                                editedCategory = cat.name
+                                                editedCategoryId = cat.id
+                                            },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(44.dp),
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = if (isSelected) ArcColors.Primary.copy(alpha = 0.12f) else highlightSurface,
+                                            border = BorderStroke(
+                                                if (isSelected) 1.5.dp else 1.dp,
+                                                if (isSelected) ArcColors.Primary else cardBorder
+                                            )
                                         ) {
-                                            Icon(
-                                                imageVector = CategoryVisuals.getIcon(iconKey),
-                                                contentDescription = null,
-                                                tint = slateTitle,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = label,
-                                                fontSize = 11.5.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = slateTitle,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .padding(horizontal = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(26.dp)
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(if (isSelected) ArcColors.Primary else cardBg),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = CategoryVisuals.getIcon(cat.iconKey),
+                                                        contentDescription = null,
+                                                        tint = if (isSelected) Color.White else slateTitle,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                }
+
+                                                Spacer(modifier = Modifier.width(6.dp))
+
+                                                Text(
+                                                    text = cat.name,
+                                                    fontSize = 11.5.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (isSelected) ArcColors.Primary else slateTitle,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = "Selected",
+                                                        tint = ArcColors.Primary,
+                                                        modifier = Modifier.size(15.dp)
+                                                    )
+                                                }
+                                            }
                                         }
+                                    }
+                                    if (pair.size == 1) {
+                                        Spacer(modifier = Modifier.weight(1f))
                                     }
                                 }
                             }

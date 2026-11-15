@@ -93,7 +93,7 @@ fun TransactionDetailDialog(
     // Edit Mode State
     var isEditMode by remember(initialEditMode) { mutableStateOf(initialEditMode) }
     var editedMerchant by remember(expense) { mutableStateOf(expense.merchant) }
-    var editedCategory by remember(expense) { mutableStateOf(expense.tag ?: expense.category ?: "") }
+    var editedCategory by remember(expense) { mutableStateOf(expense.category ?: "") }
     var editedCategoryId by remember(expense) { mutableStateOf(expense.categoryId) }
     var editedNote by remember(expense) { mutableStateOf(expense.note ?: "") }
     var merchantError by remember { mutableStateOf<String?>(null) }
@@ -104,6 +104,7 @@ fun TransactionDetailDialog(
     var isReassignPicker by remember { mutableStateOf(false) }
     var showUnlinkConfirmDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var showEditConfirmDialog by remember { mutableStateOf(false) }
     var showAddTagDialog by remember { mutableStateOf(false) }
 
     // Tags State (Only real extracted tags)
@@ -196,7 +197,7 @@ fun TransactionDetailDialog(
     }
     val categoryIconKey = resolvedCategory?.iconKey ?: "restaurant"
     val categoryDisplayName = resolvedCategory?.name
-        ?: editedCategory.ifBlank { expense.category ?: expense.tag ?: "Uncategorized" }
+        ?: editedCategory.ifBlank { expense.category ?: "Uncategorized" }
 
     // Secondary Description / Location: Only show real location or category if distinct from merchant title
     val secondaryDescription = remember(expense.merchant, categoryDisplayName, expense.category, expense.tag) {
@@ -342,7 +343,7 @@ fun TransactionDetailDialog(
                                             text = { Text("Edit Transaction", color = slateTitle, fontWeight = FontWeight.Medium) },
                                             onClick = {
                                                 menuExpanded = false
-                                                isEditMode = true
+                                                showEditConfirmDialog = true
                                             },
                                             leadingIcon = {
                                                 Icon(Icons.Default.Edit, contentDescription = null, tint = ArcColors.Primary, modifier = Modifier.size(18.dp))
@@ -447,7 +448,7 @@ fun TransactionDetailDialog(
                         ) {
                             // Primary Emerald Edit Button
                             Button(
-                                onClick = { isEditMode = true },
+                                onClick = { showEditConfirmDialog = true },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp),
@@ -580,12 +581,11 @@ fun TransactionDetailDialog(
                             categoryDisplayName = categoryDisplayName,
                             categoryIconKey = categoryIconKey,
                             categorySubtitle = if (resolvedCategory?.isSystem == true) "System Category" else null,
-                            isAutoCategorized = expense.categorySource != "USER_ASSIGNED" && !expense.category.isNullOrBlank(),
                             tags = currentTags,
                             memoNote = editedNote.ifBlank { expense.note ?: "" },
                             onReassignClick = { showCategoryPickerDialog = true },
                             onAddTagClick = { showAddTagDialog = true },
-                            onEditMemoClick = { isEditMode = true }
+                            onEditMemoClick = { showEditConfirmDialog = true }
                         )
                     }
 
@@ -729,6 +729,24 @@ fun TransactionDetailDialog(
                 onDismiss()
             },
             onDismiss = { showDeleteConfirmDialog = false }
+        )
+    }
+
+    // Edit Confirmation Dialog
+    if (showEditConfirmDialog) {
+        com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet(
+            title = "Edit Transaction?",
+            message = "Do you want to edit the details of this transaction?",
+            confirmText = "Edit",
+            cancelText = "Cancel",
+            icon = Icons.Default.Edit,
+            iconColor = ArcColors.Primary,
+            isDestructive = false,
+            onConfirm = {
+                showEditConfirmDialog = false
+                isEditMode = true
+            },
+            onDismiss = { showEditConfirmDialog = false }
         )
     }
 
@@ -1224,7 +1242,6 @@ private fun TransactionCategorySection(
     categoryDisplayName: String,
     categoryIconKey: String,
     categorySubtitle: String?,
-    isAutoCategorized: Boolean,
     tags: List<String>,
     memoNote: String,
     onReassignClick: () -> Unit,
@@ -1329,28 +1346,6 @@ private fun TransactionCategorySection(
                         tint = slateSub,
                         modifier = Modifier.size(18.dp)
                     )
-                }
-
-                // Auto-categorized Rule row (Only shown if auto-categorized)
-                if (isAutoCategorized) {
-                    Row(
-                        modifier = Modifier.padding(start = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SmartToy,
-                            contentDescription = null,
-                            tint = ArcColors.Primary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Auto-categorized by Category Rules ↗",
-                            fontSize = 12.sp,
-                            color = ArcColors.Primary,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(2.dp))

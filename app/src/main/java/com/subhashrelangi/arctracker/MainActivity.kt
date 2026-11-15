@@ -670,6 +670,7 @@ fun ExpenseScreen() {
 
     Scaffold(
         containerColor = com.subhashrelangi.arctracker.ui.theme.ArcColors.Background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
 
         topBar = {
             val isOverlayActive = showAddDialog || showApproveDialog != null || detailExpense != null || editExpense != null
@@ -975,6 +976,9 @@ fun ExpenseScreen() {
                         backStack = listOf("Home", "Review")
                     },
                     onSkipClick = {
+                        scope.launch(Dispatchers.IO) {
+                            com.subhashrelangi.arctracker.data.MockData.clearDemoData(database)
+                        }
                         settingsRepo.setSetupInProgress(false)
                         settingsRepo.setDemoMode(false)
                         settingsRepo.setInitialOnboardingCompleted(true)
