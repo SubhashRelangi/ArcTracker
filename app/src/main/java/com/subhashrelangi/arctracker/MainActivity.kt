@@ -3,6 +3,7 @@ package com.subhashrelangi.arctracker
 import com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
 import com.subhashrelangi.arctracker.ui.AppLockScreen
 import androidx.activity.compose.BackHandler
@@ -127,6 +128,7 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         // Reset demo mode and clear any lingering demo data on launch if in demo mode
@@ -656,13 +658,25 @@ fun ExpenseScreen() {
 
     val displayedExpenses =
         if (searchQuery.isNotBlank()) {
-            val q = searchQuery.trim().lowercase(java.util.Locale.ROOT)
-            expenses.filter {
-                it.merchant.lowercase(java.util.Locale.ROOT).contains(q) ||
-                it.note?.lowercase(java.util.Locale.ROOT)?.contains(q) == true ||
-                it.rawText?.lowercase(java.util.Locale.ROOT)?.contains(q) == true ||
-                it.category?.lowercase(java.util.Locale.ROOT)?.contains(q) == true ||
-                it.amount.toString().contains(q)
+            expenses.filter { exp ->
+                val acc = exp.accountId?.let { id -> knownAccounts.find { it.id == id } }
+                val bankName = acc?.institutionName ?: ""
+                val amountStr = String.format(java.util.Locale.US, "%.2f", exp.amount)
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.matches(
+                    searchQuery,
+                    exp.merchant,
+                    exp.category,
+                    exp.tag,
+                    exp.note,
+                    exp.rawText,
+                    exp.accountSuffix,
+                    bankName,
+                    amountStr,
+                    exp.amount.toString(),
+                    exp.type
+                )
+            }.sortedByDescending { exp ->
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.score(searchQuery, exp.merchant, exp.category, exp.note)
             }
         } else {
             expenses

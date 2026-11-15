@@ -105,6 +105,9 @@ fun TransactionDetailDialog(
     var showUnlinkConfirmDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showEditConfirmDialog by remember { mutableStateOf(false) }
+    var pendingInteractiveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var confirmPromptTitle by remember { mutableStateOf("Change Transaction Details?") }
+    var confirmPromptMessage by remember { mutableStateOf("Do you want to edit the details of this transaction?") }
     var showAddTagDialog by remember { mutableStateOf(false) }
 
     // Tags State (Only real extracted tags)
@@ -343,7 +346,7 @@ fun TransactionDetailDialog(
                                             text = { Text("Edit Transaction", color = slateTitle, fontWeight = FontWeight.Medium) },
                                             onClick = {
                                                 menuExpanded = false
-                                                showEditConfirmDialog = true
+                                                isEditMode = true
                                             },
                                             leadingIcon = {
                                                 Icon(Icons.Default.Edit, contentDescription = null, tint = ArcColors.Primary, modifier = Modifier.size(18.dp))
@@ -448,7 +451,7 @@ fun TransactionDetailDialog(
                         ) {
                             // Primary Emerald Edit Button
                             Button(
-                                onClick = { showEditConfirmDialog = true },
+                                onClick = { isEditMode = true },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp),
@@ -484,7 +487,12 @@ fun TransactionDetailDialog(
                             ) {
                                 // 1. Category Pill
                                 OutlinedButton(
-                                    onClick = { showCategoryPickerDialog = true },
+                                    onClick = {
+                                        confirmPromptTitle = "Change Category?"
+                                        confirmPromptMessage = "Do you want to change the category for this transaction?"
+                                        pendingInteractiveAction = { showCategoryPickerDialog = true }
+                                        showEditConfirmDialog = true
+                                    },
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(42.dp),
@@ -561,8 +569,13 @@ fun TransactionDetailDialog(
                             paymentChannel = paymentChannel,
                             upiRef = if (upiRef != "-") upiRef else null,
                             onAccountClick = {
-                                isReassignPicker = linkedAccount != null
-                                showAccountPickerDialog = true
+                                confirmPromptTitle = if (linkedAccount != null) "Change Payment Account?" else "Link Payment Account?"
+                                confirmPromptMessage = "Do you want to change or assign the payment account for this transaction?"
+                                pendingInteractiveAction = {
+                                    isReassignPicker = linkedAccount != null
+                                    showAccountPickerDialog = true
+                                }
+                                showEditConfirmDialog = true
                             },
                             onCopyUpiRef = {
                                 if (upiRef != "-") {
@@ -583,9 +596,24 @@ fun TransactionDetailDialog(
                             categorySubtitle = if (resolvedCategory?.isSystem == true) "System Category" else null,
                             tags = currentTags,
                             memoNote = editedNote.ifBlank { expense.note ?: "" },
-                            onReassignClick = { showCategoryPickerDialog = true },
-                            onAddTagClick = { showAddTagDialog = true },
-                            onEditMemoClick = { showEditConfirmDialog = true }
+                            onReassignClick = {
+                                confirmPromptTitle = "Change Category?"
+                                confirmPromptMessage = "Do you want to change the category for this transaction?"
+                                pendingInteractiveAction = { showCategoryPickerDialog = true }
+                                showEditConfirmDialog = true
+                            },
+                            onAddTagClick = {
+                                confirmPromptTitle = "Add Semantic Tag?"
+                                confirmPromptMessage = "Do you want to add a tag to this transaction?"
+                                pendingInteractiveAction = { showAddTagDialog = true }
+                                showEditConfirmDialog = true
+                            },
+                            onEditMemoClick = {
+                                confirmPromptTitle = "Edit Note / Memo?"
+                                confirmPromptMessage = "Do you want to edit the notes or memo for this transaction?"
+                                pendingInteractiveAction = { isEditMode = true }
+                                showEditConfirmDialog = true
+                            }
                         )
                     }
 
@@ -735,18 +763,22 @@ fun TransactionDetailDialog(
     // Edit Confirmation Dialog
     if (showEditConfirmDialog) {
         com.subhashrelangi.arctracker.ui.core.ArcConfirmationBottomSheet(
-            title = "Edit Transaction?",
-            message = "Do you want to edit the details of this transaction?",
-            confirmText = "Edit",
+            title = confirmPromptTitle,
+            message = confirmPromptMessage,
+            confirmText = "Continue",
             cancelText = "Cancel",
             icon = Icons.Default.Edit,
             iconColor = ArcColors.Primary,
             isDestructive = false,
             onConfirm = {
                 showEditConfirmDialog = false
-                isEditMode = true
+                pendingInteractiveAction?.invoke()
+                pendingInteractiveAction = null
             },
-            onDismiss = { showEditConfirmDialog = false }
+            onDismiss = {
+                showEditConfirmDialog = false
+                pendingInteractiveAction = null
+            }
         )
     }
 

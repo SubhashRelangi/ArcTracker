@@ -212,8 +212,8 @@ fun SettingsScreen(
     ) {
         val q = searchQuery.trim()
         fun matchesSearch(vararg terms: String): Boolean {
-            if (q.isEmpty()) return true
-            return terms.any { it.contains(q, ignoreCase = true) }
+            if (searchQuery.isBlank()) return true
+            return terms.any { com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.matches(searchQuery, it) }
         }
 
         val showProfile = matchesSearch("Profile", profileName, profileLabel, "Primary Vault", "Accounts")

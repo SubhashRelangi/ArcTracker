@@ -12,9 +12,8 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.unit.Density
+
 import androidx.core.view.WindowCompat
 import com.subhashrelangi.arctracker.settings.AppThemeMode
 
@@ -109,28 +108,8 @@ fun ArcTrackerTheme(
         }
     }
 
-    // Adapt density smoothly on compact and medium phone screens (width < 392dp)
-    // so that content designed for standard modern screens fits naturally without
-    // appearing oversized or zoomed in, while normalizing font scale to keep layouts robust.
-    val currentDensity = LocalDensity.current
-    val config = androidx.compose.ui.platform.LocalConfiguration.current
-    val screenWidth = config.screenWidthDp
-
-    val widthScale = if (screenWidth in 240..391) {
-        (screenWidth.toFloat() / 392f).coerceIn(0.80f, 1.0f)
-    } else {
-        1.0f
-    }
-
-    val adaptedFontScale = (1.0f * widthScale).coerceIn(0.80f, 1.0f)
-    val adaptedDensity = Density(
-        density = currentDensity.density * widthScale,
-        fontScale = adaptedFontScale
-    )
-
     CompositionLocalProvider(
-        LocalArcColors provides arcColorScheme,
-        LocalDensity provides adaptedDensity
+        LocalArcColors provides arcColorScheme
     ) {
         MaterialTheme(
             colorScheme = materialScheme,

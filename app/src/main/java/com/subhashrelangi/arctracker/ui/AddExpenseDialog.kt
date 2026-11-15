@@ -293,14 +293,10 @@ fun AddExpenseDialog(
                                     .height(1.dp)
                                     .background(cardBorder)
                             )
-                            Column(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -310,7 +306,7 @@ fun AddExpenseDialog(
                                         onClick = onDelete,
                                         modifier = Modifier
                                             .weight(0.7f)
-                                            .height(52.dp),
+                                            .height(50.dp),
                                         shape = CircleShape,
                                         color = ArcColors.DangerContainer,
                                         border = BorderStroke(1.dp, ArcColors.DangerBorder)
@@ -376,7 +372,7 @@ fun AddExpenseDialog(
                                     },
                                     modifier = Modifier
                                         .weight(if (onDelete != null) 1.3f else 1f)
-                                        .height(52.dp),
+                                        .height(50.dp),
                                     shape = CircleShape,
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = Color(0xFF047857)
@@ -410,7 +406,6 @@ fun AddExpenseDialog(
                     }
                 }
             }
-        }
         ) { innerPadding ->
             // SCROLLABLE CONTENT BODY
             Column(

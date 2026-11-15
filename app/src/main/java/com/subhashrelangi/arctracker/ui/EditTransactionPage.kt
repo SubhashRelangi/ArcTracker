@@ -328,90 +328,90 @@ fun EditTransactionPage(
                                 .height(1.dp)
                                 .background(cardBorder)
                         )
-                        Column(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                        // Primary Save Changes Button
-                        Button(
-                            onClick = {
-                                val trimmed = editedMerchant.trim()
-                                if (trimmed.isEmpty()) {
-                                    merchantError = "Merchant cannot be empty"
-                                    return@Button
+                            // Secondary Delete Transaction Button
+                            if (onDelete != null) {
+                                Surface(
+                                    onClick = { showDeleteConfirm = true },
+                                    modifier = Modifier
+                                        .weight(0.7f)
+                                        .height(50.dp),
+                                    shape = CircleShape,
+                                    color = ArcColors.DangerContainer,
+                                    border = BorderStroke(1.dp, ArcColors.DangerBorder)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxSize(),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DeleteOutline,
+                                            contentDescription = "Delete",
+                                            tint = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Delete",
+                                            fontSize = 13.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626)
+                                        )
+                                    }
                                 }
-                                val finalNote = if (currentTags.isNotEmpty()) {
-                                    val tagString = currentTags.joinToString(" ") { "#$it" }
-                                    if (noteText.contains("#")) noteText.trim() else "$noteText $tagString".trim()
-                                } else {
-                                    noteText.trim()
-                                }
-                                onSave(expense.id, trimmed, categoryDisplayName.ifBlank { null }, finalNote.ifEmpty { null })
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = ArcColors.Primary,
-                                contentColor = Color.White
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Save Changes",
-                                    fontSize = 14.5.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
                             }
-                        }
 
-                        // Secondary Delete Transaction Button
-                        if (onDelete != null) {
-                            Surface(
-                                onClick = { showDeleteConfirm = true },
+                            // Primary Save Changes Button
+                            Button(
+                                onClick = {
+                                    val trimmed = editedMerchant.trim()
+                                    if (trimmed.isEmpty()) {
+                                        merchantError = "Merchant cannot be empty"
+                                        return@Button
+                                    }
+                                    val finalNote = if (currentTags.isNotEmpty()) {
+                                        val tagString = currentTags.joinToString(" ") { "#$it" }
+                                        if (noteText.contains("#")) noteText.trim() else "$noteText $tagString".trim()
+                                    } else {
+                                        noteText.trim()
+                                    }
+                                    onSave(expense.id, trimmed, categoryDisplayName.ifBlank { null }, finalNote.ifEmpty { null })
+                                },
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(44.dp),
+                                    .weight(if (onDelete != null) 1.3f else 1f)
+                                    .height(50.dp),
                                 shape = CircleShape,
-                                color = if (ArcColors.isDark) Color(0xFF3B1818) else Color(0xFFFEF2F2),
-                                border = BorderStroke(1.dp, if (ArcColors.isDark) Color(0xFF5C2424) else Color(0xFFFECACA))
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = ArcColors.Primary,
+                                    contentColor = Color.White
+                                ),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
                             ) {
                                 Row(
-                                    modifier = Modifier.fillMaxSize(),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.DeleteOutline,
-                                        contentDescription = "Delete",
-                                        tint = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626),
-                                        modifier = Modifier.size(16.dp)
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Delete Transaction",
-                                        fontSize = 13.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (ArcColors.isDark) Color(0xFFF87171) else Color(0xFFDC2626)
+                                        text = "Save Changes",
+                                        fontSize = 14.5.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
                         }
-                    }
                 }
             }
         }

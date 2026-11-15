@@ -596,15 +596,27 @@ object MockData {
 
     /**
      * Clears demo data from the Room database so real setup begins cleanly.
+     * Wipes all demo expenses, demo accounts, and demo budgets.
      */
     suspend fun clearDemoData(database: AppDatabase) {
-        val expenseDao = database.expenseDao()
-        val allExpenses = expenseDao.getAllExpensesList()
-        val demoExpenses = allExpenses.filter { it.source == "DEMO" }
-        for (item in demoExpenses) {
-            try {
-                expenseDao.delete(item)
-            } catch (_: Exception) {}
-        }
+        try {
+            val expenseDao = database.expenseDao()
+            val allExpenses = expenseDao.getAllExpensesList()
+            val demoExpenses = allExpenses.filter { it.source == "DEMO" }
+            for (item in demoExpenses) {
+                try {
+                    expenseDao.delete(item)
+                } catch (_: Exception) {}
+            }
+        } catch (_: Exception) {}
+
+        try {
+            database.knownFinancialAccountDao().deleteAll()
+        } catch (_: Exception) {}
+
+        try {
+            database.budgetDao().clearAll()
+            database.budgetDao().clearAllAlertStates()
+        } catch (_: Exception) {}
     }
 }

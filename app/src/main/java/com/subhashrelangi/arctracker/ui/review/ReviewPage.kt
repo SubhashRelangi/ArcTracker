@@ -287,12 +287,16 @@ fun ReviewPage(
         val remaining = unlinkedAccountItems.filter { it.id !in localHandledUnlinkedIds }
         if (searchQuery.isBlank()) remaining
         else {
-            val q = searchQuery.trim().lowercase(Locale.ROOT)
             remaining.filter {
-                it.merchant.lowercase(Locale.ROOT).contains(q) ||
-                it.amount.toString().contains(q) ||
-                (it.accountSuffix?.contains(q) == true) ||
-                (it.rawText?.lowercase(Locale.ROOT)?.contains(q) == true)
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.matches(
+                    searchQuery,
+                    it.merchant,
+                    it.accountSuffix,
+                    it.rawText,
+                    it.amount.toString()
+                )
+            }.sortedByDescending {
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.score(searchQuery, it.merchant)
             }
         }
     }
@@ -553,12 +557,16 @@ fun ReviewPage(
     val filteredQueue = remember(queueItems, searchQuery) {
         if (searchQuery.isBlank()) queueItems
         else {
-            val q = searchQuery.trim().lowercase(Locale.ROOT)
             queueItems.filter {
-                it.merchant.lowercase(Locale.ROOT).contains(q) ||
-                it.amount.toString().contains(q) ||
-                it.accountInfo.lowercase(Locale.ROOT).contains(q) ||
-                it.dateInfo.lowercase(Locale.ROOT).contains(q)
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.matches(
+                    searchQuery,
+                    it.merchant,
+                    it.accountInfo,
+                    it.dateInfo,
+                    it.amount.toString()
+                )
+            }.sortedByDescending {
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.score(searchQuery, it.merchant, it.accountInfo)
             }
         }
     }

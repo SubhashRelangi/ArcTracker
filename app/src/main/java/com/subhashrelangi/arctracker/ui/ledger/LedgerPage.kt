@@ -174,26 +174,25 @@ fun LedgerPage(
 
     // Dynamic Filter Calculations
     val filteredExpenses = remember(sourceExpenses, searchQuery, selectedFilter, accountsMap) {
-        sourceExpenses.filter { expense ->
-            // Search Query filter
-            val matchesSearch = if (searchQuery.isBlank()) {
-                true
-            } else {
-                val q = searchQuery.trim().lowercase(Locale.ROOT)
-                val account = expense.accountId?.let { accountsMap[it] }
-                val bankName = account?.institutionName ?: ""
-                val suffix = expense.accountSuffix ?: account?.accountSuffix ?: ""
-                val amountStr = String.format(Locale.US, "%.2f", expense.amount)
+        val filtered = sourceExpenses.filter { expense ->
+            val account = expense.accountId?.let { accountsMap[it] }
+            val bankName = account?.institutionName ?: ""
+            val suffix = expense.accountSuffix ?: account?.accountSuffix ?: ""
+            val amountStr = String.format(Locale.US, "%.2f", expense.amount)
 
-                expense.merchant.lowercase(Locale.ROOT).contains(q) ||
-                        (expense.note?.lowercase(Locale.ROOT)?.contains(q) == true) ||
-                        (expense.tag?.lowercase(Locale.ROOT)?.contains(q) == true) ||
-                        (expense.category?.lowercase(Locale.ROOT)?.contains(q) == true) ||
-                        (expense.rawText?.lowercase(Locale.ROOT)?.contains(q) == true) ||
-                        bankName.lowercase(Locale.ROOT).contains(q) ||
-                        suffix.contains(q) ||
-                        amountStr.contains(q)
-            }
+            val matchesSearch = com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.matches(
+                searchQuery,
+                expense.merchant,
+                expense.category,
+                expense.tag,
+                expense.note,
+                expense.rawText,
+                bankName,
+                suffix,
+                amountStr,
+                expense.amount.toString(),
+                expense.type
+            )
 
             if (!matchesSearch) return@filter false
 
@@ -204,6 +203,13 @@ fun LedgerPage(
                 LedgerFilterMode.CREDITS -> expense.type.equals("Credit", ignoreCase = true)
                 LedgerFilterMode.NEEDS_REVIEW -> expense.isPending || (expense.accountId.isNullOrBlank() && expense.accountSuffix.isNullOrBlank() && !expense.type.equals("Credit", true) && expense.source != "MANUAL")
             }
+        }
+        if (searchQuery.isNotBlank()) {
+            filtered.sortedByDescending { exp ->
+                com.subhashrelangi.arctracker.ui.core.SmartSearchMatcher.score(searchQuery, exp.merchant, exp.category, exp.note)
+            }
+        } else {
+            filtered
         }
     }
 
