@@ -735,43 +735,128 @@ fun SettingsScreen(
                         )
                     }
 
-                    // Nightly Expense Digest
+                    // Master Enable / Disable Notifications Row
+                    SettingsSwitchRowItem(
+                        icon = Icons.Outlined.NotificationsActive,
+                        title = "Allow Notifications",
+                        subtitle = if (notifPrefs.isNotificationsMasterEnabled) "Active • Background reminders enabled" else "Muted • All notifications silenced",
+                        checked = notifPrefs.isNotificationsMasterEnabled,
+                        onCheckedChange = { enabled ->
+                            notifRepo.setMasterEnabled(enabled)
+                            DailyNotificationScheduler.scheduleAll(context)
+                        }
+                    )
+
+                    // Quick Action Enable All & Disable All Buttons
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                notifRepo.disableAllNotifications()
+                                DailyNotificationScheduler.scheduleAll(context)
+                                Toast.makeText(context, "All notification types disabled", Toast.LENGTH_SHORT).show()
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, ArcColors.Border),
+                            modifier = Modifier.weight(1f).height(38.dp)
+                        ) {
+                            Text(
+                                text = "Disable All",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = ArcColors.TextSecondary
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                notifRepo.enableAllNotifications()
+                                DailyNotificationScheduler.scheduleAll(context)
+                                Toast.makeText(context, "All notification types enabled", Toast.LENGTH_SHORT).show()
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = ArcColors.Primary),
+                            modifier = Modifier.weight(1f).height(38.dp)
+                        ) {
+                            Text(
+                                text = "Enable All",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = ArcColors.BorderSubtle, thickness = 1.dp, modifier = Modifier.padding(start = 16.dp, end = 16.dp))
+
+                    // Open Full Notification Controls Page
+                    SettingsItemRow(
+                        icon = Icons.Outlined.Tune,
+                        title = "Notification Controls & Timers",
+                        subtitle = "Dedicated page to configure schedules and alerts",
+                        badgeText = "Configure",
+                        onClick = { onNavigate("NotificationSettings") }
+                    )
+
+                    val isMasterActive = notifPrefs.isNotificationsMasterEnabled
+
+                    // 1. Weekly Spending Summary
+                    val weeklyTimeStr = formatTime12Hour(notifPrefs.weeklySummaryHour, notifPrefs.weeklySummaryMinute)
+                    SettingsSwitchRowItem(
+                        icon = Icons.Outlined.DateRange,
+                        title = "Weekly Spending Summary",
+                        subtitle = "Weekly digest of total outflow & category trends every Sunday at $weeklyTimeStr",
+                        checked = notifPrefs.isWeeklySummaryEnabled,
+                        enabled = isMasterActive,
+                        onCheckedChange = { enabled ->
+                            notifRepo.setWeeklySummaryEnabled(enabled)
+                            DailyNotificationScheduler.scheduleAll(context)
+                        }
+                    )
+
+                    // 2. Nightly Expense Digest
                     val digestTimeStr = formatTime12Hour(notifPrefs.dailyDigestHour, notifPrefs.dailyDigestMinute)
                     SettingsSwitchRowItem(
                         icon = Icons.Outlined.NightsStay,
                         title = "Nightly Expense Digest",
-                        subtitle = "Summarizes today's spending, top categories & zero-spend days",
+                        subtitle = "Today's outflow & zero-spend celebrations at $digestTimeStr",
                         checked = notifPrefs.isDailyDigestEnabled,
+                        enabled = isMasterActive,
                         onCheckedChange = { enabled ->
                             notifRepo.setDailyDigestEnabled(enabled)
                             DailyNotificationScheduler.scheduleAll(context)
                         }
                     )
 
-                    if (notifPrefs.isDailyDigestEnabled) {
+                    if (notifPrefs.isDailyDigestEnabled && isMasterActive) {
                         SettingsItemRow(
                             icon = Icons.Outlined.Schedule,
                             title = "Digest Delivery Time",
-                            subtitle = "Daily alarm fires even in Doze mode via AlarmManager",
+                            subtitle = "Tap to choose notification schedule",
                             badgeText = digestTimeStr,
                             onClick = { timePickerTarget = "DIGEST" }
                         )
                     }
 
-                    // Evening Liquid Cash Check-in
+                    // 3. Evening Liquid Cash Check-in
                     val cashTimeStr = formatTime12Hour(notifPrefs.cashReminderHour, notifPrefs.cashReminderMinute)
                     SettingsSwitchRowItem(
                         icon = Icons.Outlined.Payments,
                         title = "Evening Cash Check-in",
-                        subtitle = "Reminder prompt to log manual cash purchases",
+                        subtitle = "Prompt at $cashTimeStr to record manual cash purchases",
                         checked = notifPrefs.isCashReminderEnabled,
+                        enabled = isMasterActive,
                         onCheckedChange = { enabled ->
                             notifRepo.setCashReminderEnabled(enabled)
                             DailyNotificationScheduler.scheduleAll(context)
                         }
                     )
 
-                    if (notifPrefs.isCashReminderEnabled) {
+                    if (notifPrefs.isCashReminderEnabled && isMasterActive) {
                         SettingsItemRow(
                             icon = Icons.Outlined.Schedule,
                             title = "Cash Reminder Time",
@@ -781,59 +866,64 @@ fun SettingsScreen(
                         )
                     }
 
-                    // Real-Time Budget Alerts
+                    // 4. Real-Time Budget Alerts
                     SettingsSwitchRowItem(
                         icon = Icons.Outlined.WarningAmber,
                         title = "Budget Threshold Alerts",
-                        subtitle = "Instant alert when crossing 80% warning or 100% budget limits",
+                        subtitle = "Instant alert when reaching 80% warning or 100% budget limits",
                         checked = notifPrefs.isBudgetAlertsEnabled,
+                        enabled = isMasterActive,
                         onCheckedChange = { enabled ->
                             notifRepo.setBudgetAlertsEnabled(enabled)
                         }
                     )
 
-                    // Daily Spend Limit
+                    // 5. Daily Spend Limit
                     val dailyLimitText = notifPrefs.dailySpendLimit?.let { "₹${String.format(Locale.US, "%,.0f", it)}" } ?: "Not Set"
                     SettingsItemRow(
                         icon = Icons.Outlined.Speed,
                         title = "Daily Spend Limit",
                         subtitle = "Instant alert when single-day spending crosses target",
                         badgeText = dailyLimitText,
+                        enabled = isMasterActive,
                         onClick = {
                             limitInputText = notifPrefs.dailySpendLimit?.toInt()?.toString() ?: ""
                             showDailyLimitSheet = true
                         }
                     )
 
-                    // Review Queue Digest
+                    // 6. Review Queue Digest
                     SettingsSwitchRowItem(
                         icon = Icons.Outlined.RateReview,
                         title = "Pending Review Reminders",
                         subtitle = "Summary prompt when uncategorized transactions need review",
                         checked = notifPrefs.isReviewReminderEnabled,
+                        enabled = isMasterActive,
                         onCheckedChange = { enabled ->
                             notifRepo.setReviewReminderEnabled(enabled)
                         }
                     )
 
-                    // ATM Cash Withdrawal Follow-up
+                    // 7. ATM Cash Withdrawal Follow-up
                     SettingsSwitchRowItem(
                         icon = Icons.Outlined.LocalAtm,
                         title = "ATM Cash Follow-up",
                         subtitle = "Prompt to log cash spending when ATM withdrawal is detected",
                         checked = notifPrefs.isAtmFollowUpEnabled,
+                        enabled = isMasterActive,
                         onCheckedChange = { enabled ->
                             notifRepo.setAtmFollowUpEnabled(enabled)
                         }
                     )
 
-                    // Large Transaction Alert
+                    // 8. Large Transaction Alert
                     val highValueText = "₹${String.format(Locale.US, "%,.0f", notifPrefs.highValueThreshold)}"
                     SettingsSwitchRowItem(
                         icon = Icons.Outlined.ReceiptLong,
                         title = "Large Transaction Alert",
                         subtitle = "Alert on individual debit purchases exceeding $highValueText",
                         checked = notifPrefs.isHighValueAlertEnabled,
+                        enabled = isMasterActive,
                         onCheckedChange = { enabled ->
                             notifRepo.setHighValueAlertEnabled(enabled)
                         },

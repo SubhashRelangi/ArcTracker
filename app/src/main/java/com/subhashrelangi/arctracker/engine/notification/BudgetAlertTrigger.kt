@@ -45,6 +45,7 @@ object BudgetAlertTrigger {
             val db = AppDatabase.getDatabase(context)
             val settingsRepo = NotificationSettingsRepository.getInstance(context)
             val prefs = settingsRepo.getPreferences()
+            if (!prefs.isNotificationsMasterEnabled) return@withContext
 
             val notifier = customNotifier ?: AndroidBudgetAlertNotifier(context)
             val budgetManager = BudgetManager(

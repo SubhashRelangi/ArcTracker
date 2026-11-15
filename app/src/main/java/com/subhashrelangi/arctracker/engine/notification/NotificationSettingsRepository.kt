@@ -10,9 +10,14 @@ import kotlinx.coroutines.flow.asStateFlow
  * Model representing user-configured notification preferences.
  */
 data class NotificationPreferences(
+    val isNotificationsMasterEnabled: Boolean = true,
     val isDailyDigestEnabled: Boolean = true,
     val dailyDigestHour: Int = 21,       // 9:30 PM default
     val dailyDigestMinute: Int = 30,
+    val isWeeklySummaryEnabled: Boolean = true,
+    val weeklySummaryDay: Int = 1,       // Calendar.SUNDAY
+    val weeklySummaryHour: Int = 20,     // 8:00 PM default
+    val weeklySummaryMinute: Int = 0,
     val isCashReminderEnabled: Boolean = true,
     val cashReminderHour: Int = 20,      // 8:30 PM default
     val cashReminderMinute: Int = 30,
@@ -41,6 +46,11 @@ class NotificationSettingsRepository private constructor(context: Context) {
         return _preferencesFlow.value
     }
 
+    fun setMasterEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_MASTER_ENABLED, enabled).apply()
+        updateFlow()
+    }
+
     fun setDailyDigestEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_DAILY_DIGEST_ENABLED, enabled).apply()
         updateFlow()
@@ -50,6 +60,20 @@ class NotificationSettingsRepository private constructor(context: Context) {
         prefs.edit()
             .putInt(KEY_DAILY_DIGEST_HOUR, hour.coerceIn(0, 23))
             .putInt(KEY_DAILY_DIGEST_MINUTE, minute.coerceIn(0, 59))
+            .apply()
+        updateFlow()
+    }
+
+    fun setWeeklySummaryEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_WEEKLY_SUMMARY_ENABLED, enabled).apply()
+        updateFlow()
+    }
+
+    fun setWeeklySummaryTime(dayOfWeek: Int, hour: Int, minute: Int) {
+        prefs.edit()
+            .putInt(KEY_WEEKLY_SUMMARY_DAY, dayOfWeek.coerceIn(1, 7))
+            .putInt(KEY_WEEKLY_SUMMARY_HOUR, hour.coerceIn(0, 23))
+            .putInt(KEY_WEEKLY_SUMMARY_MINUTE, minute.coerceIn(0, 59))
             .apply()
         updateFlow()
     }
@@ -103,15 +127,54 @@ class NotificationSettingsRepository private constructor(context: Context) {
         }
     }
 
+    /**
+     * Enables all notification types simultaneously.
+     */
+    fun enableAllNotifications() {
+        prefs.edit()
+            .putBoolean(KEY_MASTER_ENABLED, true)
+            .putBoolean(KEY_DAILY_DIGEST_ENABLED, true)
+            .putBoolean(KEY_WEEKLY_SUMMARY_ENABLED, true)
+            .putBoolean(KEY_CASH_REMINDER_ENABLED, true)
+            .putBoolean(KEY_BUDGET_ALERTS_ENABLED, true)
+            .putBoolean(KEY_REVIEW_REMINDER_ENABLED, true)
+            .putBoolean(KEY_ATM_FOLLOW_UP_ENABLED, true)
+            .putBoolean(KEY_HIGH_VALUE_ALERT_ENABLED, true)
+            .apply()
+        updateFlow()
+    }
+
+    /**
+     * Disables all notification types simultaneously.
+     */
+    fun disableAllNotifications() {
+        prefs.edit()
+            .putBoolean(KEY_MASTER_ENABLED, false)
+            .putBoolean(KEY_DAILY_DIGEST_ENABLED, false)
+            .putBoolean(KEY_WEEKLY_SUMMARY_ENABLED, false)
+            .putBoolean(KEY_CASH_REMINDER_ENABLED, false)
+            .putBoolean(KEY_BUDGET_ALERTS_ENABLED, false)
+            .putBoolean(KEY_REVIEW_REMINDER_ENABLED, false)
+            .putBoolean(KEY_ATM_FOLLOW_UP_ENABLED, false)
+            .putBoolean(KEY_HIGH_VALUE_ALERT_ENABLED, false)
+            .apply()
+        updateFlow()
+    }
+
     private fun loadPreferences(): NotificationPreferences {
         val dailyLimitStored = if (prefs.contains(KEY_DAILY_SPEND_LIMIT)) {
             prefs.getFloat(KEY_DAILY_SPEND_LIMIT, 0f).toDouble().takeIf { it > 0.0 }
         } else null
 
         return NotificationPreferences(
+            isNotificationsMasterEnabled = prefs.getBoolean(KEY_MASTER_ENABLED, true),
             isDailyDigestEnabled = prefs.getBoolean(KEY_DAILY_DIGEST_ENABLED, true),
             dailyDigestHour = prefs.getInt(KEY_DAILY_DIGEST_HOUR, 21),
             dailyDigestMinute = prefs.getInt(KEY_DAILY_DIGEST_MINUTE, 30),
+            isWeeklySummaryEnabled = prefs.getBoolean(KEY_WEEKLY_SUMMARY_ENABLED, true),
+            weeklySummaryDay = prefs.getInt(KEY_WEEKLY_SUMMARY_DAY, 1),
+            weeklySummaryHour = prefs.getInt(KEY_WEEKLY_SUMMARY_HOUR, 20),
+            weeklySummaryMinute = prefs.getInt(KEY_WEEKLY_SUMMARY_MINUTE, 0),
             isCashReminderEnabled = prefs.getBoolean(KEY_CASH_REMINDER_ENABLED, true),
             cashReminderHour = prefs.getInt(KEY_CASH_REMINDER_HOUR, 20),
             cashReminderMinute = prefs.getInt(KEY_CASH_REMINDER_MINUTE, 30),
@@ -130,9 +193,14 @@ class NotificationSettingsRepository private constructor(context: Context) {
 
     companion object {
         private const val PREFS_NAME = "arctracker_notification_prefs"
+        private const val KEY_MASTER_ENABLED = "notifications_master_enabled"
         private const val KEY_DAILY_DIGEST_ENABLED = "daily_digest_enabled"
         private const val KEY_DAILY_DIGEST_HOUR = "daily_digest_hour"
         private const val KEY_DAILY_DIGEST_MINUTE = "daily_digest_minute"
+        private const val KEY_WEEKLY_SUMMARY_ENABLED = "weekly_summary_enabled"
+        private const val KEY_WEEKLY_SUMMARY_DAY = "weekly_summary_day"
+        private const val KEY_WEEKLY_SUMMARY_HOUR = "weekly_summary_hour"
+        private const val KEY_WEEKLY_SUMMARY_MINUTE = "weekly_summary_minute"
         private const val KEY_CASH_REMINDER_ENABLED = "cash_reminder_enabled"
         private const val KEY_CASH_REMINDER_HOUR = "cash_reminder_hour"
         private const val KEY_CASH_REMINDER_MINUTE = "cash_reminder_minute"

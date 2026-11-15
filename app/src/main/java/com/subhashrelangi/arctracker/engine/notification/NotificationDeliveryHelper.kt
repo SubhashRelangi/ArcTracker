@@ -37,6 +37,9 @@ object NotificationDeliveryHelper {
     ): Boolean {
         if (!hasNotificationPermission(context)) return false
 
+        val prefs = NotificationSettingsRepository.getInstance(context).getPreferences()
+        if (!prefs.isNotificationsMasterEnabled) return false
+
         try {
             NotificationChannelManager.createAllChannels(context)
 

@@ -9,7 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * Handles incoming scheduled daily alarms, evaluates financial state, and posts local notifications.
+ * Handles incoming scheduled alarms (Daily, Cash, Weekly), evaluates financial state, and posts local notifications.
  */
 class DailyNotificationReceiver : BroadcastReceiver() {
 
@@ -27,6 +27,7 @@ class DailyNotificationReceiver : BroadcastReceiver() {
         when (action) {
             DailyNotificationScheduler.ACTION_DAILY_DIGEST -> handleDailyDigest(context)
             DailyNotificationScheduler.ACTION_CASH_REMINDER -> handleCashReminder(context)
+            DailyNotificationScheduler.ACTION_WEEKLY_SUMMARY -> handleWeeklySummary(context)
         }
     }
 
@@ -35,11 +36,11 @@ class DailyNotificationReceiver : BroadcastReceiver() {
         val prefs = repo.getPreferences()
 
         // Reschedule for tomorrow
-        if (prefs.isDailyDigestEnabled) {
+        if (prefs.isNotificationsMasterEnabled && prefs.isDailyDigestEnabled) {
             DailyNotificationScheduler.scheduleDailyDigest(context, prefs.dailyDigestHour, prefs.dailyDigestMinute)
         }
 
-        if (!prefs.isDailyDigestEnabled || !NotificationDeliveryHelper.hasNotificationPermission(context)) {
+        if (!prefs.isNotificationsMasterEnabled || !prefs.isDailyDigestEnabled || !NotificationDeliveryHelper.hasNotificationPermission(context)) {
             return
         }
 
@@ -81,15 +82,49 @@ class DailyNotificationReceiver : BroadcastReceiver() {
         val prefs = repo.getPreferences()
 
         // Reschedule for tomorrow
-        if (prefs.isCashReminderEnabled) {
+        if (prefs.isNotificationsMasterEnabled && prefs.isCashReminderEnabled) {
             DailyNotificationScheduler.scheduleCashReminder(context, prefs.cashReminderHour, prefs.cashReminderMinute)
         }
 
-        if (!prefs.isCashReminderEnabled || !NotificationDeliveryHelper.hasNotificationPermission(context)) {
+        if (!prefs.isNotificationsMasterEnabled || !prefs.isCashReminderEnabled || !NotificationDeliveryHelper.hasNotificationPermission(context)) {
             return
         }
 
         val payload = DailyDigestEvaluator.buildCashReminderPayload()
         NotificationDeliveryHelper.deliverNotification(context, payload)
+    }
+
+    private fun handleWeeklySummary(context: Context) {
+        val repo = NotificationSettingsRepository.getInstance(context)
+        val prefs = repo.getPreferences()
+
+        // Reschedule for next week
+        if (prefs.isNotificationsMasterEnabled && prefs.isWeeklySummaryEnabled) {
+            DailyNotificationScheduler.scheduleWeeklySummary(context, prefs.weeklySummaryDay, prefs.weeklySummaryHour, prefs.weeklySummaryMinute)
+        }
+
+        if (!prefs.isNotificationsMasterEnabled || !prefs.isWeeklySummaryEnabled || !NotificationDeliveryHelper.hasNotificationPermission(context)) {
+            return
+        }
+
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val db = AppDatabase.getDatabase(context)
+                val expenses = db.expenseDao().getAllExpensesList()
+                val categories = db.transactionCategoryDao().getAll()
+
+                val summary = WeeklySummaryEvaluator.evaluateWeeklySummary(
+                    expenses = expenses,
+                    categories = categories
+                )
+
+                val payload = WeeklySummaryEvaluator.buildWeeklySummaryPayload(summary)
+                NotificationDeliveryHelper.deliverNotification(context, payload)
+            } catch (_: Exception) {
+            } finally {
+                pendingResult.finish()
+            }
+        }
     }
 }

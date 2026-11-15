@@ -998,6 +998,12 @@ fun ExpenseScreen() {
                     onNavigateBack = { navigateBack() }
                 )
 
+            } else if (currentRoute == "NotificationSettings") {
+
+                com.subhashrelangi.arctracker.ui.NotificationSettingsScreen(
+                    onNavigateBack = { navigateBack() }
+                )
+
             } else if (currentRoute == "DeveloperOptions") {
                 com.subhashrelangi.arctracker.ui.DeveloperOptionsScreen(
                     onNavigate = { navigateTo(it) },
