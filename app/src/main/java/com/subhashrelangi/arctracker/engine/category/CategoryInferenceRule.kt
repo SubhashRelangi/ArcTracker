@@ -64,15 +64,18 @@ data class CategoryInferenceRule(
         }
 
         val patternNorm = MerchantNormalizer.normalize(pattern, stripPrefixes = false)
+        val isPlaceholder = isPlaceholderMerchant(merchantNorm)
 
         return when (matchingType) {
             CategoryMatchingType.EXACT_MERCHANT -> {
                 MerchantNormalizer.matchesExact(merchantNorm, patternNorm) ||
-                    MerchantNormalizer.matchesExact(counterpartyNorm, patternNorm)
+                    MerchantNormalizer.matchesExact(counterpartyNorm, patternNorm) ||
+                    (isPlaceholder && MerchantNormalizer.matchesExact(rawTextNorm, patternNorm))
             }
             CategoryMatchingType.MERCHANT_TOKEN -> {
                 MerchantNormalizer.containsToken(merchantNorm, patternNorm) ||
-                    MerchantNormalizer.containsToken(counterpartyNorm, patternNorm)
+                    MerchantNormalizer.containsToken(counterpartyNorm, patternNorm) ||
+                    (isPlaceholder && MerchantNormalizer.containsToken(rawTextNorm, patternNorm))
             }
             CategoryMatchingType.KEYWORD -> {
                 MerchantNormalizer.containsToken(allText, patternNorm)
@@ -84,6 +87,22 @@ data class CategoryInferenceRule(
                 val matchesKeyword = MerchantNormalizer.containsToken(allText, patternNorm)
                 matchesType && matchesKeyword
             }
+        }
+    }
+
+    companion object {
+        private val PLACEHOLDER_MERCHANTS = setOf(
+            "bank debit", "bank credit", "bank transaction",
+            "upi debit", "upi credit", "upi transaction",
+            "card debit", "card credit", "card transaction", "card purchase", "card refund",
+            "wallet debit", "wallet credit", "wallet transaction",
+            "unknown", "unknown merchant"
+        )
+
+        fun isPlaceholderMerchant(name: String?): Boolean {
+            if (name.isNullOrBlank()) return true
+            val trimmed = name.trim().lowercase(java.util.Locale.ENGLISH)
+            return trimmed in PLACEHOLDER_MERCHANTS
         }
     }
 }

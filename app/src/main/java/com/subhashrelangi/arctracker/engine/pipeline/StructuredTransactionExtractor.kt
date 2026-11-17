@@ -99,22 +99,22 @@ object StructuredTransactionExtractor {
         """(?i)\b(payment successful|transaction successful|transfer successful|order payment successful|payment completed|successful|completed)\b"""
     )
 
-    // Merchant / Payee patterns (allows optional intervening amount like "Paid ₹500 to Amazon")
+    // Merchant / Payee patterns (allows optional intervening amount and account/date clauses)
     private val OUTGOING_MERCHANT_PATTERNS = listOf(
-        Regex("""(?i)\b(?:paid|sent|transferred|transfer|trf|payment)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:to|at|towards)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
-        Regex("""(?i)\b(?:debited|debit)(?:\s+(?:by|for|with))?(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:for\s+(?:upi\s+)?to|for payment to|towards|to|at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
-        Regex("""(?i)\b(?:purchase at|purchase on|spent at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
-        Regex("""(?i)\b(?:spent|purchase)\b.*?\b(?:at|towards|to)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
-        Regex("""(?i)\bpayment(?:\s+of)?(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+(?:to|at|towards)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
-        Regex("""(?i)\b(?:paid to|sent to|transferred to|trf to)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50}?)(?:\s+(?:for|of|is)?\s*(?:rs\.?|inr|₹)\s*\d)"""),
-        Regex("""(?i)\btrf\s+(?:to\s+)?([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})""")
+        Regex("""(?i)\b(?:paid|sent|transferred|transfer|trf|payment|debited|debit)\b(?:[^\n!?]*?)\b(?:to|towards|at|for\s+payment\s+to|credited\s+to|vpa\s+to)\s+(?!(?:a/c|ac|acct|account|your\s+(?:a/c|ac|account|wallet)|my\s+(?:a/c|ac|account)|card)\b)([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:purchase\s+at|purchase\s+on|spent\s+at)\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:spent|purchase)\b.*?\b(?:at|towards|to)\s+(?!(?:a/c|ac|acct|account|card)\b)([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:paid\s+to|sent\s+to|transferred\s+to|trf\s+to|transfer\s+to)\s+(?!(?:a/c|ac|acct|account|card)\b)([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50}?)(?:\s+(?:for|of|is)?\s*(?:rs\.?|inr|₹)\s*\d)"""),
+        Regex("""(?i)\btrf\s+(?:to\s+)?(?!(?:a/c|ac|acct|account|card)\b)([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:debited|paid|sent|transferred)\s+(?:for|towards)\s+(?!(?:a/c|ac|acct|account|card)\b)([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)^to\s+(?!(?:a/c|ac|acct|account|card)\b)([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})\s*[:\-,]\s*(?:payment|paid|sent|transferred)""")
     )
 
     private val INCOMING_MERCHANT_PATTERNS = listOf(
-        Regex("""(?i)\b(?:received|money received|transfer|trf|credited)(?:\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?)?\s+from\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
-        Regex("""(?i)\b(?:received\s+(?:a\s+)?payment\s+of|payment\s+of)(?:[^\n!?]*?)\s+from\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
-        Regex("""(?i)\b(?:refund of.*(?:received from|from))\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
-        Regex("""(?i)\brefund\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?\s+from\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})""")
+        Regex("""(?i)\b(?:received|money\s+received|transfer|trf|credited|credit|payment\s+of)\b(?:[^\n!?]*?)\s+from\s+(?!(?:a/c|ac|acct|account|your\s+(?:a/c|ac|account)|card)\b)([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\b(?:refund\s+of.*(?:received\s+from|from))\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)\brefund\s+(?:(?:rs\.?|inr|₹)\s*)?\d[\d,]*(?:\.\d{1,2})?\s+from\s+([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})"""),
+        Regex("""(?i)^from\s+(?!(?:a/c|ac|acct|account|card)\b)([A-Za-z0-9][A-Za-z0-9 &._\-@']{1,50})\s*[:\-,]\s*(?:received|credited)""")
     )
 
     private val REVERSAL_MERCHANT_PATTERN = Regex(
@@ -208,12 +208,12 @@ object StructuredTransactionExtractor {
 
     // Boundary words that terminate a merchant phrase
     private val MERCHANT_BOUNDARY_PATTERN = Regex(
-        """(?i)\b(from|on|using|via|thru|through|ref|refno|txn|avl|balance|bal|a/c|account|card|upi ref|utr|rrn|info|if not|call|sms|successful|completed|failed|pending)\b"""
+        """(?i)\b(from|on|using|via|thru|through|ref|refno|ref\s*no|txn|txnid|txn\s*id|avl|balance|bal|a/c|account|card|upi\s*ref|utr|rrn|info|if\s+not|call|sms|successful|completed|failed|pending|not\s+you|help|was)\b"""
     )
 
     // Phrases that look like merchants but are accounts / methods
     private val INVALID_MERCHANT_PREFIX_PATTERN = Regex(
-        """(?i)^(account|a/c|acct|your account|card|vpa|upi id|upi|bank|your bank)\b"""
+        """(?i)^(account|a/c|ac|acct|your account|your a/c|card|vpa|upi id|upi|bank|your bank)\b"""
     )
 
     /**
@@ -459,9 +459,12 @@ object StructuredTransactionExtractor {
         // 5. Merchant / Counterparty Extraction from segment
         var (merchant, counterparty) = extractMerchantAndCounterparty(segmentText, upiId, evidenceMap)
         val titleTextSegment = wholeNotification.normalizedTitle ?: wholeNotification.raw.title
+        val senderAddress = wholeNotification.packageName
         if (merchant == null && !titleTextSegment.isNullOrBlank()) {
+            val isSenderHeader = titleTextSegment.equals(senderAddress, ignoreCase = true) ||
+                TraiSenderRegistry.classify(titleTextSegment).senderTier != SenderTier.UNKNOWN
             val titleMerchant = extractMerchantFromTitle(titleTextSegment)
-            if (titleMerchant != null) {
+            if (titleMerchant != null && !isSenderHeader) {
                 merchant = titleMerchant
                 if (counterparty == null) counterparty = titleMerchant
                 evidenceMap["merchant"] = FieldEvidence(
@@ -577,9 +580,12 @@ object StructuredTransactionExtractor {
         // 5. Merchant / Counterparty Extraction
         var (merchant, counterparty) = extractMerchantAndCounterparty(text, upiId, evidenceMap)
         val titleTextInternal = notification.normalizedTitle ?: notification.raw.title
+        val senderAddress = notification.packageName
         if (merchant == null && !titleTextInternal.isNullOrBlank()) {
+            val isSenderHeader = titleTextInternal.equals(senderAddress, ignoreCase = true) ||
+                TraiSenderRegistry.classify(titleTextInternal).senderTier != SenderTier.UNKNOWN
             val titleMerchant = extractMerchantFromTitle(titleTextInternal)
-            if (titleMerchant != null) {
+            if (titleMerchant != null && !isSenderHeader) {
                 merchant = titleMerchant
                 if (counterparty == null) counterparty = titleMerchant
                 evidenceMap["merchant"] = FieldEvidence(
@@ -919,9 +925,9 @@ object StructuredTransactionExtractor {
         }
 
         // 1. Check for beneficiary credit in an account debit message:
-        // E.g. "Your a/c ... is debited for Rs.100 ... and credited to VPA 9704147837-3@axl"
+        // E.g. "Your a/c ... is debited for Rs.100 ... and credited to Subhash" or "credited to VPA 9704147837-3@axl"
         val isAccountDebitedBeneficiaryCredited = Regex(
-            """(?i)\b(?:debited|debit)\b.*?\b(?:(?:and\s+)?credited\s+to\s+(?:vpa\b|beneficiary\b|[a-zA-Z0-9.\-_]+@)|beneficiary\b.*?\bcredited\b)"""
+            """(?i)\b(?:debited|debit)\b.*?\b(?:(?:and\s+)?credited\s+to\s+(?!(?:your\s+|my\s+)?(?:a/c|ac|acct|account|wallet)\b)|beneficiary\b.*?\bcredited\b)"""
         ).containsMatchIn(text)
 
         if (isAccountDebitedBeneficiaryCredited) {
@@ -1142,7 +1148,7 @@ object StructuredTransactionExtractor {
             cleaned = cleaned.substring(0, periodMatch.range.first).trim()
         }
 
-        // Stop before newline or boundary words (on, using, via, ref, avl, bal, etc.)
+        // Stop before newline
         if (cleaned.contains("\n")) {
             cleaned = cleaned.substringBefore("\n").trim()
         }
@@ -1152,16 +1158,36 @@ object StructuredTransactionExtractor {
             cleaned = cleaned.substring(0, boundaryMatch.range.first).trim()
         }
 
-        // Remove trailing punctuation
-        cleaned = cleaned.trimEnd('.', ',', ';', ':', '!', '-', '\'', '"')
+        // Strip trailing and leading punctuation / brackets / parentheses
+        cleaned = cleaned.trimEnd('.', ',', ';', ':', '!', '-', '\'', '"', '(', ')', '[', ']', '{', '}').trim()
+        cleaned = cleaned.trimStart('.', ',', ';', ':', '!', '-', '\'', '"', '(', ')', '[', ']', '{', '}').trim()
+
+        // Strip trailing parenthesized reference noise like "(UPI Ref 123)" or "(Ref 4321)"
+        if (cleaned.contains("(") && cleaned.endsWith(")")) {
+            val parenContent = cleaned.substringAfterLast("(")
+            if (Regex("""(?i)\b(upi|ref|txn|utr|rrn|bal|id|p2p|transfer)\b""").containsMatchIn(parenContent)) {
+                cleaned = cleaned.substringBeforeLast("(").trim()
+            }
+        }
+
+        // Strip trailing standalone masked account or numeric reference (e.g. "Subhash XXXXXX1234" or "Subhash 123456")
+        cleaned = cleaned.replace(Regex("""\s+[xX*\u2022\u25CF\d]{4,}\s*$"""), "").trim()
+
+        // Remove trailing punctuation again after parenthetical/mask strip
+        cleaned = cleaned.trimEnd('.', ',', ';', ':', '!', '-', '\'', '"', '(', ')', '[', ']', '{', '}').trim()
 
         // If candidate matches UPI ID or starts with UPI ID, do NOT treat as merchant name
         if (cleaned.contains("@")) {
             return Pair(null, null)
         }
 
-        // Reject if it starts with invalid prefix like "account", "card", "vpa"
+        // Reject if it starts with invalid prefix like "account", "card", "vpa", "ac"
         if (INVALID_MERCHANT_PREFIX_PATTERN.containsMatchIn(cleaned)) {
+            return Pair(null, null)
+        }
+
+        // Reject if purely numeric, masked, or symbols (e.g. "****1234", "XXXXX", "123456")
+        if (cleaned.matches(Regex("""^[xX*\u2022\u25CF\d\s\-#.]+$"""))) {
             return Pair(null, null)
         }
 
@@ -1205,8 +1231,11 @@ object StructuredTransactionExtractor {
     )
 
     private val BANK_CODE_PATTERNS = listOf(
-        "ippb", "sbi", "apgb", "hdfc", "icici", "axis", "pnb", "bob", "kotak",
-        "canara", "idfc", "indusind", "yesbank", "rbl", "federal", "unionbank"
+        "ippb", "sbi", "sbiinb", "sbiupi", "sbipsg", "apgb", "hdfc", "hdfcbk", "icici", "icicib",
+        "axis", "axisbk", "pnb", "pnbsms", "bob", "bobsms", "baroda", "kotak", "kotakb",
+        "canara", "canbnk", "idfc", "idfcfb", "indusind", "yesbank", "yesbnk", "rbl", "rblbnk",
+        "federal", "fedbnk", "unionbank", "uboi", "uco", "boi", "iob", "cbi", "centralbank",
+        "paytm", "phonepe", "gpay", "amazon", "cred", "mobikwik"
     )
 
     fun extractMerchantFromTitle(title: String?): String? {
@@ -1237,7 +1266,9 @@ object StructuredTransactionExtractor {
         // Disqualify if title contains any banking, telecom, or system keywords
         val words = lower.split(Regex("""[^a-z0-9]+""")).filter { it.isNotBlank() }
         val hasDisallowedWord = words.any { it in NON_STANDALONE_TITLE_KEYWORDS }
-        val isSmsOrBankSenderCode = Regex("""^[A-Za-z]{2}-[A-Za-z0-9]+$|^[A-Z0-9]{4,8}$""").matches(trimmed)
+        val isSmsOrBankSenderCode = (Regex("""^(?:[A-Za-z]{2}-)?[A-Za-z0-9]{3,11}(?:-[A-Za-z0-9]+)?$""").matches(trimmed) &&
+            (trimmed.contains("-") || trimmed.length in 3..8 && trimmed.all { it.isLetterOrDigit() && !it.isLowerCase() })) ||
+            TraiSenderRegistry.classify(trimmed).senderTier != SenderTier.UNKNOWN
         val hasBankToken = BANK_CODE_PATTERNS.any { lower.contains(it) }
 
         if (!hasDisallowedWord && !isSmsOrBankSenderCode && !hasBankToken && trimmed.length in 2..40 && !Regex("""^\d+$""").matches(trimmed)) {

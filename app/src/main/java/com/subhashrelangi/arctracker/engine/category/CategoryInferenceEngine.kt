@@ -395,17 +395,21 @@ class CategoryInferenceEngine(
         rawTextNorm: String
     ): Boolean {
         val patternNorm = rule.normalizedPattern
+        val isPlaceholder = CategoryInferenceRule.isPlaceholderMerchant(merchantNorm)
         return when (rule.matchType) {
             UserRuleMatchType.MERCHANT_EXACT -> {
                 MerchantNormalizer.matchesExact(merchantNorm, patternNorm) ||
-                    MerchantNormalizer.matchesExact(counterpartyNorm, patternNorm)
+                    MerchantNormalizer.matchesExact(counterpartyNorm, patternNorm) ||
+                    (isPlaceholder && MerchantNormalizer.matchesExact(rawTextNorm, patternNorm))
             }
             UserRuleMatchType.MERCHANT_TOKEN -> {
                 MerchantNormalizer.containsToken(merchantNorm, patternNorm) ||
-                    MerchantNormalizer.containsToken(counterpartyNorm, patternNorm)
+                    MerchantNormalizer.containsToken(counterpartyNorm, patternNorm) ||
+                    (isPlaceholder && MerchantNormalizer.containsToken(rawTextNorm, patternNorm))
             }
             UserRuleMatchType.MERCHANT_CONTAINS -> {
-                merchantNorm.contains(patternNorm) || counterpartyNorm.contains(patternNorm)
+                merchantNorm.contains(patternNorm) || counterpartyNorm.contains(patternNorm) ||
+                    (isPlaceholder && rawTextNorm.contains(patternNorm))
             }
             UserRuleMatchType.TRANSACTION_TEXT_CONTAINS -> {
                 val allText = "$merchantNorm $counterpartyNorm $rawTextNorm".trim()

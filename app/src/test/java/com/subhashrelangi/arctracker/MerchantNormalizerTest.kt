@@ -95,4 +95,32 @@ class MerchantNormalizerTest {
         assertTrue(MerchantNormalizer.containsToken("Booking.com B.V.", "booking com"))
         assertFalse(MerchantNormalizer.containsToken("HP Gas Booking", "booking com"))
     }
+
+    @Test
+    fun testRtcCompoundDecomposition_allStateRtcsContainRtcToken() {
+        // Compound state transport acronyms decomposing into 'rtc' token
+        assertTrue("apsrtc must contain rtc", MerchantNormalizer.containsToken("apsrtc", "rtc"))
+        assertTrue("APSRTC must contain rtc", MerchantNormalizer.containsToken("APSRTC", "rtc"))
+        assertTrue("tsrtc must contain rtc", MerchantNormalizer.containsToken("tsrtc", "rtc"))
+        assertTrue("TSRTC must contain rtc", MerchantNormalizer.containsToken("TSRTC", "rtc"))
+        assertTrue("ksrtc must contain rtc", MerchantNormalizer.containsToken("ksrtc", "rtc"))
+        assertTrue("KSRTC must contain rtc", MerchantNormalizer.containsToken("KSRTC", "rtc"))
+        assertTrue("msrtc must contain rtc", MerchantNormalizer.containsToken("msrtc", "rtc"))
+        assertTrue("upsrtc must contain rtc", MerchantNormalizer.containsToken("upsrtc", "rtc"))
+        assertTrue("rtcbus must contain rtc", MerchantNormalizer.containsToken("rtcbus", "rtc"))
+        assertTrue("APSRTC Online must contain rtc", MerchantNormalizer.containsToken("APSRTC Online", "rtc"))
+        assertTrue("APSRTC Bus Ticket must contain rtc", MerchantNormalizer.containsToken("APSRTC Bus Ticket", "rtc"))
+    }
+
+    @Test
+    fun testCaseInsensitiveMatching_acrossAllFormats() {
+        assertTrue(MerchantNormalizer.containsToken("apsrtc", "RTC"))
+        assertTrue(MerchantNormalizer.containsToken("APSRTC", "rtc"))
+        assertTrue(MerchantNormalizer.containsToken("APSRTC", "apsrtc"))
+        assertTrue(MerchantNormalizer.containsToken("apsrtc", "APSRTC"))
+        assertTrue(MerchantNormalizer.containsToken("Swiggy India", "SWIGGY"))
+        assertTrue(MerchantNormalizer.containsToken("SWIGGY INDIA", "swiggy"))
+        assertTrue(MerchantNormalizer.matchesExact("APSRTC", "apsrtc"))
+        assertTrue(MerchantNormalizer.matchesExact("apsrtc", "APSRTC"))
+    }
 }

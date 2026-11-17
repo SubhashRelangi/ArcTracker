@@ -529,4 +529,101 @@ class StructuredTransactionExtractorTest {
         assertNotEquals("BILLS", bank)
         assertNull(bank)
     }
+
+    @Test
+    fun test49_ippb_sentPaymentToSubhash_extractsSubhashAsMerchant() {
+        val notif = createNotification(
+            title = "VK-IPPB",
+            packageName = "VK-IPPB",
+            text = "You have sent a payment of Rs. 60 in ac xxxx on 17-11-2026 to Subhash UPI Ref 12345678"
+        )
+        val candidate = StructuredTransactionExtractor.extract(notif)
+        assertNotNull(candidate)
+        assertEquals(60.0, candidate?.amount)
+        assertEquals(TransactionDirection.DEBIT, candidate?.direction)
+        assertEquals("Subhash", candidate?.merchant)
+        assertEquals("12345678", candidate?.upiTransactionId)
+        assertNotEquals("VK-IPPB", candidate?.merchant)
+        assertNotEquals("IPPB", candidate?.merchant)
+    }
+
+    @Test
+    fun test50_bankDebit_interveningClauses_extractsSubhash() {
+        val notif1 = createNotification(
+            title = "SBI-UPI",
+            packageName = "SBI-UPI",
+            text = "Rs 60 debited from a/c **1092 on 17-Nov-26 to Subhash (UPI Ref no 4321)"
+        )
+        val candidate1 = StructuredTransactionExtractor.extract(notif1)
+        assertNotNull(candidate1)
+        assertEquals(60.0, candidate1?.amount)
+        assertEquals(TransactionDirection.DEBIT, candidate1?.direction)
+        assertEquals("Subhash", candidate1?.merchant)
+        assertEquals("1092", candidate1?.accountSuffix)
+
+        val notif2 = createNotification(
+            title = "HDFCBK",
+            packageName = "HDFCBK",
+            text = "Your a/c no. XXXXXX1234 is debited for Rs.60.00 on 17-11-26 and credited to Subhash"
+        )
+        val candidate2 = StructuredTransactionExtractor.extract(notif2)
+        assertNotNull(candidate2)
+        assertEquals(60.0, candidate2?.amount)
+        assertEquals(TransactionDirection.DEBIT, candidate2?.direction)
+        assertEquals("Subhash", candidate2?.merchant)
+
+        val notif3 = createNotification(
+            title = "Bank Alert",
+            text = "Paid Rs. 60.00 from A/c ...1234 on 17-11-2026 to Subhash"
+        )
+        val candidate3 = StructuredTransactionExtractor.extract(notif3)
+        assertNotNull(candidate3)
+        assertEquals(60.0, candidate3?.amount)
+        assertEquals("Subhash", candidate3?.merchant)
+    }
+
+    @Test
+    fun test51_incomingPayment_interveningClauses_extractsSubhashAsCounterparty() {
+        val notif = createNotification(
+            title = "VK-IPPB",
+            packageName = "VK-IPPB",
+            text = "You have received a payment of Rs. 60 in ac xxxx on 17-11-2026 from Subhash UPI Ref 87654321"
+        )
+        val candidate = StructuredTransactionExtractor.extract(notif)
+        assertNotNull(candidate)
+        assertEquals(60.0, candidate?.amount)
+        assertEquals(TransactionDirection.CREDIT, candidate?.direction)
+        assertEquals("Subhash", candidate?.counterparty)
+        assertEquals("Subhash", candidate?.merchant)
+        assertNotEquals("VK-IPPB", candidate?.merchant)
+        assertNotEquals("IPPB", candidate?.merchant)
+    }
+
+    @Test
+    fun test52_smsSenderTitle_isNeverExtractedAsMerchant() {
+        val notif = createNotification(
+            title = "VK-IPPB",
+            packageName = "VK-IPPB",
+            text = "Rs. 500 debited from a/c ...9020 on 17-11-2026. Avl bal Rs 5,000."
+        )
+        val candidate = StructuredTransactionExtractor.extract(notif)
+        assertNotNull(candidate)
+        assertEquals(500.0, candidate?.amount)
+        assertNull("Merchant must be null rather than bank sender header VK-IPPB", candidate?.merchant)
+        assertNotEquals("VK-IPPB", candidate?.merchant)
+        assertNotEquals("IPPB", candidate?.merchant)
+    }
+
+    @Test
+    fun test53_towardsApsrtc_extractsApsrtcTicket() {
+        val notif = createNotification(
+            title = "Bank Alert",
+            text = "Debited for Rs. 250 towards APSRTC ticket on 17-Nov-26 Ref 987654"
+        )
+        val candidate = StructuredTransactionExtractor.extract(notif)
+        assertNotNull(candidate)
+        assertEquals(250.0, candidate?.amount)
+        assertEquals(TransactionDirection.DEBIT, candidate?.direction)
+        assertTrue(candidate?.merchant?.contains("APSRTC", ignoreCase = true) == true)
+    }
 }

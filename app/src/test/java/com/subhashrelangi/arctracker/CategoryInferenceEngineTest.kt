@@ -810,4 +810,92 @@ class CategoryInferenceEngineTest {
         assertEquals("transport", stayRes.suggestedCategoryId)
         assertTrue(stayRes.isAutoAssignable)
     }
+
+    @Test
+    fun testRtcAndApsrtc_caseInsensitiveInference_matchesTransport() {
+        // Uppercase APSRTC
+        val upperRes = engine.inferCategory(
+            CategoryInferenceInput(
+                merchant = "APSRTC",
+                amount = 150.0,
+                availableCategoryIds = allActiveCategoryIds
+            )
+        )
+        assertEquals("transport", upperRes.suggestedCategoryId)
+        assertTrue(upperRes.isAutoAssignable)
+
+        // Lowercase apsrtc
+        val lowerRes = engine.inferCategory(
+            CategoryInferenceInput(
+                merchant = "apsrtc",
+                amount = 150.0,
+                availableCategoryIds = allActiveCategoryIds
+            )
+        )
+        assertEquals("transport", lowerRes.suggestedCategoryId)
+        assertTrue(lowerRes.isAutoAssignable)
+
+        // Mixed case Apsrtc
+        val mixedRes = engine.inferCategory(
+            CategoryInferenceInput(
+                merchant = "Apsrtc",
+                amount = 150.0,
+                availableCategoryIds = allActiveCategoryIds
+            )
+        )
+        assertEquals("transport", mixedRes.suggestedCategoryId)
+        assertTrue(mixedRes.isAutoAssignable)
+
+        // Generic RTC
+        val rtcRes = engine.inferCategory(
+            CategoryInferenceInput(
+                merchant = "RTC",
+                amount = 80.0,
+                availableCategoryIds = allActiveCategoryIds
+            )
+        )
+        assertEquals("transport", rtcRes.suggestedCategoryId)
+        assertTrue(rtcRes.isAutoAssignable)
+    }
+
+    @Test
+    fun testPlaceholderMerchant_bankDebit_fallsBackToRawTextApsrtc() {
+        // When merchant is placeholder "Bank Debit", rawText containing APSRTC infers transport
+        val res = engine.inferCategory(
+            CategoryInferenceInput(
+                merchant = "Bank Debit",
+                rawText = "Dear SBI User, your A/c debited by Rs 250 for APSRTC Bus Ticket Ref 123456",
+                amount = 250.0,
+                availableCategoryIds = allActiveCategoryIds
+            )
+        )
+        assertEquals("transport", res.suggestedCategoryId)
+        assertTrue(res.isAutoAssignable)
+    }
+
+    @Test
+    fun testUserCategoryRule_rtcToken_matchesApsrtc() {
+        // User created a rule with pattern "rtc"
+        val userRule = com.subhashrelangi.arctracker.data.UserCategoryRule(
+            id = "rule_user_rtc",
+            name = "My RTC Rule",
+            matchType = com.subhashrelangi.arctracker.data.UserRuleMatchType.MERCHANT_TOKEN,
+            pattern = "rtc",
+            normalizedPattern = "rtc",
+            categoryId = "transport",
+            priority = 100,
+            isEnabled = true
+        )
+
+        val res = engine.inferCategory(
+            CategoryInferenceInput(
+                merchant = "APSRTC",
+                amount = 120.0,
+                userRules = listOf(userRule),
+                availableCategoryIds = allActiveCategoryIds
+            )
+        )
+        assertEquals("transport", res.suggestedCategoryId)
+        assertTrue(res.isAutoAssignable)
+    }
 }

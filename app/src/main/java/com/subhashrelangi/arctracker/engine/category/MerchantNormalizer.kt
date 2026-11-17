@@ -39,8 +39,8 @@ object MerchantNormalizer {
      */
     private val COMPOUND_DOMAIN_STEMS = listOf(
         // Transit & Travel Stems (Longest first)
-        "apsrtconline", "apsrtc", "tgsrtc", "tsrtc", "ksrtc", "msrtc", "upsrtc", "bmtc", "irctc",
-        "travels", "travel", "transit", "cabs", "motors", "airline", "airways",
+        "apsrtconline", "apsrtc", "tgsrtc", "tsrtc", "ksrtc", "msrtc", "upsrtc", "rtconline", "rtc", "bmtc", "irctc",
+        "travels", "travel", "transport", "transit", "cabs", "motors", "airline", "airways",
         // Food & Dining Stems
         "supermarket", "restaurant", "bhojanalaya", "canteen", "bakery", "bakers", "tiffins",
         "tiffin", "biryani", "sweets", "bakes", "dhaba", "juices", "juice", "foods", "food",
@@ -145,29 +145,42 @@ object MerchantNormalizer {
         // 6. Tokenize and filter legal noise
         val baseTokens = s.split(" ").filter { it.isNotBlank() && !LEGAL_SUFFIXES.contains(it) }
 
-        // 7. Morphological stem decomposition for concatenated tokens (e.g. "rnrkfoods", "sribalajisweets", "apsrtconline")
+        // 7. Morphological stem decomposition for concatenated tokens (e.g. "rnrkfoods", "sribalajisweets", "apsrtconline", "apsrtc")
         val decomposed = mutableListOf<String>()
-        for (token in baseTokens) {
-            var matchedStem: String? = null
+        val queue = ArrayDeque(baseTokens)
+        val visited = mutableSetOf<String>()
+
+        while (queue.isNotEmpty()) {
+            val token = queue.removeFirst()
+            if (!visited.add(token)) continue
+            decomposed.add(token)
+
             for (stem in COMPOUND_DOMAIN_STEMS) {
                 if (token.length > stem.length) {
                     if (token.endsWith(stem) && token.length - stem.length >= 2) {
-                        matchedStem = stem
                         val prefix = token.substring(0, token.length - stem.length)
-                        decomposed.add(prefix)
-                        decomposed.add(stem)
+                        if (visited.add(stem)) {
+                            decomposed.add(stem)
+                            queue.add(stem)
+                        }
+                        if (visited.add(prefix)) {
+                            decomposed.add(prefix)
+                            queue.add(prefix)
+                        }
                         break
                     } else if (token.startsWith(stem) && token.length - stem.length >= 2) {
-                        matchedStem = stem
                         val suffix = token.substring(stem.length)
-                        decomposed.add(stem)
-                        decomposed.add(suffix)
+                        if (visited.add(stem)) {
+                            decomposed.add(stem)
+                            queue.add(stem)
+                        }
+                        if (visited.add(suffix)) {
+                            decomposed.add(suffix)
+                            queue.add(suffix)
+                        }
                         break
                     }
                 }
-            }
-            if (matchedStem == null) {
-                decomposed.add(token)
             }
         }
 
