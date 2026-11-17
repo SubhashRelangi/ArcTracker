@@ -695,17 +695,17 @@ private fun HomeDarkHeroCard(
 }
 
 /**
- * Ultra-sleek Realistic Stacked Card Deck directly inspired by reference Image 1.
+ * Authentic Realistic Wallet Pocket with Stacked Cards on Top and Balance Panel Overlapping Bottom.
  *
  * Visual & Interactive Architecture:
- * - Cards are stacked on top of each other in a tactile, physical card deck.
- * - The active card is ALWAYS in the FRONT (first in visibility, full face, highest zIndex).
- * - Background cards peek out neatly above it with a stepped offset (44dp each),
- *   clearly displaying their Bank branding, masked card number, and available balance.
- * - Tapping ANY background card smoothly animates it to the FRONT of the stack,
- *   while the previous front card smoothly slides back into the deck!
- * - Clean top header bar with "WALLET CARDS (N)" and a "Reset to All" pill when a card is selected.
- * - Zero bottom flaps or overlapping bars: the front card is 100% visible and unobstructed.
+ * - Cards are prominently stacked at the TOP of the wallet section.
+ * - Each card is an authentic physical credit/debit card with EMV chip, contactless waves, and masked numbers.
+ * - Background cards peek out above the front card in neat stepped tabs (36dp).
+ * - The Front Wallet Panel (Balance + Month In & Month Out / Total Expenses) sits at the bottom,
+ *   tucking the bottom part of the cards inside the pocket!
+ * - Tapping ANY card brings it smoothly to the FRONT of the stack, slides it up out of the pocket,
+ *   and updates the balance and expense metrics below!
+ * - Tapping "Reset to All" returns the metrics to TOTAL LIQUID BALANCE and settles the card back in the pocket.
  */
 @Composable
 private fun RealisticStackedCardDeck(
@@ -729,9 +729,9 @@ private fun RealisticStackedCardDeck(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp)
+                .padding(14.dp)
         ) {
-            // 1. Header Row: Hero Title + "Reset to All" / "All Accounts"
+            // 1. Header Row: "WALLET CARDS (N)" + "Reset to All" / "All Active"
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -746,13 +746,11 @@ private fun RealisticStackedCardDeck(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = heroTitle,
+                        text = "WALLET CARDS (${cards.size})",
                         color = Color.White,
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.8.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        letterSpacing = 0.8.sp
                     )
                 }
 
@@ -790,7 +788,7 @@ private fun RealisticStackedCardDeck(
                             .padding(horizontal = 9.dp, vertical = 4.5.dp)
                     ) {
                         Text(
-                            text = "All Accounts (${cards.size})",
+                            text = "All Active",
                             color = Color(0xFF94A3B8),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium
@@ -799,162 +797,9 @@ private fun RealisticStackedCardDeck(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 2. Balance Amount (Split Integer & Decimal) + Trend / Active Badge
-            val (intPart, decPart) = splitInrAmount(balance)
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Bottom
-            ) {
-                Text(
-                    text = intPart,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    text = decPart,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF94A3B8),
-                    modifier = Modifier.padding(bottom = 2.dp)
-                )
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Box(
-                    modifier = Modifier
-                        .padding(bottom = 3.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (selectedCardId != null) Color(0xFF1E3A8A) else Color(0xFF064E3B))
-                        .border(
-                            BorderStroke(
-                                1.dp,
-                                if (selectedCardId != null) Color(0xFF2563EB) else Color(0xFF047857)
-                            ),
-                            RoundedCornerShape(10.dp)
-                        )
-                        .padding(horizontal = 8.dp, vertical = 2.5.dp)
-                ) {
-                    Text(
-                        text = if (selectedCardId != null) "● Card Focus" else "↗ +4.2%",
-                        color = if (selectedCardId != null) Color(0xFF60A5FA) else Color(0xFF34D399),
-                        fontSize = 10.5.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 3. Split Mini-Cards (Month In / Month Out - Total Expenses)
-            val monthLabel = remember {
-                val sdf = SimpleDateFormat("MMMM", Locale.US)
-                sdf.format(Date())
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // Left: Month In
-                Surface(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF131A29),
-                    border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF1E293B))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "$monthLabel In",
-                                color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .size(19.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF064E3B)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.ArrowDownward,
-                                    contentDescription = "Income",
-                                    tint = Color(0xFF34D399),
-                                    modifier = Modifier.size(11.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = income,
-                            color = Color(0xFF34D399),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                // Right: Month Out (Total Expenses)
-                Surface(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF131A29),
-                    border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF1E293B))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "$monthLabel Out",
-                                color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .size(19.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF450A0A)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.ArrowUpward,
-                                    contentDescription = "Expense",
-                                    tint = CoralExpense,
-                                    modifier = Modifier.size(11.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = spent,
-                            color = CoralExpense,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 2. Card Deck
+            // 2. Interactive Wallet Pocket with Cards on Top & Balance Panel Overlapping Bottom
             if (cards.isEmpty()) {
                 Surface(
                     modifier = Modifier
@@ -1001,75 +846,254 @@ private fun RealisticStackedCardDeck(
                     }
                 }
             } else {
-                // Determine active card (front of the deck)
                 val activeCard = cards.find { it.id == selectedCardId } ?: cards.first()
                 val otherCards = cards.filter { it.id != activeCard.id }
-                // The deck stack from back to front:
-                // otherCards reversed so first in list is right behind activeCard, and last in list is at back
                 val orderedCards = remember(cards, activeCard.id) {
                     otherCards.reversed() + listOf(activeCard)
                 }
 
-                val cardStep = if (cards.size > 3) 40.dp else 44.dp
-                val deckHeight = ((orderedCards.size - 1) * cardStep.value).dp + 218.dp
+                val stepY = if (cards.size > 3) 30.dp else 36.dp
+                val deckHeight = ((orderedCards.size - 1) * stepY.value + 195).dp
+                val panelTopPadding = ((orderedCards.size - 1) * stepY.value + 130).dp
 
-                val animatedDeckHeight by animateDpAsState(
-                    targetValue = deckHeight,
-                    animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f),
-                    label = "deckHeight"
-                )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    // A. Cards Deck Stack (at the top)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(deckHeight)
+                    ) {
+                        orderedCards.forEachIndexed { index, card ->
+                            key(card.id) {
+                                val isFront = card.id == activeCard.id
+                                val isSelected = isFront && selectedCardId != null
+                                val baseY = (index * stepY.value).dp
+                                val targetY = if (isSelected) baseY - 16.dp else baseY
+                                val targetScale = if (isFront) 1.0f else (0.93f + (index * 0.025f).coerceAtMost(0.06f))
+                                val targetZ = if (isFront) 35f else (index + 1).toFloat()
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(animatedDeckHeight)
-                ) {
-                    orderedCards.forEachIndexed { index, card ->
-                        key(card.id) {
-                            val isFront = card.id == activeCard.id
-                            val targetY = (index * cardStep.value).dp
-                            val targetScale = if (isFront) 1.0f else (0.93f + (index * 0.025f).coerceAtMost(0.06f))
-                            val targetZ = if (isFront) 50f else (index + 1).toFloat()
+                                val animatedY by animateDpAsState(
+                                    targetValue = targetY,
+                                    animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f),
+                                    label = "cardY_${card.id}"
+                                )
+                                val animatedScale by animateFloatAsState(
+                                    targetValue = targetScale,
+                                    animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f),
+                                    label = "cardScale_${card.id}"
+                                )
 
-                            val animatedY by animateDpAsState(
-                                targetValue = targetY,
-                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f),
-                                label = "cardY_${card.id}"
-                            )
-                            val animatedScale by animateFloatAsState(
-                                targetValue = targetScale,
-                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f),
-                                label = "cardScale_${card.id}"
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .offset(y = animatedY)
-                                    .graphicsLayer {
-                                        scaleX = animatedScale
-                                        scaleY = animatedScale
-                                    }
-                                    .zIndex(targetZ)
-                            ) {
-                                FullRealisticCreditCard(
-                                    card = card,
-                                    isSelected = isFront && selectedCardId != null,
-                                    isFront = isFront,
-                                    onClick = {
-                                        if (isFront) {
-                                            // Clicking front card toggles selection / resets to all
-                                            if (selectedCardId != null) {
-                                                onCardSelect(null)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .offset(y = animatedY)
+                                        .graphicsLayer {
+                                            scaleX = animatedScale
+                                            scaleY = animatedScale
+                                        }
+                                        .zIndex(targetZ)
+                                ) {
+                                    FullRealisticCreditCard(
+                                        card = card,
+                                        isSelected = isFront && selectedCardId != null,
+                                        isFront = isFront,
+                                        onClick = {
+                                            if (isFront) {
+                                                if (selectedCardId != null) {
+                                                    onCardSelect(null)
+                                                } else {
+                                                    onCardSelect(card.id)
+                                                }
                                             } else {
                                                 onCardSelect(card.id)
                                             }
-                                        } else {
-                                            // Clicking any background card brings it to the front!
-                                            onCardSelect(card.id)
                                         }
-                                    }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // B. Front Wallet Pocket Panel (holding Balance + Month In/Out expenses, overlapping bottom part of cards)
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = panelTopPadding)
+                            .zIndex(50f),
+                        shape = RoundedCornerShape(22.dp),
+                        color = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF131A29),
+                        border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B)),
+                        shadowElevation = 8.dp
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 14.dp)
+                        ) {
+                            // Title & Focus Indicator
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = heroTitle,
+                                    color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    letterSpacing = 0.8.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (selectedCardId != null) Color(0xFF1E3A8A) else Color(0xFF064E3B))
+                                        .border(
+                                            BorderStroke(
+                                                1.dp,
+                                                if (selectedCardId != null) Color(0xFF2563EB) else Color(0xFF047857)
+                                            ),
+                                            RoundedCornerShape(10.dp)
+                                        )
+                                        .padding(horizontal = 8.dp, vertical = 2.5.dp)
+                                ) {
+                                    Text(
+                                        text = if (selectedCardId != null) "● Card Focus" else "↗ +4.2%",
+                                        color = if (selectedCardId != null) Color(0xFF60A5FA) else Color(0xFF34D399),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            // Balance Amount (Split Integer & Decimal)
+                            val (intPart, decPart) = splitInrAmount(balance)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.Bottom
+                            ) {
+                                Text(
+                                    text = intPart,
+                                    fontSize = 28.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = decPart,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF94A3B8),
+                                    modifier = Modifier.padding(bottom = 2.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Split Mini-Cards (Month In / Month Out - Total Expenses)
+                            val monthLabel = remember {
+                                val sdf = SimpleDateFormat("MMMM", Locale.US)
+                                sdf.format(Date())
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                // Month In
+                                Surface(
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0C101A),
+                                    border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF1E293B))
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "$monthLabel In",
+                                                color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(19.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(0xFF064E3B)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.ArrowDownward,
+                                                    contentDescription = "Income",
+                                                    tint = Color(0xFF34D399),
+                                                    modifier = Modifier.size(11.dp)
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(3.dp))
+                                        Text(
+                                            text = income,
+                                            color = Color(0xFF34D399),
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                // Month Out (Total Expenses)
+                                Surface(
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0C101A),
+                                    border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF1E293B))
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "$monthLabel Out",
+                                                color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(19.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(0xFF450A0A)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.ArrowUpward,
+                                                    contentDescription = "Expense",
+                                                    tint = CoralExpense,
+                                                    modifier = Modifier.size(11.dp)
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(3.dp))
+                                        Text(
+                                            text = spent,
+                                            color = CoralExpense,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
