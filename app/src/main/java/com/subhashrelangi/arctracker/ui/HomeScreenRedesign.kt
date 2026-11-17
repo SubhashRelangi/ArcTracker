@@ -666,8 +666,7 @@ private fun HomeSubheader(
 }
 
 // ==========================================
-// 3. Dark Hero Card: Realistic Physical Leather Wallet Pocket (Image 0)
-//    & Full-Sized Apple Wallet Cascading Deck (Image 2)
+// 3. Dark Hero Card: Authentic Physical Stacked Card Deck (matching Image 1 mockup)
 // ==========================================
 @Composable
 private fun HomeDarkHeroCard(
@@ -683,114 +682,142 @@ private fun HomeDarkHeroCard(
     isDemoMode: Boolean,
     onAccountsClick: () -> Unit
 ) {
-    if (isWalletExpanded) {
-        // State 2: Full-Sized Apple Wallet Cascading Deck (Image 2)
-        AppleWalletCascadingDeck(
-            cards = cards,
-            selectedCardId = selectedCardId,
-            onCardSelect = onCardSelect,
-            onCollapse = onToggleExpand,
-            heroTitle = heroTitle,
-            balance = balance,
-            income = income,
-            spent = spent,
-            onAccountsClick = onAccountsClick
-        )
-    } else {
-        // State 1: Physical Leather Wallet Pocket (Image 0)
-        PhysicalLeatherPocketWallet(
-            cards = cards,
-            selectedCardId = selectedCardId,
-            onCardSelect = onCardSelect,
-            onExpand = onToggleExpand,
-            heroTitle = heroTitle,
-            balance = balance,
-            income = income,
-            spent = spent,
-            isDemoMode = isDemoMode,
-            onAccountsClick = onAccountsClick
-        )
-    }
+    RealisticStackedCardDeck(
+        cards = cards,
+        selectedCardId = selectedCardId,
+        onCardSelect = onCardSelect,
+        heroTitle = heroTitle,
+        balance = balance,
+        income = income,
+        spent = spent,
+        onAccountsClick = onAccountsClick
+    )
 }
 
 /**
- * State 1: Physical Leather Wallet Pocket matching reference Image 0.
- * Cards are tucked inside the pocket opening at the top and slide UP when tapped.
- * Front leather flap holds the balance and metrics with stitched leather styling.
+ * Ultra-sleek Realistic Stacked Card Deck directly inspired by reference Image 1.
+ *
+ * Visual & Interactive Architecture:
+ * - Cards are stacked on top of each other in a tactile, physical card deck.
+ * - The active card is ALWAYS in the FRONT (first in visibility, full face, highest zIndex).
+ * - Background cards peek out neatly above it with a stepped offset (44dp each),
+ *   clearly displaying their Bank branding, masked card number, and available balance.
+ * - Tapping ANY background card smoothly animates it to the FRONT of the stack,
+ *   while the previous front card smoothly slides back into the deck!
+ * - Clean top header bar with "WALLET CARDS (N)" and a "Reset to All" pill when a card is selected.
+ * - Zero bottom flaps or overlapping bars: the front card is 100% visible and unobstructed.
  */
 @Composable
-private fun PhysicalLeatherPocketWallet(
+private fun RealisticStackedCardDeck(
     cards: List<WalletCardModel>,
     selectedCardId: String?,
     onCardSelect: (String?) -> Unit,
-    onExpand: () -> Unit,
     heroTitle: String,
     balance: String,
     income: String,
     spent: String,
-    isDemoMode: Boolean,
     onAccountsClick: () -> Unit
 ) {
-    val radarColor = if (ArcColors.isDark) ArcColors.Border.copy(alpha = 0.35f) else Color(0xFF1E293B).copy(alpha = 0.45f)
-    val stitchColor = if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155).copy(alpha = 0.7f)
-
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(26.dp))
-            .drawBehind {
-                // Subtle concentric radar rings radiating outward behind the balance section
-                val centerX = size.width * 0.88f
-                val centerY = size.height * 0.60f
-                val stroke = Stroke(width = 1.dp.toPx())
-                drawCircle(color = radarColor, radius = 45.dp.toPx(), center = Offset(centerX, centerY), style = stroke)
-                drawCircle(color = radarColor, radius = 90.dp.toPx(), center = Offset(centerX, centerY), style = stroke)
-                drawCircle(color = radarColor, radius = 140.dp.toPx(), center = Offset(centerX, centerY), style = stroke)
-                drawCircle(color = radarColor, radius = 195.dp.toPx(), center = Offset(centerX, centerY), style = stroke)
-
-                // Realistic leather perimeter dashed stitching
-                val stitchStroke = Stroke(
-                    width = 1.2.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
-                )
-                drawRoundRect(
-                    color = stitchColor,
-                    topLeft = Offset(4.dp.toPx(), 4.dp.toPx()),
-                    size = Size(size.width - 8.dp.toPx(), size.height - 8.dp.toPx()),
-                    cornerRadius = CornerRadius(22.dp.toPx(), 22.dp.toPx()),
-                    style = stitchStroke
-                )
-            },
+            .clip(RoundedCornerShape(26.dp)),
         shape = RoundedCornerShape(26.dp),
-        color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0B0F19),
+        color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0C101A),
         border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 14.dp, start = 14.dp, end = 14.dp, bottom = 14.dp)
+                .padding(horizontal = 14.dp, vertical = 14.dp)
         ) {
-            // ----------------------------------------------------
-            // A. Pocket Opening: Cards tucked inside the pocket mouth
-            // ----------------------------------------------------
+            // 1. Header Row: "WALLET CARDS (N)" + "Reset to All" / "All Accounts"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.CreditCard,
+                        contentDescription = "Wallet Cards",
+                        tint = Color(0xFF38BDF8),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "WALLET CARDS (${cards.size})",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.8.sp
+                    )
+                }
+
+                if (selectedCardId != null) {
+                    Surface(
+                        onClick = { onCardSelect(null) },
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
+                        border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Reset to All",
+                                color = Color(0xFFFDE68A),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "Reset Selection",
+                                tint = Color(0xFFFDE68A),
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                    }
+                } else if (cards.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B))
+                            .padding(horizontal = 9.dp, vertical = 4.5.dp)
+                    ) {
+                        Text(
+                            text = "All Active",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 2. Card Deck
             if (cards.isEmpty()) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(onClick = onAccountsClick),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF131B2A),
                     border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF1E293B))
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
                                 .background(if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF1E293B)),
                             contentAlignment = Alignment.Center
@@ -807,7 +834,7 @@ private fun PhysicalLeatherPocketWallet(
                             Text(
                                 text = "Empty Wallet",
                                 color = Color.White,
-                                fontSize = 13.sp,
+                                fontSize = 13.5.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
@@ -819,348 +846,74 @@ private fun PhysicalLeatherPocketWallet(
                     }
                 }
             } else {
-                // Tucked cards container (holds 3 stepped cards peeking out from pocket opening)
-                val pocketCards = remember(cards, selectedCardId) {
-                    if (cards.size <= 3) {
-                        cards
-                    } else if (selectedCardId == null) {
-                        cards.take(3)
-                    } else {
-                        val active = cards.find { it.id == selectedCardId }
-                        if (active != null) {
-                            val others = cards.filter { it.id != selectedCardId }
-                            listOf(others[0], others.getOrNull(1) ?: cards[0], active)
-                        } else {
-                            cards.take(3)
-                        }
-                    }
+                // Determine active card (front of the deck)
+                val activeCard = cards.find { it.id == selectedCardId } ?: cards.first()
+                val otherCards = cards.filter { it.id != activeCard.id }
+                // The deck stack from back to front:
+                // otherCards reversed so first in list is right behind activeCard, and last in list is at back
+                val orderedCards = remember(cards, activeCard.id) {
+                    otherCards.reversed() + listOf(activeCard)
                 }
+
+                val cardStep = if (cards.size > 3) 40.dp else 44.dp
+                val deckHeight = ((orderedCards.size - 1) * cardStep.value).dp + 218.dp
+
+                val animatedDeckHeight by animateDpAsState(
+                    targetValue = deckHeight,
+                    animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f),
+                    label = "deckHeight"
+                )
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(130.dp)
+                        .height(animatedDeckHeight)
                 ) {
-                    pocketCards.forEachIndexed { index, card ->
+                    orderedCards.forEachIndexed { index, card ->
                         key(card.id) {
-                            val isSelected = card.id == selectedCardId
-
-                            // Slot offsets inside the pocket sleeve
-                            val slot = if (selectedCardId == null) {
-                                index // 0 = back, 1 = middle, 2 = front
-                            } else {
-                                if (isSelected) 2 else if (index == 0) 0 else 1
-                            }
-
-                            val (baseY, cardWidthRatio, zIndex) = when (slot) {
-                                0 -> Triple(6.dp, 0.92f, 1f)
-                                1 -> Triple(36.dp, 0.96f, 2f)
-                                else -> Triple(66.dp, 1.0f, if (isSelected) 25f else 3f)
-                            }
-
-                            // If selected, card animates sliding UP out of the pocket and scales up!
-                            val targetY = if (isSelected) baseY - 28.dp else if (selectedCardId != null) baseY + 4.dp else baseY
-                            val targetScale = if (isSelected) 1.03f else 1.0f
+                            val isFront = card.id == activeCard.id
+                            val targetY = (index * cardStep.value).dp
+                            val targetScale = if (isFront) 1.0f else (0.93f + (index * 0.025f).coerceAtMost(0.06f))
+                            val targetZ = if (isFront) 50f else (index + 1).toFloat()
 
                             val animatedY by animateDpAsState(
                                 targetValue = targetY,
-                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f),
-                                label = "pocketCardY_${card.id}"
-                            )
-                            val animatedWidth by animateFloatAsState(
-                                targetValue = cardWidthRatio,
-                                animationSpec = tween(220),
-                                label = "pocketCardWidth_${card.id}"
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f),
+                                label = "cardY_${card.id}"
                             )
                             val animatedScale by animateFloatAsState(
                                 targetValue = targetScale,
-                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f),
-                                label = "pocketCardScale_${card.id}"
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f),
+                                label = "cardScale_${card.id}"
                             )
 
                             Box(
                                 modifier = Modifier
+                                    .fillMaxWidth()
                                     .offset(y = animatedY)
-                                    .fillMaxWidth(animatedWidth)
                                     .graphicsLayer {
                                         scaleX = animatedScale
                                         scaleY = animatedScale
                                     }
-                                    .align(Alignment.TopCenter)
-                                    .zIndex(zIndex)
+                                    .zIndex(targetZ)
                             ) {
-                                PocketTuckedCard(
+                                FullRealisticCreditCard(
                                     card = card,
-                                    isSelected = isSelected,
+                                    isSelected = isFront && selectedCardId != null,
+                                    isFront = isFront,
                                     onClick = {
-                                        if (isSelected) {
-                                            onCardSelect(null)
+                                        if (isFront) {
+                                            // Clicking front card toggles selection / resets to all
+                                            if (selectedCardId != null) {
+                                                onCardSelect(null)
+                                            } else {
+                                                onCardSelect(card.id)
+                                            }
                                         } else {
+                                            // Clicking any background card brings it to the front!
                                             onCardSelect(card.id)
                                         }
                                     }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // ----------------------------------------------------
-            // B. Front Leather Pocket Flap (Curved Rim + Balance & Split In/Out)
-            // ----------------------------------------------------
-            val flapStitchColor = if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155).copy(alpha = 0.65f)
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .drawBehind {
-                        // Stitching along the top curved rim of the leather flap
-                        val stroke = Stroke(
-                            width = 1.dp.toPx(),
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 5f), 0f)
-                        )
-                        drawLine(
-                            color = flapStitchColor,
-                            start = Offset(14.dp.toPx(), 0f),
-                            end = Offset(size.width - 14.dp.toPx(), 0f),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                    },
-                shape = RoundedCornerShape(20.dp),
-                color = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF111726),
-                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B).copy(alpha = 0.8f))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
-                ) {
-                    // Header Row: Hero Title + See all cards / Reset pill
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f, fill = false)
-                        ) {
-                            Icon(
-                                imageVector = if (selectedCardId == null) Icons.Outlined.AccountBalanceWallet else Icons.Outlined.CreditCard,
-                                contentDescription = "Wallet Icon",
-                                tint = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = heroTitle,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
-                                letterSpacing = 0.8.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        if (selectedCardId != null) {
-                            // Reset to All Cards interactive pill
-                            Surface(
-                                onClick = { onCardSelect(null) },
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
-                                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.5.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Reset to All",
-                                        color = Color(0xFFFDE68A),
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                    Icon(
-                                        imageVector = Icons.Outlined.Close,
-                                        contentDescription = "Reset Selection",
-                                        tint = Color(0xFFFDE68A),
-                                        modifier = Modifier.size(11.dp)
-                                    )
-                                }
-                            }
-                        } else {
-                            val accountsCount = if (isDemoMode) 4 else maxOf(1, cards.size)
-                            Surface(
-                                onClick = onExpand,
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
-                                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "See all cards ($accountsCount)",
-                                        color = Color(0xFF94A3B8),
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(
-                                        imageVector = Icons.Outlined.NorthEast,
-                                        contentDescription = "Expand Cards",
-                                        tint = Color(0xFF94A3B8),
-                                        modifier = Modifier.size(11.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Balance Amount (Split Integer & Decimal) + Trend / Active Pill
-                    val (intPart, decPart) = splitInrAmount(balance)
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        Text(
-                            text = intPart,
-                            fontSize = 30.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = decPart,
-                            fontSize = 19.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF94A3B8),
-                            modifier = Modifier.padding(bottom = 2.5.dp)
-                        )
-
-                        Spacer(modifier = Modifier.width(10.dp))
-
-                        Box(
-                            modifier = Modifier
-                                .padding(bottom = 4.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF064E3B))
-                                .border(BorderStroke(1.dp, Color(0xFF047857)), RoundedCornerShape(12.dp))
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Text(
-                                text = if (selectedCardId != null) "● Active" else "↗ +4.2%",
-                                color = Color(0xFF34D399),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Split Mini-Cards (October In / October Out)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        // Left: Month In
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(14.dp),
-                            color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0C101A),
-                            border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "October In",
-                                        color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .size(19.dp)
-                                            .clip(CircleShape)
-                                            .background(if (ArcColors.isDark) Color(0xFF064E3B) else Color(0xFF064E3B)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.ArrowDownward,
-                                            contentDescription = "Income",
-                                            tint = Color(0xFF34D399),
-                                            modifier = Modifier.size(11.dp)
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(3.dp))
-                                Text(
-                                    text = income,
-                                    color = Color(0xFF34D399),
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        // Right: Month Out
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(14.dp),
-                            color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0C101A),
-                            border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "October Out",
-                                        color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .size(19.dp)
-                                            .clip(CircleShape)
-                                            .background(if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.ArrowUpward,
-                                            contentDescription = "Expense",
-                                            tint = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
-                                            modifier = Modifier.size(11.dp)
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(3.dp))
-                                Text(
-                                    text = spent,
-                                    color = CoralExpense,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
@@ -1395,314 +1148,24 @@ private fun CardNetworkLogo(
 }
 
 /**
- * State 2: Full-Sized Apple Wallet Cascading Deck matching reference Image 2.
- * Renders full realistic credit cards cascading vertically with bring-to-front animation.
- * When user taps a card:
- * - Selected card animates (scale up + translate to top/front) with spring-based transition
- * - Other cards shift and cascade behind it in a neat stack below
- * - Selected card shows expanded details (balance, income, spent)
- * - Tapping again or clicking reset returns to the full cascade fan
- */
-@Composable
-private fun AppleWalletCascadingDeck(
-    cards: List<WalletCardModel>,
-    selectedCardId: String?,
-    onCardSelect: (String?) -> Unit,
-    onCollapse: () -> Unit,
-    heroTitle: String,
-    balance: String,
-    income: String,
-    spent: String,
-    onAccountsClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(26.dp)),
-        shape = RoundedCornerShape(26.dp),
-        color = if (ArcColors.isDark) ArcColors.CardBackground else Color(0xFF0B0F19),
-        border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            // Header Row: "WALLET CARDS (N)" + "Tuck into wallet ▲"
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Outlined.CreditCard,
-                        contentDescription = "Cards Stack",
-                        tint = Color(0xFF38BDF8),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "WALLET CARDS (${cards.size})",
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.8.sp
-                    )
-                }
-
-                Surface(
-                    onClick = onCollapse,
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
-                    border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Tuck into wallet",
-                            color = Color(0xFF38BDF8),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.Outlined.KeyboardArrowUp,
-                            contentDescription = "Collapse to wallet",
-                            tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Dynamic Bring-To-Front Cascading Cards Stack
-            if (cards.isEmpty()) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onAccountsClick),
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF131B2A),
-                    border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF1E293B))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF1E293B)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.CreditCard,
-                                contentDescription = "Cards",
-                                tint = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Empty Wallet",
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Tap to add accounts or scan SMS alerts",
-                                color = Color(0xFF94A3B8),
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-                }
-            } else {
-                val selectedIndex = cards.indexOfFirst { it.id == selectedCardId }
-                val targetDeckHeight = remember(cards.size, selectedCardId) {
-                    if (selectedCardId == null) {
-                        ((cards.size - 1) * 56 + 220).dp
-                    } else {
-                        (220 + (cards.size - 1) * 48 + 12).dp
-                    }
-                }
-
-                val animatedDeckHeight by animateDpAsState(
-                    targetValue = targetDeckHeight,
-                    animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f),
-                    label = "cascadingDeckHeight"
-                )
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(animatedDeckHeight)
-                ) {
-                    cards.forEachIndexed { index, card ->
-                        key(card.id) {
-                            val isSelected = card.id == selectedCardId
-
-                            // Bring-to-front physics calculation:
-                            val (targetY, targetScale, zIndex) = if (selectedCardId == null) {
-                                // Default cascade fan: each card steps down by 56dp
-                                Triple((index * 56).dp, 1.0f, (index + 1).toFloat())
-                            } else if (isSelected) {
-                                // Selected card animates to front/top of the deck!
-                                Triple(0.dp, 1.02f, 100f)
-                            } else {
-                                // Other cards shift and cascade behind it in a stack below
-                                val nonSelectedIndex = if (index < selectedIndex) index else index - 1
-                                val yOffset = (212 + nonSelectedIndex * 48).dp
-                                Triple(yOffset, 0.97f, (nonSelectedIndex + 1).toFloat())
-                            }
-
-                            val animatedY by animateDpAsState(
-                                targetValue = targetY,
-                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f),
-                                label = "cascadingCardY_${card.id}"
-                            )
-                            val animatedScale by animateFloatAsState(
-                                targetValue = targetScale,
-                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f),
-                                label = "cascadingCardScale_${card.id}"
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .offset(y = animatedY)
-                                    .fillMaxWidth()
-                                    .graphicsLayer {
-                                        scaleX = animatedScale
-                                        scaleY = animatedScale
-                                    }
-                                    .zIndex(zIndex)
-                            ) {
-                                FullRealisticCreditCard(
-                                    card = card,
-                                    isSelected = isSelected,
-                                    onClick = {
-                                        if (isSelected) {
-                                            onCardSelect(null)
-                                        } else {
-                                            onCardSelect(card.id)
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Bottom Summary Bar: Active figures + Quick Reset / Tuck Back Pill
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF111726),
-                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.Border else Color(0xFF1E293B))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = heroTitle,
-                            color = if (ArcColors.isDark) ArcColors.TextSecondary else Color(0xFF94A3B8),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 0.5.sp
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = balance,
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (selectedCardId != null) {
-                            Surface(
-                                onClick = { onCardSelect(null) },
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
-                                border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
-                            ) {
-                                Text(
-                                    text = "Reset to All",
-                                    color = Color(0xFFFDE68A),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                )
-                            }
-                        }
-
-                        Surface(
-                            onClick = onCollapse,
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
-                            border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Done",
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Icon(
-                                    imageVector = Icons.Outlined.KeyboardArrowUp,
-                                    contentDescription = "Done",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
  * Authentic full-sized physical credit/debit card component.
  * Aspect ratio: standard ISO/IEC 7810 ID-1 (85.60 mm × 53.98 mm ≈ 1.586:1).
  * Features:
  * - Bank name prominently at top-left
+ * - Top tab shows masked suffix and balance when in background stack
  * - EMV chip visual with etched contact circuits
  * - NFC / Contactless payment indicator
  * - Masked card number (•••• •••• •••• XXXX) in embossed monospace styling
- * - Cardholder name & Valid Thru expiry date
+ * - Cardholder name & Valid Thru expiry date (12/29)
  * - Card type / payment network label (VISA/MASTERCARD/RUPAY/UPI)
  * - Premium gradient backgrounds per theme with metallic sheen and glossy reflection
- * - Expanded details (balance, income, spent) when selected
+ * - Expanded details (income & expense) when front card
  */
 @Composable
 private fun FullRealisticCreditCard(
     card: WalletCardModel,
     isSelected: Boolean,
+    isFront: Boolean = true,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1792,7 +1255,7 @@ private fun FullRealisticCreditCard(
         shape = shape,
         color = Color.Transparent,
         border = BorderStroke(if (isSelected) 2.dp else 1.dp, style.borderColor),
-        shadowElevation = if (isSelected) 14.dp else 4.dp
+        shadowElevation = if (isSelected) 14.dp else if (isFront) 6.dp else 2.dp
     ) {
         Box(
             modifier = Modifier
@@ -1831,7 +1294,7 @@ private fun FullRealisticCreditCard(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // 1. Top Row: Bank Name prominently at top-left, Active Badge + NFC Waves at top-right
+                // 1. Top Row: Bank Name on left, Peeking info (suffix + balance) when background, or Active badge + NFC Waves when front
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1844,9 +1307,9 @@ private fun FullRealisticCreditCard(
                         Text(
                             text = card.bankName.uppercase(),
                             color = style.contentColor,
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.2.sp
+                            letterSpacing = 1.1.sp
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
@@ -1859,7 +1322,25 @@ private fun FullRealisticCreditCard(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (isSelected) {
+                        if (!isFront) {
+                            // Peeking tab details: suffix & balance right in the visible top strip!
+                            val last4 = if (card.suffix.isNotBlank()) card.suffix.trim().takeLast(4) else "4821"
+                            Text(
+                                text = "•••• $last4",
+                                color = style.subtextColor,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = card.balanceFormatted,
+                                color = style.contentColor,
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        } else if (isSelected) {
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
@@ -1939,8 +1420,8 @@ private fun FullRealisticCreditCard(
                     letterSpacing = 2.4.sp
                 )
 
-                // 4. Expanded Details: Income & Expense (when selected)
-                if (isSelected) {
+                // 4. Expanded Details: Income & Expense (when front card)
+                if (isFront) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = Color.Black.copy(alpha = 0.28f),
@@ -1952,8 +1433,8 @@ private fun FullRealisticCreditCard(
                         ) {
                             Text(
                                 text = "In: ",
-                                color = style.subtextColor,
-                                fontSize = 9.5.sp,
+                                color = Color.White.copy(alpha = 0.75f),
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
@@ -1962,11 +1443,11 @@ private fun FullRealisticCreditCard(
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = "Out: ",
-                                color = style.subtextColor,
-                                fontSize = 9.5.sp,
+                                color = Color.White.copy(alpha = 0.75f),
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
@@ -2030,232 +1511,6 @@ private fun FullRealisticCreditCard(
                     // Card Payment Network at bottom-right
                     val network = detectCardNetwork(card)
                     CardNetworkLogo(network = network, contentColor = style.contentColor)
-                }
-            }
-        }
-    }
-}
-
-/**
- * Realistic card header strip tucked inside the leather pocket (Image 0 style).
- * Shows top portion of card with bank badge, card title, mini chip, suffix, and color theme.
- */
-@Composable
-private fun PocketTuckedCard(
-    card: WalletCardModel,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 8.dp, bottomEnd = 8.dp)
-
-    val style = when (card.theme) {
-        WalletCardTheme.GRAPHITE_DARK -> {
-            CardThemeStyle(
-                bgBrush = Brush.horizontalGradient(listOf(Color(0xFF252A36), Color(0xFF141822))),
-                borderColor = if (isSelected) Color(0xFF38BDF8) else Color(0xFF334155),
-                contentColor = Color.White,
-                subtextColor = Color(0xFF94A3B8)
-            )
-        }
-        WalletCardTheme.ROYAL_PURPLE -> {
-            CardThemeStyle(
-                bgBrush = Brush.horizontalGradient(listOf(Color(0xFF5B21B6), Color(0xFF6D28D9))),
-                borderColor = if (isSelected) Color(0xFFFDE68A) else Color(0xFF7C3AED).copy(alpha = 0.6f),
-                contentColor = Color.White,
-                subtextColor = Color(0xFFDDD6FE)
-            )
-        }
-        WalletCardTheme.PORCELAIN_WHITE -> {
-            if (ArcColors.isDark) {
-                CardThemeStyle(
-                    bgBrush = Brush.horizontalGradient(listOf(Color(0xFF1E293B), Color(0xFF0F172A))),
-                    borderColor = if (isSelected) Color(0xFF38BDF8) else Color(0xFF334155),
-                    contentColor = Color(0xFFF8FAFC),
-                    subtextColor = Color(0xFF94A3B8)
-                )
-            } else {
-                CardThemeStyle(
-                    bgBrush = Brush.horizontalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFF1F5F9))),
-                    borderColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFCBD5E1),
-                    contentColor = TextDarkPrimary,
-                    subtextColor = Color(0xFF64748B)
-                )
-            }
-        }
-        WalletCardTheme.EMERALD_SLATE -> {
-            CardThemeStyle(
-                bgBrush = Brush.horizontalGradient(listOf(Color(0xFF065F46), Color(0xFF047857))),
-                borderColor = if (isSelected) Color(0xFF34D399) else Color(0xFF10B981).copy(alpha = 0.6f),
-                contentColor = Color.White,
-                subtextColor = Color(0xFFA7F3D0)
-            )
-        }
-        WalletCardTheme.NAVY_MIDNIGHT -> {
-            CardThemeStyle(
-                bgBrush = Brush.horizontalGradient(listOf(Color(0xFF1E3A8A), Color(0xFF0F172A))),
-                borderColor = if (isSelected) Color(0xFF38BDF8) else Color(0xFF334155),
-                contentColor = Color.White,
-                subtextColor = Color(0xFF94A3B8)
-            )
-        }
-    }
-
-    Surface(
-        onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(58.dp),
-        shape = shape,
-        color = Color.Transparent,
-        border = BorderStroke(if (isSelected) 2.dp else 1.dp, style.borderColor),
-        shadowElevation = if (isSelected) 10.dp else 3.dp
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(style.bgBrush)
-                .drawBehind {
-                    // Top rim specular highlight
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.22f),
-                        start = Offset(14.dp.toPx(), 1.dp.toPx()),
-                        end = Offset(size.width - 14.dp.toPx(), 1.dp.toPx()),
-                        strokeWidth = 1.dp.toPx()
-                    )
-                }
-                .padding(horizontal = 14.dp, vertical = 7.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Left: Bank Badge + Card Name
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f, fill = false)
-                ) {
-                    when {
-                        card.isWalletUpi -> {
-                            Box(
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF2563EB)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.AccountBalanceWallet,
-                                    contentDescription = "Wallet",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                            }
-                        }
-                        card.cardTypeLabel.equals("VISA", true) -> {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(3.dp))
-                                    .background(Color.White.copy(alpha = 0.2f))
-                                    .padding(horizontal = 4.dp, vertical = 1.dp)
-                            ) {
-                                Text(
-                                    text = "VISA",
-                                    color = Color.White,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontStyle = FontStyle.Italic
-                                )
-                            }
-                        }
-                        else -> {
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color.White.copy(alpha = 0.16f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = card.bankName.take(1).uppercase(),
-                                    color = style.contentColor,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
-                        text = card.bankName.uppercase(),
-                        color = style.contentColor,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.6.sp
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = card.cardName,
-                        color = style.subtextColor,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    if (isSelected) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(
-                                    if (card.theme == WalletCardTheme.PORCELAIN_WHITE && !ArcColors.isDark) {
-                                        Color(0xFFEFF6FF)
-                                    } else {
-                                        Color.White.copy(alpha = 0.22f)
-                                    }
-                                )
-                                .padding(horizontal = 4.dp, vertical = 1.dp)
-                        ) {
-                            Text(
-                                text = "Active",
-                                color = if (card.theme == WalletCardTheme.PORCELAIN_WHITE && !ArcColors.isDark) Color(0xFF38BDF8) else Color.White,
-                                fontSize = 8.5.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Right: EMV Chip Mini Graphic + Suffix
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(width = 18.dp, height = 13.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(Color(0xFFFFDF79), Color(0xFFB8860B))
-                                )
-                            )
-                            .border(BorderStroke(0.5.dp, Color(0xFF7A540D)), RoundedCornerShape(2.dp))
-                    )
-
-                    if (card.suffix.isNotBlank()) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "••${card.suffix}",
-                            color = style.subtextColor,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
                 }
             }
         }
