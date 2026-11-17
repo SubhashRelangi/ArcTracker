@@ -766,17 +766,17 @@ private fun RealisticStackedCardDeck(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Reset to All",
-                                color = Color(0xFFFDE68A),
+                                text = "Tuck into wallet",
+                                color = Color(0xFF38BDF8),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
-                                imageVector = Icons.Outlined.Close,
-                                contentDescription = "Reset Selection",
-                                tint = Color(0xFFFDE68A),
-                                modifier = Modifier.size(12.dp)
+                                imageVector = Icons.Outlined.KeyboardArrowUp,
+                                contentDescription = "Tuck into wallet",
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(13.dp)
                             )
                         }
                     }
@@ -852,23 +852,47 @@ private fun RealisticStackedCardDeck(
                     otherCards.reversed() + listOf(activeCard)
                 }
 
+                val isExpanded = selectedCardId != null
                 val stepY = if (cards.size > 3) 30.dp else 36.dp
-                val deckHeight = ((orderedCards.size - 1) * stepY.value + 195).dp
-                val panelTopPadding = ((orderedCards.size - 1) * stepY.value + 130).dp
+
+                // When resting: panel overlaps bottom ~85dp of the card deck (tucked in pocket)
+                // When expanded (card clicked): panel smoothly moves down to reveal full card face!
+                val targetPanelTop = if (isExpanded) {
+                    ((orderedCards.size - 1) * stepY.value + 225).dp
+                } else {
+                    ((orderedCards.size - 1) * stepY.value + 128).dp
+                }
+
+                val targetDeckHeight = if (isExpanded) {
+                    ((orderedCards.size - 1) * stepY.value + 230).dp
+                } else {
+                    ((orderedCards.size - 1) * stepY.value + 195).dp
+                }
+
+                val animatedPanelTop by animateDpAsState(
+                    targetValue = targetPanelTop,
+                    animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f),
+                    label = "walletPanelTop"
+                )
+                val animatedDeckHeight by animateDpAsState(
+                    targetValue = targetDeckHeight,
+                    animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f),
+                    label = "walletDeckHeight"
+                )
 
                 Box(modifier = Modifier.fillMaxWidth()) {
                     // A. Cards Deck Stack (at the top)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(deckHeight)
+                            .height(animatedDeckHeight)
                     ) {
                         orderedCards.forEachIndexed { index, card ->
                             key(card.id) {
                                 val isFront = card.id == activeCard.id
-                                val isSelected = isFront && selectedCardId != null
+                                val isSelected = isFront && isExpanded
                                 val baseY = (index * stepY.value).dp
-                                val targetY = if (isSelected) baseY - 16.dp else baseY
+                                val targetY = if (isSelected) baseY - 6.dp else baseY
                                 val targetScale = if (isFront) 1.0f else (0.93f + (index * 0.025f).coerceAtMost(0.06f))
                                 val targetZ = if (isFront) 35f else (index + 1).toFloat()
 
@@ -895,7 +919,7 @@ private fun RealisticStackedCardDeck(
                                 ) {
                                     FullRealisticCreditCard(
                                         card = card,
-                                        isSelected = isFront && selectedCardId != null,
+                                        isSelected = isFront && isExpanded,
                                         isFront = isFront,
                                         onClick = {
                                             if (isFront) {
@@ -918,7 +942,7 @@ private fun RealisticStackedCardDeck(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = panelTopPadding)
+                            .padding(top = animatedPanelTop)
                             .zIndex(50f),
                         shape = RoundedCornerShape(22.dp),
                         color = if (ArcColors.isDark) ArcColors.SurfaceElevated else Color(0xFF131A29),
@@ -946,25 +970,50 @@ private fun RealisticStackedCardDeck(
                                     overflow = TextOverflow.Ellipsis
                                 )
 
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (selectedCardId != null) Color(0xFF1E3A8A) else Color(0xFF064E3B))
-                                        .border(
-                                            BorderStroke(
-                                                1.dp,
-                                                if (selectedCardId != null) Color(0xFF2563EB) else Color(0xFF047857)
-                                            ),
-                                            RoundedCornerShape(10.dp)
+                                if (isExpanded) {
+                                    Surface(
+                                        onClick = { onCardSelect(null) },
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B),
+                                        border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "Reset to All",
+                                                color = Color(0xFFFDE68A),
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Spacer(modifier = Modifier.width(3.dp))
+                                            Icon(
+                                                imageVector = Icons.Outlined.Close,
+                                                contentDescription = "Reset Selection",
+                                                tint = Color(0xFFFDE68A),
+                                                modifier = Modifier.size(10.dp)
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(Color(0xFF064E3B))
+                                            .border(
+                                                BorderStroke(1.dp, Color(0xFF047857)),
+                                                RoundedCornerShape(10.dp)
+                                            )
+                                            .padding(horizontal = 8.dp, vertical = 2.5.dp)
+                                    ) {
+                                        Text(
+                                            text = "↗ +4.2%",
+                                            color = Color(0xFF34D399),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
                                         )
-                                        .padding(horizontal = 8.dp, vertical = 2.5.dp)
-                                ) {
-                                    Text(
-                                        text = if (selectedCardId != null) "● Card Focus" else "↗ +4.2%",
-                                        color = if (selectedCardId != null) Color(0xFF60A5FA) else Color(0xFF34D399),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    }
                                 }
                             }
 
