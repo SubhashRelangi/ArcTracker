@@ -340,8 +340,8 @@ fun MerchantAliasesScreen(
                             modifier = Modifier
                                 .size(56.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFECFDF5))
-                                .border(1.dp, Color(0xFFA7F3D0), CircleShape),
+                                .background(ArcColors.PrimaryLight)
+                                .border(1.dp, ArcColors.PrimaryBorder, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -386,6 +386,9 @@ fun MerchantAliasesScreen(
                             onEdit = { aliasToEdit = alias },
                             onDelete = { aliasToDelete = alias }
                         )
+                    }
+                    item {
+                        Spacer(modifier = Modifier.navigationBarsPadding().height(80.dp))
                     }
                 }
             }
@@ -479,8 +482,8 @@ fun AliasCard(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFECFDF5))
-                    .border(1.dp, Color(0xFFA7F3D0), CircleShape),
+                    .background(ArcColors.PrimaryLight)
+                    .border(1.dp, ArcColors.PrimaryBorder, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -612,8 +615,8 @@ fun AliasEditorDialog(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFECFDF5),
-                    border = BorderStroke(1.dp, Color(0xFFA7F3D0))
+                    color = ArcColors.PrimaryLight,
+                    border = BorderStroke(1.dp, ArcColors.PrimaryBorder)
                 ) {
                     Text(
                         text = "Preview: \"${aliasText.trim()}\" → \"${canonicalText.trim()}\"",

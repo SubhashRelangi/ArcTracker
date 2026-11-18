@@ -40,47 +40,29 @@ fun ArcEngineIntelligenceCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(InsightsTheme.LightSubCardBackground)
+            .background(InsightsTheme.LightCardBackground)
+            .border(BorderStroke(1.dp, InsightsTheme.LightCardBorder), RoundedCornerShape(20.dp))
             .padding(16.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Header: Arc Engine Intelligence + On-device ML pill
+            // Header: Spending Intelligence
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Outlined.Psychology,
-                        contentDescription = "Intelligence",
-                        tint = InsightsTheme.EmeraldGreen,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Arc Engine Intelligence",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = InsightsTheme.LightTextPrimary
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(InsightsTheme.LightSubCardBackground)
-                        .border(BorderStroke(1.dp, InsightsTheme.LightSubCardBorder), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "On-device ML",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = InsightsTheme.LightTextSecondary
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Outlined.Psychology,
+                    contentDescription = "Intelligence",
+                    tint = InsightsTheme.EmeraldGreen,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Spending Intelligence",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = InsightsTheme.LightTextPrimary
+                )
             }
 
             Spacer(modifier = Modifier.height(14.dp))

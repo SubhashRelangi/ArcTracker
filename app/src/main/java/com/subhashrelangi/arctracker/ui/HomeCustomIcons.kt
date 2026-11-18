@@ -123,7 +123,7 @@ fun WalletPositionIcon(
 @Composable
 fun ChatBubbleDotsIcon(
     modifier: Modifier = Modifier,
-    tint: Color = Color(0xFFCBD5E1)
+    tint: Color = Color(0xFF64748B)
 ) {
     Canvas(modifier = modifier) {
         val strokeW = 1.6.dp.toPx()
@@ -227,7 +227,7 @@ fun ReviewDocumentIcon(
 @Composable
 fun AddCashEditIcon(
     modifier: Modifier = Modifier,
-    tint: Color = Color(0xFFCBD5E1)
+    tint: Color = Color(0xFF64748B)
 ) {
     Canvas(modifier = modifier) {
         val strokeW = 1.6.dp.toPx()
@@ -274,7 +274,7 @@ fun AddCashEditIcon(
 @Composable
 fun ExportTrayIcon(
     modifier: Modifier = Modifier,
-    tint: Color = Color(0xFFCBD5E1)
+    tint: Color = Color(0xFF64748B)
 ) {
     Canvas(modifier = modifier) {
         val strokeW = 1.6.dp.toPx()

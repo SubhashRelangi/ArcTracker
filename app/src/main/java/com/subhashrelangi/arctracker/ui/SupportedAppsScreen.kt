@@ -532,11 +532,11 @@ fun SupportedAppsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Surface(
-                color = Color.White,
+                color = cardBg,
                 shadowElevation = 0.5.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(cardBg)
             ) {
                 ArcTrackerHeader(
                     title = "Monitored Apps",

@@ -190,11 +190,11 @@ fun RegexPatternsScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Surface(
-                color = Color.White,
+                color = cardBg,
                 shadowElevation = 0.5.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(cardBg)
             ) {
                 // Universal Settings Sub-Page Header
                 ArcTrackerHeader(

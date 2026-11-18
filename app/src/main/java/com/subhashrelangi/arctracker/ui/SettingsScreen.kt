@@ -221,9 +221,8 @@ fun SettingsScreen(
         val showFinancial = matchesSearch("Financial Accounts", "Bank", "Cards", "Vaults")
         val showUnresolved = matchesSearch("Unresolved Transactions", "Pending", "Account", "Category")
         val showCategories = matchesSearch("Categories & Rules", "Categories", "Merchant aliases", "Auto-rules")
-        val showAnalytics = matchesSearch("Analytics & Insights", "Analytics", "Insights", "Financial statistics", "Velocity", "Breakdown")
         val showBudgets = matchesSearch("Budgets & Limits", "Budgets", "Limits", "Recurring spending", "Alert thresholds")
-        val hasCoreMatches = showFinancial || showUnresolved || showCategories || showAnalytics || showBudgets
+        val hasCoreMatches = showFinancial || showUnresolved || showCategories || showBudgets
 
         val showTracker = matchesSearch("Tracker Engine", "Automatic Tracking", "Real-time", "Event listener", "Pipeline", "Service", "Zero Latency", "Stats", "Indexed")
 
@@ -449,14 +448,6 @@ fun SettingsScreen(
                             title = "Categories & Rules",
                             subtitle = "Manage 18 categories, merchant aliases & auto-rules",
                             onClick = { onNavigate("CategoryManagement") }
-                        )
-                    }
-                    if (showAnalytics) {
-                        SettingsItemRow(
-                            icon = Icons.Outlined.BarChart,
-                            title = "Analytics & Insights",
-                            subtitle = "Financial statistics, velocity & breakdown",
-                            onClick = { onNavigate("Analytics") }
                         )
                     }
                     if (showBudgets) {
@@ -998,15 +989,9 @@ fun SettingsScreen(
                 }
             }
 
-            // Dynamic bottom clearance so content is never covered by bottom nav bar and floating action button
+            // Dynamic bottom clearance so content is never covered by bottom nav bar
             Spacer(modifier = Modifier.navigationBarsPadding().height(104.dp))
         }
-
-        // 11. Floating "+ Add Expense" Pill Button on bottom-right
-        ArcFloatingAddExpenseButton(
-            onClick = onAddExpenseClick,
-            modifier = Modifier.align(Alignment.BottomEnd)
-        )
     }
 
     // Feedback & Local Logs Bottom Sheet

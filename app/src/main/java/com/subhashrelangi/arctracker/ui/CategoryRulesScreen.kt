@@ -161,7 +161,7 @@ fun CategoryRulesScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
+                color = cardBg,
                 border = BorderStroke(1.dp, cardBorder)
             ) {
                 Column(
@@ -511,6 +511,9 @@ fun CategoryRulesScreen(
                             onDelete = { ruleToDelete = rule },
                             onApplyToTransactions = { onNavigateToApplyRules(rule.id) }
                         )
+                    }
+                    item {
+                        Spacer(modifier = Modifier.navigationBarsPadding().height(80.dp))
                     }
                 }
             }

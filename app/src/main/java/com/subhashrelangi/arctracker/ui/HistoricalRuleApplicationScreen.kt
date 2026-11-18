@@ -305,7 +305,7 @@ fun HistoricalRuleApplicationScreen(
                                 Column(modifier = Modifier.fillMaxSize()) {
                                     // Selection control bar
                                     Surface(
-                                        color = Color.White,
+                                        color = cardBg,
                                         border = BorderStroke(1.dp, cardBorder),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
@@ -389,9 +389,11 @@ fun HistoricalRuleApplicationScreen(
 
                                     // Bottom Apply Button
                                     Surface(
-                                        color = Color.White,
+                                        color = cardBg,
                                         border = BorderStroke(1.dp, cardBorder),
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .navigationBarsPadding()
                                     ) {
                                         Box(modifier = Modifier.padding(16.dp)) {
                                             Button(

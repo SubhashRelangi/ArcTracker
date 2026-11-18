@@ -59,8 +59,8 @@ fun LedgerStatusChip(
             label = "Salary"
         )
         LedgerBadgeType.SMS -> StatusChipConfig(
-            bgColor = Color(0xFF1A1F2C),
-            borderColor = Color(0xFF2B3344),
+            bgColor = LedgerColors.SurfaceHighlight,
+            borderColor = LedgerColors.BorderSubtle,
             contentColor = LedgerColors.TextSecondary,
             icon = Icons.Rounded.AutoAwesome,
             label = "SMS"

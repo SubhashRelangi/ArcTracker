@@ -515,9 +515,9 @@ fun HomeScreenRedesign(
             // ----------------------------------------------------
             HomeQuickActionsHubCard(
                 onScanSmsClick = onScanSmsClick,
+                onAddExpenseClick = onAddExpenseClick,
                 onBudgetsClick = onBudgetsClick,
-                onAccountsClick = onAccountsClick,
-                onExportClick = onExportClick
+                onAccountsClick = onAccountsClick
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -549,7 +549,7 @@ fun HomeScreenRedesign(
             )
 
             // Dynamic bottom clearance so content is never covered by bottom nav bar and floating action button
-            Spacer(modifier = Modifier.navigationBarsPadding().height(104.dp))
+            Spacer(modifier = Modifier.navigationBarsPadding().height(124.dp))
         }
 
         // ----------------------------------------------------
@@ -766,7 +766,7 @@ private fun RealisticStackedCardDeck(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Tuck into wallet",
+                                text = "Tuck Cards",
                                 color = Color(0xFF38BDF8),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -774,7 +774,7 @@ private fun RealisticStackedCardDeck(
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 imageVector = Icons.Outlined.KeyboardArrowUp,
-                                contentDescription = "Tuck into wallet",
+                                contentDescription = "Tuck Cards",
                                 tint = Color(0xFF38BDF8),
                                 modifier = Modifier.size(13.dp)
                             )
@@ -978,11 +978,11 @@ private fun RealisticStackedCardDeck(
                                         border = BorderStroke(1.dp, if (ArcColors.isDark) ArcColors.BorderSubtle else Color(0xFF334155))
                                     ) {
                                         Row(
-                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = "Reset to All",
+                                                text = "All Cards",
                                                 color = Color(0xFFFDE68A),
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.SemiBold
@@ -999,19 +999,15 @@ private fun RealisticStackedCardDeck(
                                 } else {
                                     Box(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(Color(0xFF064E3B))
-                                            .border(
-                                                BorderStroke(1.dp, Color(0xFF047857)),
-                                                RoundedCornerShape(10.dp)
-                                            )
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (ArcColors.isDark) ArcColors.SurfaceHighlight else Color(0xFF1E293B))
                                             .padding(horizontal = 8.dp, vertical = 2.5.dp)
                                     ) {
                                         Text(
-                                            text = "↗ +4.2%",
-                                            color = Color(0xFF34D399),
+                                            text = "${cards.size} Cards",
+                                            color = Color(0xFF94A3B8),
                                             fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.Medium
                                         )
                                     }
                                 }
@@ -1357,20 +1353,14 @@ private fun CardNetworkLogo(
             }
         }
         else -> {
-            Box(
+            Text(
+                text = network.uppercase(),
+                color = contentColor.copy(alpha = 0.75f),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
                 modifier = modifier
-                    .clip(RoundedCornerShape(4.dp))
-                    .border(BorderStroke(0.8.dp, contentColor.copy(alpha = 0.6f)), RoundedCornerShape(4.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = network.uppercase(),
-                    color = contentColor,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.8.sp
-                )
-            }
+            )
         }
     }
 }
@@ -1568,38 +1558,6 @@ private fun FullRealisticCreditCard(
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                        } else if (isSelected) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(
-                                        if (card.theme == WalletCardTheme.PORCELAIN_WHITE && !ArcColors.isDark) {
-                                            Color(0xFFEFF6FF)
-                                        } else {
-                                            Color.White.copy(alpha = 0.22f)
-                                        }
-                                    )
-                                    .border(
-                                        BorderStroke(
-                                            0.8.dp,
-                                            if (card.theme == WalletCardTheme.PORCELAIN_WHITE && !ArcColors.isDark) {
-                                                Color(0xFF2563EB)
-                                            } else {
-                                                Color.White.copy(alpha = 0.45f)
-                                            }
-                                        ),
-                                        RoundedCornerShape(6.dp)
-                                    )
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "● Active",
-                                    color = if (card.theme == WalletCardTheme.PORCELAIN_WHITE && !ArcColors.isDark) Color(0xFF2563EB) else Color.White,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
                         }
 
                         // NFC Contactless Waves
@@ -1615,22 +1573,13 @@ private fun FullRealisticCreditCard(
                 ) {
                     EmvChip()
 
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "AVAILABLE BALANCE",
-                            color = style.subtextColor,
-                            fontSize = 8.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.7.sp
-                        )
-                        Spacer(modifier = Modifier.height(1.dp))
-                        Text(
-                            text = card.balanceFormatted,
-                            color = style.contentColor,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Text(
+                        text = card.balanceFormatted,
+                        color = style.contentColor,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.4).sp
+                    )
                 }
 
                 // 3. Middle: Masked Card Number
@@ -1648,93 +1597,22 @@ private fun FullRealisticCreditCard(
                     letterSpacing = 2.4.sp
                 )
 
-                // 4. Expanded Details: Income & Expense (when front card)
-                if (isFront) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color.Black.copy(alpha = 0.28f),
-                        border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.15f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "In: ",
-                                color = Color.White.copy(alpha = 0.75f),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = card.incomeFormatted,
-                                color = Color(0xFF34D399),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Out: ",
-                                color = Color.White.copy(alpha = 0.75f),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = card.expenseFormatted,
-                                color = Color(0xFFF87171),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-
-                // 5. Bottom Row: Cardholder Name & Valid Thru on left, Network Logo on right
+                // 4. Bottom Row: Cardholder/Account Name on left, Network Logo on right
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Column {
-                            Text(
-                                text = "CARDHOLDER",
-                                color = style.subtextColor,
-                                fontSize = 7.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.8.sp
-                            )
-                            Spacer(modifier = Modifier.height(1.dp))
-                            Text(
-                                text = card.cardName.uppercase(),
-                                color = style.contentColor,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.6.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column {
-                            Text(
-                                text = "VALID THRU",
-                                color = style.subtextColor,
-                                fontSize = 7.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.6.sp
-                            )
-                            Spacer(modifier = Modifier.height(1.dp))
-                            Text(
-                                text = "12/29",
-                                color = style.contentColor,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
+                    Text(
+                        text = card.cardName.uppercase(),
+                        color = style.subtextColor,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.8.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
 
                     // Card Payment Network at bottom-right
                     val network = detectCardNetwork(card)
@@ -1842,9 +1720,9 @@ private fun ReviewAlertBanner(
 @Composable
 private fun HomeQuickActionsHubCard(
     onScanSmsClick: () -> Unit,
+    onAddExpenseClick: () -> Unit,
     onBudgetsClick: () -> Unit,
-    onAccountsClick: () -> Unit,
-    onExportClick: () -> Unit
+    onAccountsClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -1867,7 +1745,6 @@ private fun HomeQuickActionsHubCard(
                 iconColor = if (ArcColors.current.isDark) Color(0xFF60A5FA) else Color(0xFF2563EB),
                 iconBgColor = if (ArcColors.current.isDark) Color(0xFF1E293B) else Color(0xFFEFF6FF),
                 title = "Scan SMS",
-                subtitle = "Sync alerts",
                 onClick = onScanSmsClick
             )
 
@@ -1878,14 +1755,30 @@ private fun HomeQuickActionsHubCard(
                     .background(CardBorderLight)
             )
 
-            // 2. Budgets
+            // 2. Add Expense
+            QuickActionHubItem(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.Add,
+                iconColor = if (ArcColors.current.isDark) Color(0xFF34D399) else Color(0xFF047857),
+                iconBgColor = if (ArcColors.current.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5),
+                title = "Expense",
+                onClick = onAddExpenseClick
+            )
+
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(34.dp)
+                    .background(CardBorderLight)
+            )
+
+            // 3. Budgets
             QuickActionHubItem(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Rounded.Savings,
-                iconColor = if (ArcColors.current.isDark) Color(0xFF34D399) else Color(0xFF059669),
-                iconBgColor = if (ArcColors.current.isDark) Color(0xFF064E3B) else Color(0xFFECFDF5),
+                iconColor = if (ArcColors.current.isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
+                iconBgColor = if (ArcColors.current.isDark) Color(0xFF2B1F09) else Color(0xFFFFFBEB),
                 title = "Budgets",
-                subtitle = "Spend caps",
                 onClick = onBudgetsClick
             )
 
@@ -1896,33 +1789,14 @@ private fun HomeQuickActionsHubCard(
                     .background(CardBorderLight)
             )
 
-            // 3. Accounts
+            // 4. Accounts
             QuickActionHubItem(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Rounded.AccountBalance,
-                iconColor = if (ArcColors.current.isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
-                iconBgColor = if (ArcColors.current.isDark) Color(0xFF2B1F09) else Color(0xFFFFFBEB),
-                title = "Accounts",
-                subtitle = "Bank vaults",
-                onClick = onAccountsClick
-            )
-
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(34.dp)
-                    .background(CardBorderLight)
-            )
-
-            // 4. Export
-            QuickActionHubItem(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Rounded.FileDownload,
                 iconColor = if (ArcColors.current.isDark) Color(0xFFA78BFA) else Color(0xFF7C3AED),
                 iconBgColor = if (ArcColors.current.isDark) Color(0xFF2E1A47) else Color(0xFFF5F3FF),
-                title = "Export",
-                subtitle = "Vault Backup",
-                onClick = onExportClick
+                title = "Accounts",
+                onClick = onAccountsClick
             )
         }
     }
@@ -1935,7 +1809,6 @@ private fun QuickActionHubItem(
     iconColor: Color,
     iconBgColor: Color,
     title: String,
-    subtitle: String,
     onClick: () -> Unit
 ) {
     Column(
@@ -1969,19 +1842,9 @@ private fun QuickActionHubItem(
 
         Text(
             text = title,
-            fontSize = 11.5.sp,
-            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
             color = TextDarkPrimary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        Spacer(modifier = Modifier.height(1.dp))
-
-        Text(
-            text = subtitle,
-            fontSize = 10.sp,
-            color = TextDarkMuted,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )

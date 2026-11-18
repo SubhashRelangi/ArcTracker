@@ -68,7 +68,7 @@ fun ArcStatusDot(
 fun ArcCountBadge(
     countText: String,
     modifier: Modifier = Modifier,
-    backgroundColor: Color = Color(0xFF1E2432),
+    backgroundColor: Color = ArcColors.SurfaceHighlight,
     textColor: Color = ArcColors.TextSecondary
 ) {
     Box(

@@ -1614,8 +1614,8 @@ private fun SmsScanResultContent(
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
-                    .background(Color(0xFFECFDF5))
-                    .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), CircleShape)
+                    .background(StepPillBg)
+                    .border(BorderStroke(1.dp, StepPillBorder), CircleShape)
                     .padding(horizontal = 9.dp, vertical = 3.dp)
             ) {
                 Row(
@@ -2065,8 +2065,8 @@ private fun SmsImportCompleteContent(
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
-                    .background(Color(0xFFECFDF5))
-                    .border(BorderStroke(1.dp, Color(0xFFA7F3D0)), CircleShape)
+                    .background(StepPillBg)
+                    .border(BorderStroke(1.dp, StepPillBorder), CircleShape)
                     .padding(horizontal = 9.dp, vertical = 3.dp)
             ) {
                 Row(

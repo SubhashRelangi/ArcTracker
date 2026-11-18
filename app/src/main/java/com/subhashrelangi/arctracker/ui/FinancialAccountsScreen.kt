@@ -496,7 +496,7 @@ fun FinancialAccountsScreen(
                         .fillMaxWidth()
                         .height(48.dp),
                     shape = RoundedCornerShape(14.dp),
-                    color = Color.White,
+                    color = cardBg,
                     border = BorderStroke(1.2.dp, Color(0xFF10B981))
                 ) {
                     Row(
@@ -523,15 +523,20 @@ fun FinancialAccountsScreen(
 
             // 6. Security & Privacy Footer
             item(key = "privacy_footer") {
-                Text(
-                    text = "ArcTracker operates offline  •  Transaction signatures remain local",
-                    fontSize = 11.5.sp,
-                    color = Color(0xFF94A3B8),
-                    textAlign = TextAlign.Center,
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 4.dp, bottom = 8.dp)
-                )
+                ) {
+                    Text(
+                        text = "ArcTracker operates offline  •  Transaction signatures remain local",
+                        fontSize = 11.5.sp,
+                        color = Color(0xFF94A3B8),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.navigationBarsPadding().height(60.dp))
+                }
             }
         }
     }

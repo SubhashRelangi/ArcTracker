@@ -1959,63 +1959,21 @@ fun ReviewPage(
                 }
             }
 
-            // 6. Zero Telemetry Local Storage SQLite Card
+            // 6. Privacy Footer
             item(key = "zero_telemetry_banner") {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = ArcColors.SurfaceHighlight,
-                    border = BorderStroke(1.dp, ArcColors.Border),
-                    modifier = Modifier.fillMaxWidth()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(ArcColors.CardBackground)
-                                .border(1.dp, ArcColors.Border, RoundedCornerShape(10.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Sync,
-                                contentDescription = null,
-                                tint = ArcColors.Primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "Zero Telemetry Local Storage",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ArcColors.TextPrimary
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "SQLITE",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ArcColors.Primary
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "All vendor matches & rule engines run purely on-device. SMS text never leaves this phone.",
-                                fontSize = 11.5.sp,
-                                color = ArcColors.TextSecondary,
-                                lineHeight = 16.sp
-                            )
-                        }
-                    }
+                    Text(
+                        text = "ArcTracker operates 100% on-device  •  SMS text never leaves this phone",
+                        fontSize = 11.5.sp,
+                        color = ArcColors.TextMuted,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.navigationBarsPadding().height(90.dp))
                 }
             }
         }
