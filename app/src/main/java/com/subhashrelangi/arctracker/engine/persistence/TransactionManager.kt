@@ -50,19 +50,24 @@ class TransactionManager(
      * Safely updates user-editable fields of an existing [Expense].
      *
      * Invariants:
-     * - Only user-editable fields (merchant, category/tag, note) are updated.
-     * - Merchant is trimmed; cannot be blank.
+     * - Merchant is trimmed; cannot be blank when updated.
+     * - Amount cannot be negative.
+     * - Timestamp (dateMillis) is strictly preserved if not provided.
      * - Category resolves to stable categoryId and canonical category name.
      * - Note can be empty string or null.
-     * - System-generated fields (amount, type, dateMillis, notificationKey, rawText,
-     *   source, isPending, relationshipType, relationshipId, accountId, accountSuffix)
-     *   are strictly preserved.
+     * - System-generated audit trail (notificationKey, rawText, source, relationshipId) is preserved.
      */
     suspend fun updateTransaction(
         expenseId: Int,
         merchant: String? = null,
         category: String? = null,
-        note: String? = null
+        note: String? = null,
+        amount: Double? = null,
+        dateMillis: Long? = null,
+        type: String? = null,
+        categoryId: String? = null,
+        accountId: String? = null,
+        accountSuffix: String? = null
     ): Result<Expense> {
         return try {
             val existing = expenseDao.getExpenseById(expenseId)
@@ -78,7 +83,40 @@ class TransactionManager(
                 existing.merchant
             }
 
-            val (resolvedCategoryId, resolvedCategoryName, resolvedCategorySource) = if (category != null) {
+            val newAmount = if (amount != null) {
+                if (amount < 0.0) {
+                    return Result.failure(IllegalArgumentException("Amount cannot be negative"))
+                }
+                amount
+            } else {
+                existing.amount
+            }
+
+            val newDateMillis = if (dateMillis != null && dateMillis > 0L) {
+                dateMillis
+            } else {
+                existing.dateMillis
+            }
+
+            val newType = if (type != null) {
+                when {
+                    type.equals("Credit", ignoreCase = true) || type.equals("Income", ignoreCase = true) -> "Credit"
+                    type.equals("Transfer", ignoreCase = true) -> "Transfer"
+                    else -> "Debit"
+                }
+            } else {
+                existing.type
+            }
+
+            val (resolvedCategoryId, resolvedCategoryName, resolvedCategorySource) = if (categoryId != null && categoryId.isNotBlank()) {
+                val cat = categoryDao?.getById(categoryId.trim())
+                    ?: BuiltInCategories.findLegacyMapping(categoryId.trim())
+                if (cat != null) {
+                    Triple(cat.id, cat.name, CategorySource.USER_ASSIGNED)
+                } else {
+                    Triple(categoryId.trim(), category?.trim() ?: categoryId.trim(), CategorySource.USER_ASSIGNED)
+                }
+            } else if (category != null) {
                 val trimmed = category.trim()
                 if (trimmed.isEmpty() || trimmed.equals("uncategorized", ignoreCase = true)) {
                     Triple(null, null, CategorySource.NONE)
@@ -102,12 +140,29 @@ class TransactionManager(
                 existing.note
             }
 
+            val newAccountId = if (accountId != null) {
+                accountId.trim().ifEmpty { null }
+            } else {
+                existing.accountId
+            }
+
+            val newAccountSuffix = if (accountSuffix != null) {
+                accountSuffix.trim().ifEmpty { null }
+            } else {
+                existing.accountSuffix
+            }
+
             val updated = existing.copy(
                 merchant = newMerchant,
+                amount = newAmount,
+                dateMillis = newDateMillis,
+                type = newType,
                 categoryId = resolvedCategoryId,
                 tag = resolvedCategoryName,
                 categorySource = resolvedCategorySource,
-                note = newNote
+                note = newNote,
+                accountId = newAccountId,
+                accountSuffix = newAccountSuffix
             )
 
             val rows = expenseDao.update(updated)
@@ -120,6 +175,19 @@ class TransactionManager(
             Result.failure(e)
         }
     }
+
+    suspend fun updateTransaction(expense: Expense): Result<Expense> = updateTransaction(
+        expenseId = expense.id,
+        merchant = expense.merchant,
+        category = expense.tag ?: expense.category,
+        note = expense.note,
+        amount = expense.amount,
+        dateMillis = expense.dateMillis,
+        type = expense.type,
+        categoryId = expense.categoryId,
+        accountId = expense.accountId,
+        accountSuffix = expense.accountSuffix
+    )
 
     /**
      * Deletes a single transaction upon explicit user confirmation.

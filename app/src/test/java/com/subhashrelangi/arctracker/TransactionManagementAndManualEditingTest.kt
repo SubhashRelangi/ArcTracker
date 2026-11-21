@@ -221,6 +221,107 @@ class TransactionManagementAndManualEditingTest {
         assertEquals("Original Merchant", inDb!!.merchant)
     }
 
+    @Test
+    fun test13b_amountEditPersists() = runBlocking {
+        val id = expenseDao.insert(
+            Expense(amount = 250.0, merchant = "Swiggy", dateMillis = referenceTimeMillis)
+        ).toInt()
+
+        val res = transactionManager.updateTransaction(id, amount = 499.50)
+        assertTrue(res.isSuccess)
+
+        val updated = expenseDao.getExpenseById(id)
+        assertEquals(499.50, updated!!.amount, 0.001)
+        assertEquals("Swiggy", updated.merchant)
+        assertEquals(referenceTimeMillis, updated.dateMillis)
+    }
+
+    @Test
+    fun test13c_timestampAndDateEditPersists() = runBlocking {
+        val oldTs = referenceTimeMillis - 86400000L
+        val newTs = referenceTimeMillis + 3600000L
+        val id = expenseDao.insert(
+            Expense(amount = 120.0, merchant = "Starbucks", dateMillis = oldTs)
+        ).toInt()
+
+        val res = transactionManager.updateTransaction(id, dateMillis = newTs)
+        assertTrue(res.isSuccess)
+
+        val updated = expenseDao.getExpenseById(id)
+        assertEquals(newTs, updated!!.dateMillis)
+        assertEquals(120.0, updated.amount, 0.001)
+        assertEquals("Starbucks", updated.merchant)
+    }
+
+    @Test
+    fun test13d_typeEditPersists() = runBlocking {
+        val id = expenseDao.insert(
+            Expense(amount = 1500.0, merchant = "Salary Credit", dateMillis = referenceTimeMillis, type = "Debit")
+        ).toInt()
+
+        val res = transactionManager.updateTransaction(id, type = "Credit")
+        assertTrue(res.isSuccess)
+
+        val updated = expenseDao.getExpenseById(id)
+        assertEquals("Credit", updated!!.type)
+    }
+
+    @Test
+    fun test13e_accountEditPersists() = runBlocking {
+        val id = expenseDao.insert(
+            Expense(amount = 100.0, merchant = "Amazon", dateMillis = referenceTimeMillis, accountId = null, accountSuffix = null)
+        ).toInt()
+
+        val res = transactionManager.updateTransaction(id, accountId = "hdfc_1234", accountSuffix = "1234")
+        assertTrue(res.isSuccess)
+
+        val updated = expenseDao.getExpenseById(id)
+        assertEquals("hdfc_1234", updated!!.accountId)
+        assertEquals("1234", updated.accountSuffix)
+    }
+
+    @Test
+    fun test13f_fullManualTransactionEditPersists() = runBlocking {
+        val oldTs = referenceTimeMillis - 100000L
+        val newTs = referenceTimeMillis + 50000L
+        val id = expenseDao.insert(
+            Expense(
+                amount = 100.0,
+                merchant = "Old Merchant",
+                dateMillis = oldTs,
+                type = "Debit",
+                tag = "Food",
+                note = "Old Note",
+                accountId = "old_acc",
+                accountSuffix = "0000"
+            )
+        ).toInt()
+
+        val res = transactionManager.updateTransaction(
+            expenseId = id,
+            merchant = "New Merchant",
+            amount = 350.75,
+            dateMillis = newTs,
+            type = "Credit",
+            category = TransactionCategories.FOOD_AND_DINING,
+            note = "New Note #work",
+            accountId = "new_acc",
+            accountSuffix = "9999"
+        )
+        assertTrue(res.isSuccess)
+
+        val updated = expenseDao.getExpenseById(id)
+        assertNotNull(updated)
+        assertEquals("New Merchant", updated!!.merchant)
+        assertEquals(350.75, updated.amount, 0.001)
+        assertEquals(newTs, updated.dateMillis)
+        assertEquals("Credit", updated.type)
+        assertEquals(TransactionCategories.FOOD_AND_DINING, updated.tag)
+        assertEquals("New Note #work", updated.note)
+        assertEquals("new_acc", updated.accountId)
+        assertEquals("9999", updated.accountSuffix)
+    }
+
     // ==========================================
     // CATEGORY (14–17)
     // ==========================================

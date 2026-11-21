@@ -82,7 +82,7 @@ fun TransactionDetailDialog(
     allCategories: List<TransactionCategory> = emptyList(),
     recentMerchants: List<String> = emptyList(),
     onDismiss: () -> Unit,
-    onSaveEdit: (expenseId: Int, merchant: String, category: String?, note: String?) -> Unit,
+    onSaveEdit: (updatedExpense: Expense) -> Unit,
     onAssignAccount: ((expenseId: Int, targetAccountId: String) -> Unit)? = null,
     onReassignAccount: ((expenseId: Int, newAccountId: String) -> Unit)? = null,
     onUnlinkAccount: ((expenseId: Int) -> Unit)? = null,
@@ -90,12 +90,15 @@ fun TransactionDetailDialog(
 ) {
     val context = LocalContext.current
 
+    // Mutable state holding current transaction values (updated on edit save)
+    var currentExpense by remember(expense) { mutableStateOf(expense) }
+
     // Edit Mode State
     var isEditMode by remember(initialEditMode) { mutableStateOf(initialEditMode) }
-    var editedMerchant by remember(expense) { mutableStateOf(expense.merchant) }
-    var editedCategory by remember(expense) { mutableStateOf(expense.category ?: "") }
-    var editedCategoryId by remember(expense) { mutableStateOf(expense.categoryId) }
-    var editedNote by remember(expense) { mutableStateOf(expense.note ?: "") }
+    var editedMerchant by remember(currentExpense) { mutableStateOf(currentExpense.merchant) }
+    var editedCategory by remember(currentExpense) { mutableStateOf(currentExpense.category ?: "") }
+    var editedCategoryId by remember(currentExpense) { mutableStateOf(currentExpense.categoryId) }
+    var editedNote by remember(currentExpense) { mutableStateOf(currentExpense.note ?: "") }
     var merchantError by remember { mutableStateOf<String?>(null) }
 
     // Dialogs State
@@ -111,21 +114,21 @@ fun TransactionDetailDialog(
     var showAddTagDialog by remember { mutableStateOf(false) }
 
     // Tags State (Only real extracted tags)
-    var currentTags by remember(expense.note, expense.tag, editedNote, editedCategory) {
-        mutableStateOf(extractTags(editedNote.ifBlank { expense.note }, editedCategory.ifBlank { expense.tag }))
+    var currentTags by remember(currentExpense.note, currentExpense.tag, editedNote, editedCategory) {
+        mutableStateOf(extractTags(editedNote.ifBlank { currentExpense.note }, editedCategory.ifBlank { currentExpense.tag }))
     }
 
     // Linked Account lookup
-    val linkedAccount = remember(expense.accountId, knownAccounts) {
-        knownAccounts.find { it.id == expense.accountId }
+    val linkedAccount = remember(currentExpense.accountId, knownAccounts) {
+        knownAccounts.find { it.id == currentExpense.accountId }
     }
 
     // Direction & Financial Typography
-    val isCredit = expense.type.equals("Credit", ignoreCase = true)
-    val isTransfer = expense.type.equals("Transfer", ignoreCase = true)
+    val isCredit = currentExpense.type.equals("Credit", ignoreCase = true)
+    val isTransfer = currentExpense.type.equals("Transfer", ignoreCase = true)
     val sign = if (isCredit) "+" else "-"
 
-    val dateMillis = if (expense.dateMillis > 0) expense.dateMillis else System.currentTimeMillis()
+    val dateMillis = if (currentExpense.dateMillis > 0) currentExpense.dateMillis else System.currentTimeMillis()
     val formattedHeroDate = remember(dateMillis) {
         SimpleDateFormat("EEEE, MMM dd, yyyy • hh:mm a", Locale.US).format(Date(dateMillis))
     }
@@ -135,78 +138,78 @@ fun TransactionDetailDialog(
     val dateCode = remember(dateMillis) {
         SimpleDateFormat("yyyyMMdd", Locale.US).format(Date(dateMillis))
     }
-    val txnCode = "#TXN-$dateCode-${expense.id.toString().padStart(4, '0')}"
+    val txnCode = "#TXN-$dateCode-${currentExpense.id.toString().padStart(4, '0')}"
 
     // Merchant title: Use actual merchant; if blank, fallback to category or generic "Expense" (no dummy data)
-    val transactionTitle = remember(expense.merchant, expense.category, expense.tag, editedMerchant) {
-        val currentMerchant = if (editedMerchant.isNotBlank()) editedMerchant else expense.merchant
+    val transactionTitle = remember(currentExpense.merchant, currentExpense.category, currentExpense.tag, editedMerchant) {
+        val currentMerchant = if (editedMerchant.isNotBlank()) editedMerchant else currentExpense.merchant
         when {
             currentMerchant.isNotBlank() && currentMerchant != "-" -> currentMerchant
-            !expense.category.isNullOrBlank() -> expense.category!!
-            !expense.tag.isNullOrBlank() -> expense.tag!!
+            !currentExpense.category.isNullOrBlank() -> currentExpense.category!!
+            !currentExpense.tag.isNullOrBlank() -> currentExpense.tag!!
             else -> "Expense Transaction"
         }
     }
 
     // Is this a manual entry (or an entry without SMS evidence)?
-    val isManualEntry = remember(expense.source, expense.rawText, expense.notificationKey) {
-        expense.source.contains("MANUAL", ignoreCase = true) ||
-            (expense.rawText.isNullOrBlank() && expense.notificationKey.isNullOrBlank())
+    val isManualEntry = remember(currentExpense.source, currentExpense.rawText, currentExpense.notificationKey) {
+        currentExpense.source.contains("MANUAL", ignoreCase = true) ||
+            (currentExpense.rawText.isNullOrBlank() && currentExpense.notificationKey.isNullOrBlank())
     }
 
     // Extraction of UPI Ref, Balance, Source (real data only, no dummy fallback)
-    val upiRef = remember(expense.rawText, expense.note, expense.notificationKey) {
-        extractUpiRef(expense.rawText, expense.note, expense.notificationKey)
+    val upiRef = remember(currentExpense.rawText, currentExpense.note, currentExpense.notificationKey) {
+        extractUpiRef(currentExpense.rawText, currentExpense.note, currentExpense.notificationKey)
     }
 
-    val postTxnBalance = remember(expense.rawText) {
-        extractBalance(expense.rawText)
+    val postTxnBalance = remember(currentExpense.rawText) {
+        extractBalance(currentExpense.rawText)
     }
 
-    val humanizedSource = remember(expense.source, isManualEntry) {
+    val humanizedSource = remember(currentExpense.source, isManualEntry) {
         when {
             isManualEntry -> "Manual Entry"
-            expense.source.contains("NOTIFICATION", ignoreCase = true) -> "Payment Notification"
-            expense.source.contains("SMS", ignoreCase = true) -> "SMS Notification"
-            expense.source.isNotBlank() -> expense.source
+            currentExpense.source.contains("NOTIFICATION", ignoreCase = true) -> "Payment Notification"
+            currentExpense.source.contains("SMS", ignoreCase = true) -> "SMS Notification"
+            currentExpense.source.isNotBlank() -> currentExpense.source
             else -> "Local Ingestion"
         }
     }
 
     // Origin Sender ID: Extract only from actual raw text or notification key
-    val originSenderId = remember(expense.rawText, expense.notificationKey, isManualEntry) {
-        if (isManualEntry) null else extractSenderId(expense.rawText, expense.notificationKey)
+    val originSenderId = remember(currentExpense.rawText, currentExpense.notificationKey, isManualEntry) {
+        if (isManualEntry) null else extractSenderId(currentExpense.rawText, currentExpense.notificationKey)
     }
 
     // Payment Channel: Deduce only from real data if present
-    val paymentChannel = remember(expense.rawText, expense.source, isManualEntry) {
+    val paymentChannel = remember(currentExpense.rawText, currentExpense.source, isManualEntry) {
         when {
             isManualEntry -> "Manual Ledger Entry"
-            expense.rawText?.contains("POS", ignoreCase = true) == true ||
-                expense.rawText?.contains("ending", ignoreCase = true) == true -> "POS Terminal / Card"
-            expense.rawText?.contains("UPI", ignoreCase = true) == true -> "UPI / Instant Transfer"
-            expense.rawText?.contains("ATM", ignoreCase = true) == true -> "ATM Cash Withdrawal"
-            expense.rawText?.contains("NetBanking", ignoreCase = true) == true ||
-                expense.rawText?.contains("IMPS", ignoreCase = true) == true -> "Net Banking / IMPS"
-            expense.source.isNotBlank() && !expense.source.equals("SMS", true) -> expense.source
+            currentExpense.rawText?.contains("POS", ignoreCase = true) == true ||
+                currentExpense.rawText?.contains("ending", ignoreCase = true) == true -> "POS Terminal / Card"
+            currentExpense.rawText?.contains("UPI", ignoreCase = true) == true -> "UPI / Instant Transfer"
+            currentExpense.rawText?.contains("ATM", ignoreCase = true) == true -> "ATM Cash Withdrawal"
+            currentExpense.rawText?.contains("NetBanking", ignoreCase = true) == true ||
+                currentExpense.rawText?.contains("IMPS", ignoreCase = true) == true -> "Net Banking / IMPS"
+            currentExpense.source.isNotBlank() && !currentExpense.source.equals("SMS", true) -> currentExpense.source
             else -> null
         }
     }
 
     // Resolved Category
-    val resolvedCategory = remember(expense, allCategories, editedCategoryId, editedCategory) {
+    val resolvedCategory = remember(currentExpense, allCategories, editedCategoryId, editedCategory) {
         allCategories.find { it.id == editedCategoryId || it.name.equals(editedCategory, ignoreCase = true) }
             ?: BuiltInCategories.findLegacyMapping(editedCategory)
     }
     val categoryIconKey = resolvedCategory?.iconKey ?: "restaurant"
     val categoryDisplayName = resolvedCategory?.name
-        ?: editedCategory.ifBlank { expense.category ?: "Uncategorized" }
+        ?: editedCategory.ifBlank { currentExpense.category ?: "Uncategorized" }
 
     // Secondary Description / Location: Only show real location or category if distinct from merchant title
-    val secondaryDescription = remember(expense.merchant, categoryDisplayName, expense.category, expense.tag) {
+    val secondaryDescription = remember(currentExpense.merchant, categoryDisplayName, currentExpense.category, currentExpense.tag) {
         when {
-            !expense.category.isNullOrBlank() && expense.category != transactionTitle -> expense.category
-            !expense.tag.isNullOrBlank() && expense.tag != transactionTitle -> expense.tag
+            !currentExpense.category.isNullOrBlank() && currentExpense.category != transactionTitle -> currentExpense.category
+            !currentExpense.tag.isNullOrBlank() && currentExpense.tag != transactionTitle -> currentExpense.tag
             categoryDisplayName.isNotBlank() && categoryDisplayName != "-" && categoryDisplayName != transactionTitle -> categoryDisplayName
             else -> null
         }
@@ -243,12 +246,7 @@ fun TransactionDetailDialog(
                 color = lightBg
             ) {
                 EditTransactionPage(
-                    expense = expense.copy(
-                        merchant = editedMerchant.ifBlank { expense.merchant },
-                        tag = editedCategory.ifBlank { expense.tag },
-                        categoryId = editedCategoryId ?: expense.categoryId,
-                        note = editedNote
-                    ),
+                    expense = currentExpense,
                     knownAccounts = knownAccounts,
                     allCategories = allCategories,
                     recentMerchants = recentMerchants,
@@ -259,11 +257,13 @@ fun TransactionDetailDialog(
                             isEditMode = false
                         }
                     },
-                    onSave = { expenseId, merchant, category, note ->
-                        editedMerchant = merchant
-                        editedCategory = category ?: ""
-                        editedNote = note ?: ""
-                        onSaveEdit(expenseId, merchant, category, note)
+                    onSave = { updatedExpense ->
+                        currentExpense = updatedExpense
+                        editedMerchant = updatedExpense.merchant
+                        editedCategory = updatedExpense.tag ?: ""
+                        editedCategoryId = updatedExpense.categoryId
+                        editedNote = updatedExpense.note ?: ""
+                        onSaveEdit(updatedExpense)
                         if (closeOnBackOrSave) {
                             onDismiss()
                         } else {
@@ -400,7 +400,7 @@ fun TransactionDetailDialog(
                                         .background(ArcColors.Primary)
                                 )
                                 Text(
-                                    text = if (expense.accountId != null) "Verified & Reconciled" else "Committed to Ledger",
+                                    text = if (currentExpense.accountId != null) "Verified & Reconciled" else "Committed to Ledger",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = ArcColors.Primary
@@ -436,10 +436,10 @@ fun TransactionDetailDialog(
                             isCredit = isCredit,
                             isTransfer = isTransfer,
                             sign = sign,
-                            amount = expense.amount,
+                            amount = currentExpense.amount,
                             formattedHeroDate = formattedHeroDate,
                             categoryIconKey = categoryIconKey,
-                            isReconciled = expense.accountId != null
+                            isReconciled = currentExpense.accountId != null
                         )
                     }
 
@@ -563,8 +563,8 @@ fun TransactionDetailDialog(
                     item {
                         TransactionAccountSection(
                             linkedAccount = linkedAccount,
-                            accountSuffix = expense.accountSuffix,
-                            isPending = expense.isPending,
+                            accountSuffix = currentExpense.accountSuffix,
+                            isPending = currentExpense.isPending,
                             postTxnBalance = postTxnBalance,
                             paymentChannel = paymentChannel,
                             upiRef = if (upiRef != "-") upiRef else null,
@@ -595,7 +595,7 @@ fun TransactionDetailDialog(
                             categoryIconKey = categoryIconKey,
                             categorySubtitle = if (resolvedCategory?.isSystem == true) "System Category" else null,
                             tags = currentTags,
-                            memoNote = editedNote.ifBlank { expense.note ?: "" },
+                            memoNote = editedNote.ifBlank { currentExpense.note ?: "" },
                             onReassignClick = {
                                 confirmPromptTitle = "Change Category?"
                                 confirmPromptMessage = "Do you want to change the category for this transaction?"
@@ -624,7 +624,7 @@ fun TransactionDetailDialog(
                             sourceProtocol = humanizedSource,
                             originSenderId = originSenderId,
                             parserTimestamp = if (!isManualEntry) formattedParserDate else null,
-                            rawSnippet = expense.rawText?.takeIf { it.isNotBlank() }
+                            rawSnippet = currentExpense.rawText?.takeIf { it.isNotBlank() }
                         )
                     }
 
@@ -640,7 +640,7 @@ fun TransactionDetailDialog(
                             // Share Transaction Details Button
                             Button(
                                 onClick = {
-                                    exportTransactionReceipt(context, expense, linkedAccount, txnCode, upiRef)
+                                    exportTransactionReceipt(context, currentExpense, linkedAccount, txnCode, upiRef)
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -673,7 +673,7 @@ fun TransactionDetailDialog(
                             }
 
                             // Centered Report Parsing Mismatch (Only shown when raw SMS/notification evidence exists)
-                            if (!expense.rawText.isNullOrBlank()) {
+                            if (!currentExpense.rawText.isNullOrBlank()) {
                                 Row(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
@@ -712,8 +712,8 @@ fun TransactionDetailDialog(
     if (showAccountPickerDialog) {
         DarkAccountPickerDialog(
             isReassign = isReassignPicker,
-            candidateAccounts = remember(knownAccounts, expense) {
-                val suffix = expense.accountSuffix
+            candidateAccounts = remember(knownAccounts, currentExpense) {
+                val suffix = currentExpense.accountSuffix
                 if (!suffix.isNullOrBlank()) {
                     val matching = knownAccounts.filter { it.accountSuffix == suffix }
                     val others = knownAccounts.filter { it.accountSuffix != suffix }
@@ -722,13 +722,13 @@ fun TransactionDetailDialog(
                     knownAccounts
                 }
             },
-            currentSuffix = expense.accountSuffix,
+            currentSuffix = currentExpense.accountSuffix,
             onSelectAccount = { acc ->
                 showAccountPickerDialog = false
                 if (isReassignPicker) {
-                    onReassignAccount?.invoke(expense.id, acc.id)
+                    onReassignAccount?.invoke(currentExpense.id, acc.id)
                 } else {
-                    onAssignAccount?.invoke(expense.id, acc.id)
+                    onAssignAccount?.invoke(currentExpense.id, acc.id)
                 }
             },
             onDismiss = { showAccountPickerDialog = false }
@@ -740,7 +740,7 @@ fun TransactionDetailDialog(
         DarkUnlinkConfirmDialog(
             onConfirm = {
                 showUnlinkConfirmDialog = false
-                onUnlinkAccount?.invoke(expense.id)
+                onUnlinkAccount?.invoke(currentExpense.id)
             },
             onDismiss = { showUnlinkConfirmDialog = false }
         )
@@ -749,7 +749,7 @@ fun TransactionDetailDialog(
     // Delete Confirmation Dialog
     if (showDeleteConfirmDialog) {
         DarkDeleteConfirmDialog(
-            expense = expense,
+            expense = currentExpense,
             sign = sign,
             onConfirm = {
                 showDeleteConfirmDialog = false
@@ -792,8 +792,14 @@ fun TransactionDetailDialog(
                 editedCategoryId = cat.id
                 editedCategory = cat.name
                 showCategoryPickerDialog = false
+                val updated = currentExpense.copy(
+                    categoryId = cat.id,
+                    tag = cat.name,
+                    categorySource = com.subhashrelangi.arctracker.engine.category.CategorySource.USER_ASSIGNED
+                )
+                currentExpense = updated
                 if (!isEditMode) {
-                    onSaveEdit(expense.id, expense.merchant, cat.name, expense.note)
+                    onSaveEdit(updated)
                 }
             },
             onDismiss = { showCategoryPickerDialog = false }
@@ -810,8 +816,13 @@ fun TransactionDetailDialog(
                     currentTags = updated
                     val appendStr = if (editedNote.isBlank()) "#$cleanedTag" else "$editedNote #$cleanedTag"
                     editedNote = appendStr
+                    val updatedTxn = currentExpense.copy(
+                        note = appendStr,
+                        tag = editedCategory.ifBlank { currentExpense.tag }
+                    )
+                    currentExpense = updatedTxn
                     if (!isEditMode) {
-                        onSaveEdit(expense.id, expense.merchant, editedCategory.ifBlank { null }, appendStr)
+                        onSaveEdit(updatedTxn)
                     }
                 }
                 showAddTagDialog = false

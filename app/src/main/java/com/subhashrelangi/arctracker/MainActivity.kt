@@ -1596,10 +1596,10 @@ fun ExpenseScreen() {
                 onDismiss = {
                     detailExpense = null
                 },
-                onSaveEdit = { expenseId, merchant, category, note ->
+                onSaveEdit = { updatedExpense ->
                     scope.launch(Dispatchers.IO) {
                         try {
-                            val res = transactionManager.updateTransaction(expenseId, merchant, category, note)
+                            val res = transactionManager.updateTransaction(updatedExpense)
                             if (res.isFailure) {
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(context, "Failed to update transaction", Toast.LENGTH_SHORT).show()
@@ -1702,10 +1702,10 @@ fun ExpenseScreen() {
                 onDismiss = {
                     editExpense = null
                 },
-                onSaveEdit = { expenseId, merchant, category, note ->
+                onSaveEdit = { updatedExpense ->
                     scope.launch(Dispatchers.IO) {
                         try {
-                            val res = transactionManager.updateTransaction(expenseId, merchant, category, note)
+                            val res = transactionManager.updateTransaction(updatedExpense)
                             if (res.isFailure) {
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(context, "Failed to update transaction", Toast.LENGTH_SHORT).show()

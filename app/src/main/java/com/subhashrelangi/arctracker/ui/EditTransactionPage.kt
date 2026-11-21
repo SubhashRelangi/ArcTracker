@@ -80,7 +80,7 @@ fun EditTransactionPage(
     allCategories: List<TransactionCategory> = emptyList(),
     recentMerchants: List<String> = emptyList(),
     onBack: () -> Unit,
-    onSave: (expenseId: Int, merchant: String, category: String?, note: String?) -> Unit,
+    onSave: (updatedExpense: Expense) -> Unit,
     onDelete: (() -> Unit)? = null,
     onAssignAccount: ((expenseId: Int, accountId: String) -> Unit)? = null,
     onReassignAccount: ((expenseId: Int, accountId: String) -> Unit)? = null,
@@ -90,18 +90,18 @@ fun EditTransactionPage(
     val focusManager = LocalFocusManager.current
 
     // 1. Transaction Direction (Credit / Debit / Transfer)
-    var isCredit by remember(expense.type) {
+    var isCredit by remember(expense.id, expense.type) {
         mutableStateOf(expense.type.equals("Credit", ignoreCase = true))
     }
-    var isTransfer by remember(expense.type) {
+    var isTransfer by remember(expense.id, expense.type) {
         mutableStateOf(expense.type.equals("Transfer", ignoreCase = true))
     }
 
     // 2. Amount State
-    var currentAmount by remember(expense.amount) {
+    var currentAmount by remember(expense.id, expense.amount) {
         mutableDoubleStateOf(expense.amount)
     }
-    var amountText by remember(expense.amount) {
+    var amountText by remember(expense.id, expense.amount) {
         mutableStateOf(
             if (expense.amount > 0.0) {
                 if (expense.amount % 1.0 == 0.0) {
@@ -114,7 +114,7 @@ fun EditTransactionPage(
     }
 
     // 3. Merchant State (Starts with real merchant, no fake default)
-    var editedMerchant by remember(expense.merchant) {
+    var editedMerchant by remember(expense.id, expense.merchant) {
         mutableStateOf(expense.merchant)
     }
     var merchantError by remember { mutableStateOf<String?>(null) }
@@ -167,24 +167,24 @@ fun EditTransactionPage(
         }
     }
 
-    var editedCategory by remember(expense.category, isCredit) {
-        val initialName = expense.category ?: (if (isCredit) "Income" else "Other")
+    var editedCategory by remember(expense.id) {
+        val initialName = expense.tag ?: expense.category ?: (if (expense.type.equals("Credit", ignoreCase = true)) "Income" else "Other")
         mutableStateOf(initialName)
     }
-    var editedCategoryId by remember(expense.categoryId) {
+    var editedCategoryId by remember(expense.id) {
         mutableStateOf(expense.categoryId)
     }
 
     // 5. Chronology State
-    var currentDateMillis by remember(expense.dateMillis) {
-        mutableLongStateOf(if (expense.dateMillis > 0) expense.dateMillis else System.currentTimeMillis())
+    var currentDateMillis by remember(expense.id, expense.dateMillis) {
+        mutableLongStateOf(if (expense.dateMillis > 0L) expense.dateMillis else System.currentTimeMillis())
     }
 
     // 6. Notes and Tags State (Strictly real data only)
-    var noteText by remember(expense.note) {
+    var noteText by remember(expense.id, expense.note) {
         mutableStateOf(expense.note ?: "")
     }
-    var currentTags by remember(expense.note, expense.tag) {
+    var currentTags by remember(expense.id, expense.note, expense.tag) {
         mutableStateOf(extractTags(expense.note, expense.tag))
     }
 
@@ -198,14 +198,20 @@ fun EditTransactionPage(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showAmountEditDialog by remember { mutableStateOf(false) }
 
-    // Linked Account lookup
-    val linkedAccount = remember(expense.accountId, knownAccounts) {
-        knownAccounts.find { it.id == expense.accountId?.toString() || it.id == expense.accountId }
+    // Selected Account State
+    var selectedAccountId by remember(expense.id, expense.accountId) {
+        mutableStateOf(expense.accountId)
+    }
+    val selectedAccount = remember(selectedAccountId, knownAccounts) {
+        knownAccounts.find { it.id == selectedAccountId }
     }
 
-    // Formatted Date
-    val formattedDateTime = remember(currentDateMillis) {
-        SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.US).format(Date(currentDateMillis))
+    // Formatted Date and Time
+    val formattedDate = remember(currentDateMillis) {
+        SimpleDateFormat("MMM dd, yyyy", Locale.US).format(Date(currentDateMillis))
+    }
+    val formattedTime = remember(currentDateMillis) {
+        SimpleDateFormat("hh:mm a", Locale.US).format(Date(currentDateMillis))
     }
 
     // Resolved Category Visuals
@@ -222,19 +228,19 @@ fun EditTransactionPage(
 
     // Account Display (strictly authentic)
     val displayAccountName = when {
-        !linkedAccount?.institutionName.isNullOrBlank() -> linkedAccount!!.institutionName!!
-        !linkedAccount?.institutionId.isNullOrBlank() -> linkedAccount!!.institutionId!!
-        !expense.accountSuffix.isNullOrBlank() -> "Linked Account"
+        !selectedAccount?.institutionName.isNullOrBlank() -> selectedAccount!!.institutionName!!
+        !selectedAccount?.institutionId.isNullOrBlank() -> selectedAccount!!.institutionId!!
+        !expense.accountSuffix.isNullOrBlank() -> "Account ••${expense.accountSuffix}"
         else -> "No Account Linked"
     }
-    val displayAccountType = if (linkedAccount != null) {
-        AccountReconciliationManager.formatAccountType(linkedAccount.instrumentType, linkedAccount.accountSuffix)
+    val displayAccountType = if (selectedAccount != null) {
+        AccountReconciliationManager.formatAccountType(selectedAccount.instrumentType, selectedAccount.accountSuffix)
     } else if (!expense.accountSuffix.isNullOrBlank()) {
         "Account"
     } else {
         "Tap to assign an account"
     }
-    val suffix = expense.accountSuffix ?: linkedAccount?.accountSuffix
+    val suffix = selectedAccount?.accountSuffix ?: expense.accountSuffix
 
     // Sign
     val sign = if (isCredit) "+" else "-"
@@ -382,7 +388,28 @@ fun EditTransactionPage(
                                     } else {
                                         noteText.trim()
                                     }
-                                    onSave(expense.id, trimmed, categoryDisplayName.ifBlank { null }, finalNote.ifEmpty { null })
+                                    val resolvedType = when {
+                                        isTransfer -> "Transfer"
+                                        isCredit -> "Credit"
+                                        else -> "Debit"
+                                    }
+                                    val finalCategoryId = resolvedCategory?.id ?: editedCategoryId
+                                    val finalCategoryName = categoryDisplayName.ifBlank { if (isCredit) "Income" else "Other" }
+                                    val finalSuffix = selectedAccount?.accountSuffix ?: expense.accountSuffix
+
+                                    val updatedExpense = expense.copy(
+                                        merchant = trimmed,
+                                        amount = currentAmount.coerceAtLeast(0.0),
+                                        dateMillis = currentDateMillis,
+                                        type = resolvedType,
+                                        categoryId = finalCategoryId,
+                                        tag = finalCategoryName,
+                                        categorySource = com.subhashrelangi.arctracker.engine.category.CategorySource.USER_ASSIGNED,
+                                        note = finalNote.ifEmpty { null },
+                                        accountId = selectedAccountId,
+                                        accountSuffix = finalSuffix
+                                    )
+                                    onSave(updatedExpense)
                                 },
                                 modifier = Modifier
                                     .weight(if (onDelete != null) 1.3f else 1f)
@@ -430,7 +457,7 @@ fun EditTransactionPage(
             if (!expense.rawText.isNullOrBlank() || !expense.notificationKey.isNullOrBlank()) {
                 item {
                     val bannerAccountTitle = when {
-                        !linkedAccount?.institutionName.isNullOrBlank() -> linkedAccount!!.institutionName!!
+                        !selectedAccount?.institutionName.isNullOrBlank() -> selectedAccount!!.institutionName!!
                         !expense.accountSuffix.isNullOrBlank() -> "Account ••${expense.accountSuffix}"
                         else -> "SMS Transaction"
                     }
@@ -474,7 +501,7 @@ fun EditTransactionPage(
                                         fontWeight = FontWeight.Bold,
                                         color = slateTitle
                                     )
-                                    if (linkedAccount != null) {
+                                    if (selectedAccount != null) {
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Icon(
                                             imageVector = Icons.Default.CheckCircle,
@@ -530,6 +557,10 @@ fun EditTransactionPage(
                             onClick = {
                                 isCredit = false
                                 isTransfer = false
+                                if (editedCategory.equals("Income", true) || editedCategory.equals("Salary", true) || editedCategory.equals("Transfer", true)) {
+                                    editedCategory = "Other"
+                                    editedCategoryId = "other"
+                                }
                             },
                             modifier = Modifier
                                 .weight(1f)
@@ -558,6 +589,10 @@ fun EditTransactionPage(
                             onClick = {
                                 isCredit = true
                                 isTransfer = false
+                                if (!editedCategory.equals("Income", true) && !editedCategory.equals("Salary", true) && !editedCategory.equals("Refund", true)) {
+                                    editedCategory = "Income"
+                                    editedCategoryId = "income"
+                                }
                             },
                             modifier = Modifier
                                 .weight(1f)
@@ -585,6 +620,8 @@ fun EditTransactionPage(
                             onClick = {
                                 isTransfer = true
                                 isCredit = false
+                                editedCategory = "Transfer"
+                                editedCategoryId = "transfer"
                             },
                             modifier = Modifier
                                 .weight(1f)
@@ -1069,89 +1106,165 @@ fun EditTransactionPage(
 
             // 7. DATE & TIME
             item {
-                Surface(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    color = cardBg,
-                    border = BorderStroke(1.dp, cardBorder),
-                    shadowElevation = 0.5.dp
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    Text(
+                        text = "DATE & TIME",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = slateSub,
+                        letterSpacing = 0.5.sp
+                    )
+
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Date Tile
+                        Surface(
+                            modifier = Modifier
+                                .weight(1.1f)
+                                .height(68.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            color = cardBg,
+                            border = BorderStroke(1.dp, cardBorder),
+                            shadowElevation = 0.5.dp,
+                            onClick = {
                                 val cal = Calendar.getInstance().apply {
                                     timeInMillis = currentDateMillis
                                 }
                                 DatePickerDialog(
                                     context,
                                     { _, year, month, day ->
-                                        val timeCal = Calendar.getInstance().apply {
+                                        val c = Calendar.getInstance().apply {
                                             timeInMillis = currentDateMillis
                                         }
-                                        TimePickerDialog(
-                                            context,
-                                            { _, hour, minute ->
-                                                cal.set(Calendar.YEAR, year)
-                                                cal.set(Calendar.MONTH, month)
-                                                cal.set(Calendar.DAY_OF_MONTH, day)
-                                                cal.set(Calendar.HOUR_OF_DAY, hour)
-                                                cal.set(Calendar.MINUTE, minute)
-                                                currentDateMillis = cal.timeInMillis
-                                            },
-                                            timeCal.get(Calendar.HOUR_OF_DAY),
-                                            timeCal.get(Calendar.MINUTE),
-                                            false
-                                        ).show()
+                                        c.set(Calendar.YEAR, year)
+                                        c.set(Calendar.MONTH, month)
+                                        c.set(Calendar.DAY_OF_MONTH, day)
+                                        currentDateMillis = c.timeInMillis
                                     },
                                     cal.get(Calendar.YEAR),
                                     cal.get(Calendar.MONTH),
                                     cal.get(Calendar.DAY_OF_MONTH)
                                 ).show()
                             }
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Calendar Squircle
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(highlightSurface),
-                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CalendarToday,
-                                contentDescription = null,
-                                tint = slateSub,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(highlightSurface),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CalendarToday,
+                                        contentDescription = "Edit Date",
+                                        tint = ArcColors.Primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(10.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "DATE",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = slateSub,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Text(
+                                        text = formattedDate,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = slateTitle,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
                         }
 
-                        Spacer(modifier = Modifier.width(10.dp))
+                        // Time Tile
+                        Surface(
+                            modifier = Modifier
+                                .weight(0.9f)
+                                .height(68.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            color = cardBg,
+                            border = BorderStroke(1.dp, cardBorder),
+                            shadowElevation = 0.5.dp,
+                            onClick = {
+                                val cal = Calendar.getInstance().apply {
+                                    timeInMillis = currentDateMillis
+                                }
+                                TimePickerDialog(
+                                    context,
+                                    { _, hour, minute ->
+                                        val c = Calendar.getInstance().apply {
+                                            timeInMillis = currentDateMillis
+                                        }
+                                        c.set(Calendar.HOUR_OF_DAY, hour)
+                                        c.set(Calendar.MINUTE, minute)
+                                        c.set(Calendar.SECOND, 0)
+                                        currentDateMillis = c.timeInMillis
+                                    },
+                                    cal.get(Calendar.HOUR_OF_DAY),
+                                    cal.get(Calendar.MINUTE),
+                                    false
+                                ).show()
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(highlightSurface),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Schedule,
+                                        contentDescription = "Edit Time",
+                                        tint = ArcColors.Primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "DATE & TIME",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = slateSub,
-                                letterSpacing = 0.5.sp
-                            )
-                            Text(
-                                text = formattedDateTime,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = slateTitle
-                            )
+                                Spacer(modifier = Modifier.width(10.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "TIME",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = slateSub,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Text(
+                                        text = formattedTime,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = slateTitle,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
                         }
-
-                        Icon(
-                            imageVector = Icons.Default.EditCalendar,
-                            contentDescription = "Edit Date",
-                            tint = slateSub,
-                            modifier = Modifier.size(20.dp)
-                        )
                     }
                 }
             }
@@ -1384,16 +1497,12 @@ fun EditTransactionPage(
     // Account Picker Dialog
     if (showAccountPicker) {
         DarkAccountPickerDialog(
-            isReassign = linkedAccount != null,
+            isReassign = selectedAccount != null,
             candidateAccounts = knownAccounts,
-            currentSuffix = expense.accountSuffix,
+            currentSuffix = suffix,
             onSelectAccount = { acc ->
+                selectedAccountId = acc.id
                 showAccountPicker = false
-                if (linkedAccount != null) {
-                    onReassignAccount?.invoke(expense.id, acc.id)
-                } else {
-                    onAssignAccount?.invoke(expense.id, acc.id)
-                }
             },
             onDismiss = { showAccountPicker = false }
         )
